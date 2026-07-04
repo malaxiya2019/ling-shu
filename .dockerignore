@@ -1,0 +1,35 @@
+# ── Rust ──
+target/
+Cargo.lock
+
+# ── IDE ──
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Build system ──
+*.tar.gz
+*.deb
+*.rpm
+
+# ── Git ──
+.git/
+.gitignore
+.gitattributes
+
+# ── CI ──
+.github/
+
+# ── Docs ──
+docs/
+
+# ── Config (use volume mount) ──
+config/*.yaml
+config/*.yml
+
+# ── Data ──
+data/
+
+# ── Temp ──
+*.tmp

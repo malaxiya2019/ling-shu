@@ -1,0 +1,228 @@
+{
+  "project": "LingShu",
+  "version": "v1.0",
+  "language": "rust",
+  "workspace": "lingshu",
+
+  "tasks": [
+    {
+      "id": "0.1",
+      "phase": "bootstrap",
+      "name": "init workspace",
+      "description": "Create Rust Cargo workspace root and base structure",
+      "input": "Create Cargo workspace with crate folders",
+      "outputs": ["Cargo.toml", "core/", "traits/", "runtime/", "eventbus/", "security/", "config/", "storage/", "database/", "observability/", "backends/", "app/"],
+      "depends_on": [],
+      "status": "completed"
+    },
+    {
+      "id": "0.2",
+      "phase": "bootstrap",
+      "name": "create crate skeletons",
+      "description": "Generate all crate folders with Cargo.toml",
+      "input": "Create all crate Cargo.toml files with dependencies",
+      "outputs": ["*/Cargo.toml"],
+      "depends_on": ["0.1"],
+      "status": "completed"
+    },
+    {
+      "id": "1.1",
+      "phase": "core",
+      "name": "core types",
+      "description": "Define LsId, LsError, LsResult, LsContext",
+      "input": "Implement core type system",
+      "outputs": ["core/src/lib.rs", "core/src/id.rs", "core/src/error.rs", "core/src/context.rs"],
+      "depends_on": ["0.2"],
+      "status": "completed"
+    },
+    {
+      "id": "1.2",
+      "phase": "core",
+      "name": "core traits (14 traits)",
+      "description": "Define Agent, Tool, LLM, Memory, EventBus, Storage, Database, VectorStore, Embedding, Knowledge, Plugin, Repository, Runtime, Scheduler",
+      "input": "Implement 14 trait interfaces",
+      "outputs": ["traits/src/*.rs"],
+      "depends_on": ["1.1"],
+      "status": "completed"
+    },
+    {
+      "id": "2.1",
+      "phase": "runtime",
+      "name": "runtime engine",
+      "description": "Lifecycle + Session + Scheduler + Recovery",
+      "input": "Implement Runtime struct with lifecycle management",
+      "outputs": ["runtime/src/lib.rs", "runtime/src/lifecycle.rs", "runtime/src/session.rs", "runtime/src/scheduler.rs", "runtime/src/recovery.rs"],
+      "depends_on": ["1.2"],
+      "status": "completed"
+    },
+    {
+      "id": "2.2",
+      "phase": "eventbus",
+      "name": "event system",
+      "description": "InMemoryEventBus with pub/sub, topic, dead-letter",
+      "input": "Implement event bus system",
+      "outputs": ["eventbus/src/lib.rs", "eventbus/src/event.rs", "eventbus/src/topic.rs", "eventbus/src/bus.rs"],
+      "depends_on": ["1.2"],
+      "status": "completed"
+    },
+    {
+      "id": "2.3",
+      "phase": "security",
+      "name": "security system",
+      "description": "RBAC/ABAC permissions, JWT auth, Ed25519 service auth, audit logging",
+      "input": "Implement security and permission system",
+      "outputs": ["security/src/*.rs"],
+      "depends_on": ["1.1"],
+      "status": "completed"
+    },
+    {
+      "id": "2.4",
+      "phase": "config",
+      "name": "config system",
+      "description": "YAML config files with environment variable overrides",
+      "input": "Implement layered configuration system",
+      "outputs": ["config/src/lib.rs", "config/src/env.rs", "config/src/settings.rs", "config/*.yaml"],
+      "depends_on": ["1.1"],
+      "status": "completed"
+    },
+    {
+      "id": "3.1",
+      "phase": "llm",
+      "name": "LLM backends",
+      "description": "OpenAI, Anthropic, Groq providers with streaming and retry",
+      "input": "Implement LLM provider backends",
+      "outputs": ["backends/src/llm_*.rs", "backends/src/embedding_openai.rs"],
+      "depends_on": ["1.2"],
+      "status": "completed"
+    },
+    {
+      "id": "3.2",
+      "phase": "llm",
+      "name": "vector stores",
+      "description": "In-memory, SQLite, PostgreSQL vector stores",
+      "input": "Implement vector storage backends",
+      "outputs": ["backends/src/vector_*.rs"],
+      "depends_on": ["1.2"],
+      "status": "completed"
+    },
+    {
+      "id": "4.1",
+      "phase": "storage",
+      "name": "storage backend",
+      "description": "LocalStorage implementation for file management",
+      "input": "Implement LocalStorage with upload/download",
+      "outputs": ["storage/src/lib.rs"],
+      "depends_on": ["1.2"],
+      "status": "completed"
+    },
+    {
+      "id": "4.2",
+      "phase": "storage",
+      "name": "database backends",
+      "description": "SQLite + PostgreSQL database implementations with auto-migration",
+      "input": "Implement SQLite and Postgres databases",
+      "outputs": ["database/src/lib.rs", "database/src/sqlite.rs", "database/src/postgres.rs"],
+      "depends_on": ["1.2"],
+      "status": "completed"
+    },
+    {
+      "id": "5.1",
+      "phase": "observability",
+      "name": "observability stack",
+      "description": "Tracing, Prometheus metrics, health checks, span helpers",
+      "input": "Implement observability stack",
+      "outputs": ["observability/src/*.rs"],
+      "depends_on": ["1.1"],
+      "status": "completed"
+    },
+    {
+      "id": "6.1",
+      "phase": "tcp",
+      "name": "TCP runtime server",
+      "description": "TCP server with session management, streaming, graceful shutdown",
+      "input": "Implement TCP server",
+      "depends_on": ["2.1", "2.2"],
+      "status": "completed"
+    },
+    {
+      "id": "7.1",
+      "phase": "http",
+      "name": "HTTP API Gateway",
+      "description": "Axum HTTP server with REST endpoints, WebSocket streaming, OpenAI compatible API",
+      "input": "Implement HTTP API server",
+      "outputs": ["app/src/main.rs", "app/src/api.rs"],
+      "depends_on": ["2.1", "2.2", "3.1"],
+      "status": "completed"
+    },
+    {
+      "id": "8.1",
+      "phase": "plugin",
+      "name": "Plugin traits and types",
+      "description": "Define Plugin trait, PluginInfo, PluginManifest, PluginStatus",
+      "input": "Implement plugin trait system",
+      "outputs": ["traits/src/plugin.rs"],
+      "depends_on": ["1.2"],
+      "status": "pending"
+    },
+    {
+      "id": "8.2",
+      "phase": "plugin",
+      "name": "Plugin loader",
+      "description": "Dynamic and static plugin loading with sandbox",
+      "input": "Implement PluginLoader with sandbox",
+      "outputs": ["plugin/src/lib.rs", "plugin/src/loader.rs", "plugin/src/sandbox.rs"],
+      "depends_on": ["8.1"],
+      "status": "pending"
+    },
+    {
+      "id": "9.1",
+      "phase": "workflow",
+      "name": "DAG workflow engine",
+      "description": "DAG-based workflow executor with nodes, edges, branching, retry",
+      "input": "Implement DAG workflow engine",
+      "outputs": ["workflow/src/lib.rs"],
+      "depends_on": ["1.2"],
+      "status": "pending"
+    },
+    {
+      "id": "10.1",
+      "phase": "multi-agent",
+      "name": "Multi-Agent Orchestrator",
+      "description": "Agent registry, scheduler, communication, task delegation",
+      "input": "Implement multi-agent orchestration",
+      "outputs": ["orchestrator/src/lib.rs"],
+      "depends_on": ["2.1", "2.2"],
+      "status": "pending"
+    },
+    {
+      "id": "11.1",
+      "phase": "rag",
+      "name": "RAG knowledge base",
+      "description": "Embedding, chunking, vector store, retriever, hybrid search",
+      "input": "Implement RAG knowledge base",
+      "outputs": ["knowledge/src/lib.rs"],
+      "depends_on": ["3.1", "3.2"],
+      "status": "pending"
+    },
+    {
+      "id": "12.1",
+      "phase": "distributed",
+      "name": "Distributed runtime",
+      "description": "Cluster, leader election, distributed queue/cache/memory",
+      "input": "Implement distributed runtime",
+      "outputs": ["distributed/src/lib.rs"],
+      "depends_on": ["2.1"],
+      "status": "pending"
+    },
+    {
+      "id": "13.1",
+      "phase": "cloud",
+      "name": "Cloud deployment",
+      "description": "Docker, Kubernetes, Helm charts",
+      "input": "Implement cloud deployment configs",
+      "outputs": ["Dockerfile", "docker-compose.yml", "k8s/*.yaml", "helm/*"],
+      "depends_on": ["7.1"],
+      "status": "pending"
+    }
+  ]
+}

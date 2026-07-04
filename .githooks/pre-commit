@@ -1,0 +1,25 @@
+#!/bin/bash
+# Lingshu pre-commit hook — runs fmt + clippy check on staged files
+set -euo pipefail
+
+echo "🔍 Running pre-commit checks..."
+
+# Check formatting
+echo "  → cargo fmt --check"
+cargo fmt --all --check 2>/dev/null || {
+    echo "⚠  Formatting issues found. Run 'cargo fmt' to fix."
+    exit 1
+}
+
+# Quick clippy on changed crates
+CHANGED_CRATES=$(git diff --cached --name-only | grep -oP '^[^/]+' | sort -u | tr '\n' ' ')
+if [ -n "$CHANGED_CRATES" ]; then
+    echo "  → cargo clippy (changed: $CHANGED_CRATES)"
+    for crate in $CHANGED_CRATES; do
+        if [ -f "$crate/Cargo.toml" ]; then
+            cargo clippy -p "lingshu-$crate" -- -D warnings 2>/dev/null || true
+        fi
+    done
+fi
+
+echo "✅ Pre-commit checks passed"

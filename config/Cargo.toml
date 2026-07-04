@@ -1,0 +1,16 @@
+[package]
+name = "lingshu-config"
+version.workspace = true
+edition.workspace = true
+description = "LSConfig — Configuration system: YAML files, env overrides, layered priority"
+
+[dependencies]
+lingshu-core = { path = "../core" }
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+serial_test = "3"

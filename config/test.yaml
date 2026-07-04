@@ -1,0 +1,27 @@
+# Lingshu 测试环境配置
+runtime:
+  max_concurrent_tasks: 32
+  session_ttl_seconds: 600
+  enable_snapshot: true
+
+eventbus:
+  max_retries: 2
+  retention_days: 1
+  audit_retention_days: 30
+
+security:
+  default_isolation: session
+  enable_audit: true
+
+llm:
+  default_model: gpt-4o-mini
+  max_tokens: 2048
+  timeout_seconds: 30
+
+storage:
+  provider: local
+  bucket: lingshu-test
+  region: us-east-1
+
+database:
+  max_connections: 10

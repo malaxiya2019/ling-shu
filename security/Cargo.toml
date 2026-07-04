@@ -1,0 +1,21 @@
+[package]
+name = "lingshu-security"
+version.workspace = true
+edition.workspace = true
+description = "LSSecurity — RBAC + ABAC permissions, JWT auth, audit logging"
+
+[dependencies]
+lingshu-core = { path = "../core" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+jsonwebtoken.workspace = true
+ed25519-dalek = { version = "2", default-features = false, features = ["pkcs8", "pem", "rand_core"] }
+rand = "0.8"
+base64 = "0.22"
+sha2 = "0.10"

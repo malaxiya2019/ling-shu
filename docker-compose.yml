@@ -1,0 +1,34 @@
+version: "3.9"
+
+services:
+  lingshu:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - LS_ENV=dev
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    volumes:
+      - lingshu_data:/var/lib/lingshu
+      - ./config:/etc/lingshu/config:ro
+    restart: unless-stopped
+
+  # PostgreSQL (optional — for production vector store)
+  postgres:
+    image: pgvector/pgvector:pg17
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: lingshu
+      POSTGRES_USER: lingshu
+      POSTGRES_PASSWORD: lingshu_dev
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    profiles:
+      - full
+      - prod
+
+volumes:
+  lingshu_data:
+  pgdata:

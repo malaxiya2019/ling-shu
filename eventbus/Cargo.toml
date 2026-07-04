@@ -1,0 +1,21 @@
+[package]
+name = "lingshu-eventbus"
+version.workspace = true
+edition.workspace = true
+description = "LSEventBus — Event system: publish, subscribe, replay, dead-letter"
+
+[dependencies]
+lingshu-core = { path = "../core" }
+lingshu-traits = { path = "../traits" }
+lingshu-observability = { path = "../observability" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tracing-subscriber.workspace = true

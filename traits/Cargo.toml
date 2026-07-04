@@ -1,0 +1,17 @@
+[package]
+name = "lingshu-traits"
+version.workspace = true
+edition.workspace = true
+description = "LSTraits — 14 core trait interfaces per LSCode v1.0.0"
+
+[dependencies]
+lingshu-core = { path = "../core" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+thiserror.workspace = true

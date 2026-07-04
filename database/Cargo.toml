@@ -1,0 +1,29 @@
+[package]
+name = "lingshu-database"
+version.workspace = true
+edition.workspace = true
+description = "LSDatabase — SQLite (dev) + PostgreSQL (prod), auto migration, Repository pattern"
+
+[features]
+default = ["sqlite"]
+sqlite = ["dep:rusqlite"]
+postgres = ["dep:sqlx", "dep:tokio-postgres"]
+
+[dependencies]
+lingshu-core = { path = "../core" }
+lingshu-traits = { path = "../traits" }
+lingshu-config = { path = "../config" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+rusqlite = { version = "0.32", features = ["bundled", "uuid", "chrono"], optional = true }
+sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "chrono", "uuid", "json", "migrate"], optional = true }
+tokio-postgres = { version = "0.7", features = ["with-chrono-0_4", "with-uuid-1", "with-serde_json-1"], optional = true }
+
+[dev-dependencies]
+tracing-subscriber.workspace = true

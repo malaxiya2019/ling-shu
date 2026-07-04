@@ -1,0 +1,49 @@
+# ── Rust ──
+target/
+Cargo.lock
+
+# ── IDE / Editor ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Environment ──
+.env
+.env.local
+*.env.local
+
+# ── Build artifacts ──
+*.o
+*.so
+*.dylib
+*.exe
+*.dll
+*.rlib
+*.rmeta
+
+# ── Logs ──
+*.log
+/var/log/lingshu/
+
+# ── Data / Storage ──
+data/
+*.db
+*.sqlite
+/var/lib/lingshu/
+
+# ── Config overrides ──
+config/local.yaml
+config/prod.yaml
+config/*.local.*
+
+# ── Generated docs ──
+docs/build/
+docs/output/
+
+# ── Temporary files ──
+tmp/
+*.tmp

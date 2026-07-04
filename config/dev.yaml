@@ -1,0 +1,29 @@
+# Lingshu 开发环境配置
+runtime:
+  max_concurrent_tasks: 16
+  session_ttl_seconds: 3600
+  enable_snapshot: true
+
+eventbus:
+  max_retries: 3
+  retention_days: 1
+  audit_retention_days: 7
+
+security:
+  default_isolation: session
+  enable_audit: true
+  # jwt_secret: 仅通过环境变量注入
+
+llm:
+  default_model: gpt-4o-mini
+  max_tokens: 2048
+  timeout_seconds: 60
+
+storage:
+  provider: local
+  bucket: lingshu-dev
+  region: us-east-1
+
+database:
+  max_connections: 5
+  # url: 仅通过环境变量注入

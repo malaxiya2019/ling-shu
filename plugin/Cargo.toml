@@ -1,0 +1,19 @@
+[package]
+name = "lingshu-plugin"
+version.workspace = true
+edition.workspace = true
+description = "Lingshu Plugin Runtime — plugin registry, loader, sandbox"
+
+[dependencies]
+lingshu-core = { path = "../core" }
+lingshu-traits = { path = "../traits" }
+
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+libloading = "0.8"
