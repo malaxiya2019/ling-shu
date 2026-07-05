@@ -15,8 +15,6 @@ use tracing::info;
 
 #[cfg(test)]
 use async_trait::async_trait;
-#[cfg(test)]
-use lingshu_traits::tool::ToolInfo;
 
 /// 工具注册表 — 线程安全，支持动态注册/注销
 pub struct ToolRegistry {
@@ -40,13 +38,10 @@ impl ToolRegistry {
         info!(tool = %name, "tool registered");
     }
 
-    /// 按名称查找工具
-    pub async fn get(
-        &self,
-        _name: &str,
-    ) -> Option<tokio::sync::RwLockReadGuard<'_, Box<dyn Tool>>> {
-        // This is a simplified approach
-        None
+    /// 获取工具信息 (按名称).
+    pub async fn get(&self, name: &str) -> Option<lingshu_traits::tool::ToolInfo> {
+        let tools = self.tools.read().await;
+        tools.get(name).map(|tool| tool.info())
     }
 
     /// 执行工具调用
@@ -135,7 +130,7 @@ impl Default for ToolRegistry {
 mod tests {
     use super::*;
     use lingshu_core::LsContext;
-    use lingshu_traits::tool::ToolParam;
+    use lingshu_traits::tool::{ToolInfo, ToolParam};
 
     struct EchoTool;
 

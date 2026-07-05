@@ -24,11 +24,13 @@ lingshu-core = { path = "../core" }
 lingshu-traits = { path = "../traits" }
 lingshu-config = { path = "../config" }
 lingshu-observability = { path = "../observability" }
+lingshu-runtime = { path = "../runtime" }
 async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 uuid.workspace = true
 chrono.workspace = true
+meval = "0.2"
 tokio = { workspace = true, features = ["sync"] }
 tracing.workspace = true
 thiserror.workspace = true
@@ -38,7 +40,6 @@ rusqlite = { version = "0.32", features = ["bundled", "uuid"], optional = true }
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "chrono", "uuid"], optional = true }
 
 [dev-dependencies]
-lingshu-runtime = { path = "../runtime" }
 lingshu-eventbus = { path = "../eventbus" }
 lingshu-observability = { path = "../observability", features = ["metrics", "http"] }
 tracing-subscriber.workspace = true

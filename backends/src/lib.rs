@@ -20,6 +20,12 @@
 //! - `pg` — 基于 PostgreSQL 的持久化向量存储 (feature: `vector-store-pg`)
 
 #[cfg(feature = "openai")]
+pub mod tools;
+#[cfg(feature = "vector-store-sqlite")]
+pub mod memory_sqlite;
+pub mod agent_default;
+pub mod workflow;
+
 pub mod embedding_openai;
 pub mod knowledge_mem;
 #[cfg(feature = "anthropic")]
@@ -49,6 +55,9 @@ pub use llm_openai::OpenAiLlm;
 pub use llm_retry::{with_retry, RetryLlm};
 #[cfg(feature = "mock")]
 pub use mock_llm::MockLlm;
+#[cfg(feature = "vector-store-sqlite")]
+pub use agent_default::{AgentConfig, DefaultAgent};
+pub use memory_sqlite::MemorySQLite;
 pub use vector_memory::VectorMemory;
 pub use vector_store_mem::InMemoryVectorStore;
 #[cfg(feature = "vector-store-pg")]
