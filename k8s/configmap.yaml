@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lingshu-config
+  namespace: lingshu
+  labels:
+    app.kubernetes.io/name: lingshu
+data:
+  LS_ENV: "prod"
+  LS_CLUSTER_ADDR: "0.0.0.0:9090"
+  LS_LOG_LEVEL: "info"

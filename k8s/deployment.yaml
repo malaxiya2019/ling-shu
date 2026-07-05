@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lingshu
+  namespace: lingshu
+  labels:
+    app.kubernetes.io/name: lingshu
+    app.kubernetes.io/component: api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lingshu
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lingshu
+        app.kubernetes.io/component: api
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: lingshu
+          image: ghcr.io/malaxiya2019/lingshu:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 9090
+              name: cluster
+          env:
+            - name: LS_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: lingshu-config
+                  key: LS_ENV
+            - name: LS_CLUSTER_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: lingshu-config
+                  key: LS_CLUSTER_ADDR
+            - name: LS_LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: lingshu-config
+                  key: LS_LOG_LEVEL
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: lingshu-secrets
+                  key: openai_api_key
+                  optional: true
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: lingshu-secrets
+                  key: anthropic_api_key
+                  optional: true
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "256Mi"
+            limits:
+              cpu: "2"
+              memory: "1Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/lingshu
+            - name: config
+              mountPath: /etc/lingshu/config
+              readOnly: true
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: lingshu-data
+        - name: config
+          configMap:
+            name: lingshu-config

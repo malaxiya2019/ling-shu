@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lingshu
+  labels:
+    app.kubernetes.io/name: lingshu
+    app.kubernetes.io/part-of: lingshu

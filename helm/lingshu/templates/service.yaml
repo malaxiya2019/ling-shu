@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lingshu.fullname" . }}
+  labels:
+    {{- include "lingshu.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.httpPort }}
+      targetPort: http
+      name: http
+    - port: {{ .Values.service.clusterPort }}
+      targetPort: cluster
+      name: cluster
+  selector:
+    {{- include "lingshu.selectorLabels" . | nindent 4 }}

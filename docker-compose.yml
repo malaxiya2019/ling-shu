@@ -5,16 +5,45 @@ services:
     build: .
     ports:
       - "8080:8080"
+      - "9090:9090"
     environment:
       - LS_ENV=dev
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - LS_CLUSTER_SEED=lingshu:9090
+      - LS_CLUSTER_ADDR=0.0.0.0:9090
     volumes:
       - lingshu_data:/var/lib/lingshu
       - ./config:/etc/lingshu/config:ro
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
 
-  # PostgreSQL (optional — for production vector store)
+  lingshu-worker:
+    build: .
+    ports:
+      - "8081:8080"
+      - "9091:9090"
+    environment:
+      - LS_ENV=dev
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - LS_CLUSTER_SEED=lingshu:9090
+      - LS_CLUSTER_ADDR=0.0.0.0:9090
+    volumes:
+      - lingshu_data:/var/lib/lingshu
+      - ./config:/etc/lingshu/config:ro
+    restart: unless-stopped
+    profiles:
+      - cluster
+    depends_on:
+      lingshu:
+        condition: service_healthy
+
   postgres:
     image: pgvector/pgvector:pg17
     ports:
@@ -29,6 +58,17 @@ services:
       - full
       - prod
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    profiles:
+      - full
+      - prod
+
 volumes:
   lingshu_data:
   pgdata:
+  redis_data:

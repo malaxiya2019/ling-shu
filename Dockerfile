@@ -1,4 +1,4 @@
-# ── Stage 1: Build ──────────────────────────────────
+# ── Stage 1: Build ──
 FROM rust:1.88-slim-bookworm AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -7,22 +7,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
-COPY core/Cargo.toml core/
-COPY traits/Cargo.toml traits/
-COPY runtime/Cargo.toml runtime/
-COPY eventbus/Cargo.toml eventbus/
-COPY security/Cargo.toml security/
-COPY config/Cargo.toml config/
-COPY storage/Cargo.toml storage/
-COPY database/Cargo.toml database/
-COPY observability/Cargo.toml observability/
-COPY backends/Cargo.toml backends/
-COPY app/Cargo.toml app/
+
+# Copy all crate Cargo.toml files for dependency caching
+COPY core/Cargo.toml traits/Cargo.toml runtime/Cargo.toml eventbus/Cargo.toml ./
+COPY security/Cargo.toml config/Cargo.toml storage/Cargo.toml database/Cargo.toml ./
+COPY observability/Cargo.toml backends/Cargo.toml plugin/Cargo.toml ./
+COPY orchestrator/Cargo.toml polyglot/Cargo.toml distributed/Cargo.toml ./
+COPY app/Cargo.toml tests/Cargo.toml ./
 
 RUN mkdir -p core/src traits/src runtime/src eventbus/src \
     security/src config/src storage/src database/src \
-    observability/src backends/src app/src && \
-    for d in core traits runtime eventbus security config storage database observability backends app; do \
+    observability/src backends/src plugin/src \
+    orchestrator/src polyglot/src distributed/src \
+    app/src tests/src && \
+    for d in core traits runtime eventbus security config storage database \
+             observability backends plugin orchestrator polyglot distributed app tests; do \
         echo "// placeholder" > "$d/src/lib.rs" 2>/dev/null || true; \
     done && \
     echo "fn main() {}" > app/src/main.rs && \
@@ -31,11 +30,11 @@ RUN mkdir -p core/src traits/src runtime/src eventbus/src \
 COPY . .
 RUN cargo build --release -p lingshu
 
-# ── Stage 2: Runtime ────────────────────────────────
+# ── Stage 2: Runtime ──
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates && \
+    ca-certificates curl && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/target/release/lingshu /usr/local/bin/lingshu
@@ -43,9 +42,12 @@ COPY config/ /etc/lingshu/config/
 
 RUN mkdir -p /var/lib/lingshu /var/log/lingshu
 
-EXPOSE 8080
+EXPOSE 8080 9090
 
 ENV LS_ENV=prod
 
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -sf http://localhost:8080/health || exit 1
+
 ENTRYPOINT ["/usr/local/bin/lingshu"]
-CMD ["--serve", "--addr", "0.0.0.0:8080"]
+CMD ["serve", "--addr", "0.0.0.0:8080"]
