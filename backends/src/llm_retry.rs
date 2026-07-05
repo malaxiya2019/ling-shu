@@ -11,10 +11,10 @@
 //! ```
 
 use async_trait::async_trait;
-use std::collections::HashMap;
-use std::time::Duration;
 use lingshu_core::{LsContext, LsError, LsResult};
 use lingshu_traits::llm::{Llm, LlmChunk, LlmRequest, LlmResponse};
+use std::collections::HashMap;
+use std::time::Duration;
 use tokio::sync::mpsc;
 
 /// 带有超时和自动重试的 LLM 包装器.
@@ -68,7 +68,8 @@ impl Llm for RetryLlm {
             if attempt > 0 {
                 let delay = Self::backoff(attempt - 1);
                 tracing::warn!(
-                    attempt, delay_ms = delay.as_millis(),
+                    attempt,
+                    delay_ms = delay.as_millis(),
                     "retrying LLM invoke after error"
                 );
                 tokio::time::sleep(delay).await;
@@ -118,7 +119,9 @@ impl Llm for RetryLlm {
                             }
                             Ok(None) => break,
                             Err(_) => {
-                                let _ = tx.send(Err(LsError::Timeout("stream: idle timeout".into()))).await;
+                                let _ = tx
+                                    .send(Err(LsError::Timeout("stream: idle timeout".into())))
+                                    .await;
                                 break;
                             }
                         }
@@ -127,7 +130,9 @@ impl Llm for RetryLlm {
                 Ok(rx_out)
             }
             Ok(Err(e)) => Err(e),
-            Err(_) => Err(LsError::Timeout("stream: initial connection timed out".into())),
+            Err(_) => Err(LsError::Timeout(
+                "stream: initial connection timed out".into(),
+            )),
         }
     }
 
@@ -137,11 +142,7 @@ impl Llm for RetryLlm {
 }
 
 /// 将 LLM 实例包装为带超时重试的版本.
-pub fn with_retry(
-    inner: Box<dyn Llm>,
-    max_retries: u32,
-    timeout_secs: u64,
-) -> Box<dyn Llm> {
+pub fn with_retry(inner: Box<dyn Llm>, max_retries: u32, timeout_secs: u64) -> Box<dyn Llm> {
     Box::new(RetryLlm::new(inner, max_retries, timeout_secs))
 }
 
@@ -159,9 +160,12 @@ mod tests {
         let ctx = LsContext::with_session(LsId::new());
         let request = LlmRequest {
             model: "mock".into(),
-            messages: vec![
-                LlmMessage { role: LlmRole::User, content: "hello".into(), name: None, tool_calls: None },
-            ],
+            messages: vec![LlmMessage {
+                role: LlmRole::User,
+                content: "hello".into(),
+                name: None,
+                tool_calls: None,
+            }],
             temperature: None,
             max_tokens: None,
             tools: None,

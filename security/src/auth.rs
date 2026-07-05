@@ -57,13 +57,19 @@ impl JwtService {
 
     /// 从环境变量 `LS_SECURITY_JWT_SECRET` 或配置创建.
     pub fn from_env_or(default_secret: &str, ttl_seconds: u64) -> Self {
-        let secret = std::env::var("LS_SECURITY_JWT_SECRET")
-            .unwrap_or_else(|_| default_secret.to_string());
+        let secret =
+            std::env::var("LS_SECURITY_JWT_SECRET").unwrap_or_else(|_| default_secret.to_string());
         Self::new(secret, ttl_seconds)
     }
 
     /// 签发 JWT 令牌.
-    pub fn issue(&self, user_id: &str, session_id: &str, tenant_id: Option<&str>, roles: Vec<String>) -> LsResult<String> {
+    pub fn issue(
+        &self,
+        user_id: &str,
+        session_id: &str,
+        tenant_id: Option<&str>,
+        roles: Vec<String>,
+    ) -> LsResult<String> {
         let now = chrono::Utc::now();
         let claims = Claims {
             sub: user_id.to_string(),
@@ -84,8 +90,9 @@ impl JwtService {
         let mut validation = Validation::new(jsonwebtoken::Algorithm::HS256);
         validation.validate_exp = true;
 
-        let token_data = decode::<Claims>(token, &DecodingKey::from_secret(&self.secret), &validation)
-            .map_err(|e| LsError::AuthenticationFailed(format!("jwt decode: {e}")))?;
+        let token_data =
+            decode::<Claims>(token, &DecodingKey::from_secret(&self.secret), &validation)
+                .map_err(|e| LsError::AuthenticationFailed(format!("jwt decode: {e}")))?;
 
         Ok(token_data.claims)
     }
@@ -106,7 +113,10 @@ impl JwtService {
 ///
 /// 推荐使用 `Ed25519Service` (见 `service_auth` 模块) 替代此骨架实现。
 #[derive(Debug)]
-#[deprecated(since = "1.0.0", note = "use Ed25519Service from service_auth module instead")]
+#[deprecated(
+    since = "1.0.0",
+    note = "use Ed25519Service from service_auth module instead"
+)]
 pub struct ServiceAuth;
 
 #[allow(deprecated)]
@@ -117,13 +127,21 @@ impl ServiceAuth {
     /// - `payload`: 请求体
     /// - `signature`: 签名值 (hex 或 base64)
     /// - `public_key`: 对端公钥
-    pub fn verify_signature(_payload: &[u8], _signature: &[u8], _public_key: &[u8]) -> LsResult<bool> {
-        Err(LsError::NotImplemented("service auth — use Ed25519Service instead".into()))
+    pub fn verify_signature(
+        _payload: &[u8],
+        _signature: &[u8],
+        _public_key: &[u8],
+    ) -> LsResult<bool> {
+        Err(LsError::NotImplemented(
+            "service auth — use Ed25519Service instead".into(),
+        ))
     }
 
     /// 对请求签名.
     pub fn sign(_payload: &[u8], _private_key: &[u8]) -> LsResult<Vec<u8>> {
-        Err(LsError::NotImplemented("service auth — use Ed25519Service instead".into()))
+        Err(LsError::NotImplemented(
+            "service auth — use Ed25519Service instead".into(),
+        ))
     }
 }
 
@@ -138,7 +156,14 @@ mod tests {
     #[test]
     fn test_issue_and_verify() {
         let svc = test_service();
-        let token = svc.issue("user_abc", "session_xyz", Some("tenant_1"), vec!["admin".into()]).unwrap();
+        let token = svc
+            .issue(
+                "user_abc",
+                "session_xyz",
+                Some("tenant_1"),
+                vec!["admin".into()],
+            )
+            .unwrap();
         assert!(!token.is_empty());
 
         let claims = svc.verify(&token).unwrap();
@@ -195,12 +220,16 @@ mod tests {
 
     #[test]
     fn test_from_env() {
-        unsafe { std::env::set_var("LS_SECURITY_JWT_SECRET", "env-secret"); }
+        unsafe {
+            std::env::set_var("LS_SECURITY_JWT_SECRET", "env-secret");
+        }
         let svc = JwtService::from_env_or("fallback", 300);
         let token = svc.issue("dave", "s4", None, vec![]).unwrap();
         let claims = svc.verify(&token).unwrap();
         assert_eq!(claims.sub, "dave");
-        unsafe { std::env::remove_var("LS_SECURITY_JWT_SECRET"); }
+        unsafe {
+            std::env::remove_var("LS_SECURITY_JWT_SECRET");
+        }
     }
 
     #[test]

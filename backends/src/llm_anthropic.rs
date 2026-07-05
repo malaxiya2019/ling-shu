@@ -6,13 +6,12 @@
 //! - 用量统计
 
 use async_trait::async_trait;
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
 use lingshu_core::{LsContext, LsError, LsResult};
 use lingshu_traits::llm::*;
-use tracing::{info, debug, warn};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::mpsc;
 
 // ── Anthropic API 类型 ──────────────────────────────
@@ -133,19 +132,22 @@ impl AnthropicLlm {
     }
 
     fn convert_messages(msgs: &[LlmMessage]) -> Vec<AnthropicMessage> {
-        msgs.iter().map(|m| AnthropicMessage {
-            role: match m.role {
-                LlmRole::System => "user".to_string(),
-                LlmRole::User => "user".to_string(),
-                LlmRole::Assistant => "assistant".to_string(),
-                LlmRole::Tool => "user".to_string(),
-            },
-            content: m.content.clone(),
-        }).collect()
+        msgs.iter()
+            .map(|m| AnthropicMessage {
+                role: match m.role {
+                    LlmRole::System => "user".to_string(),
+                    LlmRole::User => "user".to_string(),
+                    LlmRole::Assistant => "assistant".to_string(),
+                    LlmRole::Tool => "user".to_string(),
+                },
+                content: m.content.clone(),
+            })
+            .collect()
     }
 
     fn extract_system(msgs: &[LlmMessage]) -> Option<String> {
-        msgs.iter().find(|m| matches!(m.role, LlmRole::System))
+        msgs.iter()
+            .find(|m| matches!(m.role, LlmRole::System))
             .map(|m| m.content.clone())
     }
 }
@@ -165,7 +167,8 @@ impl Llm for AnthropicLlm {
             stream: Some(false),
         };
 
-        let resp = self.client
+        let resp = self
+            .client
             .post(self.messages_url())
             .header("x-api-key", &self.api_key)
             .header("anthropic-version", &self.anthropic_version)
@@ -178,7 +181,9 @@ impl Llm for AnthropicLlm {
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
-            return Err(LsError::Llm(format!("Anthropic API error {status}: {body}")));
+            return Err(LsError::Llm(format!(
+                "Anthropic API error {status}: {body}"
+            )));
         }
 
         let msg_resp: MessagesResponse = resp
@@ -186,13 +191,17 @@ impl Llm for AnthropicLlm {
             .await
             .map_err(|e| LsError::Llm(format!("anthropic parse failed: {e}")))?;
 
-        let text = msg_resp.content.into_iter()
+        let text = msg_resp
+            .content
+            .into_iter()
             .find(|b| b.block_type == "text")
             .and_then(|b| b.text)
             .unwrap_or_default();
 
-        self.input_tokens.fetch_add(msg_resp.usage.input_tokens, Ordering::AcqRel);
-        self.output_tokens.fetch_add(msg_resp.usage.output_tokens, Ordering::AcqRel);
+        self.input_tokens
+            .fetch_add(msg_resp.usage.input_tokens, Ordering::AcqRel);
+        self.output_tokens
+            .fetch_add(msg_resp.usage.output_tokens, Ordering::AcqRel);
 
         Ok(LlmResponse {
             message: LlmMessage {
@@ -245,7 +254,11 @@ impl Llm for AnthropicLlm {
             {
                 Ok(r) => r,
                 Err(e) => {
-                    let _ = tx.send(Err(LsError::Llm(format!("anthropic stream request failed: {e}")))).await;
+                    let _ = tx
+                        .send(Err(LsError::Llm(format!(
+                            "anthropic stream request failed: {e}"
+                        ))))
+                        .await;
                     return;
                 }
             };
@@ -253,7 +266,11 @@ impl Llm for AnthropicLlm {
             if !response.status().is_success() {
                 let status = response.status();
                 let body = response.text().await.unwrap_or_default();
-                let _ = tx.send(Err(LsError::Llm(format!("Anthropic API error {status}: {body}")))).await;
+                let _ = tx
+                    .send(Err(LsError::Llm(format!(
+                        "Anthropic API error {status}: {body}"
+                    ))))
+                    .await;
                 return;
             }
 
@@ -266,7 +283,9 @@ impl Llm for AnthropicLlm {
                 let bytes = match chunk_result {
                     Ok(b) => b,
                     Err(e) => {
-                        let _ = tx.send(Err(LsError::Llm(format!("stream read error: {e}")))).await;
+                        let _ = tx
+                            .send(Err(LsError::Llm(format!("stream read error: {e}"))))
+                            .await;
                         break;
                     }
                 };
@@ -285,23 +304,30 @@ impl Llm for AnthropicLlm {
                     if let Some(data) = line.strip_prefix("data: ") {
                         match current_event.as_str() {
                             "content_block_delta" => {
-                                if let Ok(delta) = serde_json::from_str::<ContentBlockDeltaEvent>(data) {
+                                if let Ok(delta) =
+                                    serde_json::from_str::<ContentBlockDeltaEvent>(data)
+                                {
                                     if let Some(text) = delta.delta.text {
-                                        let _ = tx.send(Ok(LlmChunk {
-                                            content: Some(text),
-                                            tool_calls: None,
-                                            finish_reason: None,
-                                        })).await;
+                                        let _ = tx
+                                            .send(Ok(LlmChunk {
+                                                content: Some(text),
+                                                tool_calls: None,
+                                                finish_reason: None,
+                                            }))
+                                            .await;
                                     }
                                 }
                             }
                             "message_delta" => {
-                                if let Ok(_delta) = serde_json::from_str::<MessageDeltaEvent>(data) {
-                                    let _ = tx.send(Ok(LlmChunk {
-                                        content: None,
-                                        tool_calls: None,
-                                        finish_reason: Some("stop".into()),
-                                    })).await;
+                                if let Ok(_delta) = serde_json::from_str::<MessageDeltaEvent>(data)
+                                {
+                                    let _ = tx
+                                        .send(Ok(LlmChunk {
+                                            content: None,
+                                            tool_calls: None,
+                                            finish_reason: Some("stop".into()),
+                                        }))
+                                        .await;
                                 }
                             }
                             _ => {
@@ -319,8 +345,14 @@ impl Llm for AnthropicLlm {
 
     async fn usage_stats(&self, _ctx: LsContext) -> LsResult<HashMap<String, u64>> {
         let mut map = HashMap::new();
-        map.insert("input_tokens".into(), self.input_tokens.load(Ordering::Acquire));
-        map.insert("output_tokens".into(), self.output_tokens.load(Ordering::Acquire));
+        map.insert(
+            "input_tokens".into(),
+            self.input_tokens.load(Ordering::Acquire),
+        );
+        map.insert(
+            "output_tokens".into(),
+            self.output_tokens.load(Ordering::Acquire),
+        );
         Ok(map)
     }
 }
@@ -341,8 +373,18 @@ mod tests {
     #[test]
     fn test_message_conversion() {
         let msgs = vec![
-            LlmMessage { role: LlmRole::User, content: "hello".into(), name: None, tool_calls: None },
-            LlmMessage { role: LlmRole::Assistant, content: "hi there".into(), name: None, tool_calls: None },
+            LlmMessage {
+                role: LlmRole::User,
+                content: "hello".into(),
+                name: None,
+                tool_calls: None,
+            },
+            LlmMessage {
+                role: LlmRole::Assistant,
+                content: "hi there".into(),
+                name: None,
+                tool_calls: None,
+            },
         ];
         let converted = AnthropicLlm::convert_messages(&msgs);
         assert_eq!(converted.len(), 2);
@@ -353,14 +395,30 @@ mod tests {
     #[test]
     fn test_extract_system() {
         let msgs = vec![
-            LlmMessage { role: LlmRole::System, content: "be helpful".into(), name: None, tool_calls: None },
-            LlmMessage { role: LlmRole::User, content: "hi".into(), name: None, tool_calls: None },
+            LlmMessage {
+                role: LlmRole::System,
+                content: "be helpful".into(),
+                name: None,
+                tool_calls: None,
+            },
+            LlmMessage {
+                role: LlmRole::User,
+                content: "hi".into(),
+                name: None,
+                tool_calls: None,
+            },
         ];
-        assert_eq!(AnthropicLlm::extract_system(&msgs), Some("be helpful".into()));
+        assert_eq!(
+            AnthropicLlm::extract_system(&msgs),
+            Some("be helpful".into())
+        );
 
-        let no_system = vec![
-            LlmMessage { role: LlmRole::User, content: "hi".into(), name: None, tool_calls: None },
-        ];
+        let no_system = vec![LlmMessage {
+            role: LlmRole::User,
+            content: "hi".into(),
+            name: None,
+            tool_calls: None,
+        }];
         assert_eq!(AnthropicLlm::extract_system(&no_system), None);
     }
 

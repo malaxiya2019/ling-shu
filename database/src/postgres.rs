@@ -48,14 +48,26 @@ impl PostgresDatabase {
         // SQLite 语法和 PostgreSQL 语法不完全兼容，需要转换一些关键词
         let pg_sql = sql
             .replace("TEXT PRIMARY KEY", "VARCHAR(64) PRIMARY KEY")
-            .replace("INTEGER NOT NULL DEFAULT 1", "BOOLEAN NOT NULL DEFAULT TRUE")
-            .replace("INTEGER NOT NULL DEFAULT 0", "BOOLEAN NOT NULL DEFAULT FALSE")
+            .replace(
+                "INTEGER NOT NULL DEFAULT 1",
+                "BOOLEAN NOT NULL DEFAULT TRUE",
+            )
+            .replace(
+                "INTEGER NOT NULL DEFAULT 0",
+                "BOOLEAN NOT NULL DEFAULT FALSE",
+            )
             .replace("INTEGER", "BIGINT")
             .replace("REAL DEFAULT 0.0", "DOUBLE PRECISION DEFAULT 0.0")
             .replace("BLOB", "BYTEA")
             .replace("datetime('now')", "NOW()")
-            .replace("TEXT NOT NULL DEFAULT (datetime('now'))", "TIMESTAMPTZ NOT NULL DEFAULT NOW()")
-            .replace("TEXT NOT NULL DEFAULT (NOW())", "TIMESTAMPTZ NOT NULL DEFAULT NOW()");
+            .replace(
+                "TEXT NOT NULL DEFAULT (datetime('now'))",
+                "TIMESTAMPTZ NOT NULL DEFAULT NOW()",
+            )
+            .replace(
+                "TEXT NOT NULL DEFAULT (NOW())",
+                "TIMESTAMPTZ NOT NULL DEFAULT NOW()",
+            );
 
         // 按语句分割并逐条执行
         for statement in pg_sql.split(';') {
@@ -124,7 +136,12 @@ impl Database for PostgresDatabase {
         Ok(result)
     }
 
-    async fn get_by_id(&self, _ctx: LsContext, collection: &str, id: &str) -> LsResult<Option<Value>> {
+    async fn get_by_id(
+        &self,
+        _ctx: LsContext,
+        collection: &str,
+        id: &str,
+    ) -> LsResult<Option<Value>> {
         let row = sqlx::query(
             "SELECT id, payload::text, created_at, updated_at FROM documents WHERE collection = $1 AND id = $2",
         )
@@ -146,13 +163,11 @@ impl Database for PostgresDatabase {
     ) -> LsResult<PaginatedResult> {
         let offset = (pagination.page.saturating_sub(1)) * pagination.page_size;
 
-        let total: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM documents WHERE collection = $1",
-        )
-        .bind(collection)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| LsError::Internal(format!("postgres count failed: {e}")))?;
+        let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM documents WHERE collection = $1")
+            .bind(collection)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| LsError::Internal(format!("postgres count failed: {e}")))?;
 
         let total = total as u64;
         let total_pages = if pagination.page_size > 0 {
@@ -183,7 +198,13 @@ impl Database for PostgresDatabase {
         })
     }
 
-    async fn update(&self, _ctx: LsContext, collection: &str, id: &str, data: Value) -> LsResult<Option<Value>> {
+    async fn update(
+        &self,
+        _ctx: LsContext,
+        collection: &str,
+        id: &str,
+        data: Value,
+    ) -> LsResult<Option<Value>> {
         let result = sqlx::query(
             "UPDATE documents SET payload = $1::jsonb, updated_at = NOW() WHERE collection = $2 AND id = $3",
         )
@@ -206,14 +227,12 @@ impl Database for PostgresDatabase {
     }
 
     async fn delete(&self, _ctx: LsContext, collection: &str, id: &str) -> LsResult<bool> {
-        let result = sqlx::query(
-            "DELETE FROM documents WHERE collection = $1 AND id = $2",
-        )
-        .bind(collection)
-        .bind(id)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| LsError::Internal(format!("postgres delete failed: {e}")))?;
+        let result = sqlx::query("DELETE FROM documents WHERE collection = $1 AND id = $2")
+            .bind(collection)
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| LsError::Internal(format!("postgres delete failed: {e}")))?;
 
         Ok(result.rows_affected() > 0)
     }
@@ -281,7 +300,11 @@ mod tests {
         let ctx = test_ctx();
         let data = json!({"name": "pg_test_user"});
         let inserted = db.insert(ctx.child(), "users", data).await.unwrap();
-        let id = inserted.get("id").and_then(|v| v.as_str()).unwrap().to_string();
+        let id = inserted
+            .get("id")
+            .and_then(|v| v.as_str())
+            .unwrap()
+            .to_string();
         let found = db.get_by_id(ctx.child(), "users", &id).await.unwrap();
         assert!(found.is_some());
         assert_eq!(found.unwrap().get("name").unwrap(), "pg_test_user");
@@ -292,9 +315,22 @@ mod tests {
         let db = test_db().await;
         let ctx = test_ctx();
         for i in 0..5 {
-            db.insert(ctx.child(), "items", json!({"index": i})).await.unwrap();
+            db.insert(ctx.child(), "items", json!({"index": i}))
+                .await
+                .unwrap();
         }
-        let result = db.query(ctx, "items", vec![], Pagination { page: 1, page_size: 3 }).await.unwrap();
+        let result = db
+            .query(
+                ctx,
+                "items",
+                vec![],
+                Pagination {
+                    page: 1,
+                    page_size: 3,
+                },
+            )
+            .await
+            .unwrap();
         assert_eq!(result.items.len(), 3);
         assert_eq!(result.total, 5);
     }

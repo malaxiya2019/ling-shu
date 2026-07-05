@@ -140,7 +140,12 @@ impl Database for SqliteDatabase {
         Ok(result)
     }
 
-    async fn get_by_id(&self, _ctx: LsContext, collection: &str, id: &str) -> LsResult<Option<Value>> {
+    async fn get_by_id(
+        &self,
+        _ctx: LsContext,
+        collection: &str,
+        id: &str,
+    ) -> LsResult<Option<Value>> {
         let conn = self.conn.lock().await;
         let mut stmt = conn
             .prepare(
@@ -185,7 +190,13 @@ impl Database for SqliteDatabase {
         })
     }
 
-    async fn update(&self, _ctx: LsContext, collection: &str, id: &str, data: Value) -> LsResult<Option<Value>> {
+    async fn update(
+        &self,
+        _ctx: LsContext,
+        collection: &str,
+        id: &str,
+        data: Value,
+    ) -> LsResult<Option<Value>> {
         let conn = self.conn.lock().await;
         let now = chrono::Utc::now().to_rfc3339();
 
@@ -261,7 +272,11 @@ mod tests {
         let ctx = test_ctx();
         let data = json!({"name": "test_user", "email": "test@example.com"});
         let inserted = db.insert(ctx.child(), "users", data).await.unwrap();
-        let id = inserted.get("id").and_then(|v| v.as_str()).unwrap().to_string();
+        let id = inserted
+            .get("id")
+            .and_then(|v| v.as_str())
+            .unwrap()
+            .to_string();
         let found = db.get_by_id(ctx.child(), "users", &id).await.unwrap();
         assert!(found.is_some());
         assert_eq!(found.unwrap().get("name").unwrap(), "test_user");
@@ -281,8 +296,15 @@ mod tests {
         let ctx = test_ctx();
         let data = json!({"value": 1});
         let inserted = db.insert(ctx.child(), "test_items", data).await.unwrap();
-        let id = inserted.get("id").and_then(|v| v.as_str()).unwrap().to_string();
-        let updated = db.update(ctx.child(), "test_items", &id, json!({"value": 42})).await.unwrap();
+        let id = inserted
+            .get("id")
+            .and_then(|v| v.as_str())
+            .unwrap()
+            .to_string();
+        let updated = db
+            .update(ctx.child(), "test_items", &id, json!({"value": 42}))
+            .await
+            .unwrap();
         assert!(updated.is_some());
         assert_eq!(updated.unwrap().get("value").unwrap(), 42);
     }
@@ -293,7 +315,11 @@ mod tests {
         let ctx = test_ctx();
         let data = json!({"name": "to_delete"});
         let inserted = db.insert(ctx.child(), "test_items", data).await.unwrap();
-        let id = inserted.get("id").and_then(|v| v.as_str()).unwrap().to_string();
+        let id = inserted
+            .get("id")
+            .and_then(|v| v.as_str())
+            .unwrap()
+            .to_string();
         let deleted = db.delete(ctx.child(), "test_items", &id).await.unwrap();
         assert!(deleted);
         let found = db.get_by_id(ctx, "test_items", &id).await.unwrap();
@@ -305,9 +331,22 @@ mod tests {
         let db = test_db();
         let ctx = test_ctx();
         for i in 0..10 {
-            db.insert(ctx.child(), "test_items", json!({"index": i})).await.unwrap();
+            db.insert(ctx.child(), "test_items", json!({"index": i}))
+                .await
+                .unwrap();
         }
-        let result = db.query(ctx, "test_items", vec![], Pagination { page: 1, page_size: 5 }).await.unwrap();
+        let result = db
+            .query(
+                ctx,
+                "test_items",
+                vec![],
+                Pagination {
+                    page: 1,
+                    page_size: 5,
+                },
+            )
+            .await
+            .unwrap();
         assert_eq!(result.items.len(), 5);
         assert_eq!(result.total, 10);
         assert_eq!(result.total_pages, 2);
@@ -318,9 +357,22 @@ mod tests {
         let db = test_db();
         let ctx = test_ctx();
         let txn_id = db.begin_transaction(ctx.child()).await.unwrap();
-        db.insert(ctx.child(), "users", json!({"name": "txn_user"})).await.unwrap();
+        db.insert(ctx.child(), "users", json!({"name": "txn_user"}))
+            .await
+            .unwrap();
         db.rollback_transaction(ctx.child(), &txn_id).await.unwrap();
-        let result = db.query(ctx, "users", vec![], Pagination { page: 1, page_size: 10 }).await.unwrap();
+        let result = db
+            .query(
+                ctx,
+                "users",
+                vec![],
+                Pagination {
+                    page: 1,
+                    page_size: 10,
+                },
+            )
+            .await
+            .unwrap();
         assert_eq!(result.total, 0);
     }
 
@@ -329,9 +381,22 @@ mod tests {
         let db = test_db();
         let ctx = test_ctx();
         let txn_id = db.begin_transaction(ctx.child()).await.unwrap();
-        db.insert(ctx.child(), "users", json!({"name": "committed"})).await.unwrap();
+        db.insert(ctx.child(), "users", json!({"name": "committed"}))
+            .await
+            .unwrap();
         db.commit_transaction(ctx.child(), &txn_id).await.unwrap();
-        let count = db.query(ctx, "users", vec![], Pagination { page: 1, page_size: 100 }).await.unwrap();
+        let count = db
+            .query(
+                ctx,
+                "users",
+                vec![],
+                Pagination {
+                    page: 1,
+                    page_size: 100,
+                },
+            )
+            .await
+            .unwrap();
         assert_eq!(count.total, 1);
     }
 }

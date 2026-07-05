@@ -23,9 +23,7 @@ use std::sync::Arc;
 
 /// 全局 Prometheus 注册表.
 #[cfg(feature = "metrics")]
-pub static REGISTRY: Lazy<prometheus::Registry> = Lazy::new(|| {
-    prometheus::Registry::new()
-});
+pub static REGISTRY: Lazy<prometheus::Registry> = Lazy::new(|| prometheus::Registry::new());
 
 /// 指标注册表封装.
 #[derive(Debug, Clone)]
@@ -175,11 +173,7 @@ mod tests {
     #[cfg(feature = "metrics")]
     fn test_counter_registration() {
         let registry = MetricsRegistry::new();
-        let counter = registry.counter(
-            "test_counter",
-            "test help",
-            &["label1"],
-        );
+        let counter = registry.counter("test_counter", "test help", &["label1"]);
         assert!(counter.is_ok());
         let counter = counter.unwrap();
         counter.with_label_values(&["val1"]).inc();
@@ -190,7 +184,9 @@ mod tests {
     #[cfg(feature = "metrics")]
     fn test_gather_text() {
         let registry = MetricsRegistry::new();
-        let counter = registry.counter("test_gather_count", "test help desc", &["label"]).unwrap();
+        let counter = registry
+            .counter("test_gather_count", "test help desc", &["label"])
+            .unwrap();
         counter.with_label_values(&["val1"]).inc();
         // 验证 counter 工作正常
         assert_eq!(counter.with_label_values(&["val1"]).get(), 1);

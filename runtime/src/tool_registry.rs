@@ -7,8 +7,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use lingshu_core::{LsContext, LsId, LsResult};
-use lingshu_traits::tool::{Tool, ToolCallRecord};
 use lingshu_traits::llm::ToolDefinition;
+use lingshu_traits::tool::{Tool, ToolCallRecord};
 use serde_json::Value;
 use tokio::sync::RwLock;
 use tracing::info;
@@ -41,7 +41,10 @@ impl ToolRegistry {
     }
 
     /// 按名称查找工具
-    pub async fn get(&self, _name: &str) -> Option<tokio::sync::RwLockReadGuard<'_, Box<dyn Tool>>> {
+    pub async fn get(
+        &self,
+        _name: &str,
+    ) -> Option<tokio::sync::RwLockReadGuard<'_, Box<dyn Tool>>> {
         // This is a simplified approach
         None
     }
@@ -49,9 +52,9 @@ impl ToolRegistry {
     /// 执行工具调用
     pub async fn execute(&self, ctx: &LsContext, name: &str, args: Value) -> LsResult<Value> {
         let tools = self.tools.read().await;
-        let tool = tools.get(name).ok_or_else(|| {
-            lingshu_core::LsError::NotFound(format!("tool not found: {name}"))
-        })?;
+        let tool = tools
+            .get(name)
+            .ok_or_else(|| lingshu_core::LsError::NotFound(format!("tool not found: {name}")))?;
 
         tool.validate(&args)?;
         let result = tool.execute(ctx.clone(), args.clone()).await?;
@@ -75,32 +78,35 @@ impl ToolRegistry {
     /// 获取所有已注册工具的 OpenAI-compatible 定义
     pub async fn get_tool_definitions(&self) -> Vec<ToolDefinition> {
         let tools = self.tools.read().await;
-        tools.values().map(|tool| {
-            let info = tool.info();
-            let mut properties = serde_json::Map::new();
-            let mut required = Vec::new();
-            for param in &info.parameters {
-                let mut prop = serde_json::Map::new();
-                prop.insert("type".into(), serde_json::json!(param.param_type));
-                prop.insert("description".into(), serde_json::json!(param.description));
-                properties.insert(param.name.clone(), serde_json::Value::Object(prop));
-                if param.required {
-                    required.push(param.name.clone());
+        tools
+            .values()
+            .map(|tool| {
+                let info = tool.info();
+                let mut properties = serde_json::Map::new();
+                let mut required = Vec::new();
+                for param in &info.parameters {
+                    let mut prop = serde_json::Map::new();
+                    prop.insert("type".into(), serde_json::json!(param.param_type));
+                    prop.insert("description".into(), serde_json::json!(param.description));
+                    properties.insert(param.name.clone(), serde_json::Value::Object(prop));
+                    if param.required {
+                        required.push(param.name.clone());
+                    }
                 }
-            }
-            ToolDefinition {
-                tool_type: "function".into(),
-                function: lingshu_traits::llm::ToolFunction {
-                    name: info.name.clone(),
-                    description: info.description.clone(),
-                    parameters: serde_json::json!({
-                        "type": "object",
-                        "properties": properties,
-                        "required": required,
-                    }),
-                },
-            }
-        }).collect()
+                ToolDefinition {
+                    tool_type: "function".into(),
+                    function: lingshu_traits::llm::ToolFunction {
+                        name: info.name.clone(),
+                        description: info.description.clone(),
+                        parameters: serde_json::json!({
+                            "type": "object",
+                            "properties": properties,
+                            "required": required,
+                        }),
+                    },
+                }
+            })
+            .collect()
     }
 
     /// 列出所有已注册工具名
@@ -129,8 +135,8 @@ impl Default for ToolRegistry {
 mod tests {
     use super::*;
     use lingshu_core::LsContext;
-    use lingshu_traits::tool::{ToolParam};
-    
+    use lingshu_traits::tool::ToolParam;
+
     struct EchoTool;
 
     #[async_trait]
@@ -151,7 +157,9 @@ mod tests {
 
         fn validate(&self, input: &Value) -> LsResult<()> {
             if input.get("message").and_then(|v| v.as_str()).is_none() {
-                return Err(lingshu_core::LsError::Validation("missing message field".into()));
+                return Err(lingshu_core::LsError::Validation(
+                    "missing message field".into(),
+                ));
             }
             Ok(())
         }
@@ -194,7 +202,9 @@ mod tests {
         assert_eq!(result["message"], "hello");
 
         // Test not found
-        let result = registry.execute(&ctx, "nonexistent", serde_json::json!({})).await;
+        let result = registry
+            .execute(&ctx, "nonexistent", serde_json::json!({}))
+            .await;
         assert!(result.is_err());
     }
 }

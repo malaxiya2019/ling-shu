@@ -61,7 +61,9 @@ where
         filters: Vec<QueryFilter>,
         pagination: Pagination,
     ) -> LsResult<PaginatedResult> {
-        self.db.query(ctx, &self.collection, filters, pagination).await
+        self.db
+            .query(ctx, &self.collection, filters, pagination)
+            .await
     }
 
     async fn update(&self, ctx: LsContext, id: &str, entity: T) -> LsResult<Option<T>> {
@@ -84,8 +86,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lingshu_core::LsId;
     use crate::SqliteDatabase;
+    use lingshu_core::LsId;
     use serde::{Deserialize, Serialize};
     use std::sync::Arc;
 
@@ -119,7 +121,17 @@ mod tests {
         assert!(inserted.id.is_some(), "inserted entity should have an id");
 
         // Query all to verify
-        let all = repo.query(ctx.child(), vec![], Pagination { page: 1, page_size: 100 }).await.unwrap();
+        let all = repo
+            .query(
+                ctx.child(),
+                vec![],
+                Pagination {
+                    page: 1,
+                    page_size: 100,
+                },
+            )
+            .await
+            .unwrap();
         assert_eq!(all.total, 1);
     }
 

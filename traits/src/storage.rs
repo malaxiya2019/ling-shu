@@ -27,7 +27,13 @@ pub struct PresignedUrl {
 #[async_trait]
 pub trait Storage: Send + Sync + 'static {
     /// 上传文件 (bytes).
-    async fn upload(&self, ctx: LsContext, filename: &str, content_type: &str, data: Vec<u8>) -> LsResult<FileInfo>;
+    async fn upload(
+        &self,
+        ctx: LsContext,
+        filename: &str,
+        content_type: &str,
+        data: Vec<u8>,
+    ) -> LsResult<FileInfo>;
 
     /// 下载文件.
     async fn download(&self, ctx: LsContext, file_id: LsId) -> LsResult<(FileInfo, Vec<u8>)>;
@@ -39,8 +45,19 @@ pub trait Storage: Send + Sync + 'static {
     async fn info(&self, ctx: LsContext, file_id: LsId) -> LsResult<FileInfo>;
 
     /// 生成预签名上传 URL.
-    async fn presigned_upload(&self, ctx: LsContext, filename: &str, content_type: &str, ttl_seconds: u64) -> LsResult<PresignedUrl>;
+    async fn presigned_upload(
+        &self,
+        ctx: LsContext,
+        filename: &str,
+        content_type: &str,
+        ttl_seconds: u64,
+    ) -> LsResult<PresignedUrl>;
 
     /// 生成预签名下载 URL.
-    async fn presigned_download(&self, ctx: LsContext, file_id: LsId, ttl_seconds: u64) -> LsResult<PresignedUrl>;
+    async fn presigned_download(
+        &self,
+        ctx: LsContext,
+        file_id: LsId,
+        ttl_seconds: u64,
+    ) -> LsResult<PresignedUrl>;
 }

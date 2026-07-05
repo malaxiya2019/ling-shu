@@ -81,7 +81,6 @@ pub enum LsError {
     #[error("serialization error: {0}")]
     Serialization(String),
 
-
     #[error("validation failed: {0}")]
     Validation(String),
     // ── External / Unknown ─────────────────────────────

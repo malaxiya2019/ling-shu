@@ -43,9 +43,8 @@ impl LocalStorage {
         metadata: HashMap<String, String>,
     ) -> LsResult<FileInfo> {
         let full_path = PathBuf::from(path);
-        let meta = std::fs::metadata(&full_path).map_err(|e| {
-            LsError::Storage(format!("metadata read failed: {e}"))
-        })?;
+        let meta = std::fs::metadata(&full_path)
+            .map_err(|e| LsError::Storage(format!("metadata read failed: {e}")))?;
 
         Ok(FileInfo {
             file_id,
@@ -54,7 +53,8 @@ impl LocalStorage {
             size: meta.len(),
             path: path.to_string(),
             metadata,
-            created_at: meta.created()
+            created_at: meta
+                .created()
                 .map(|t| chrono::DateTime::from(t))
                 .unwrap_or_else(|_| chrono::Utc::now()),
         })
@@ -76,12 +76,14 @@ impl Storage for LocalStorage {
 
         // 确保目录存在
         if let Some(parent) = full_path.parent() {
-            tokio::fs::create_dir_all(parent).await
+            tokio::fs::create_dir_all(parent)
+                .await
                 .map_err(|e| LsError::Storage(format!("create dir failed: {e}")))?;
         }
 
         // 写入文件
-        tokio::fs::write(&full_path, &data).await
+        tokio::fs::write(&full_path, &data)
+            .await
             .map_err(|e| LsError::Storage(format!("write failed: {e}")))?;
 
         // 存储元信息文件
@@ -93,7 +95,8 @@ impl Storage for LocalStorage {
             "path": relative,
             "created_at": chrono::Utc::now().to_rfc3339(),
         });
-        tokio::fs::write(&meta_path, serde_json::to_string(&meta).unwrap_or_default()).await
+        tokio::fs::write(&meta_path, serde_json::to_string(&meta).unwrap_or_default())
+            .await
             .map_err(|e| LsError::Storage(format!("write meta failed: {e}")))?;
 
         Ok(FileInfo {
@@ -112,23 +115,30 @@ impl Storage for LocalStorage {
         let _pattern = format!("*/{}", file_id);
         let mut found = None;
 
-        let mut read_dir = tokio::fs::read_dir(&self.base_path).await
+        let mut read_dir = tokio::fs::read_dir(&self.base_path)
+            .await
             .map_err(|e| LsError::Storage(format!("read dir failed: {e}")))?;
 
-        while let Some(entry) = read_dir.next_entry().await
-            .map_err(|e| LsError::Storage(format!("read entry failed: {e}")))? 
+        while let Some(entry) = read_dir
+            .next_entry()
+            .await
+            .map_err(|e| LsError::Storage(format!("read entry failed: {e}")))?
         {
             let path = entry.path();
             if path.is_dir() {
-                let mut sub_dir = tokio::fs::read_dir(&path).await
+                let mut sub_dir = tokio::fs::read_dir(&path)
+                    .await
                     .map_err(|e| LsError::Storage(format!("read subdir failed: {e}")))?;
-                while let Some(sub_entry) = sub_dir.next_entry().await
-                    .map_err(|e| LsError::Storage(format!("read entry failed: {e}")))? 
+                while let Some(sub_entry) = sub_dir
+                    .next_entry()
+                    .await
+                    .map_err(|e| LsError::Storage(format!("read entry failed: {e}")))?
                 {
                     let sub_path = sub_entry.path();
                     if sub_path.is_file()
                         && sub_path.extension().and_then(|e| e.to_str()) != Some("meta")
-                        && sub_path.file_stem().and_then(|s| s.to_str()) == Some(&file_id.to_string())
+                        && sub_path.file_stem().and_then(|s| s.to_str())
+                            == Some(&file_id.to_string())
                     {
                         found = Some(sub_path);
                         break;
@@ -140,14 +150,15 @@ impl Storage for LocalStorage {
             }
         }
 
-        let file_path = found.ok_or_else(|| {
-            LsError::NotFound(format!("file not found: {file_id}"))
-        })?;
+        let file_path =
+            found.ok_or_else(|| LsError::NotFound(format!("file not found: {file_id}")))?;
 
-        let data = tokio::fs::read(&file_path).await
+        let data = tokio::fs::read(&file_path)
+            .await
             .map_err(|e| LsError::Storage(format!("read failed: {e}")))?;
 
-        let file_name = file_path.file_name()
+        let file_name = file_path
+            .file_name()
             .and_then(|s| s.to_str())
             .unwrap_or("unknown")
             .to_string();
@@ -175,7 +186,8 @@ impl Storage for LocalStorage {
                         while let Ok(Some(sub_entry)) = sub_dir.next_entry().await {
                             let sub_path = sub_entry.path();
                             if sub_path.is_file()
-                                && sub_path.file_stem().and_then(|s| s.to_str()) == Some(&file_id.to_string())
+                                && sub_path.file_stem().and_then(|s| s.to_str())
+                                    == Some(&file_id.to_string())
                             {
                                 let _ = tokio::fs::remove_file(&sub_path).await;
                                 let meta_path = sub_path.with_extension("meta");
@@ -204,24 +216,36 @@ impl Storage for LocalStorage {
                         while let Ok(Some(sub_entry)) = sub_dir.next_entry().await {
                             let sub_path = sub_entry.path();
                             if sub_path.extension().and_then(|e| e.to_str()) == Some("meta")
-                                && sub_path.file_stem().and_then(|s| s.to_str()) == Some(&file_id.to_string())
+                                && sub_path.file_stem().and_then(|s| s.to_str())
+                                    == Some(&file_id.to_string())
                             {
-                                let content = tokio::fs::read_to_string(&sub_path).await
-                                    .map_err(|e| LsError::Storage(format!("read meta failed: {e}")))?;
+                                let content =
+                                    tokio::fs::read_to_string(&sub_path).await.map_err(|e| {
+                                        LsError::Storage(format!("read meta failed: {e}"))
+                                    })?;
                                 let meta: serde_json::Value = serde_json::from_str(&content)
-                                    .map_err(|e| LsError::Storage(format!("parse meta failed: {e}")))?;
+                                    .map_err(|e| {
+                                        LsError::Storage(format!("parse meta failed: {e}"))
+                                    })?;
 
                                 return Ok(FileInfo {
                                     file_id,
-                                    filename: meta["filename"].as_str().unwrap_or("unknown").to_string(),
-                                    content_type: meta["content_type"].as_str().unwrap_or("application/octet-stream").to_string(),
+                                    filename: meta["filename"]
+                                        .as_str()
+                                        .unwrap_or("unknown")
+                                        .to_string(),
+                                    content_type: meta["content_type"]
+                                        .as_str()
+                                        .unwrap_or("application/octet-stream")
+                                        .to_string(),
                                     size: tokio::fs::metadata(sub_path.with_extension(""))
                                         .await
                                         .map(|m| m.len())
                                         .unwrap_or(0),
                                     path: meta["path"].as_str().unwrap_or("").to_string(),
                                     metadata: HashMap::new(),
-                                    created_at: meta["created_at"].as_str()
+                                    created_at: meta["created_at"]
+                                        .as_str()
                                         .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
                                         .map(|dt| dt.with_timezone(&chrono::Utc))
                                         .unwrap_or_else(chrono::Utc::now),
@@ -300,7 +324,12 @@ mod tests {
 
         let ctx = test_ctx();
         let info = storage
-            .upload(ctx.child(), "info_test.txt", "application/json", b"{}".to_vec())
+            .upload(
+                ctx.child(),
+                "info_test.txt",
+                "application/json",
+                b"{}".to_vec(),
+            )
             .await
             .unwrap();
 

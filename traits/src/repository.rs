@@ -24,7 +24,12 @@ where
     async fn get_by_id(&self, ctx: LsContext, id: &str) -> LsResult<Option<T>>;
 
     /// 条件查询.
-    async fn query(&self, ctx: LsContext, filters: Vec<QueryFilter>, pagination: Pagination) -> LsResult<PaginatedResult>;
+    async fn query(
+        &self,
+        ctx: LsContext,
+        filters: Vec<QueryFilter>,
+        pagination: Pagination,
+    ) -> LsResult<PaginatedResult>;
 
     /// 更新实体.
     async fn update(&self, ctx: LsContext, id: &str, entity: T) -> LsResult<Option<T>>;

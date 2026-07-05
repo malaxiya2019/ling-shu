@@ -35,7 +35,8 @@ pub trait Memory: Send + Sync + 'static {
     async fn read(&self, ctx: LsContext, memory_id: LsId) -> LsResult<MemoryItem>;
 
     /// 检索记忆（关键词/语义）.
-    async fn search(&self, ctx: LsContext, query: &str, limit: u64) -> LsResult<MemorySearchResult>;
+    async fn search(&self, ctx: LsContext, query: &str, limit: u64)
+        -> LsResult<MemorySearchResult>;
 
     /// 删除记忆.
     async fn delete(&self, ctx: LsContext, memory_id: LsId) -> LsResult<()>;
@@ -60,7 +61,12 @@ impl<T: Memory + ?Sized> Memory for Box<T> {
     async fn read(&self, ctx: LsContext, memory_id: LsId) -> LsResult<MemoryItem> {
         (**self).read(ctx, memory_id).await
     }
-    async fn search(&self, ctx: LsContext, query: &str, limit: u64) -> LsResult<MemorySearchResult> {
+    async fn search(
+        &self,
+        ctx: LsContext,
+        query: &str,
+        limit: u64,
+    ) -> LsResult<MemorySearchResult> {
         (**self).search(ctx, query, limit).await
     }
     async fn delete(&self, ctx: LsContext, memory_id: LsId) -> LsResult<()> {

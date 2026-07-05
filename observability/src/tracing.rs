@@ -22,11 +22,10 @@ pub fn init_tracing(config: &ObservabilityConfig) -> LsResult<()> {
     static INIT: OnceLock<()> = OnceLock::new();
 
     INIT.get_or_init(|| {
-        let env_filter = EnvFilter::try_from_default_env()
-            .unwrap_or_else(|_| EnvFilter::new(&config.log_level));
+        let env_filter =
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&config.log_level));
 
-        let registry = tracing_subscriber::registry()
-            .with(env_filter);
+        let registry = tracing_subscriber::registry().with(env_filter);
 
         if config.json_output {
             let json_layer = tracing_subscriber::fmt::layer()

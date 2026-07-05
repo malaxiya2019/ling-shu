@@ -57,12 +57,10 @@ mod tests {
             license: None,
             plugin_type: "static".into(),
             entry_point: None,
-            permissions: vec![
-                PluginPermission {
-                    resource: "llm".into(),
-                    actions: vec!["invoke".into()],
-                },
-            ],
+            permissions: vec![PluginPermission {
+                resource: "llm".into(),
+                actions: vec!["invoke".into()],
+            }],
             min_api_version: Some("1.0.0".into()),
         }
     }

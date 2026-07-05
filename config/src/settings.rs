@@ -93,7 +93,11 @@ pub struct RuntimeConfig {
 
 impl Default for RuntimeConfig {
     fn default() -> Self {
-        Self { max_concurrent_tasks: 64, session_ttl_seconds: 3600, enable_snapshot: true }
+        Self {
+            max_concurrent_tasks: 64,
+            session_ttl_seconds: 3600,
+            enable_snapshot: true,
+        }
     }
 }
 
@@ -107,7 +111,11 @@ pub struct EventBusConfig {
 
 impl Default for EventBusConfig {
     fn default() -> Self {
-        Self { max_retries: 3, retention_days: 7, audit_retention_days: 180 }
+        Self {
+            max_retries: 3,
+            retention_days: 7,
+            audit_retention_days: 180,
+        }
     }
 }
 
@@ -122,7 +130,11 @@ pub struct SecurityConfig {
 
 impl Default for SecurityConfig {
     fn default() -> Self {
-        Self { default_isolation: "session".into(), jwt_secret: None, enable_audit: true }
+        Self {
+            default_isolation: "session".into(),
+            jwt_secret: None,
+            enable_audit: true,
+        }
     }
 }
 
@@ -162,7 +174,11 @@ pub struct StorageConfig {
 
 impl Default for StorageConfig {
     fn default() -> Self {
-        Self { provider: "local".into(), bucket: "lingshu-data".into(), region: "us-east-1".into() }
+        Self {
+            provider: "local".into(),
+            bucket: "lingshu-data".into(),
+            region: "us-east-1".into(),
+        }
     }
 }
 
@@ -176,7 +192,10 @@ pub struct DatabaseConfig {
 
 impl Default for DatabaseConfig {
     fn default() -> Self {
-        Self { url: None, max_connections: 10 }
+        Self {
+            url: None,
+            max_connections: 10,
+        }
     }
 }
 
@@ -238,10 +257,8 @@ impl ConfigLoader {
     }
 
     fn load_yaml(&self, path: &Path) -> Result<LsConfig, String> {
-        let content = std::fs::read_to_string(path)
-            .map_err(|e| format!("read error: {e}"))?;
-        serde_yaml::from_str(&content)
-            .map_err(|e| format!("parse error: {e}"))
+        let content = std::fs::read_to_string(path).map_err(|e| format!("read error: {e}"))?;
+        serde_yaml::from_str(&content).map_err(|e| format!("parse error: {e}"))
     }
 }
 
@@ -256,9 +273,13 @@ fn deep_merge(base: serde_json::Value, overlay: serde_json::Value) -> serde_json
     match (base, overlay) {
         (serde_json::Value::Object(mut base_map), serde_json::Value::Object(overlay_map)) => {
             for (k, v) in overlay_map {
-                if v.is_null() { continue; }
+                if v.is_null() {
+                    continue;
+                }
                 if v.is_object() {
-                    let child = base_map.remove(&k).unwrap_or(serde_json::Value::Object(Default::default()));
+                    let child = base_map
+                        .remove(&k)
+                        .unwrap_or(serde_json::Value::Object(Default::default()));
                     base_map.insert(k, deep_merge(child, v));
                 } else {
                     base_map.insert(k, v);
@@ -276,19 +297,29 @@ fn apply_env_overrides(config: &mut LsConfig) {
         .filter(|(k, _)| k.starts_with("LS_"))
         .map(|(k, v)| (k.trim_start_matches("LS_").to_lowercase(), v))
         .collect();
-    if env_map.is_empty() { return; }
+    if env_map.is_empty() {
+        return;
+    }
 
     if let Some(v) = env_map.get("runtime_max_concurrent_tasks") {
-        if let Ok(n) = v.parse() { config.runtime.max_concurrent_tasks = n; }
+        if let Ok(n) = v.parse() {
+            config.runtime.max_concurrent_tasks = n;
+        }
     }
     if let Some(v) = env_map.get("runtime_session_ttl_seconds") {
-        if let Ok(n) = v.parse() { config.runtime.session_ttl_seconds = n; }
+        if let Ok(n) = v.parse() {
+            config.runtime.session_ttl_seconds = n;
+        }
     }
     if let Some(v) = env_map.get("eventbus_max_retries") {
-        if let Ok(n) = v.parse() { config.eventbus.max_retries = n; }
+        if let Ok(n) = v.parse() {
+            config.eventbus.max_retries = n;
+        }
     }
     if let Some(v) = env_map.get("eventbus_retention_days") {
-        if let Ok(n) = v.parse() { config.eventbus.retention_days = n; }
+        if let Ok(n) = v.parse() {
+            config.eventbus.retention_days = n;
+        }
     }
     if let Some(v) = env_map.get("security_jwt_secret") {
         config.security.jwt_secret = Some(v.clone());
@@ -329,7 +360,9 @@ fn apply_env_overrides(config: &mut LsConfig) {
         config.llm.default_model = v.clone();
     }
     if let Some(v) = env_map.get("llm_max_tokens") {
-        if let Ok(n) = v.parse() { config.llm.max_tokens = n; }
+        if let Ok(n) = v.parse() {
+            config.llm.max_tokens = n;
+        }
     }
     if let Some(v) = env_map.get("storage_provider") {
         config.storage.provider = v.clone();
@@ -341,7 +374,9 @@ fn apply_env_overrides(config: &mut LsConfig) {
         config.database.url = Some(v.clone());
     }
     if let Some(v) = env_map.get("database_max_connections") {
-        if let Ok(n) = v.parse() { config.database.max_connections = n; }
+        if let Ok(n) = v.parse() {
+            config.database.max_connections = n;
+        }
     }
 }
 
@@ -355,7 +390,6 @@ impl LsConfig {
         ConfigLoader::with_cwd().load(Some(env))
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -378,10 +412,14 @@ mod tests {
             .filter(|(k, _)| k.starts_with("LS_"))
             .map(|(k, v)| (k, v))
             .collect();
-        for (k, _) in &old { std::env::remove_var(k); }
+        for (k, _) in &old {
+            std::env::remove_var(k);
+        }
         // 防止 test_env_overrides 的残留
         f();
-        for (k, v) in old { std::env::set_var(k, v); }
+        for (k, v) in old {
+            std::env::set_var(k, v);
+        }
         drop(guard);
     }
 
@@ -469,7 +507,11 @@ storage:
         with_clean_env(|| {
             let dir = std::env::temp_dir().join(format!("lscfg_{}", std::process::id()));
             let _ = std::fs::create_dir_all(&dir);
-            std::fs::write(dir.join("dev.yaml"), "runtime:\n  max_concurrent_tasks: 16\n").unwrap();
+            std::fs::write(
+                dir.join("dev.yaml"),
+                "runtime:\n  max_concurrent_tasks: 16\n",
+            )
+            .unwrap();
             let loader = ConfigLoader::new(vec![dir.clone()]);
             let cfg = loader.load(Some(Environment::Dev)).unwrap();
             assert_eq!(cfg.runtime.max_concurrent_tasks, 16);

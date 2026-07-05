@@ -17,10 +17,10 @@ use tokio::sync::{mpsc, Mutex, RwLock};
 use tracing::info;
 
 use lingshu_core::{LsContext, LsError, LsId, LsResult};
-use lingshu_traits::event_bus::Event as BusEvent;
 use lingshu_eventbus::topic::EventTopic;
 use lingshu_runtime::session::SessionManager;
 use lingshu_traits::agent::{Agent, AgentOutput, AgentSnapshot, AgentStatus};
+use lingshu_traits::event_bus::Event as BusEvent;
 use lingshu_traits::event_bus::EventBus;
 use lingshu_traits::llm::{Llm, LlmChunk, LlmMessage, LlmRequest, LlmResponse, LlmRole, LlmUsage};
 use lingshu_traits::memory::{Memory, MemoryItem, MemorySearchResult};
@@ -36,7 +36,10 @@ pub struct MockLlm {
 
 impl MockLlm {
     pub fn new() -> Self {
-        Self { prompt_tokens: AtomicU64::new(0), completion_tokens: AtomicU64::new(0) }
+        Self {
+            prompt_tokens: AtomicU64::new(0),
+            completion_tokens: AtomicU64::new(0),
+        }
     }
 }
 
@@ -44,8 +47,11 @@ impl MockLlm {
 impl Llm for MockLlm {
     async fn invoke(&self, _ctx: LsContext, request: LlmRequest) -> LsResult<LlmResponse> {
         info!(model = %request.model, messages = %request.messages.len(), "mock llm invoke");
-        let user_msg = request.messages.iter()
-            .rev().find(|m| matches!(m.role, LlmRole::User))
+        let user_msg = request
+            .messages
+            .iter()
+            .rev()
+            .find(|m| matches!(m.role, LlmRole::User))
             .map(|m| m.content.as_str())
             .unwrap_or("");
 
@@ -56,7 +62,8 @@ impl Llm for MockLlm {
         let reply_len = reply_text.len() as u64;
 
         self.prompt_tokens.fetch_add(10, Ordering::AcqRel);
-        self.completion_tokens.fetch_add(reply_len, Ordering::AcqRel);
+        self.completion_tokens
+            .fetch_add(reply_len, Ordering::AcqRel);
 
         Ok(LlmResponse {
             message: LlmMessage {
@@ -84,8 +91,14 @@ impl Llm for MockLlm {
 
     async fn usage_stats(&self, _ctx: LsContext) -> LsResult<HashMap<String, u64>> {
         let mut map = HashMap::new();
-        map.insert("prompt_tokens".into(), self.prompt_tokens.load(Ordering::Acquire));
-        map.insert("completion_tokens".into(), self.completion_tokens.load(Ordering::Acquire));
+        map.insert(
+            "prompt_tokens".into(),
+            self.prompt_tokens.load(Ordering::Acquire),
+        );
+        map.insert(
+            "completion_tokens".into(),
+            self.completion_tokens.load(Ordering::Acquire),
+        );
         Ok(map)
     }
 }
@@ -145,9 +158,17 @@ impl EventBus for InMemoryEventBus {
         Ok(())
     }
 
-    async fn subscribe(&self, _ctx: LsContext, topic_pattern: &str, handler: BoxedHandler) -> LsResult<String> {
+    async fn subscribe(
+        &self,
+        _ctx: LsContext,
+        topic_pattern: &str,
+        handler: BoxedHandler,
+    ) -> LsResult<String> {
         let id = LsId::new().to_string();
-        self.subscribers.write().await.push((id.clone(), topic_pattern.to_string(), handler));
+        self.subscribers
+            .write()
+            .await
+            .push((id.clone(), topic_pattern.to_string(), handler));
         Ok(id)
     }
 
@@ -157,15 +178,21 @@ impl EventBus for InMemoryEventBus {
         Ok(())
     }
 
-    async fn list_subscriptions(&self, _ctx: LsContext) -> LsResult<Vec<lingshu_traits::event_bus::SubscriptionInfo>> {
+    async fn list_subscriptions(
+        &self,
+        _ctx: LsContext,
+    ) -> LsResult<Vec<lingshu_traits::event_bus::SubscriptionInfo>> {
         let subs = self.subscribers.read().await;
-        Ok(subs.iter().map(|(id, pattern, _)| {
-            lingshu_traits::event_bus::SubscriptionInfo {
-                id: id.clone(),
-                topic_pattern: pattern.clone(),
-                created_at: chrono::Utc::now(),
-            }
-        }).collect())
+        Ok(subs
+            .iter()
+            .map(
+                |(id, pattern, _)| lingshu_traits::event_bus::SubscriptionInfo {
+                    id: id.clone(),
+                    topic_pattern: pattern.clone(),
+                    created_at: chrono::Utc::now(),
+                },
+            )
+            .collect())
     }
 }
 
@@ -179,7 +206,9 @@ pub struct InMemoryMemory {
 
 impl InMemoryMemory {
     pub fn new() -> Self {
-        Self { items: RwLock::new(Vec::new()) }
+        Self {
+            items: RwLock::new(Vec::new()),
+        }
     }
 }
 
@@ -199,29 +228,43 @@ impl Memory for InMemoryMemory {
 
     async fn read(&self, _ctx: LsContext, memory_id: LsId) -> LsResult<MemoryItem> {
         let items = self.items.read().await;
-        items.iter()
+        items
+            .iter()
             .find(|item| item.memory_id == memory_id)
             .cloned()
             .ok_or_else(|| LsError::NotFound(format!("memory {}", memory_id)))
     }
 
-    async fn search(&self, _ctx: LsContext, query: &str, limit: u64) -> LsResult<MemorySearchResult> {
+    async fn search(
+        &self,
+        _ctx: LsContext,
+        query: &str,
+        limit: u64,
+    ) -> LsResult<MemorySearchResult> {
         let items = self.items.read().await;
         let q = query.to_lowercase();
-        let mut results: Vec<MemoryItem> = items.iter()
+        let mut results: Vec<MemoryItem> = items
+            .iter()
             .filter(|item| {
-                item.content.as_str()
+                item.content
+                    .as_str()
                     .unwrap_or("")
                     .to_lowercase()
                     .contains(&q)
-                    || item.metadata.values().any(|v| v.to_lowercase().contains(&q))
+                    || item
+                        .metadata
+                        .values()
+                        .any(|v| v.to_lowercase().contains(&q))
             })
             .cloned()
             .collect();
         results.reverse();
         let total = results.len() as u64;
         results.truncate(limit as usize);
-        Ok(MemorySearchResult { items: results, total })
+        Ok(MemorySearchResult {
+            items: results,
+            total,
+        })
     }
 
     async fn delete(&self, _ctx: LsContext, memory_id: LsId) -> LsResult<()> {
@@ -238,14 +281,12 @@ impl Memory for InMemoryMemory {
         let mut items = self.items.write().await;
         let before = items.len();
         let now = chrono::Utc::now();
-        items.retain(|item| {
-            match item.ttl_seconds {
-                Some(ttl) => {
-                    let expires = item.created_at + chrono::Duration::seconds(ttl as i64);
-                    expires > now
-                }
-                None => true,
+        items.retain(|item| match item.ttl_seconds {
+            Some(ttl) => {
+                let expires = item.created_at + chrono::Duration::seconds(ttl as i64);
+                expires > now
             }
+            None => true,
         });
         Ok((before - items.len()) as u64)
     }
@@ -326,7 +367,9 @@ impl ChatAgentBuilder {
             llm: self.llm,
             memory: self.memory,
             event_bus: self.event_bus,
-            session_manager: self.session_manager.unwrap_or_else(|| SessionManager::new(3600)),
+            session_manager: self
+                .session_manager
+                .unwrap_or_else(|| SessionManager::new(3600)),
             system_prompt: self.system_prompt,
             status: RwLock::new(AgentStatus::Idle),
         }
@@ -354,10 +397,15 @@ impl ChatAgent {
 
         // 2. 更新状态 + 发布事件
         *self.status.write().await = AgentStatus::Running;
-        self.publish_event(ctx, EventTopic::task_submitted(), serde_json::json!({
-            "agent_id": self.agent_id.to_string(),
-            "message": message,
-        })).await;
+        self.publish_event(
+            ctx,
+            EventTopic::task_submitted(),
+            serde_json::json!({
+                "agent_id": self.agent_id.to_string(),
+                "message": message,
+            }),
+        )
+        .await;
 
         // 3. 存储用户消息到记忆
         if let Some(ref memory) = self.memory {
@@ -373,14 +421,12 @@ impl ChatAgent {
         }
 
         // 4. 构建 LLM 请求 (系统提示 + 记忆上下文)
-        let mut messages = vec![
-            LlmMessage {
-                role: LlmRole::System,
-                content: self.system_prompt.clone(),
-                name: None,
-                tool_calls: None,
-            },
-        ];
+        let mut messages = vec![LlmMessage {
+            role: LlmRole::System,
+            content: self.system_prompt.clone(),
+            name: None,
+            tool_calls: None,
+        }];
 
         if let Some(ref memory) = self.memory {
             let history = memory.search(ctx.clone(), "", 10).await?;
@@ -409,7 +455,9 @@ impl ChatAgent {
         });
 
         // 5. 调用 LLM
-        let llm = self.llm.as_ref()
+        let llm = self
+            .llm
+            .as_ref()
             .ok_or_else(|| LsError::NotImplemented("no LLM backend".into()))?;
         let llm_request = LlmRequest {
             model: "gpt-4o-mini".into(),
@@ -439,15 +487,20 @@ impl ChatAgent {
 
         // 7. 发布完成事件
         *self.status.write().await = AgentStatus::Completed;
-        self.publish_event(ctx, EventTopic::agent_step_finished(), serde_json::json!({
-            "agent_id": self.agent_id.to_string(),
-            "reply_length": reply_text.len(),
-            "usage": {
-                "prompt_tokens": response.usage.prompt_tokens,
-                "completion_tokens": response.usage.completion_tokens,
-                "total_tokens": response.usage.total_tokens,
-            },
-        })).await;
+        self.publish_event(
+            ctx,
+            EventTopic::agent_step_finished(),
+            serde_json::json!({
+                "agent_id": self.agent_id.to_string(),
+                "reply_length": reply_text.len(),
+                "usage": {
+                    "prompt_tokens": response.usage.prompt_tokens,
+                    "completion_tokens": response.usage.completion_tokens,
+                    "total_tokens": response.usage.total_tokens,
+                },
+            }),
+        )
+        .await;
 
         Ok(reply_text)
     }
@@ -475,9 +528,7 @@ impl Agent for ChatAgent {
     }
 
     async fn run(&mut self, _ctx: LsContext, input: serde_json::Value) -> LsResult<AgentOutput> {
-        let message = input.get("message")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let message = input.get("message").and_then(|v| v.as_str()).unwrap_or("");
         let ctx = LsContext::with_session(LsId::new());
         let reply = self.chat(&ctx, message).await?;
         Ok(AgentOutput {
@@ -530,7 +581,9 @@ async fn main() -> LsResult<()> {
     println!();
 
     // 加载配置并选择 LLM 提供商
-    let config = lingshu_config::ConfigLoader::with_cwd().load(None).unwrap_or_default();
+    let config = lingshu_config::ConfigLoader::with_cwd()
+        .load(None)
+        .unwrap_or_default();
     let provider = lingshu_config::settings::LlmProvider::from_env();
 
     // 使用工厂模式构建 LLM 实例
@@ -544,14 +597,16 @@ async fn main() -> LsResult<()> {
     let memory = InMemoryMemory::new();
     let session_mgr = SessionManager::new(3600);
 
-    let _sub_id = bus.subscribe(
-        LsContext::with_session(LsId::new()),
-        "ls.*",
-        Box::new(move |event| {
-            info!(topic = %event.topic, "event received");
-            Ok(())
-        }),
-    ).await?;
+    let _sub_id = bus
+        .subscribe(
+            LsContext::with_session(LsId::new()),
+            "ls.*",
+            Box::new(move |event| {
+                info!(topic = %event.topic, "event received");
+                Ok(())
+            }),
+        )
+        .await?;
 
     let agent = ChatAgentBuilder::new()
         .llm_box(llm)

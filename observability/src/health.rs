@@ -190,8 +190,16 @@ mod tests {
     #[tokio::test]
     async fn test_health_registry() {
         let reg = HealthRegistry::new("test", "1.0.0");
-        reg.register(Box::new(MockHealth { name: "db".into(), healthy: true })).await;
-        reg.register(Box::new(MockHealth { name: "cache".into(), healthy: true })).await;
+        reg.register(Box::new(MockHealth {
+            name: "db".into(),
+            healthy: true,
+        }))
+        .await;
+        reg.register(Box::new(MockHealth {
+            name: "cache".into(),
+            healthy: true,
+        }))
+        .await;
 
         let resp = reg.check_all().await;
         assert!(resp.healthy);
@@ -201,7 +209,11 @@ mod tests {
     #[tokio::test]
     async fn test_unhealthy_component() {
         let reg = HealthRegistry::new("test", "1.0.0");
-        reg.register(Box::new(MockHealth { name: "db".into(), healthy: false })).await;
+        reg.register(Box::new(MockHealth {
+            name: "db".into(),
+            healthy: false,
+        }))
+        .await;
 
         let resp = reg.check_all().await;
         assert!(!resp.healthy);

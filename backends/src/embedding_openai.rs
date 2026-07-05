@@ -66,13 +66,18 @@ impl OpenAiEmbedding {
 
 #[async_trait]
 impl Embedding for OpenAiEmbedding {
-    async fn embed(&self, _ctx: LsContext, request: EmbeddingRequest) -> LsResult<EmbeddingResponse> {
+    async fn embed(
+        &self,
+        _ctx: LsContext,
+        request: EmbeddingRequest,
+    ) -> LsResult<EmbeddingResponse> {
         let req_body = EmbedRequest {
             model: request.model.unwrap_or_else(|| self.model.clone()),
             input: request.input,
         };
 
-        let resp = self.client
+        let resp = self
+            .client
             .post(self.embed_url())
             .header("Authorization", format!("Bearer {}", self.api_key))
             .json(&req_body)
@@ -91,14 +96,17 @@ impl Embedding for OpenAiEmbedding {
             .await
             .map_err(|e| LsError::Embedding(format!("parse failed: {e}")))?;
 
-        self.total_tokens.fetch_add(embed_resp.usage.total_tokens, Ordering::AcqRel);
+        self.total_tokens
+            .fetch_add(embed_resp.usage.total_tokens, Ordering::AcqRel);
 
-        let vectors: Vec<EmbeddingVector> = embed_resp.data.into_iter().map(|d| {
-            EmbeddingVector {
+        let vectors: Vec<EmbeddingVector> = embed_resp
+            .data
+            .into_iter()
+            .map(|d| EmbeddingVector {
                 dimensions: d.embedding.len(),
                 values: d.embedding.into_iter().map(|v| v as f32).collect(),
-            }
-        }).collect();
+            })
+            .collect();
 
         Ok(EmbeddingResponse {
             vectors,
@@ -119,7 +127,8 @@ impl Embedding for OpenAiEmbedding {
         if vector.values.len() != vector.dimensions {
             return Err(LsError::Embedding(format!(
                 "values length {} != dimensions {}",
-                vector.values.len(), vector.dimensions
+                vector.values.len(),
+                vector.dimensions
             )));
         }
         Ok(())
@@ -137,14 +146,20 @@ mod tests {
     #[tokio::test]
     async fn test_validate_dimensions() {
         let emb = OpenAiEmbedding::new("sk-test", None, Some(3), None);
-        let v = EmbeddingVector { dimensions: 3, values: vec![0.1, 0.2, 0.3] };
+        let v = EmbeddingVector {
+            dimensions: 3,
+            values: vec![0.1, 0.2, 0.3],
+        };
         assert!(emb.validate_dimensions(&v).is_ok());
     }
 
     #[tokio::test]
     async fn test_validate_dimensions_mismatch() {
         let emb = OpenAiEmbedding::new("sk-test", None, Some(3), None);
-        let v = EmbeddingVector { dimensions: 5, values: vec![0.1; 5] };
+        let v = EmbeddingVector {
+            dimensions: 5,
+            values: vec![0.1; 5],
+        };
         assert!(emb.validate_dimensions(&v).is_err());
     }
 }

@@ -24,8 +24,9 @@ impl PluginLoader {
 
     /// 从 JSON 文件加载插件清单.
     pub fn load_manifest(path: &Path) -> LsResult<PluginManifest> {
-        let content = std::fs::read_to_string(path)
-            .map_err(|e| LsError::Plugin(format!("cannot read manifest '{}': {e}", path.display())))?;
+        let content = std::fs::read_to_string(path).map_err(|e| {
+            LsError::Plugin(format!("cannot read manifest '{}': {e}", path.display()))
+        })?;
         let manifest: PluginManifest = serde_json::from_str(&content)
             .map_err(|e| LsError::Plugin(format!("invalid manifest '{}': {e}", path.display())))?;
         info!(name = %manifest.name, version = %manifest.version, "plugin manifest loaded");
@@ -49,8 +50,9 @@ impl PluginLoader {
     /// 使用 `libloading` 在运行时加载共享库，并调用 `create_plugin` 符号
     /// 获取 `Box<dyn Plugin>` 实例.
     pub unsafe fn load_dynamic(&self, path: &Path) -> LsResult<(PluginInfo, libloading::Library)> {
-        let lib = libloading::Library::new(path)
-            .map_err(|e| LsError::Plugin(format!("cannot load library '{}': {e}", path.display())))?;
+        let lib = libloading::Library::new(path).map_err(|e| {
+            LsError::Plugin(format!("cannot load library '{}': {e}", path.display()))
+        })?;
 
         // 尝试从共享库中获取 create_plugin 函数
         let create: libloading::Symbol<unsafe extern "C" fn() -> Box<dyn Plugin>> = {
@@ -83,10 +85,10 @@ impl PluginLoader {
 
 #[cfg(test)]
 mod tests {
-        use lingshu_core::{LsContext, LsId};
-        use lingshu_traits::plugin::PluginPermission;
     use super::*;
     use async_trait::async_trait;
+    use lingshu_core::{LsContext, LsId};
+    use lingshu_traits::plugin::PluginPermission;
 
     struct MockPlugin {
         info: PluginInfo,

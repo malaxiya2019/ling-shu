@@ -6,12 +6,12 @@
 //! - 用量统计
 
 use async_trait::async_trait;
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
 use lingshu_core::{LsContext, LsError, LsResult};
 use lingshu_traits::llm::*;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 // ── OpenAI API 类型 ─────────────────────────────────
 
@@ -114,7 +114,11 @@ impl OpenAiLlm {
     /// - `api_key`: OpenAI API 密钥
     /// - `default_model`: 默认模型名 (如 "gpt-4o")
     /// - `base_url`: API 基础 URL (默认 "https://api.openai.com/v1")
-    pub fn new(api_key: impl Into<String>, default_model: impl Into<String>, base_url: Option<String>) -> Self {
+    pub fn new(
+        api_key: impl Into<String>,
+        default_model: impl Into<String>,
+        base_url: Option<String>,
+    ) -> Self {
         Self {
             client: Client::new(),
             api_key: api_key.into(),
@@ -135,15 +139,17 @@ impl OpenAiLlm {
     }
 
     fn convert_messages(msgs: &[LlmMessage]) -> Vec<ChatMessage> {
-        msgs.iter().map(|m| ChatMessage {
-            role: match m.role {
-                LlmRole::System => "system".into(),
-                LlmRole::User => "user".into(),
-                LlmRole::Assistant => "assistant".into(),
-                LlmRole::Tool => "tool".into(),
-            },
-            content: m.content.clone(),
-        }).collect()
+        msgs.iter()
+            .map(|m| ChatMessage {
+                role: match m.role {
+                    LlmRole::System => "system".into(),
+                    LlmRole::User => "user".into(),
+                    LlmRole::Assistant => "assistant".into(),
+                    LlmRole::Tool => "tool".into(),
+                },
+                content: m.content.clone(),
+            })
+            .collect()
     }
 }
 
@@ -160,7 +166,8 @@ impl Llm for OpenAiLlm {
             tool_choice: None,
         };
 
-        let resp = self.client
+        let resp = self
+            .client
             .post(self.chat_url())
             .header("Authorization", format!("Bearer {}", self.api_key))
             .json(&req_body)
@@ -179,15 +186,22 @@ impl Llm for OpenAiLlm {
             .await
             .map_err(|e| LsError::Llm(format!("parse failed: {e}")))?;
 
-        let choice = chat_resp.choices.into_iter().next()
+        let choice = chat_resp
+            .choices
+            .into_iter()
+            .next()
             .ok_or_else(|| LsError::Llm("no choices returned".into()))?;
 
         let usage = chat_resp.usage.unwrap_or(UsageData {
-            prompt_tokens: 0, completion_tokens: 0, total_tokens: 0,
+            prompt_tokens: 0,
+            completion_tokens: 0,
+            total_tokens: 0,
         });
 
-        self.prompt_tokens.fetch_add(usage.prompt_tokens, Ordering::AcqRel);
-        self.completion_tokens.fetch_add(usage.completion_tokens, Ordering::AcqRel);
+        self.prompt_tokens
+            .fetch_add(usage.prompt_tokens, Ordering::AcqRel);
+        self.completion_tokens
+            .fetch_add(usage.completion_tokens, Ordering::AcqRel);
 
         Ok(LlmResponse {
             message: LlmMessage {
@@ -235,7 +249,9 @@ impl Llm for OpenAiLlm {
             {
                 Ok(r) => r,
                 Err(e) => {
-                    let _ = tx.send(Err(LsError::Llm(format!("stream request failed: {e}")))).await;
+                    let _ = tx
+                        .send(Err(LsError::Llm(format!("stream request failed: {e}"))))
+                        .await;
                     return;
                 }
             };
@@ -243,7 +259,9 @@ impl Llm for OpenAiLlm {
             if !response.status().is_success() {
                 let status = response.status();
                 let body = response.text().await.unwrap_or_default();
-                let _ = tx.send(Err(LsError::Llm(format!("API error {status}: {body}")))).await;
+                let _ = tx
+                    .send(Err(LsError::Llm(format!("API error {status}: {body}"))))
+                    .await;
                 return;
             }
 
@@ -253,7 +271,9 @@ impl Llm for OpenAiLlm {
                 let chunk = match chunk_result {
                     Ok(b) => b,
                     Err(e) => {
-                        let _ = tx.send(Err(LsError::Llm(format!("stream read error: {e}")))).await;
+                        let _ = tx
+                            .send(Err(LsError::Llm(format!("stream read error: {e}"))))
+                            .await;
                         break;
                     }
                 };
@@ -262,22 +282,30 @@ impl Llm for OpenAiLlm {
                 let text = String::from_utf8_lossy(&chunk);
                 for line in text.lines() {
                     let line = line.trim();
-                    if !line.starts_with("data: ") { continue; }
+                    if !line.starts_with("data: ") {
+                        continue;
+                    }
                     let data = &line[6..];
-                    if data == "[DONE]" { break; }
+                    if data == "[DONE]" {
+                        break;
+                    }
 
                     match serde_json::from_str::<StreamChunk>(data) {
                         Ok(sc) => {
                             for choice in sc.choices {
-                                let _ = tx.send(Ok(LlmChunk {
-                                    content: choice.delta.content,
-                                    tool_calls: None,
-                                    finish_reason: choice.finish_reason,
-                                })).await;
+                                let _ = tx
+                                    .send(Ok(LlmChunk {
+                                        content: choice.delta.content,
+                                        tool_calls: None,
+                                        finish_reason: choice.finish_reason,
+                                    }))
+                                    .await;
                             }
                         }
                         Err(e) => {
-                            let _ = tx.send(Err(LsError::Llm(format!("stream parse: {e}")))).await;
+                            let _ = tx
+                                .send(Err(LsError::Llm(format!("stream parse: {e}"))))
+                                .await;
                         }
                     }
                 }
@@ -289,8 +317,14 @@ impl Llm for OpenAiLlm {
 
     async fn usage_stats(&self, _ctx: LsContext) -> LsResult<HashMap<String, u64>> {
         let mut map = HashMap::new();
-        map.insert("prompt_tokens".into(), self.prompt_tokens.load(Ordering::Acquire));
-        map.insert("completion_tokens".into(), self.completion_tokens.load(Ordering::Acquire));
+        map.insert(
+            "prompt_tokens".into(),
+            self.prompt_tokens.load(Ordering::Acquire),
+        );
+        map.insert(
+            "completion_tokens".into(),
+            self.completion_tokens.load(Ordering::Acquire),
+        );
         Ok(map)
     }
 }
@@ -311,8 +345,18 @@ mod tests {
     #[test]
     fn test_message_conversion() {
         let msgs = vec![
-            LlmMessage { role: LlmRole::System, content: "be helpful".into(), name: None, tool_calls: None },
-            LlmMessage { role: LlmRole::User, content: "hi".into(), name: None, tool_calls: None },
+            LlmMessage {
+                role: LlmRole::System,
+                content: "be helpful".into(),
+                name: None,
+                tool_calls: None,
+            },
+            LlmMessage {
+                role: LlmRole::User,
+                content: "hi".into(),
+                name: None,
+                tool_calls: None,
+            },
         ];
         let converted = OpenAiLlm::convert_messages(&msgs);
         assert_eq!(converted.len(), 2);

@@ -67,11 +67,7 @@ impl ObservabilityConfig {
     }
 
     /// 使用指定值构建配置.
-    pub fn new(
-        service_name: &str,
-        service_version: &str,
-        environment: Environment,
-    ) -> Self {
+    pub fn new(service_name: &str, service_version: &str, environment: Environment) -> Self {
         Self {
             service_name: service_name.to_string(),
             service_version: service_version.to_string(),

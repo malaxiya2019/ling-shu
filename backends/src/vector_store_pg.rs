@@ -16,7 +16,6 @@ use lingshu_traits::vector_store::*;
 use serde_json::Value;
 use sqlx::postgres::PgPoolOptions;
 
-
 /// PostgreSQL 持久化向量存储.
 #[derive(Debug, Clone)]
 pub struct PgVector {
@@ -112,7 +111,12 @@ impl PgVector {
 
 #[async_trait]
 impl VectorStore for PgVector {
-    async fn create_collection(&self, _ctx: LsContext, name: &str, dimensions: usize) -> LsResult<LsId> {
+    async fn create_collection(
+        &self,
+        _ctx: LsContext,
+        name: &str,
+        dimensions: usize,
+    ) -> LsResult<LsId> {
         let id = LsId::new().to_string();
 
         sqlx::query(
@@ -141,18 +145,22 @@ impl VectorStore for PgVector {
         Ok(())
     }
 
-    async fn upsert(&self, _ctx: LsContext, collection_id: LsId, records: Vec<VectorRecord>) -> LsResult<()> {
+    async fn upsert(
+        &self,
+        _ctx: LsContext,
+        collection_id: LsId,
+        records: Vec<VectorRecord>,
+    ) -> LsResult<()> {
         let cid = collection_id.to_string();
 
         // 验证集合存在并获取维度
-        let dimensions: i64 = sqlx::query_scalar(
-            "SELECT dimensions FROM vector_collections WHERE id = $1",
-        )
-        .bind(&cid)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| LsError::Internal(format!("get dimensions failed: {e}")))?
-        .ok_or_else(|| LsError::NotFound(format!("collection {cid}")))?;
+        let dimensions: i64 =
+            sqlx::query_scalar("SELECT dimensions FROM vector_collections WHERE id = $1")
+                .bind(&cid)
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(|e| LsError::Internal(format!("get dimensions failed: {e}")))?
+                .ok_or_else(|| LsError::NotFound(format!("collection {cid}")))?;
 
         for rec in &records {
             if rec.vector.len() != dimensions as usize {
@@ -194,14 +202,13 @@ impl VectorStore for PgVector {
         let cid = collection_id.to_string();
 
         // 验证集合
-        let _dimensions: i64 = sqlx::query_scalar(
-            "SELECT dimensions FROM vector_collections WHERE id = $1",
-        )
-        .bind(&cid)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| LsError::Internal(format!("get dimensions failed: {e}")))?
-        .ok_or_else(|| LsError::NotFound(format!("collection {cid}")))?;
+        let _dimensions: i64 =
+            sqlx::query_scalar("SELECT dimensions FROM vector_collections WHERE id = $1")
+                .bind(&cid)
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(|e| LsError::Internal(format!("get dimensions failed: {e}")))?
+                .ok_or_else(|| LsError::NotFound(format!("collection {cid}")))?;
 
         // 加载集合中所有向量
         let rows: Vec<(String, Vec<u8>, String)> = sqlx::query_as(

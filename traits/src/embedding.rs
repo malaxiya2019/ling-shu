@@ -34,7 +34,8 @@ pub struct EmbeddingUsage {
 #[async_trait]
 pub trait Embedding: Send + Sync + 'static {
     /// 生成向量.
-    async fn embed(&self, ctx: LsContext, request: EmbeddingRequest) -> LsResult<EmbeddingResponse>;
+    async fn embed(&self, ctx: LsContext, request: EmbeddingRequest)
+        -> LsResult<EmbeddingResponse>;
 
     /// 校验向量维度.
     fn validate_dimensions(&self, vector: &EmbeddingVector) -> LsResult<()>;

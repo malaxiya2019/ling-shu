@@ -205,7 +205,10 @@ impl ServiceToken {
     }
 
     /// 验证服务令牌并返回声明.
-    pub fn verify(token: &str, verifying_keys: &HashMap<String, VerifyingKey>) -> LsResult<ServiceAuthResult> {
+    pub fn verify(
+        token: &str,
+        verifying_keys: &HashMap<String, VerifyingKey>,
+    ) -> LsResult<ServiceAuthResult> {
         let parts: Vec<&str> = token.split('.').collect();
         if parts.len() != 3 {
             return Err(LsError::AuthenticationFailed("invalid token format".into()));
@@ -617,7 +620,9 @@ impl Ed25519Service {
                 return Ok(result);
             }
         }
-        Err(LsError::AuthenticationFailed("token verification failed: no matching key found in local or registry".into()))
+        Err(LsError::AuthenticationFailed(
+            "token verification failed: no matching key found in local or registry".into(),
+        ))
     }
 
     /// 注册远程服务公钥.
@@ -842,10 +847,7 @@ mod tests {
         svc.register_remote(&key).await.unwrap();
 
         // 签发令牌 (用旧密钥)
-        let token1 = svc
-            .issue_token("other-svc", "s1", vec![])
-            .await
-            .unwrap();
+        let token1 = svc.issue_token("other-svc", "s1", vec![]).await.unwrap();
 
         // 轮换密钥
         svc.rotate_key().await.unwrap();
@@ -859,10 +861,7 @@ mod tests {
         assert!(result.is_ok());
 
         // 新令牌也可验证
-        let token2 = svc
-            .issue_token("other-svc", "s2", vec![])
-            .await
-            .unwrap();
+        let token2 = svc.issue_token("other-svc", "s2", vec![]).await.unwrap();
         let result = svc.verify_token(&token2).await;
         assert!(result.is_ok());
     }

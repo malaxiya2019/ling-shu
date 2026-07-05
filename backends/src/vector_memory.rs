@@ -17,12 +17,12 @@ use async_trait::async_trait;
 use lingshu_core::{LsContext, LsError, LsId, LsResult};
 use lingshu_traits::embedding::{Embedding, EmbeddingRequest};
 use lingshu_traits::memory::{Memory, MemoryItem, MemorySearchResult};
-use lingshu_traits::vector_store::{VectorRecord, VectorStore, VectorSearchResult};
+use lingshu_traits::vector_store::{VectorRecord, VectorSearchResult, VectorStore};
 use serde_json::Value;
 use std::collections::HashMap;
-use tracing::{info, debug};
 use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::Mutex;
+use tracing::{debug, info};
 
 /// VectorMemory 的集合命名常量.
 const MEMORY_COLLECTION_NAME: &str = "ls_memory";
@@ -82,8 +82,9 @@ impl VectorMemory {
     fn item_to_record(item: &MemoryItem) -> LsResult<VectorRecord> {
         let content = match &item.content {
             Value::String(s) => s.clone(),
-            other => serde_json::to_string(other)
-                .map_err(|e| LsError::Serialization(e.to_string()))?,
+            other => {
+                serde_json::to_string(other).map_err(|e| LsError::Serialization(e.to_string()))?
+            }
         };
 
         let mut meta = serde_json::json!({
@@ -176,8 +177,9 @@ impl Memory for VectorMemory {
 
         let content = match &item.content {
             Value::String(s) => s.clone(),
-            other => serde_json::to_string(other)
-                .map_err(|e| LsError::Serialization(e.to_string()))?,
+            other => {
+                serde_json::to_string(other).map_err(|e| LsError::Serialization(e.to_string()))?
+            }
         };
 
         let embed_resp = self
@@ -237,7 +239,12 @@ impl Memory for VectorMemory {
             .ok_or_else(|| LsError::Internal("conversion returned empty".into()))
     }
 
-    async fn search(&self, ctx: LsContext, query: &str, limit: u64) -> LsResult<MemorySearchResult> {
+    async fn search(
+        &self,
+        ctx: LsContext,
+        query: &str,
+        limit: u64,
+    ) -> LsResult<MemorySearchResult> {
         let col_id = self.ensure_collection(&ctx).await?;
 
         let embed_resp = self
@@ -258,7 +265,10 @@ impl Memory for VectorMemory {
             .ok_or_else(|| LsError::Internal("embedding returned empty result".into()))?
             .values;
 
-        let result = self.store.search(ctx.child(), col_id, query_vector, limit).await?;
+        let result = self
+            .store
+            .search(ctx.child(), col_id, query_vector, limit)
+            .await?;
         Ok(Self::search_result_to_memory(result))
     }
 
@@ -279,7 +289,10 @@ impl Memory for VectorMemory {
         // 重建集合: 删除 + 重新创建 + 写入剩余记录
         let name = MEMORY_COLLECTION_NAME;
         self.store.delete_collection(ctx.child(), col_id).await?;
-        let new_id = self.store.create_collection(ctx.child(), name, dimensions).await?;
+        let new_id = self
+            .store
+            .create_collection(ctx.child(), name, dimensions)
+            .await?;
 
         if !remaining.is_empty() {
             self.store.upsert(ctx.child(), new_id, remaining).await?;
@@ -319,7 +332,10 @@ impl Memory for VectorMemory {
         // 重建集合
         let name = MEMORY_COLLECTION_NAME;
         self.store.delete_collection(ctx.child(), col_id).await?;
-        let new_id = self.store.create_collection(ctx.child(), name, dimensions).await?;
+        let new_id = self
+            .store
+            .create_collection(ctx.child(), name, dimensions)
+            .await?;
 
         if !remaining.is_empty() {
             self.store.upsert(ctx.child(), new_id, remaining).await?;
@@ -352,9 +368,9 @@ mod tests {
                     .input
                     .iter()
                     .map(|text| {
-                        let hash: u64 = text.bytes().fold(0u64, |acc, b| {
-                            acc.wrapping_mul(31).wrapping_add(b as u64)
-                        });
+                        let hash: u64 = text
+                            .bytes()
+                            .fold(0u64, |acc, b| acc.wrapping_mul(31).wrapping_add(b as u64));
                         let values: Vec<f32> = (0..4)
                             .map(|i| ((hash >> (i * 16)) & 0xFFFF) as f32 / 65536.0)
                             .collect();
@@ -414,7 +430,10 @@ mod tests {
 
         let result = memory.search(ctx.child(), "天气", 10).await.unwrap();
         assert_eq!(result.total, 1);
-        assert_eq!(result.items[0].content, Value::String("今天天气很好".into()));
+        assert_eq!(
+            result.items[0].content,
+            Value::String("今天天气很好".into())
+        );
     }
 
     #[tokio::test]
@@ -474,7 +493,10 @@ mod tests {
         };
 
         memory.write(ctx.child(), item).await.unwrap();
-        memory.clear_session(ctx.child(), ctx.session_id).await.unwrap();
+        memory
+            .clear_session(ctx.child(), ctx.session_id)
+            .await
+            .unwrap();
 
         let result = memory.search(ctx.child(), "会话", 10).await.unwrap();
         assert_eq!(result.total, 0);
@@ -529,7 +551,10 @@ mod tests {
         let id2 = memory.write(ctx2.child(), item2).await.unwrap();
 
         // 清除会话1
-        memory.clear_session(ctx1.child(), ctx1.session_id).await.unwrap();
+        memory
+            .clear_session(ctx1.child(), ctx1.session_id)
+            .await
+            .unwrap();
 
         // 按 ID 验证：会话1的记录应无法读取
         let read1 = memory.read(ctx1.child(), id1).await;
@@ -541,7 +566,10 @@ mod tests {
         assert_eq!(read2.unwrap().content, Value::String("会话2的内容".into()));
 
         // 搜索仍能找到会话2的内容（集合中还有1条记录）
-        let result = memory.search(ctx2.child(), "会话2的内容", 10).await.unwrap();
+        let result = memory
+            .search(ctx2.child(), "会话2的内容", 10)
+            .await
+            .unwrap();
         assert_eq!(result.total, 1);
         assert_eq!(result.items[0].content, Value::String("会话2的内容".into()));
     }

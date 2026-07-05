@@ -97,10 +97,14 @@ mod tests {
 
     #[test]
     fn test_env_value() {
-        unsafe { std::env::set_var("LS_TEST_KEY", "hello"); }
+        unsafe {
+            std::env::set_var("LS_TEST_KEY", "hello");
+        }
         // env_value lowercases the key before lookup
         assert_eq!(env_value("TEST_KEY").as_deref(), Some("hello"));
         assert_eq!(env_value("nonexistent"), None);
-        unsafe { std::env::remove_var("LS_TEST_KEY"); }
+        unsafe {
+            std::env::remove_var("LS_TEST_KEY");
+        }
     }
 }

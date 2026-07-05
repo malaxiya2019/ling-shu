@@ -32,14 +32,30 @@ pub struct VectorSearchResult {
 #[async_trait]
 pub trait VectorStore: Send + Sync + 'static {
     /// 创建集合.
-    async fn create_collection(&self, ctx: LsContext, name: &str, dimensions: usize) -> LsResult<LsId>;
+    async fn create_collection(
+        &self,
+        ctx: LsContext,
+        name: &str,
+        dimensions: usize,
+    ) -> LsResult<LsId>;
 
     /// 删除集合.
     async fn delete_collection(&self, ctx: LsContext, collection_id: LsId) -> LsResult<()>;
 
     /// 写入向量.
-    async fn upsert(&self, ctx: LsContext, collection_id: LsId, records: Vec<VectorRecord>) -> LsResult<()>;
+    async fn upsert(
+        &self,
+        ctx: LsContext,
+        collection_id: LsId,
+        records: Vec<VectorRecord>,
+    ) -> LsResult<()>;
 
     /// 相似度检索.
-    async fn search(&self, ctx: LsContext, collection_id: LsId, query: Vec<f32>, top_k: u64) -> LsResult<VectorSearchResult>;
+    async fn search(
+        &self,
+        ctx: LsContext,
+        collection_id: LsId,
+        query: Vec<f32>,
+        top_k: u64,
+    ) -> LsResult<VectorSearchResult>;
 }

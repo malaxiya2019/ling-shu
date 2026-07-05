@@ -66,9 +66,10 @@ impl EventBus for InMemoryEventBus {
         );
         self.published.lock().await.push(event.clone());
         let subscribers = self.subscribers.read().await;
-        let matched = subscribers.iter().filter(|(_, pattern, _)| {
-            Self::topic_matches(pattern, &event.topic)
-        }).count();
+        let matched = subscribers
+            .iter()
+            .filter(|(_, pattern, _)| Self::topic_matches(pattern, &event.topic))
+            .count();
         for (_, pattern, handler) in subscribers.iter() {
             if Self::topic_matches(pattern, &event.topic) {
                 let _ = handler(event.clone());

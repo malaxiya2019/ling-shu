@@ -48,15 +48,23 @@ impl InMemoryVectorStore {
 
 #[async_trait]
 impl VectorStore for InMemoryVectorStore {
-    async fn create_collection(&self, _ctx: LsContext, name: &str, dimensions: usize) -> LsResult<LsId> {
+    async fn create_collection(
+        &self,
+        _ctx: LsContext,
+        name: &str,
+        dimensions: usize,
+    ) -> LsResult<LsId> {
         let id = LsId::new();
         let mut collections = self.collections.write().await;
-        collections.insert(id, CollectionData {
-            collection_id: id,
-            name: name.to_string(),
-            dimensions,
-            records: Vec::new(),
-        });
+        collections.insert(
+            id,
+            CollectionData {
+                collection_id: id,
+                name: name.to_string(),
+                dimensions,
+                records: Vec::new(),
+            },
+        );
         Ok(id)
     }
 
@@ -65,47 +73,76 @@ impl VectorStore for InMemoryVectorStore {
         Ok(())
     }
 
-    async fn upsert(&self, _ctx: LsContext, collection_id: LsId, records: Vec<VectorRecord>) -> LsResult<()> {
+    async fn upsert(
+        &self,
+        _ctx: LsContext,
+        collection_id: LsId,
+        records: Vec<VectorRecord>,
+    ) -> LsResult<()> {
         let mut collections = self.collections.write().await;
-        let col = collections.get_mut(&collection_id)
-            .ok_or_else(|| lingshu_core::LsError::NotFound(format!("collection {collection_id}")))?;
+        let col = collections.get_mut(&collection_id).ok_or_else(|| {
+            lingshu_core::LsError::NotFound(format!("collection {collection_id}"))
+        })?;
 
         for rec in records {
             if rec.vector.len() != col.dimensions {
                 return Err(lingshu_core::LsError::InvalidArgument(format!(
                     "vector dimension {} != {}",
-                    rec.vector.len(), col.dimensions
+                    rec.vector.len(),
+                    col.dimensions
                 )));
             }
             if let Some(existing) = col.records.iter_mut().find(|r| r.id == rec.id) {
                 existing.vector = rec.vector;
                 existing.metadata = rec.metadata;
             } else {
-                col.records.push(InternalRecord { id: rec.id, vector: rec.vector, metadata: rec.metadata });
+                col.records.push(InternalRecord {
+                    id: rec.id,
+                    vector: rec.vector,
+                    metadata: rec.metadata,
+                });
             }
         }
         Ok(())
     }
 
-    async fn search(&self, _ctx: LsContext, collection_id: LsId, query: Vec<f32>, top_k: u64) -> LsResult<VectorSearchResult> {
+    async fn search(
+        &self,
+        _ctx: LsContext,
+        collection_id: LsId,
+        query: Vec<f32>,
+        top_k: u64,
+    ) -> LsResult<VectorSearchResult> {
         let collections = self.collections.read().await;
-        let col = collections.get(&collection_id)
-            .ok_or_else(|| lingshu_core::LsError::NotFound(format!("collection {collection_id}")))?;
+        let col = collections.get(&collection_id).ok_or_else(|| {
+            lingshu_core::LsError::NotFound(format!("collection {collection_id}"))
+        })?;
 
         if query.len() != col.dimensions {
-            return Err(lingshu_core::LsError::InvalidArgument(format!("query dim {} != {}", query.len(), col.dimensions)));
+            return Err(lingshu_core::LsError::InvalidArgument(format!(
+                "query dim {} != {}",
+                query.len(),
+                col.dimensions
+            )));
         }
 
-        let mut scored: Vec<(f64, &InternalRecord)> = col.records
+        let mut scored: Vec<(f64, &InternalRecord)> = col
+            .records
             .iter()
             .map(|r| (Self::cosine_similarity(&query, &r.vector), r))
             .collect();
 
         scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
         let total = scored.len() as u64;
-        let records: Vec<VectorRecord> = scored.into_iter()
+        let records: Vec<VectorRecord> = scored
+            .into_iter()
             .take(top_k as usize)
-            .map(|(score, r)| VectorRecord { id: r.id, vector: r.vector.clone(), metadata: r.metadata.clone(), score: Some(score) })
+            .map(|(score, r)| VectorRecord {
+                id: r.id,
+                vector: r.vector.clone(),
+                metadata: r.metadata.clone(),
+                score: Some(score),
+            })
             .collect();
 
         Ok(VectorSearchResult { records, total })
@@ -120,24 +157,54 @@ mod tests {
     async fn test_create_and_delete_collection() {
         let store = InMemoryVectorStore::new();
         let ctx = LsContext::with_session(LsId::new());
-        let id = store.create_collection(ctx.clone(), "test", 3).await.unwrap();
-        assert!(store.search(ctx.clone(), id, vec![1.0; 3], 10).await.is_ok());
+        let id = store
+            .create_collection(ctx.clone(), "test", 3)
+            .await
+            .unwrap();
+        assert!(store
+            .search(ctx.clone(), id, vec![1.0; 3], 10)
+            .await
+            .is_ok());
         store.delete_collection(ctx.clone(), id).await.unwrap();
-        assert!(store.search(ctx.clone(), id, vec![1.0; 3], 10).await.is_err());
+        assert!(store
+            .search(ctx.clone(), id, vec![1.0; 3], 10)
+            .await
+            .is_err());
     }
 
     #[tokio::test]
     async fn test_upsert_and_search() {
         let store = InMemoryVectorStore::new();
         let ctx = LsContext::with_session(LsId::new());
-        let col_id = store.create_collection(ctx.clone(), "vectors", 2).await.unwrap();
+        let col_id = store
+            .create_collection(ctx.clone(), "vectors", 2)
+            .await
+            .unwrap();
         let records = vec![
-            VectorRecord { id: LsId::new(), vector: vec![1.0, 0.0], metadata: Value::String("A".into()), score: None },
-            VectorRecord { id: LsId::new(), vector: vec![0.0, 1.0], metadata: Value::String("B".into()), score: None },
-            VectorRecord { id: LsId::new(), vector: vec![1.0, 1.0], metadata: Value::String("C".into()), score: None },
+            VectorRecord {
+                id: LsId::new(),
+                vector: vec![1.0, 0.0],
+                metadata: Value::String("A".into()),
+                score: None,
+            },
+            VectorRecord {
+                id: LsId::new(),
+                vector: vec![0.0, 1.0],
+                metadata: Value::String("B".into()),
+                score: None,
+            },
+            VectorRecord {
+                id: LsId::new(),
+                vector: vec![1.0, 1.0],
+                metadata: Value::String("C".into()),
+                score: None,
+            },
         ];
         store.upsert(ctx.clone(), col_id, records).await.unwrap();
-        let result = store.search(ctx.clone(), col_id, vec![1.0, 0.0], 2).await.unwrap();
+        let result = store
+            .search(ctx.clone(), col_id, vec![1.0, 0.0], 2)
+            .await
+            .unwrap();
         assert_eq!(result.records.len(), 2);
         assert_eq!(result.records[0].metadata, Value::String("A".into()));
         assert!(result.records[0].score.unwrap() > 0.99);
@@ -147,14 +214,26 @@ mod tests {
     async fn test_dimension_mismatch() {
         let store = InMemoryVectorStore::new();
         let ctx = LsContext::with_session(LsId::new());
-        let col_id = store.create_collection(ctx.clone(), "test", 3).await.unwrap();
-        let bad = vec![VectorRecord { id: LsId::new(), vector: vec![1.0, 0.0], metadata: Value::Null, score: None }];
+        let col_id = store
+            .create_collection(ctx.clone(), "test", 3)
+            .await
+            .unwrap();
+        let bad = vec![VectorRecord {
+            id: LsId::new(),
+            vector: vec![1.0, 0.0],
+            metadata: Value::Null,
+            score: None,
+        }];
         assert!(store.upsert(ctx.clone(), col_id, bad).await.is_err());
     }
 
     #[test]
     fn test_cosine_similarity() {
-        assert!((InMemoryVectorStore::cosine_similarity(&[1.0, 0.0], &[1.0, 0.0]) - 1.0).abs() < 1e-6);
-        assert!((InMemoryVectorStore::cosine_similarity(&[1.0, 0.0], &[0.0, 1.0]) - 0.0).abs() < 1e-6);
+        assert!(
+            (InMemoryVectorStore::cosine_similarity(&[1.0, 0.0], &[1.0, 0.0]) - 1.0).abs() < 1e-6
+        );
+        assert!(
+            (InMemoryVectorStore::cosine_similarity(&[1.0, 0.0], &[0.0, 1.0]) - 0.0).abs() < 1e-6
+        );
     }
 }

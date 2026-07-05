@@ -69,17 +69,18 @@ impl SessionManager {
     /// 获取会话信息.
     pub async fn get(&self, session_id: LsId) -> LsResult<SessionInfo> {
         let sessions = self.sessions.read().await;
-        sessions.get(&session_id).cloned().ok_or_else(|| {
-            LsError::SessionNotFound(session_id.to_string())
-        })
+        sessions
+            .get(&session_id)
+            .cloned()
+            .ok_or_else(|| LsError::SessionNotFound(session_id.to_string()))
     }
 
     /// 续期会话.
     pub async fn renew(&self, session_id: LsId, ttl_seconds: u64) -> LsResult<SessionInfo> {
         let mut sessions = self.sessions.write().await;
-        let info = sessions.get_mut(&session_id).ok_or_else(|| {
-            LsError::SessionNotFound(session_id.to_string())
-        })?;
+        let info = sessions
+            .get_mut(&session_id)
+            .ok_or_else(|| LsError::SessionNotFound(session_id.to_string()))?;
         if info.state == SessionState::Terminated {
             return Err(LsError::SessionExpired(session_id.to_string()));
         }
@@ -98,9 +99,9 @@ impl SessionManager {
     /// 终止会话.
     pub async fn terminate(&self, session_id: LsId) -> LsResult<()> {
         let mut sessions = self.sessions.write().await;
-        let info = sessions.get_mut(&session_id).ok_or_else(|| {
-            LsError::SessionNotFound(session_id.to_string())
-        })?;
+        let info = sessions
+            .get_mut(&session_id)
+            .ok_or_else(|| LsError::SessionNotFound(session_id.to_string()))?;
         info.state = SessionState::Terminated;
 
         tracing::info!(
@@ -117,9 +118,7 @@ impl SessionManager {
         let now = chrono::Utc::now();
         let expired: Vec<LsId> = sessions
             .iter()
-            .filter(|(_, info)| {
-                info.expires_at < now && info.state != SessionState::Terminated
-            })
+            .filter(|(_, info)| info.expires_at < now && info.state != SessionState::Terminated)
             .map(|(id, _)| *id)
             .collect();
         let count = expired.len() as u64;
@@ -251,6 +250,9 @@ mod tests {
         let info = mgr.create(&ctx).await.unwrap();
         assert_eq!(info.user_id.as_deref(), Some("alice"));
         assert_eq!(info.tenant_id.as_deref(), Some("acme"));
-        assert_eq!(info.metadata.get("source").map(|s| s.as_str()), Some("test"));
+        assert_eq!(
+            info.metadata.get("source").map(|s| s.as_str()),
+            Some("test")
+        );
     }
 }

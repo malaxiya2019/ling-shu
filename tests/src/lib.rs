@@ -35,8 +35,8 @@ mod tests {
     // ── 2. LLM Mock 全链路 ──────────────────────────
     #[tokio::test]
     async fn test_llm_mock_chat() {
-        use lingshu_core::{LsContext, LsId};
         use lingshu_backends::mock_llm::MockLlm;
+        use lingshu_core::{LsContext, LsId};
         use lingshu_traits::llm::*;
 
         let llm = MockLlm::new();
@@ -63,15 +63,18 @@ mod tests {
     // ── 3. InMemoryVectorStore 全链路 ───────────────
     #[tokio::test]
     async fn test_vector_store_crud() {
+        use lingshu_backends::InMemoryVectorStore;
         use lingshu_core::{LsContext, LsId};
         use lingshu_traits::vector_store::{VectorRecord, VectorStore};
-        use lingshu_backends::InMemoryVectorStore;
 
         let store = InMemoryVectorStore::new();
         let ctx = LsContext::with_session(LsId::new());
 
         // Create collection
-        let coll_id = store.create_collection(ctx.child(), "test", 3).await.unwrap();
+        let coll_id = store
+            .create_collection(ctx.child(), "test", 3)
+            .await
+            .unwrap();
 
         let record = VectorRecord {
             id: LsId::new(),
@@ -79,9 +82,15 @@ mod tests {
             metadata: serde_json::json!({"text": "hello"}),
             score: None,
         };
-        store.upsert(ctx.child(), coll_id, vec![record.clone()]).await.unwrap();
+        store
+            .upsert(ctx.child(), coll_id, vec![record.clone()])
+            .await
+            .unwrap();
 
-        let results = store.search(ctx, coll_id, vec![0.1, 0.2, 0.3], 5).await.unwrap();
+        let results = store
+            .search(ctx, coll_id, vec![0.1, 0.2, 0.3], 5)
+            .await
+            .unwrap();
         assert_eq!(results.records.len(), 1);
         assert_eq!(results.records[0].metadata["text"], "hello");
     }
@@ -109,7 +118,9 @@ mod tests {
                 rx.lock().unwrap().push(evt.topic);
                 Ok(())
             }),
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
 
         let event = Event {
             event_id: "evt_001".into(),
@@ -140,7 +151,10 @@ mod tests {
 
         // Upload
         let content = b"Hello, Lingshu!".to_vec();
-        let info = storage.upload(ctx.child(), "test.txt", "text/plain", content.clone()).await.unwrap();
+        let info = storage
+            .upload(ctx.child(), "test.txt", "text/plain", content.clone())
+            .await
+            .unwrap();
         assert_eq!(info.filename, "test.txt");
 
         // Download
@@ -162,11 +176,13 @@ mod tests {
     async fn test_security_auth() {
         use lingshu_core::{LsContext, LsId};
         use lingshu_security::auth::JwtService;
-        use lingshu_security::permission::{PermissionChecker, Permission};
+        use lingshu_security::permission::{Permission, PermissionChecker};
 
         let jwt = JwtService::new("test-secret", 3600);
         let session_id = LsId::new().to_string();
-        let token = jwt.issue("admin", &session_id, None, vec!["admin".into()]).unwrap();
+        let token = jwt
+            .issue("admin", &session_id, None, vec!["admin".into()])
+            .unwrap();
         assert!(!token.is_empty());
 
         let verified = jwt.verify(&token).unwrap();
@@ -182,10 +198,10 @@ mod tests {
     // ── 7. Runtime ToolRegistry 全链路 ──────────────
     #[tokio::test]
     async fn test_runtime_tool_registry() {
+        use async_trait::async_trait;
         use lingshu_core::{LsContext, LsId, LsResult};
         use lingshu_runtime::ToolRegistry;
         use lingshu_traits::tool::{Tool, ToolInfo, ToolParam};
-        use async_trait::async_trait;
         use serde_json::Value;
 
         struct GreetTool;
@@ -208,7 +224,9 @@ mod tests {
 
             fn validate(&self, input: &Value) -> LsResult<()> {
                 if input.get("name").and_then(|v| v.as_str()).is_none() {
-                    return Err(lingshu_core::LsError::Validation("missing name field".into()));
+                    return Err(lingshu_core::LsError::Validation(
+                        "missing name field".into(),
+                    ));
                 }
                 Ok(())
             }
@@ -223,16 +241,19 @@ mod tests {
         registry.register(Box::new(GreetTool)).await;
 
         let ctx = LsContext::with_session(LsId::new());
-        let result = registry.execute(&ctx, "greet", serde_json::json!({"name": "Lingshu"})).await.unwrap();
+        let result = registry
+            .execute(&ctx, "greet", serde_json::json!({"name": "Lingshu"}))
+            .await
+            .unwrap();
         assert_eq!(result["greeting"], "Hello, Lingshu!");
     }
 
     // ── 8. InMemoryKnowledge 全链路 ─────────────────
     #[tokio::test]
     async fn test_knowledge_in_memory() {
-        use lingshu_core::{LsContext, LsId};
         use lingshu_backends::InMemoryKnowledge;
-        use lingshu_traits::knowledge::{Knowledge, KnowledgeEntry, DataSource};
+        use lingshu_core::{LsContext, LsId};
+        use lingshu_traits::knowledge::{DataSource, Knowledge, KnowledgeEntry};
 
         let kb = InMemoryKnowledge::new();
         let ctx = LsContext::with_session(LsId::new());
@@ -275,10 +296,10 @@ mod tests {
     #[tokio::test]
     async fn test_database_repository_integration() {
         use lingshu_core::{LsContext, LsId};
-        use lingshu_database::{SqliteDatabase, DatabaseRepository};
-        use lingshu_traits::repository::Repository;
+        use lingshu_database::{DatabaseRepository, SqliteDatabase};
         use lingshu_traits::database::Pagination;
-        use serde::{Serialize, Deserialize};
+        use lingshu_traits::repository::Repository;
+        use serde::{Deserialize, Serialize};
         use std::sync::Arc;
 
         #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -292,12 +313,26 @@ mod tests {
         let repo = DatabaseRepository::<Product>::new(db, "products");
         let ctx = LsContext::with_session(LsId::new());
 
-        let product = Product { id: None, name: "Widget".into(), price: 9.99 };
+        let product = Product {
+            id: None,
+            name: "Widget".into(),
+            price: 9.99,
+        };
         let inserted = repo.insert(ctx.child(), product).await.unwrap();
         assert_eq!(inserted.name, "Widget");
         assert!(inserted.id.is_some());
 
-        let all = repo.query(ctx.child(), vec![], Pagination { page: 1, page_size: 10 }).await.unwrap();
+        let all = repo
+            .query(
+                ctx.child(),
+                vec![],
+                Pagination {
+                    page: 1,
+                    page_size: 10,
+                },
+            )
+            .await
+            .unwrap();
         assert_eq!(all.total, 1);
     }
 }

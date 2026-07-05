@@ -9,22 +9,22 @@
 mod api;
 
 use clap::Parser;
-use std::sync::Arc;
 use std::io::Write;
+use std::sync::Arc;
 use tracing::{error, info};
 
-use lingshu_core::{LsContext, LsError, LsId, LsResult};
 use lingshu_config::env::Environment;
-use lingshu_config::settings::{LsConfig, LlmProvider};
+use lingshu_config::settings::{LlmProvider, LsConfig};
+use lingshu_core::{LsContext, LsError, LsId, LsResult};
 use lingshu_eventbus::bus::InMemoryEventBus;
 use lingshu_observability::ObservabilityConfig;
 use lingshu_runtime::lifecycle::{LifecycleManager, LifecycleState};
 use lingshu_runtime::recovery::RecoveryManager;
 use lingshu_runtime::scheduler::InternalScheduler;
 use lingshu_runtime::session::SessionManager;
+use lingshu_runtime::ToolRegistry;
 use lingshu_security::service_auth::ServiceKeyBundle;
 use lingshu_storage::LocalStorage;
-use lingshu_runtime::ToolRegistry;
 
 use crate::api::AppState;
 
@@ -72,13 +72,12 @@ impl LingshuRuntime {
             .with_metadata("source", "lingshu-init");
 
         let lifecycle = LifecycleManager::new();
-        lifecycle.transition(&root_ctx, LifecycleState::Initializing)
+        lifecycle
+            .transition(&root_ctx, LifecycleState::Initializing)
             .map_err(|e| LsError::Internal(format!("lifecycle init failed: {e}")))?;
 
-        let config = LsConfig::load_for_env(&cli.env)
-            .unwrap_or_else(|_| LsConfig::default());
-        let environment: Environment = cli.env.parse()
-            .unwrap_or(Environment::Dev);
+        let config = LsConfig::load_for_env(&cli.env).unwrap_or_else(|_| LsConfig::default());
+        let environment: Environment = cli.env.parse().unwrap_or(Environment::Dev);
         info!(environment = %environment, "configuration loaded");
 
         let obs_config = ObservabilityConfig {
@@ -106,9 +105,10 @@ impl LingshuRuntime {
         let tool_registry = ToolRegistry::new();
 
         let llm: Option<Box<dyn lingshu_traits::llm::Llm>> = match config.llm.provider {
-            LlmProvider::Mock | LlmProvider::Openai | LlmProvider::Anthropic | LlmProvider::Groq => {
-                Some(lingshu_backends::build_llm(&config.llm))
-            }
+            LlmProvider::Mock
+            | LlmProvider::Openai
+            | LlmProvider::Anthropic
+            | LlmProvider::Groq => Some(lingshu_backends::build_llm(&config.llm)),
         };
 
         let runtime = Self {
@@ -125,7 +125,9 @@ impl LingshuRuntime {
             tool_registry,
         };
 
-        runtime.lifecycle.transition(&runtime.root_ctx, LifecycleState::Running)
+        runtime
+            .lifecycle
+            .transition(&runtime.root_ctx, LifecycleState::Running)
             .map_err(|e| LsError::Internal(format!("lifecycle startup failed: {e}")))?;
 
         info!("lingshu runtime initialized successfully");
@@ -134,13 +136,15 @@ impl LingshuRuntime {
 
     /// 优雅关闭
     pub async fn shutdown(&self) -> LsResult<()> {
-        self.lifecycle.transition(&self.root_ctx, LifecycleState::ShuttingDown)
+        self.lifecycle
+            .transition(&self.root_ctx, LifecycleState::ShuttingDown)
             .map_err(|e| LsError::Internal(format!("lifecycle shutdown failed: {e}")))?;
 
         self.scheduler.pause();
         info!("scheduler paused");
 
-        self.lifecycle.transition(&self.root_ctx, LifecycleState::Stopped)
+        self.lifecycle
+            .transition(&self.root_ctx, LifecycleState::Stopped)
             .map_err(|e| LsError::Internal(format!("lifecycle stop failed: {e}")))?;
 
         info!("lingshu runtime shut down gracefully");
@@ -150,8 +154,7 @@ impl LingshuRuntime {
     /// 创建用户会话
     pub async fn create_session(&self, user_id: &str) -> LsResult<LsId> {
         let session_id = LsId::new();
-        let ctx = LsContext::with_session(session_id)
-            .with_user(user_id);
+        let ctx = LsContext::with_session(session_id).with_user(user_id);
         self.session_mgr.create(&ctx).await?;
         Ok(session_id)
     }
@@ -200,19 +203,30 @@ async fn run_repl(runtime: &LingshuRuntime) -> LsResult<()> {
             "/stats" => {
                 println!("Runtime Statistics:");
                 println!("  Lifecycle:    {:?}", runtime.lifecycle.current());
-                println!("  Sessions:     {}", runtime.session_mgr.active_count().await);
+                println!(
+                    "  Sessions:     {}",
+                    runtime.session_mgr.active_count().await
+                );
                 println!("  Tasks:        {}", runtime.scheduler.task_count().await);
-                println!("  Events:       {}", runtime.event_bus.history().await.len());
+                println!(
+                    "  Events:       {}",
+                    runtime.event_bus.history().await.len()
+                );
                 let healing = runtime.recovery.is_circuit_open();
-                println!("  Circuit:      {}", if healing { "⚠ OPEN" } else { "✓ closed" });
+                println!(
+                    "  Circuit:      {}",
+                    if healing { "⚠ OPEN" } else { "✓ closed" }
+                );
                 println!("  Storage:      {}", runtime.storage.base_path().display());
             }
             "/session" => {
                 let sessions = runtime.session_mgr.list_all().await;
                 println!("Active Sessions ({}):", sessions.len());
                 for s in &sessions {
-                    println!("  {} | user={:?} | state={:?} | created={}",
-                        s.session_id, s.user_id, s.state, s.created_at);
+                    println!(
+                        "  {} | user={:?} | state={:?} | created={}",
+                        s.session_id, s.user_id, s.state, s.created_at
+                    );
                 }
             }
             cmd if cmd.starts_with("/llm ") || !cmd.starts_with('/') => {
@@ -226,14 +240,12 @@ async fn run_repl(runtime: &LingshuRuntime) -> LsResult<()> {
                     let child_ctx = ctx.child();
                     let request = lingshu_traits::llm::LlmRequest {
                         model: runtime.config.llm.default_model.clone(),
-                        messages: vec![
-                            lingshu_traits::llm::LlmMessage {
-                                role: lingshu_traits::llm::LlmRole::User,
-                                content: prompt.to_string(),
-                                name: None,
-                                tool_calls: None,
-                            },
-                        ],
+                        messages: vec![lingshu_traits::llm::LlmMessage {
+                            role: lingshu_traits::llm::LlmRole::User,
+                            content: prompt.to_string(),
+                            name: None,
+                            tool_calls: None,
+                        }],
                         temperature: Some(0.7),
                         max_tokens: Some(runtime.config.llm.max_tokens),
                         tools: None,
@@ -281,7 +293,9 @@ async fn run_repl(runtime: &LingshuRuntime) -> LsResult<()> {
 }
 
 async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<()> {
-    let health_registry = Arc::new(lingshu_observability::health::HealthRegistry::new("lingshu", "1.0.0"));
+    let health_registry = Arc::new(lingshu_observability::health::HealthRegistry::new(
+        "lingshu", "1.0.0",
+    ));
 
     // Register built-in health checks
     {
@@ -312,7 +326,8 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
     });
     let app = api::build_router(state);
 
-    let listener = tokio::net::TcpListener::bind(addr).await
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
         .map_err(|e| LsError::Internal(format!("bind {addr} failed: {e}")))?;
 
     info!(addr = %addr, "HTTP server started");

@@ -24,7 +24,10 @@ impl Agent for HelloAgent {
         tracing::info!(agent_id = %self.id, session_id = %ctx.session_id, "agent running");
 
         // 模拟处理
-        let name = input.get("name").and_then(|v| v.as_str()).unwrap_or("world");
+        let name = input
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("world");
         let output = AgentOutput {
             agent_id: self.id,
             status: AgentStatus::Completed,

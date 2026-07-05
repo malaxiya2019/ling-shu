@@ -11,9 +11,9 @@
 pub mod loader;
 pub mod sandbox;
 
+use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
-use async_trait::async_trait;
 
 use chrono::Utc;
 use lingshu_core::{LsContext, LsError, LsId, LsResult};
@@ -42,25 +42,33 @@ impl PluginRegistry {
     }
 
     /// 注册一个插件 (静态或动态).
-    pub async fn register(&self, plugin: Box<dyn Plugin>, lib: Option<libloading::Library>) -> LsResult<LsId> {
+    pub async fn register(
+        &self,
+        plugin: Box<dyn Plugin>,
+        lib: Option<libloading::Library>,
+    ) -> LsResult<LsId> {
         let mut info = plugin.info();
         let plugin_id = info.plugin_id;
         let mut map = self.plugins.write().await;
 
         if map.contains_key(&plugin_id) {
             return Err(LsError::AlreadyExists(format!(
-                "plugin '{}' already registered", info.manifest.name
+                "plugin '{}' already registered",
+                info.manifest.name
             )));
         }
 
         info.status = PluginStatus::Installed;
         info.loaded_at = Some(Utc::now());
 
-        map.insert(plugin_id, RegistryEntry {
-            info,
-            plugin,
-            _lib: lib,
-        });
+        map.insert(
+            plugin_id,
+            RegistryEntry {
+                info,
+                plugin,
+                _lib: lib,
+            },
+        );
 
         info!(plugin_id = %plugin_id, "plugin registered");
         Ok(plugin_id)
@@ -85,8 +93,7 @@ impl PluginRegistry {
         let map = self.plugins.read().await;
         map.values()
             .filter(|e| {
-                e.info.manifest.name.contains(query)
-                    || e.info.plugin_id.to_string().contains(query)
+                e.info.manifest.name.contains(query) || e.info.plugin_id.to_string().contains(query)
             })
             .map(|e| e.info.clone())
             .collect()
@@ -95,10 +102,12 @@ impl PluginRegistry {
     /// 初始化插件.
     pub async fn init_plugin(&self, plugin_id: &LsId, ctx: &LsContext) -> LsResult<()> {
         let mut map = self.plugins.write().await;
-        let entry = map.get_mut(plugin_id)
+        let entry = map
+            .get_mut(plugin_id)
             .ok_or_else(|| LsError::PluginNotFound(plugin_id.to_string()))?;
 
-        if entry.info.status != PluginStatus::Installed && entry.info.status != PluginStatus::Loaded {
+        if entry.info.status != PluginStatus::Installed && entry.info.status != PluginStatus::Loaded
+        {
             return Err(LsError::Plugin(format!(
                 "plugin '{}' cannot be initialized from state {:?}",
                 entry.info.manifest.name, entry.info.status
@@ -125,7 +134,8 @@ impl PluginRegistry {
     /// 启动插件.
     pub async fn start_plugin(&self, plugin_id: &LsId, ctx: &LsContext) -> LsResult<()> {
         let mut map = self.plugins.write().await;
-        let entry = map.get_mut(plugin_id)
+        let entry = map
+            .get_mut(plugin_id)
             .ok_or_else(|| LsError::PluginNotFound(plugin_id.to_string()))?;
 
         if entry.info.status != PluginStatus::Loaded {
@@ -144,7 +154,8 @@ impl PluginRegistry {
     /// 停止插件.
     pub async fn stop_plugin(&self, plugin_id: &LsId, ctx: &LsContext) -> LsResult<()> {
         let mut map = self.plugins.write().await;
-        let entry = map.get_mut(plugin_id)
+        let entry = map
+            .get_mut(plugin_id)
             .ok_or_else(|| LsError::PluginNotFound(plugin_id.to_string()))?;
 
         if entry.info.status != PluginStatus::Running {
@@ -175,7 +186,8 @@ impl PluginRegistry {
         F: FnOnce(&dyn Plugin) -> LsResult<R>,
     {
         let map = self.plugins.read().await;
-        let entry = map.get(plugin_id)
+        let entry = map
+            .get(plugin_id)
             .ok_or_else(|| LsError::PluginNotFound(plugin_id.to_string()))?;
         f(entry.plugin.as_ref())
     }
@@ -185,7 +197,6 @@ impl PluginRegistry {
         self.plugins.read().await.len()
     }
 }
-
 
 // ── StaticPlugin ────────────────────────────────────
 
@@ -233,7 +244,9 @@ impl Default for PluginRegistry {
 mod tests {
     use super::*;
     use async_trait::async_trait;
-    use lingshu_traits::plugin::{Plugin, PluginInfo, PluginManifest, PluginPermission, PluginStatus};
+    use lingshu_traits::plugin::{
+        Plugin, PluginInfo, PluginManifest, PluginPermission, PluginStatus,
+    };
 
     struct TestPlugin {
         info: PluginInfo,
@@ -287,7 +300,10 @@ mod tests {
     #[tokio::test]
     async fn test_register_and_list() {
         let registry = PluginRegistry::new();
-        let id = registry.register(make_plugin("test-1"), None).await.unwrap();
+        let id = registry
+            .register(make_plugin("test-1"), None)
+            .await
+            .unwrap();
         assert!(!id.is_nil());
 
         let list = registry.list().await;
@@ -345,7 +361,10 @@ mod tests {
     async fn test_lifecycle() {
         let registry = PluginRegistry::new();
         let ctx = LsContext::with_session(LsId::new());
-        let id = registry.register(make_plugin("lifecycle"), None).await.unwrap();
+        let id = registry
+            .register(make_plugin("lifecycle"), None)
+            .await
+            .unwrap();
 
         registry.init_plugin(&id, &ctx).await.unwrap();
         let info = registry.get_info(&id).await.unwrap();
@@ -363,7 +382,10 @@ mod tests {
     #[tokio::test]
     async fn test_unregister() {
         let registry = PluginRegistry::new();
-        let id = registry.register(make_plugin("remove"), None).await.unwrap();
+        let id = registry
+            .register(make_plugin("remove"), None)
+            .await
+            .unwrap();
         assert_eq!(registry.count().await, 1);
         registry.unregister(&id).await.unwrap();
         assert_eq!(registry.count().await, 0);
@@ -372,8 +394,14 @@ mod tests {
     #[tokio::test]
     async fn test_search() {
         let registry = PluginRegistry::new();
-        registry.register(make_plugin("alpha-plugin"), None).await.unwrap();
-        registry.register(make_plugin("beta-tool"), None).await.unwrap();
+        registry
+            .register(make_plugin("alpha-plugin"), None)
+            .await
+            .unwrap();
+        registry
+            .register(make_plugin("beta-tool"), None)
+            .await
+            .unwrap();
         registry.register(make_plugin("gamma"), None).await.unwrap();
 
         let results = registry.search("plugin").await;

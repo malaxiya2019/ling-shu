@@ -57,7 +57,6 @@ pub struct LlmChunk {
     pub finish_reason: Option<String>,
 }
 
-
 /// OpenAI-compatible tool definition.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolDefinition {

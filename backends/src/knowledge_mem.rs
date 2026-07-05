@@ -5,9 +5,7 @@
 
 use async_trait::async_trait;
 use lingshu_core::{LsContext, LsError, LsId, LsResult};
-use lingshu_traits::knowledge::{
-    DataSource, Knowledge, KnowledgeEntry, KnowledgeSearchResult,
-};
+use lingshu_traits::knowledge::{DataSource, Knowledge, KnowledgeEntry, KnowledgeSearchResult};
 use serde_json::Value;
 use std::collections::HashMap;
 use tokio::sync::RwLock;
@@ -54,9 +52,9 @@ impl Knowledge for InMemoryKnowledge {
 
     async fn unregister_source(&self, _ctx: LsContext, source_id: LsId) -> LsResult<()> {
         let mut sources = self.sources.write().await;
-        sources.remove(&source_id).ok_or_else(|| {
-            LsError::NotFound(format!("knowledge source {source_id} not found"))
-        })?;
+        sources
+            .remove(&source_id)
+            .ok_or_else(|| LsError::NotFound(format!("knowledge source {source_id} not found")))?;
 
         // Remove all entries for this source
         let mut source_entries = self.source_entries.write().await;
@@ -79,7 +77,10 @@ impl Knowledge for InMemoryKnowledge {
             )));
         }
         // In-memory: sync is a no-op (data is already in memory)
-        let count = self.source_entries.read().await
+        let count = self
+            .source_entries
+            .read()
+            .await
             .get(&source_id)
             .map(|v| v.len() as u64)
             .unwrap_or(0);
@@ -121,9 +122,10 @@ impl Knowledge for InMemoryKnowledge {
 
     async fn get_entry(&self, _ctx: LsContext, entry_id: LsId) -> LsResult<KnowledgeEntry> {
         let entries = self.entries.read().await;
-        entries.get(&entry_id).cloned().ok_or_else(|| {
-            LsError::NotFound(format!("knowledge entry {entry_id} not found"))
-        })
+        entries
+            .get(&entry_id)
+            .cloned()
+            .ok_or_else(|| LsError::NotFound(format!("knowledge entry {entry_id} not found")))
     }
 
     async fn get_entry_history(
@@ -132,9 +134,10 @@ impl Knowledge for InMemoryKnowledge {
         entry_id: LsId,
     ) -> LsResult<Vec<KnowledgeEntry>> {
         let versions = self.entry_versions.read().await;
-        versions.get(&entry_id).cloned().ok_or_else(|| {
-            LsError::NotFound(format!("knowledge entry {entry_id} has no history"))
-        })
+        versions
+            .get(&entry_id)
+            .cloned()
+            .ok_or_else(|| LsError::NotFound(format!("knowledge entry {entry_id} has no history")))
     }
 }
 

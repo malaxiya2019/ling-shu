@@ -8,7 +8,11 @@ use serde_json::json;
 
 #[test]
 fn test_agent_status_roundtrip() {
-    for status in &[agent::AgentStatus::Idle, agent::AgentStatus::Running, agent::AgentStatus::Completed] {
+    for status in &[
+        agent::AgentStatus::Idle,
+        agent::AgentStatus::Running,
+        agent::AgentStatus::Completed,
+    ] {
         let json = serde_json::to_string(status).unwrap();
         let back: agent::AgentStatus = serde_json::from_str(&json).unwrap();
         assert_eq!(*status, back);
@@ -73,7 +77,10 @@ fn test_runtime_stats_defaults() {
 fn test_priority_ordering() {
     use scheduler::Priority;
     assert!(Priority::Critical as u8 > Priority::Normal as u8);
-    assert_eq!(serde_json::from_str::<scheduler::Priority>("\"High\"").unwrap(), Priority::High);
+    assert_eq!(
+        serde_json::from_str::<scheduler::Priority>("\"High\"").unwrap(),
+        Priority::High
+    );
 }
 
 #[test]
@@ -111,7 +118,10 @@ fn test_plugin_info_default_perms() {
     };
     let json = serde_json::to_value(&info).unwrap();
     assert_eq!(json["manifest"]["name"], "test");
-    assert!(json["manifest"]["permissions"].as_array().unwrap().is_empty());
+    assert!(json["manifest"]["permissions"]
+        .as_array()
+        .unwrap()
+        .is_empty());
 }
 
 #[test]
@@ -190,7 +200,8 @@ fn test_knowledge_entry_versioning() {
         updated_at: chrono::Utc::now(),
     };
     assert_eq!(entry.version, 3);
-    let back: KnowledgeEntry = serde_json::from_value(serde_json::to_value(&entry).unwrap()).unwrap();
+    let back: KnowledgeEntry =
+        serde_json::from_value(serde_json::to_value(&entry).unwrap()).unwrap();
     assert_eq!(back.version, 3);
     assert_eq!(back.source, "wiki");
 }
@@ -201,8 +212,18 @@ fn test_knowledge_entry_versioning() {
 fn test_llm_messages() {
     use llm::{LlmMessage, LlmRole};
     let msgs = vec![
-        LlmMessage { role: LlmRole::System, content: "You are a helper.".into(), name: None, tool_calls: None },
-        LlmMessage { role: LlmRole::User, content: "Hello!".into(), name: None, tool_calls: None },
+        LlmMessage {
+            role: LlmRole::System,
+            content: "You are a helper.".into(),
+            name: None,
+            tool_calls: None,
+        },
+        LlmMessage {
+            role: LlmRole::User,
+            content: "Hello!".into(),
+            name: None,
+            tool_calls: None,
+        },
     ];
     let json = serde_json::to_value(&msgs).unwrap();
     assert_eq!(json[0]["role"], "System");
@@ -212,7 +233,11 @@ fn test_llm_messages() {
 #[test]
 fn test_llm_usage_zero() {
     use llm::LlmUsage;
-    let u = LlmUsage { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+    let u = LlmUsage {
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        total_tokens: 0,
+    };
     let json = serde_json::to_value(&u).unwrap();
     assert_eq!(json["total_tokens"], 0);
 }
@@ -222,7 +247,10 @@ fn test_llm_usage_zero() {
 #[test]
 fn test_embedding_vector_dimensions() {
     use embedding::EmbeddingVector;
-    let v = EmbeddingVector { dimensions: 768, values: vec![0.1; 768] };
+    let v = EmbeddingVector {
+        dimensions: 768,
+        values: vec![0.1; 768],
+    };
     assert_eq!(v.values.len(), v.dimensions);
     let back: EmbeddingVector = serde_json::from_value(serde_json::to_value(&v).unwrap()).unwrap();
     assert_eq!(back.dimensions, 768);
@@ -231,7 +259,10 @@ fn test_embedding_vector_dimensions() {
 #[test]
 fn test_embedding_request_batch() {
     use embedding::EmbeddingRequest;
-    let req = EmbeddingRequest { input: vec!["a".into(), "b".into()], model: Some("text-embedding-3-small".into()) };
+    let req = EmbeddingRequest {
+        input: vec!["a".into(), "b".into()],
+        model: Some("text-embedding-3-small".into()),
+    };
     assert_eq!(req.input.len(), 2);
 }
 
@@ -256,7 +287,10 @@ fn test_vector_record_score() {
 #[test]
 fn test_pagination_calculation() {
     use database::{PaginatedResult, Pagination};
-    let p = Pagination { page: 1, page_size: 10 };
+    let p = Pagination {
+        page: 1,
+        page_size: 10,
+    };
     let res = PaginatedResult {
         items: vec![json!("a"), json!("b")],
         total: 2,
@@ -270,7 +304,11 @@ fn test_pagination_calculation() {
 #[test]
 fn test_query_filter_operators() {
     use database::QueryFilter;
-    let f = QueryFilter { field: "age".into(), operator: "gte".into(), value: json!(18) };
+    let f = QueryFilter {
+        field: "age".into(),
+        operator: "gte".into(),
+        value: json!(18),
+    };
     assert_eq!(f.operator, "gte");
 }
 
@@ -322,6 +360,10 @@ fn test_file_info_minimal() {
 #[test]
 fn test_presigned_url() {
     use storage::PresignedUrl;
-    let u = PresignedUrl { url: "https://example.com/file".into(), method: "GET".into(), expires_at: chrono::Utc::now() };
+    let u = PresignedUrl {
+        url: "https://example.com/file".into(),
+        method: "GET".into(),
+        expires_at: chrono::Utc::now(),
+    };
     assert_eq!(u.method, "GET");
 }

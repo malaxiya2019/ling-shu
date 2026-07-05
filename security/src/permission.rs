@@ -18,7 +18,9 @@ impl Permission {
         if parts.len() >= 4 && parts[0] == "ls" {
             Ok(Self(s.to_string()))
         } else {
-            Err(LsError::InvalidArgument(format!("invalid permission format: {s}")))
+            Err(LsError::InvalidArgument(format!(
+                "invalid permission format: {s}"
+            )))
         }
     }
 

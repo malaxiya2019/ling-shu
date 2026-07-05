@@ -21,25 +21,26 @@
 
 #[cfg(feature = "openai")]
 pub mod embedding_openai;
+pub mod knowledge_mem;
 #[cfg(feature = "anthropic")]
 pub mod llm_anthropic;
 pub mod llm_factory;
-pub mod llm_retry;
 #[cfg(any(feature = "openai", feature = "groq"))]
 pub mod llm_openai;
+pub mod llm_retry;
 #[cfg(feature = "mock")]
 pub mod mock_llm;
-pub mod vector_store_mem;
-pub mod knowledge_mem;
 pub mod vector_memory;
+pub mod vector_store_mem;
+#[cfg(feature = "vector-store-pg")]
+pub mod vector_store_pg;
 #[cfg(feature = "mock")]
 #[cfg(feature = "vector-store-sqlite")]
 pub mod vector_store_sqlite;
-#[cfg(feature = "vector-store-pg")]
-pub mod vector_store_pg;
 
 #[cfg(feature = "openai")]
 pub use embedding_openai::OpenAiEmbedding;
+pub use knowledge_mem::InMemoryKnowledge;
 #[cfg(feature = "anthropic")]
 pub use llm_anthropic::AnthropicLlm;
 pub use llm_factory::build_llm;
@@ -48,10 +49,9 @@ pub use llm_openai::OpenAiLlm;
 pub use llm_retry::{with_retry, RetryLlm};
 #[cfg(feature = "mock")]
 pub use mock_llm::MockLlm;
-pub use vector_store_mem::InMemoryVectorStore;
-pub use knowledge_mem::InMemoryKnowledge;
 pub use vector_memory::VectorMemory;
-#[cfg(feature = "vector-store-sqlite")]
-pub use vector_store_sqlite::SQLiteVector;
+pub use vector_store_mem::InMemoryVectorStore;
 #[cfg(feature = "vector-store-pg")]
 pub use vector_store_pg::PgVector;
+#[cfg(feature = "vector-store-sqlite")]
+pub use vector_store_sqlite::SQLiteVector;

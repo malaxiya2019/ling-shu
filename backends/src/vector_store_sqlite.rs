@@ -12,13 +12,13 @@
 use async_trait::async_trait;
 use lingshu_core::{LsContext, LsError, LsId, LsResult};
 use lingshu_traits::vector_store::*;
-use tracing::{info, debug, warn};
 use rusqlite::params;
 use serde_json::Value;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::Mutex;
+use tracing::{debug, info, warn};
 
 /// SQLite 持久化向量存储.
 pub struct SQLiteVector {
@@ -31,10 +31,8 @@ impl SQLiteVector {
         let conn = rusqlite::Connection::open(path)
             .map_err(|e| LsError::Internal(format!("sqlite_vector open failed: {e}")))?;
 
-        conn.execute_batch(
-            "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;",
-        )
-        .map_err(|e| LsError::Internal(format!("sqlite_vector pragma failed: {e}")))?;
+        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;")
+            .map_err(|e| LsError::Internal(format!("sqlite_vector pragma failed: {e}")))?;
 
         Self::run_migrations(&conn)?;
 
@@ -110,7 +108,12 @@ impl SQLiteVector {
 
 #[async_trait]
 impl VectorStore for SQLiteVector {
-    async fn create_collection(&self, _ctx: LsContext, name: &str, dimensions: usize) -> LsResult<LsId> {
+    async fn create_collection(
+        &self,
+        _ctx: LsContext,
+        name: &str,
+        dimensions: usize,
+    ) -> LsResult<LsId> {
         let conn = self.conn.lock().await;
         let id = LsId::new().to_string();
 
@@ -128,8 +131,11 @@ impl VectorStore for SQLiteVector {
         let cid = collection_id.to_string();
 
         // 删除集合中的记录
-        conn.execute("DELETE FROM vector_records WHERE collection = ?1", params![cid])
-            .map_err(|e| LsError::Internal(format!("delete_records failed: {e}")))?;
+        conn.execute(
+            "DELETE FROM vector_records WHERE collection = ?1",
+            params![cid],
+        )
+        .map_err(|e| LsError::Internal(format!("delete_records failed: {e}")))?;
 
         // 删除集合
         conn.execute("DELETE FROM vector_collections WHERE id = ?1", params![cid])
@@ -138,7 +144,12 @@ impl VectorStore for SQLiteVector {
         Ok(())
     }
 
-    async fn upsert(&self, _ctx: LsContext, collection_id: LsId, records: Vec<VectorRecord>) -> LsResult<()> {
+    async fn upsert(
+        &self,
+        _ctx: LsContext,
+        collection_id: LsId,
+        records: Vec<VectorRecord>,
+    ) -> LsResult<()> {
         let conn = self.conn.lock().await;
         let cid = collection_id.to_string();
 
@@ -211,8 +222,8 @@ impl VectorStore for SQLiteVector {
         let mut scored: Vec<(f64, LsId, Vec<f32>, Value)> = Vec::new();
 
         for row in rows {
-            let (id_str, blob, payload_str) = row
-                .map_err(|e| LsError::Internal(format!("search row failed: {e}")))?;
+            let (id_str, blob, payload_str) =
+                row.map_err(|e| LsError::Internal(format!("search row failed: {e}")))?;
 
             let vector = Self::blob_to_vector(&blob);
             let score = Self::cosine_similarity(&query, &vector);
@@ -255,11 +266,17 @@ mod tests {
         let store = SQLiteVector::in_memory().unwrap();
         let ctx = test_ctx();
 
-        let id = store.create_collection(ctx.clone(), "test_collection", 4).await.unwrap();
+        let id = store
+            .create_collection(ctx.clone(), "test_collection", 4)
+            .await
+            .unwrap();
         assert!(!id.is_nil());
 
         // 搜索空集合应返回空结果
-        let result = store.search(ctx.clone(), id, vec![1.0; 4], 10).await.unwrap();
+        let result = store
+            .search(ctx.clone(), id, vec![1.0; 4], 10)
+            .await
+            .unwrap();
         assert_eq!(result.records.len(), 0);
         assert_eq!(result.total, 0);
 
@@ -271,7 +288,10 @@ mod tests {
         let store = SQLiteVector::in_memory().unwrap();
         let ctx = test_ctx();
 
-        let col_id = store.create_collection(ctx.clone(), "vectors", 2).await.unwrap();
+        let col_id = store
+            .create_collection(ctx.clone(), "vectors", 2)
+            .await
+            .unwrap();
 
         let records = vec![
             VectorRecord {
@@ -297,7 +317,10 @@ mod tests {
         store.upsert(ctx.clone(), col_id, records).await.unwrap();
 
         // 检索与 [1.0, 0.0] 最相似的向量
-        let result = store.search(ctx.clone(), col_id, vec![1.0, 0.0], 2).await.unwrap();
+        let result = store
+            .search(ctx.clone(), col_id, vec![1.0, 0.0], 2)
+            .await
+            .unwrap();
         assert_eq!(result.records.len(), 2);
         assert_eq!(result.records[0].metadata["label"], "A");
         assert!(result.records[0].score.unwrap() > 0.99);
@@ -308,7 +331,10 @@ mod tests {
         let store = SQLiteVector::in_memory().unwrap();
         let ctx = test_ctx();
 
-        let col_id = store.create_collection(ctx.clone(), "dim_test", 3).await.unwrap();
+        let col_id = store
+            .create_collection(ctx.clone(), "dim_test", 3)
+            .await
+            .unwrap();
 
         let bad_records = vec![VectorRecord {
             id: LsId::new(),
@@ -326,8 +352,14 @@ mod tests {
         let store = SQLiteVector::in_memory().unwrap();
         let ctx = test_ctx();
 
-        let col_id = store.create_collection(ctx.clone(), "empty", 3).await.unwrap();
-        let result = store.search(ctx.clone(), col_id, vec![0.5; 3], 5).await.unwrap();
+        let col_id = store
+            .create_collection(ctx.clone(), "empty", 3)
+            .await
+            .unwrap();
+        let result = store
+            .search(ctx.clone(), col_id, vec![0.5; 3], 5)
+            .await
+            .unwrap();
         assert_eq!(result.records.len(), 0);
     }
 
@@ -336,7 +368,10 @@ mod tests {
         let store = SQLiteVector::in_memory().unwrap();
         let ctx = test_ctx();
 
-        let col_id = store.create_collection(ctx.clone(), "uuid_test", 1).await.unwrap();
+        let col_id = store
+            .create_collection(ctx.clone(), "uuid_test", 1)
+            .await
+            .unwrap();
         let rec_id = LsId::new();
 
         store
@@ -353,7 +388,10 @@ mod tests {
             .await
             .unwrap();
 
-        let result = store.search(ctx.clone(), col_id, vec![1.0], 10).await.unwrap();
+        let result = store
+            .search(ctx.clone(), col_id, vec![1.0], 10)
+            .await
+            .unwrap();
         assert_eq!(result.records[0].id, rec_id);
     }
 

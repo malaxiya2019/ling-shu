@@ -45,11 +45,20 @@ pub trait Knowledge: Send + Sync + 'static {
     async fn sync(&self, ctx: LsContext, source_id: LsId) -> LsResult<u64>;
 
     /// 检索知识.
-    async fn search(&self, ctx: LsContext, query: &str, limit: u64) -> LsResult<KnowledgeSearchResult>;
+    async fn search(
+        &self,
+        ctx: LsContext,
+        query: &str,
+        limit: u64,
+    ) -> LsResult<KnowledgeSearchResult>;
 
     /// 按 ID 获取知识条目.
     async fn get_entry(&self, ctx: LsContext, entry_id: LsId) -> LsResult<KnowledgeEntry>;
 
     /// 获取指定条目的历史版本.
-    async fn get_entry_history(&self, ctx: LsContext, entry_id: LsId) -> LsResult<Vec<KnowledgeEntry>>;
+    async fn get_entry_history(
+        &self,
+        ctx: LsContext,
+        entry_id: LsId,
+    ) -> LsResult<Vec<KnowledgeEntry>>;
 }

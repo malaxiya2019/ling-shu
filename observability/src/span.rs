@@ -75,10 +75,7 @@ pub fn instrument<T>(span: Span, f: impl FnOnce() -> T) -> T {
 
 /// 在 span 作用域内执行异步函数并记录耗时.
 #[inline]
-pub async fn instrument_async<T>(
-    span: Span,
-    fut: impl std::future::Future<Output = T>,
-) -> T {
+pub async fn instrument_async<T>(span: Span, fut: impl std::future::Future<Output = T>) -> T {
     let start = std::time::Instant::now();
     let _guard = span.enter();
     let result = fut.await;
@@ -90,9 +87,8 @@ pub async fn instrument_async<T>(
 
 #[cfg(test)]
 mod tests {
-    use lingshu_core::{LsContext, LsId};
     use super::{instrument, instrument_async};
-    
+    use lingshu_core::{LsContext, LsId};
 
     #[test]
     fn test_ls_span_macro() {

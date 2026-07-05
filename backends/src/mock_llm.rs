@@ -3,10 +3,10 @@
 //! 当 API key 未配置时自动启用，确保示例始终可运行.
 
 use async_trait::async_trait;
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
 use lingshu_core::{LsContext, LsResult};
 use lingshu_traits::llm::*;
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::mpsc;
 
 /// Mock LLM — 返回回显式回复，不依赖外部 API.
@@ -28,7 +28,9 @@ impl MockLlm {
 impl Llm for MockLlm {
     async fn invoke(&self, _ctx: LsContext, request: LlmRequest) -> LsResult<LlmResponse> {
         tracing::info!(model = %request.model, messages = %request.messages.len(), "mock llm invoke");
-        let user_msg = request.messages.iter()
+        let user_msg = request
+            .messages
+            .iter()
             .rev()
             .find(|m| matches!(m.role, LlmRole::User))
             .map(|m| m.content.as_str())
@@ -41,7 +43,8 @@ impl Llm for MockLlm {
         let reply_len = reply_text.len() as u64;
 
         self.prompt_tokens.fetch_add(10, Ordering::AcqRel);
-        self.completion_tokens.fetch_add(reply_len, Ordering::AcqRel);
+        self.completion_tokens
+            .fetch_add(reply_len, Ordering::AcqRel);
 
         Ok(LlmResponse {
             message: LlmMessage {
@@ -65,7 +68,9 @@ impl Llm for MockLlm {
         request: LlmRequest,
     ) -> LsResult<mpsc::Receiver<LsResult<LlmChunk>>> {
         tracing::info!(model = %request.model, "mock llm stream");
-        let user_msg = request.messages.iter()
+        let user_msg = request
+            .messages
+            .iter()
             .rev()
             .find(|m| matches!(m.role, LlmRole::User))
             .map(|m| m.content.as_str())
@@ -92,23 +97,32 @@ impl Llm for MockLlm {
                 }
                 tokio::time::sleep(std::time::Duration::from_millis(5)).await;
             }
-            let _ = tx.send(Ok(LlmChunk {
-                content: None,
-                tool_calls: None,
-                finish_reason: Some("stop".into()),
-            })).await;
+            let _ = tx
+                .send(Ok(LlmChunk {
+                    content: None,
+                    tool_calls: None,
+                    finish_reason: Some("stop".into()),
+                }))
+                .await;
         });
 
         self.prompt_tokens.fetch_add(10, Ordering::AcqRel);
-        self.completion_tokens.fetch_add(reply_len, Ordering::AcqRel);
+        self.completion_tokens
+            .fetch_add(reply_len, Ordering::AcqRel);
 
         Ok(rx)
     }
 
     async fn usage_stats(&self, _ctx: LsContext) -> LsResult<HashMap<String, u64>> {
         let mut map = HashMap::new();
-        map.insert("prompt_tokens".into(), self.prompt_tokens.load(Ordering::Acquire));
-        map.insert("completion_tokens".into(), self.completion_tokens.load(Ordering::Acquire));
+        map.insert(
+            "prompt_tokens".into(),
+            self.prompt_tokens.load(Ordering::Acquire),
+        );
+        map.insert(
+            "completion_tokens".into(),
+            self.completion_tokens.load(Ordering::Acquire),
+        );
         Ok(map)
     }
 }
@@ -134,8 +148,18 @@ mod tests {
         let request = LlmRequest {
             model: "mock".into(),
             messages: vec![
-                LlmMessage { role: LlmRole::System, content: "test".into(), name: None, tool_calls: None },
-                LlmMessage { role: LlmRole::User, content: "hello world".into(), name: None, tool_calls: None },
+                LlmMessage {
+                    role: LlmRole::System,
+                    content: "test".into(),
+                    name: None,
+                    tool_calls: None,
+                },
+                LlmMessage {
+                    role: LlmRole::User,
+                    content: "hello world".into(),
+                    name: None,
+                    tool_calls: None,
+                },
             ],
             temperature: None,
             max_tokens: None,
@@ -153,9 +177,12 @@ mod tests {
         let ctx = LsContext::with_session(LsId::new());
         let request = LlmRequest {
             model: "mock".into(),
-            messages: vec![
-                LlmMessage { role: LlmRole::User, content: "hello".into(), name: None, tool_calls: None },
-            ],
+            messages: vec![LlmMessage {
+                role: LlmRole::User,
+                content: "hello".into(),
+                name: None,
+                tool_calls: None,
+            }],
             temperature: None,
             max_tokens: None,
             tools: None,

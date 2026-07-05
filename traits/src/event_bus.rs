@@ -35,7 +35,12 @@ pub trait EventBus: Send + Sync + 'static {
     async fn publish_batch(&self, ctx: LsContext, events: Vec<Event>) -> LsResult<()>;
 
     /// 订阅主题 (支持通配符).
-    async fn subscribe(&self, ctx: LsContext, topic_pattern: &str, handler: EventHandler) -> LsResult<String>;
+    async fn subscribe(
+        &self,
+        ctx: LsContext,
+        topic_pattern: &str,
+        handler: EventHandler,
+    ) -> LsResult<String>;
 
     /// 取消订阅.
     async fn unsubscribe(&self, ctx: LsContext, subscription_id: &str) -> LsResult<()>;
@@ -54,7 +59,12 @@ impl<T: EventBus + ?Sized> EventBus for Box<T> {
     async fn publish_batch(&self, ctx: LsContext, events: Vec<Event>) -> LsResult<()> {
         (**self).publish_batch(ctx, events).await
     }
-    async fn subscribe(&self, ctx: LsContext, topic_pattern: &str, handler: EventHandler) -> LsResult<String> {
+    async fn subscribe(
+        &self,
+        ctx: LsContext,
+        topic_pattern: &str,
+        handler: EventHandler,
+    ) -> LsResult<String> {
         (**self).subscribe(ctx, topic_pattern, handler).await
     }
     async fn unsubscribe(&self, ctx: LsContext, subscription_id: &str) -> LsResult<()> {

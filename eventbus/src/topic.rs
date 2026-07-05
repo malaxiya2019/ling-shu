@@ -125,8 +125,17 @@ mod tests {
 
     #[test]
     fn test_standard_topics() {
-        assert_eq!(EventTopic::runtime_started().as_str(), "ls.runtime.runtime.started");
-        assert_eq!(EventTopic::session_created().as_str(), "ls.runtime.session.created");
-        assert_eq!(EventTopic::permission_denied().as_str(), "ls.audit.permission.denied");
+        assert_eq!(
+            EventTopic::runtime_started().as_str(),
+            "ls.runtime.runtime.started"
+        );
+        assert_eq!(
+            EventTopic::session_created().as_str(),
+            "ls.runtime.session.created"
+        );
+        assert_eq!(
+            EventTopic::permission_denied().as_str(),
+            "ls.audit.permission.denied"
+        );
     }
 }

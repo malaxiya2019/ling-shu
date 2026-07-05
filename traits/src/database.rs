@@ -35,7 +35,12 @@ pub trait Database: Send + Sync + 'static {
     async fn insert(&self, ctx: LsContext, collection: &str, data: Value) -> LsResult<Value>;
 
     /// 按 ID 查询.
-    async fn get_by_id(&self, ctx: LsContext, collection: &str, id: &str) -> LsResult<Option<Value>>;
+    async fn get_by_id(
+        &self,
+        ctx: LsContext,
+        collection: &str,
+        id: &str,
+    ) -> LsResult<Option<Value>>;
 
     /// 条件查询.
     async fn query(
@@ -47,7 +52,13 @@ pub trait Database: Send + Sync + 'static {
     ) -> LsResult<PaginatedResult>;
 
     /// 更新记录.
-    async fn update(&self, ctx: LsContext, collection: &str, id: &str, data: Value) -> LsResult<Option<Value>>;
+    async fn update(
+        &self,
+        ctx: LsContext,
+        collection: &str,
+        id: &str,
+        data: Value,
+    ) -> LsResult<Option<Value>>;
 
     /// 删除记录.
     async fn delete(&self, ctx: LsContext, collection: &str, id: &str) -> LsResult<bool>;

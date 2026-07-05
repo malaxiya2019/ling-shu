@@ -68,9 +68,10 @@ impl LifecycleManager {
 
     /// 尝试状态转换，失败返回错误.
     pub fn transition(&self, ctx: &LsContext, next: LifecycleState) -> LsResult<LifecycleState> {
-        let mut state = self.state.write().map_err(|e| {
-            LsError::Internal(format!("lifecycle lock poisoned: {e}"))
-        })?;
+        let mut state = self
+            .state
+            .write()
+            .map_err(|e| LsError::Internal(format!("lifecycle lock poisoned: {e}")))?;
         let current = *state;
         if !state.can_transition_to(next) {
             tracing::warn!(
@@ -95,9 +96,10 @@ impl LifecycleManager {
 
     /// 读取当前状态.
     pub fn current(&self) -> LsResult<LifecycleState> {
-        self.state.read().map(|s| *s).map_err(|e| {
-            LsError::Internal(format!("lifecycle lock poisoned: {e}"))
-        })
+        self.state
+            .read()
+            .map(|s| *s)
+            .map_err(|e| LsError::Internal(format!("lifecycle lock poisoned: {e}")))
     }
 
     /// 是否已就绪.
@@ -114,8 +116,14 @@ mod tests {
     fn test_valid_transitions() {
         let ctx = LsContext::with_session(lingshu_core::LsId::new());
         let mgr = LifecycleManager::new();
-        assert_eq!(mgr.transition(&ctx, LifecycleState::Initializing).unwrap(), LifecycleState::Initializing);
-        assert_eq!(mgr.transition(&ctx, LifecycleState::Running).unwrap(), LifecycleState::Running);
+        assert_eq!(
+            mgr.transition(&ctx, LifecycleState::Initializing).unwrap(),
+            LifecycleState::Initializing
+        );
+        assert_eq!(
+            mgr.transition(&ctx, LifecycleState::Running).unwrap(),
+            LifecycleState::Running
+        );
         assert!(mgr.transition(&ctx, LifecycleState::Uninitialized).is_err());
     }
 

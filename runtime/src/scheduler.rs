@@ -76,7 +76,11 @@ impl InternalScheduler {
             tasks.insert(task_id, task);
         }
 
-        let _permit = self.semaphore.clone().acquire_owned().await
+        let _permit = self
+            .semaphore
+            .clone()
+            .acquire_owned()
+            .await
             .map_err(|e| LsError::Internal(format!("semaphore error: {e}")))?;
 
         tracing::debug!(
@@ -174,7 +178,10 @@ mod tests {
         let task_id = LsId::new();
 
         sched.submit(&ctx, task_id, async { Ok(()) }).await.unwrap();
-        sched.mark_failed(task_id, "test error".into()).await.unwrap();
+        sched
+            .mark_failed(task_id, "test error".into())
+            .await
+            .unwrap();
         assert_eq!(sched.failed_total(), 1);
     }
 
@@ -183,7 +190,10 @@ mod tests {
         let sched = InternalScheduler::new(16);
         sched.pause();
         let ctx = LsContext::with_session(LsId::new());
-        let err = sched.submit(&ctx, LsId::new(), async { Ok(()) }).await.unwrap_err();
+        let err = sched
+            .submit(&ctx, LsId::new(), async { Ok(()) })
+            .await
+            .unwrap_err();
         assert!(matches!(err, LsError::RuntimeState(_)));
     }
 
@@ -192,10 +202,16 @@ mod tests {
         let sched = InternalScheduler::new(16);
         sched.pause();
         let ctx = LsContext::with_session(LsId::new());
-        assert!(sched.submit(&ctx, LsId::new(), async { Ok(()) }).await.is_err());
+        assert!(sched
+            .submit(&ctx, LsId::new(), async { Ok(()) })
+            .await
+            .is_err());
 
         sched.resume();
-        assert!(sched.submit(&ctx, LsId::new(), async { Ok(()) }).await.is_ok());
+        assert!(sched
+            .submit(&ctx, LsId::new(), async { Ok(()) })
+            .await
+            .is_ok());
     }
 
     #[tokio::test]

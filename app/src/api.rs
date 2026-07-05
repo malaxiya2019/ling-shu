@@ -15,28 +15,31 @@
 use std::sync::Arc;
 
 use axum::{
-    Router,
-    routing::{get, post},
-    extract::{State, WebSocketUpgrade, ws},
+    extract::{ws, State, WebSocketUpgrade},
+    http::{header, Method, StatusCode},
     response::Json,
-    http::{StatusCode, Method, header},
+    routing::{get, post},
+    Router,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use tower_http::cors::{CorsLayer, Any};
+use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing::info;
 
-use lingshu_core::{LsContext, LsId};
-use axum::response::{sse::{Event, Sse}, IntoResponse};
+use axum::response::{
+    sse::{Event, Sse},
+    IntoResponse,
+};
 use futures::stream::Stream;
 use futures::stream::StreamExt;
-use tokio_stream::wrappers::ReceiverStream;
-use std::convert::Infallible;
-use std::pin::Pin;
-use lingshu_traits::llm::{Llm, LlmMessage, LlmRequest, LlmRole};
+use lingshu_core::{LsContext, LsId};
 use lingshu_observability::health::HealthRegistry;
 use lingshu_plugin::PluginRegistry;
+use lingshu_traits::llm::{Llm, LlmMessage, LlmRequest, LlmRole};
+use std::convert::Infallible;
+use std::pin::Pin;
+use tokio_stream::wrappers::ReceiverStream;
 
 use crate::LingshuRuntime;
 
@@ -207,8 +210,14 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/v1/agent/run", post(agent_run_handler))
         .route("/ws", get(ws_handler))
         // Plugin API
-        .route("/v1/plugins", get(plugin_list_handler).post(plugin_install_handler))
-        .route("/v1/plugins/{id}", get(plugin_get_handler).delete(plugin_uninstall_handler))
+        .route(
+            "/v1/plugins",
+            get(plugin_list_handler).post(plugin_install_handler),
+        )
+        .route(
+            "/v1/plugins/{id}",
+            get(plugin_get_handler).delete(plugin_uninstall_handler),
+        )
         .route("/v1/plugins/{id}/start", post(plugin_start_handler))
         .route("/v1/plugins/{id}/stop", post(plugin_stop_handler))
         .layer(TraceLayer::new_for_http())
@@ -219,19 +228,25 @@ pub fn build_router(state: Arc<AppState>) -> Router {
 // ── Handlers ────────────────────────────────────────
 
 /// GET /health
-async fn health_handler(
-    State(state): State<Arc<AppState>>,
-) -> Json<HealthResponse> {
+async fn health_handler(State(state): State<Arc<AppState>>) -> Json<HealthResponse> {
     let response = state.health_registry.check_all().await;
 
-    let checks: Vec<HealthCheckItem> = response.checks.iter().map(|s| HealthCheckItem {
-        name: s.component.clone(),
-        healthy: s.healthy,
-        detail: s.message.clone(),
-    }).collect();
+    let checks: Vec<HealthCheckItem> = response
+        .checks
+        .iter()
+        .map(|s| HealthCheckItem {
+            name: s.component.clone(),
+            healthy: s.healthy,
+            detail: s.message.clone(),
+        })
+        .collect();
 
     let all_healthy = checks.iter().all(|c| c.healthy);
-    let status = if all_healthy { "ok".into() } else { "degraded".into() };
+    let status = if all_healthy {
+        "ok".into()
+    } else {
+        "degraded".into()
+    };
 
     Json(HealthResponse {
         status,
@@ -258,30 +273,38 @@ async fn version_handler() -> Json<VersionResponse> {
 }
 
 /// GET /v1/models
-async fn models_handler(
-    State(state): State<Arc<AppState>>,
-) -> Json<Vec<ModelInfo>> {
+async fn models_handler(State(state): State<Arc<AppState>>) -> Json<Vec<ModelInfo>> {
     let default = &state.runtime.config.llm.default_model;
     Json(vec![
         ModelInfo {
             id: default.clone(),
-            object: "model".into(), created: 1735689600, owned_by: "lingshu".into(),
+            object: "model".into(),
+            created: 1735689600,
+            owned_by: "lingshu".into(),
         },
         ModelInfo {
             id: "gpt-4o".into(),
-            object: "model".into(), created: 1735689600, owned_by: "openai".into(),
+            object: "model".into(),
+            created: 1735689600,
+            owned_by: "openai".into(),
         },
         ModelInfo {
             id: "gpt-4o-mini".into(),
-            object: "model".into(), created: 1735689600, owned_by: "openai".into(),
+            object: "model".into(),
+            created: 1735689600,
+            owned_by: "openai".into(),
         },
         ModelInfo {
             id: "claude-3-5-sonnet-20241022".into(),
-            object: "model".into(), created: 1735689600, owned_by: "anthropic".into(),
+            object: "model".into(),
+            created: 1735689600,
+            owned_by: "anthropic".into(),
         },
         ModelInfo {
             id: "deepseek-chat".into(),
-            object: "model".into(), created: 1735689600, owned_by: "deepseek".into(),
+            object: "model".into(),
+            created: 1735689600,
+            owned_by: "deepseek".into(),
         },
     ])
 }
@@ -294,7 +317,9 @@ async fn chat_completions_handler(
     if req.stream.unwrap_or(false) {
         return handle_streaming_chat(state, req).await.into_response();
     }
-    handle_non_streaming_chat(state.clone(), req).await.into_response()
+    handle_non_streaming_chat(state.clone(), req)
+        .await
+        .into_response()
 }
 
 /// Handle non-streaming chat completion (supports tool calling)
@@ -304,24 +329,39 @@ async fn handle_non_streaming_chat(
 ) -> Result<Json<ChatCompletionResp>, (StatusCode, Json<Value>)> {
     let runtime = &state.runtime;
     let llm = runtime.llm.as_ref().ok_or_else(|| {
-        (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error": "no LLM configured"})))
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error": "no LLM configured"})),
+        )
     })?;
 
-    let mut messages: Vec<LlmMessage> = req.messages.into_iter().map(|m| {
-        let role = match m.role.as_str() {
-            "system" => LlmRole::System,
-            "assistant" => LlmRole::Assistant,
-            "tool" => LlmRole::Tool,
-            _ => LlmRole::User,
-        };
-        LlmMessage { role, content: m.content, name: m.name, tool_calls: None }
-    }).collect();
+    let mut messages: Vec<LlmMessage> = req
+        .messages
+        .into_iter()
+        .map(|m| {
+            let role = match m.role.as_str() {
+                "system" => LlmRole::System,
+                "assistant" => LlmRole::Assistant,
+                "tool" => LlmRole::Tool,
+                _ => LlmRole::User,
+            };
+            LlmMessage {
+                role,
+                content: m.content,
+                name: m.name,
+                tool_calls: None,
+            }
+        })
+        .collect();
 
     let session_id = LsId::new();
     let ctx = LsContext::with_session(session_id);
 
     if let Some(ref user) = req.user {
-        let _ = runtime.session_mgr.create(&LsContext::with_session(session_id).with_user(user)).await;
+        let _ = runtime
+            .session_mgr
+            .create(&LsContext::with_session(session_id).with_user(user))
+            .await;
     }
 
     // Tool calling loop: max 10 iterations
@@ -339,7 +379,12 @@ async fn handle_non_streaming_chat(
         match llm.invoke(ctx.clone(), request).await {
             Ok(mut response) => {
                 let has_tool_calls = response.message.tool_calls.is_some()
-                    && response.message.tool_calls.as_ref().map(|c| !c.is_empty()).unwrap_or(false);
+                    && response
+                        .message
+                        .tool_calls
+                        .as_ref()
+                        .map(|c| !c.is_empty())
+                        .unwrap_or(false);
 
                 if !has_tool_calls {
                     // No tool calls — return final response
@@ -374,11 +419,11 @@ async fn handle_non_streaming_chat(
                     let args: Value = serde_json::from_str(&tool_call.function.arguments)
                         .unwrap_or(json!({"error": "invalid args"}));
 
-                    let tool_result = state.runtime.tool_registry.execute(
-                        &ctx,
-                        &tool_call.function.name,
-                        args,
-                    ).await;
+                    let tool_result = state
+                        .runtime
+                        .tool_registry
+                        .execute(&ctx, &tool_call.function.name, args)
+                        .await;
 
                     let result_content = match tool_result {
                         Ok(val) => val.to_string(),
@@ -414,15 +459,24 @@ async fn handle_streaming_chat(
     req: ChatCompletionRequest,
 ) -> Sse<Pin<Box<dyn Stream<Item = Result<Event, Infallible>> + Send>>> {
     let runtime = &state.runtime;
-    let messages: Vec<LlmMessage> = req.messages.into_iter().map(|m| {
-        let role = match m.role.as_str() {
-            "system" => LlmRole::System,
-            "assistant" => LlmRole::Assistant,
-            "tool" => LlmRole::Tool,
-            _ => LlmRole::User,
-        };
-        LlmMessage { role, content: m.content, name: m.name, tool_calls: None }
-    }).collect();
+    let messages: Vec<LlmMessage> = req
+        .messages
+        .into_iter()
+        .map(|m| {
+            let role = match m.role.as_str() {
+                "system" => LlmRole::System,
+                "assistant" => LlmRole::Assistant,
+                "tool" => LlmRole::Tool,
+                _ => LlmRole::User,
+            };
+            LlmMessage {
+                role,
+                content: m.content,
+                name: m.name,
+                tool_calls: None,
+            }
+        })
+        .collect();
 
     let session_id = LsId::new();
     let ctx = LsContext::with_session(session_id);
@@ -436,11 +490,11 @@ async fn handle_streaming_chat(
         stream: true,
     };
 
-    let stream: Pin<Box<dyn Stream<Item = Result<Event, Infallible>> + Send>> = if let Some(llm) = &runtime.llm {
-        match llm.invoke_stream(ctx, request).await {
-            Ok(rx) => {
-                let s = ReceiverStream::new(rx).map(|chunk_result| {
-                    match chunk_result {
+    let stream: Pin<Box<dyn Stream<Item = Result<Event, Infallible>> + Send>> =
+        if let Some(llm) = &runtime.llm {
+            match llm.invoke_stream(ctx, request).await {
+                Ok(rx) => {
+                    let s = ReceiverStream::new(rx).map(|chunk_result| match chunk_result {
                         Ok(chunk) => {
                             let data = json!({
                                 "choices": [{
@@ -454,40 +508,48 @@ async fn handle_streaming_chat(
                             Ok(Event::default().data(data.to_string()))
                         }
                         Err(_) => Ok(Event::default().data("[DONE]")),
-                    }
-                });
-                Box::pin(s)
+                    });
+                    Box::pin(s)
+                }
+                Err(e) => {
+                    let s = futures::stream::once(async move {
+                        Ok(Event::default().data(format!("error: {}", e)))
+                    });
+                    Box::pin(s)
+                }
             }
-            Err(e) => {
-                let s = futures::stream::once(async move {
-                    Ok(Event::default().data(format!("error: {}", e)))
-                });
-                Box::pin(s)
-            }
-        }
-    } else {
-        let s = futures::stream::once(async {
-            Ok(Event::default().data("{\"error\":\"no LLM configured\"}"))
-        });
-        Box::pin(s)
-    };
+        } else {
+            let s = futures::stream::once(async {
+                Ok(Event::default().data("{\"error\":\"no LLM configured\"}"))
+            });
+            Box::pin(s)
+        };
 
     Sse::new(stream)
 }
 
-async fn embeddings_handler(
-    Json(req): Json<EmbedReq>,
-) -> Json<EmbedResp> {
+async fn embeddings_handler(Json(req): Json<EmbedReq>) -> Json<EmbedResp> {
     let dims = 1536;
-    let data: Vec<EmbedItem> = req.input.iter().enumerate().map(|(i, _)| {
-        EmbedItem { object: "embedding".into(), index: i, embedding: vec![0.0; dims] }
-    }).collect();
+    let data: Vec<EmbedItem> = req
+        .input
+        .iter()
+        .enumerate()
+        .map(|(i, _)| EmbedItem {
+            object: "embedding".into(),
+            index: i,
+            embedding: vec![0.0; dims],
+        })
+        .collect();
 
     Json(EmbedResp {
         object: "list".into(),
         data,
         model: req.model.unwrap_or_else(|| "text-embedding-3-small".into()),
-        usage: UsageInfo { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+        usage: UsageInfo {
+            prompt_tokens: 0,
+            completion_tokens: 0,
+            total_tokens: 0,
+        },
     })
 }
 
@@ -498,16 +560,27 @@ async fn chat_handler(
 ) -> Result<Json<ChatResp>, (StatusCode, Json<Value>)> {
     let runtime = &state.runtime;
     let llm = runtime.llm.as_ref().ok_or_else(|| {
-        (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error": "no LLM configured"})))
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error": "no LLM configured"})),
+        )
     })?;
 
-    let session_id = req.session_id.and_then(|s| s.parse().ok()).unwrap_or_else(LsId::new);
+    let session_id = req
+        .session_id
+        .and_then(|s| s.parse().ok())
+        .unwrap_or_else(LsId::new);
     let ctx = LsContext::with_session(session_id);
 
     let request = LlmRequest {
-        model: req.model.unwrap_or_else(|| runtime.config.llm.default_model.clone()),
+        model: req
+            .model
+            .unwrap_or_else(|| runtime.config.llm.default_model.clone()),
         messages: vec![LlmMessage {
-            role: LlmRole::User, content: req.prompt, name: None, tool_calls: None,
+            role: LlmRole::User,
+            content: req.prompt,
+            name: None,
+            tool_calls: None,
         }],
         temperature: Some(0.7),
         max_tokens: Some(runtime.config.llm.max_tokens),
@@ -533,17 +606,16 @@ async fn chat_handler(
 }
 
 /// POST /v1/embed
-async fn embed_handler(
-    Json(req): Json<EmbedInput>,
-) -> Json<EmbedOutput> {
+async fn embed_handler(Json(req): Json<EmbedInput>) -> Json<EmbedOutput> {
     let dims = req._text.len();
-    Json(EmbedOutput { embedding: vec![0.0; dims], dimensions: dims })
+    Json(EmbedOutput {
+        embedding: vec![0.0; dims],
+        dimensions: dims,
+    })
 }
 
 /// POST /v1/agent/run
-async fn agent_run_handler(
-    Json(req): Json<AgentRunReq>,
-) -> Json<AgentRunResp> {
+async fn agent_run_handler(Json(req): Json<AgentRunReq>) -> Json<AgentRunResp> {
     let agent_id = req.agent_id.unwrap_or_else(|| LsId::new().to_string());
     Json(AgentRunResp {
         agent_id,
@@ -561,15 +633,19 @@ async fn ws_handler(
 }
 
 async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
-    use tokio_stream::wrappers::ReceiverStream;
     use futures::StreamExt;
+    use tokio_stream::wrappers::ReceiverStream;
 
     let session_id = LsId::new();
     let ctx = LsContext::with_session(session_id);
 
-    let _ = socket.send(ws::Message::Text(
-        json!({"type": "connected", "session_id": session_id.to_string()}).to_string().into()
-    )).await;
+    let _ = socket
+        .send(ws::Message::Text(
+            json!({"type": "connected", "session_id": session_id.to_string()})
+                .to_string()
+                .into(),
+        ))
+        .await;
 
     while let Some(Ok(msg)) = socket.recv().await {
         let text = match msg {
@@ -579,15 +655,20 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
         };
 
         let parsed: Value = serde_json::from_str(&text).unwrap_or(json!({"prompt": text}));
-        let prompt = parsed.get("prompt")
+        let prompt = parsed
+            .get("prompt")
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
 
         if prompt.is_empty() {
-            let _ = socket.send(ws::Message::Text(
-                json!({"type": "error", "message": "empty prompt"}).to_string().into()
-            )).await;
+            let _ = socket
+                .send(ws::Message::Text(
+                    json!({"type": "error", "message": "empty prompt"})
+                        .to_string()
+                        .into(),
+                ))
+                .await;
             continue;
         }
 
@@ -596,7 +677,10 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
             let request = LlmRequest {
                 model: state.runtime.config.llm.default_model.clone(),
                 messages: vec![LlmMessage {
-                    role: LlmRole::User, content: prompt, name: None, tool_calls: None,
+                    role: LlmRole::User,
+                    content: prompt,
+                    name: None,
+                    tool_calls: None,
                 }],
                 temperature: Some(0.7),
                 max_tokens: Some(state.runtime.config.llm.max_tokens),
@@ -617,10 +701,16 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
                                 if let Some(content) = &chunk.content {
                                     full_content.push_str(content);
                                     completion_tokens += 1;
-                                    let _ = socket.send(ws::Message::Text(json!({
-                                        "type": "chunk",
-                                        "content": content,
-                                    }).to_string().into())).await;
+                                    let _ = socket
+                                        .send(ws::Message::Text(
+                                            json!({
+                                                "type": "chunk",
+                                                "content": content,
+                                            })
+                                            .to_string()
+                                            .into(),
+                                        ))
+                                        .await;
                                 }
                                 if let Some(reason) = &chunk.finish_reason {
                                     let _ = socket.send(ws::Message::Text(json!({
@@ -645,28 +735,42 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
 
                     // Ensure done is sent if stream ended without finish_reason
                     if !full_content.is_empty() {
-                        let _ = socket.send(ws::Message::Text(json!({
-                            "type": "done",
-                            "content": full_content,
-                            "finish_reason": null,
-                            "usage": {
-                                "prompt_tokens": prompt_tokens,
-                                "completion_tokens": completion_tokens,
-                                "total_tokens": prompt_tokens + completion_tokens,
-                            }
-                        }).to_string().into())).await;
+                        let _ = socket
+                            .send(ws::Message::Text(
+                                json!({
+                                    "type": "done",
+                                    "content": full_content,
+                                    "finish_reason": null,
+                                    "usage": {
+                                        "prompt_tokens": prompt_tokens,
+                                        "completion_tokens": completion_tokens,
+                                        "total_tokens": prompt_tokens + completion_tokens,
+                                    }
+                                })
+                                .to_string()
+                                .into(),
+                            ))
+                            .await;
                     }
                 }
                 Err(e) => {
-                    let _ = socket.send(ws::Message::Text(
-                        json!({"type": "error", "message": format!("{e}")}).to_string().into()
-                    )).await;
+                    let _ = socket
+                        .send(ws::Message::Text(
+                            json!({"type": "error", "message": format!("{e}")})
+                                .to_string()
+                                .into(),
+                        ))
+                        .await;
                 }
             }
         } else {
-            let _ = socket.send(ws::Message::Text(
-                json!({"type": "error", "message": "no LLM configured"}).to_string().into()
-            )).await;
+            let _ = socket
+                .send(ws::Message::Text(
+                    json!({"type": "error", "message": "no LLM configured"})
+                        .to_string()
+                        .into(),
+                ))
+                .await;
         }
     }
 
@@ -721,12 +825,11 @@ struct PluginActionResponse {
 // ── Plugin Handlers ─────────────────────────────────
 
 /// GET /v1/plugins — 列出所有插件
-async fn plugin_list_handler(
-    State(state): State<Arc<AppState>>,
-) -> Json<PluginListResponse> {
+async fn plugin_list_handler(State(state): State<Arc<AppState>>) -> Json<PluginListResponse> {
     let plugins = state.plugin_registry.list().await;
-    let items: Vec<PluginResponseItem> = plugins.iter().map(|p| {
-        PluginResponseItem {
+    let items: Vec<PluginResponseItem> = plugins
+        .iter()
+        .map(|p| PluginResponseItem {
             id: p.plugin_id.to_string(),
             name: p.manifest.name.clone(),
             version: p.manifest.version.clone(),
@@ -735,10 +838,13 @@ async fn plugin_list_handler(
             plugin_type: p.manifest.plugin_type.clone(),
             status: format!("{:?}", p.status),
             loaded_at: p.loaded_at.map(|t| t.to_rfc3339()),
-        }
-    }).collect();
+        })
+        .collect();
     let total = items.len();
-    Json(PluginListResponse { plugins: items, total })
+    Json(PluginListResponse {
+        plugins: items,
+        total,
+    })
 }
 
 /// POST /v1/plugins — 安装一个静态插件
@@ -779,10 +885,7 @@ async fn plugin_install_handler(
                 status: "installed".into(),
             }))
         }
-        Err(e) => Err((
-            StatusCode::CONFLICT,
-            Json(json!({"error": format!("{e}")})),
-        )),
+        Err(e) => Err((StatusCode::CONFLICT, Json(json!({"error": format!("{e}")})))),
     }
 }
 
@@ -792,7 +895,10 @@ async fn plugin_get_handler(
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<Json<PluginResponseItem>, (StatusCode, Json<Value>)> {
     let plugin_id: lingshu_core::LsId = id.parse().map_err(|_| {
-        (StatusCode::BAD_REQUEST, Json(json!({"error": "invalid plugin id"})))
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "invalid plugin id"})),
+        )
     })?;
 
     match state.plugin_registry.get_info(&plugin_id).await {
@@ -819,7 +925,10 @@ async fn plugin_start_handler(
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<Json<PluginActionResponse>, (StatusCode, Json<Value>)> {
     let plugin_id: lingshu_core::LsId = id.parse().map_err(|_| {
-        (StatusCode::BAD_REQUEST, Json(json!({"error": "invalid plugin id"})))
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "invalid plugin id"})),
+        )
     })?;
 
     // 先初始化
@@ -853,7 +962,10 @@ async fn plugin_stop_handler(
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<Json<PluginActionResponse>, (StatusCode, Json<Value>)> {
     let plugin_id: lingshu_core::LsId = id.parse().map_err(|_| {
-        (StatusCode::BAD_REQUEST, Json(json!({"error": "invalid plugin id"})))
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "invalid plugin id"})),
+        )
     })?;
 
     let ctx = state.runtime.root_ctx.child();
@@ -881,11 +993,16 @@ async fn plugin_uninstall_handler(
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     let plugin_id: lingshu_core::LsId = id.parse().map_err(|_| {
-        (StatusCode::BAD_REQUEST, Json(json!({"error": "invalid plugin id"})))
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "invalid plugin id"})),
+        )
     })?;
 
     match state.plugin_registry.unregister(&plugin_id).await {
-        Ok(()) => Ok(Json(json!({"status": "uninstalled", "id": plugin_id.to_string()}))),
+        Ok(()) => Ok(Json(
+            json!({"status": "uninstalled", "id": plugin_id.to_string()}),
+        )),
         Err(e) => Err((
             StatusCode::NOT_FOUND,
             Json(json!({"error": format!("{e}")})),
@@ -903,13 +1020,13 @@ mod tests {
     use tower::ServiceExt;
 
     fn test_state() -> Arc<AppState> {
+        use lingshu_config::settings::{LlmProvider, LsConfig};
+        use lingshu_eventbus::bus::InMemoryEventBus;
         use lingshu_runtime::lifecycle::{LifecycleManager, LifecycleState};
+        use lingshu_runtime::recovery::RecoveryManager;
         use lingshu_runtime::scheduler::InternalScheduler;
         use lingshu_runtime::session::SessionManager;
-        use lingshu_eventbus::bus::InMemoryEventBus;
-        use lingshu_runtime::recovery::RecoveryManager;
         use lingshu_storage::LocalStorage;
-        use lingshu_config::settings::{LsConfig, LlmProvider};
 
         let ctx = LsContext::with_session(LsId::new());
         let tmp = std::env::temp_dir().join("lingshu-test");
@@ -936,7 +1053,10 @@ mod tests {
             root_ctx: ctx,
             tool_registry: lingshu_runtime::ToolRegistry::new(),
         });
-        let health_registry = Arc::new(lingshu_observability::health::HealthRegistry::new("lingshu-test", "1.0.0"));
+        let health_registry = Arc::new(lingshu_observability::health::HealthRegistry::new(
+            "lingshu-test",
+            "1.0.0",
+        ));
         Arc::new(AppState {
             runtime,
             plugin_registry: Arc::new(lingshu_plugin::PluginRegistry::new()),
@@ -950,15 +1070,23 @@ mod tests {
         let app = build_router(state);
 
         let response = app
-            .oneshot(Request::builder().uri("/health").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
 
         let body: Value = serde_json::from_slice(
-            &axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap()
-        ).unwrap();
+            &axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap(),
+        )
+        .unwrap();
         assert_eq!(body["status"], "ok");
         assert_eq!(body["version"], "1.0.0");
     }
@@ -969,14 +1097,22 @@ mod tests {
         let app = build_router(state);
 
         let response = app
-            .oneshot(Request::builder().uri("/version").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/version")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
         let body: Value = serde_json::from_slice(
-            &axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap()
-        ).unwrap();
+            &axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap(),
+        )
+        .unwrap();
         assert_eq!(body["version"], "1.0.0");
     }
 
@@ -986,14 +1122,22 @@ mod tests {
         let app = build_router(state);
 
         let response = app
-            .oneshot(Request::builder().uri("/v1/models").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/models")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
         let body: Value = serde_json::from_slice(
-            &axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap()
-        ).unwrap();
+            &axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap(),
+        )
+        .unwrap();
         let models = body.as_array().unwrap();
         assert!(models.len() >= 4);
     }
@@ -1020,9 +1164,18 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::OK);
         let body: Value = serde_json::from_slice(
-            &axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap()
-        ).unwrap();
-        assert!(body["choices"][0]["message"]["content"].as_str().unwrap().len() > 0);
+            &axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap(),
+        )
+        .unwrap();
+        assert!(
+            body["choices"][0]["message"]["content"]
+                .as_str()
+                .unwrap()
+                .len()
+                > 0
+        );
     }
 
     #[tokio::test]
@@ -1069,8 +1222,11 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::OK);
         let body: Value = serde_json::from_slice(
-            &axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap()
-        ).unwrap();
+            &axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap(),
+        )
+        .unwrap();
         assert_eq!(body["status"], "completed");
     }
 
@@ -1080,14 +1236,23 @@ mod tests {
         let app = build_router(state);
 
         let response = app
-            .oneshot(Request::builder().uri("/metrics").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/metrics")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
         let body = String::from_utf8(
-            axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap().to_vec()
-        ).unwrap();
+            axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap()
+                .to_vec(),
+        )
+        .unwrap();
         // Prometheus text format: empty line or HELP/TYPE/name lines
         assert!(body.is_empty() || body.contains("#") || body == "\n");
     }
@@ -1098,7 +1263,12 @@ mod tests {
         let app = build_router(state);
 
         let response = app
-            .oneshot(Request::builder().uri("/v1/plugins").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/plugins")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);

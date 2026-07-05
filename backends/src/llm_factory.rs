@@ -7,10 +7,10 @@
 //! - 开闭原则: 新增协议只需新增 impl + factory 分支
 
 use async_trait::async_trait;
-use std::collections::HashMap;
-use lingshu_core::{LsContext, LsError, LsResult};
 use lingshu_config::settings::{LlmConfig, LlmProvider};
+use lingshu_core::{LsContext, LsError, LsResult};
 use lingshu_traits::llm::{Llm, LlmChunk, LlmRequest, LlmResponse};
+use std::collections::HashMap;
 
 /// 根据配置构建带超时重试的 LLM 实例.
 ///
@@ -41,15 +41,16 @@ struct NullLlm;
 impl Llm for NullLlm {
     async fn invoke(&self, _ctx: LsContext, _request: LlmRequest) -> LsResult<LlmResponse> {
         Err(LsError::NotImplemented(
-            "no LLM provider enabled: enable at least one feature (openai, anthropic, groq, mock)".into()
+            "no LLM provider enabled: enable at least one feature (openai, anthropic, groq, mock)"
+                .into(),
         ))
     }
     async fn invoke_stream(
-        &self, _ctx: LsContext, _request: LlmRequest
+        &self,
+        _ctx: LsContext,
+        _request: LlmRequest,
     ) -> LsResult<tokio::sync::mpsc::Receiver<LsResult<LlmChunk>>> {
-        Err(LsError::NotImplemented(
-            "no LLM provider enabled".into()
-        ))
+        Err(LsError::NotImplemented("no LLM provider enabled".into()))
     }
     async fn usage_stats(&self, _ctx: LsContext) -> LsResult<HashMap<String, u64>> {
         Ok(HashMap::new())
@@ -60,11 +61,16 @@ impl Llm for NullLlm {
 
 #[cfg(feature = "openai")]
 fn build_openai(config: &LlmConfig) -> Box<dyn Llm> {
-    let api_key = config.api_key.clone()
+    let api_key = config
+        .api_key
+        .clone()
         .or_else(|| std::env::var("OPENAI_API_KEY").ok());
     match api_key {
         Some(key) => {
-            tracing::info!("llm: using OpenAI provider (model: {})", config.default_model);
+            tracing::info!(
+                "llm: using OpenAI provider (model: {})",
+                config.default_model
+            );
             Box::new(crate::OpenAiLlm::new(key, &config.default_model, None))
         }
         None => {
@@ -84,11 +90,16 @@ fn build_openai(_config: &LlmConfig) -> Box<dyn Llm> {
 
 #[cfg(feature = "anthropic")]
 fn build_anthropic(config: &LlmConfig) -> Box<dyn Llm> {
-    let api_key = config.api_key.clone()
+    let api_key = config
+        .api_key
+        .clone()
         .or_else(|| std::env::var("ANTHROPIC_API_KEY").ok());
     match api_key {
         Some(key) => {
-            tracing::info!("llm: using Anthropic provider (model: {})", config.default_model);
+            tracing::info!(
+                "llm: using Anthropic provider (model: {})",
+                config.default_model
+            );
             Box::new(crate::AnthropicLlm::new(key, &config.default_model, None))
         }
         None => {
@@ -108,7 +119,9 @@ fn build_anthropic(_config: &LlmConfig) -> Box<dyn Llm> {
 
 #[cfg(any(feature = "groq", feature = "openai"))]
 fn build_groq(config: &LlmConfig) -> Box<dyn Llm> {
-    let api_key = config.api_key.clone()
+    let api_key = config
+        .api_key
+        .clone()
         .or_else(|| std::env::var("GROQ_API_KEY").ok());
     match api_key {
         Some(key) => {
@@ -223,8 +236,12 @@ mod tests {
 
     #[test]
     fn test_provider_from_env() {
-        unsafe { std::env::set_var("LLM_PROVIDER", "anthropic"); }
+        unsafe {
+            std::env::set_var("LLM_PROVIDER", "anthropic");
+        }
         assert_eq!(LlmProvider::from_env(), LlmProvider::Anthropic);
-        unsafe { std::env::remove_var("LLM_PROVIDER"); }
+        unsafe {
+            std::env::remove_var("LLM_PROVIDER");
+        }
     }
 }
