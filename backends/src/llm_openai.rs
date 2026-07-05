@@ -113,7 +113,7 @@ impl OpenAiLlm {
     /// # 参数
     /// - `api_key`: OpenAI API 密钥
     /// - `default_model`: 默认模型名 (如 "gpt-4o")
-    /// - `base_url`: API 基础 URL (默认 "https://api.openai.com/v1")
+    /// - `base_url`: API 基础 URL (默认 "<https://api.openai.com/v1>")
     pub fn new(
         api_key: impl Into<String>,
         default_model: impl Into<String>,
@@ -122,7 +122,7 @@ impl OpenAiLlm {
         Self {
             client: Client::new(),
             api_key: api_key.into(),
-            base_url: base_url.unwrap_or_else(|| "https://api.openai.com/v1".into()),
+            base_url: base_url.unwrap_or_else(|| "<https://api.openai.com/v1>".into()),
             default_model: default_model.into(),
             prompt_tokens: AtomicU64::new(0),
             completion_tokens: AtomicU64::new(0),

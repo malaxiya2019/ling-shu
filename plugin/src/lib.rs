@@ -5,8 +5,8 @@
 //! ## 核心组件
 //!
 //! - [`PluginRegistry`] — 线程安全的插件注册中心
-//! - [`PluginLoader`] — 静态/动态插件加载器
-//! - [`check_permission`] — 权限检查沙箱
+//! - [`loader::PluginLoader`] — 静态/动态插件加载器
+//! - [`sandbox::check_permission`] — 权限检查沙箱
 
 pub mod loader;
 pub mod sandbox;
