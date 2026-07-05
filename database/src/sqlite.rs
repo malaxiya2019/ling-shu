@@ -172,11 +172,7 @@ impl Database for SqliteDatabase {
         let total = count_collection(&conn, collection)
             .map_err(|e| LsError::Internal(format!("query count failed: {e}")))?;
 
-        let total_pages = if pagination.page_size > 0 {
-            (total + pagination.page_size - 1) / pagination.page_size
-        } else {
-            1
-        };
+        let total_pages = total.div_ceil(pagination.page_size.max(1));
 
         let items = query_collection(&conn, collection, pagination.page, pagination.page_size)
             .map_err(|e| LsError::Internal(format!("query failed: {e}")))?;

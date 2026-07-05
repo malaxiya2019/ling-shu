@@ -170,11 +170,7 @@ impl Database for PostgresDatabase {
             .map_err(|e| LsError::Internal(format!("postgres count failed: {e}")))?;
 
         let total = total as u64;
-        let total_pages = if pagination.page_size > 0 {
-            (total + pagination.page_size - 1) / pagination.page_size
-        } else {
-            1
-        };
+        let total_pages = total.div_ceil(pagination.page_size.max(1));
 
         let rows = sqlx::query(
             "SELECT id, payload::text, created_at, updated_at FROM documents \
@@ -187,7 +183,7 @@ impl Database for PostgresDatabase {
         .await
         .map_err(|e| LsError::Internal(format!("postgres query failed: {e}")))?;
 
-        let items: Vec<Value> = rows.iter().map(|r| row_to_value(r)).collect();
+        let items: Vec<Value> = rows.iter().map(row_to_value).collect();
 
         Ok(PaginatedResult {
             items,

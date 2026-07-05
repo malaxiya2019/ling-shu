@@ -1169,13 +1169,10 @@ mod tests {
                 .unwrap(),
         )
         .unwrap();
-        assert!(
-            body["choices"][0]["message"]["content"]
-                .as_str()
-                .unwrap()
-                .len()
-                > 0
-        );
+        assert!(!body["choices"][0]["message"]["content"]
+            .as_str()
+            .unwrap()
+            .is_empty());
     }
 
     #[tokio::test]

@@ -184,9 +184,11 @@ mod tests {
 
         bus.publish(test_ctx(), event).await.unwrap();
 
-        let data = received.lock().unwrap();
-        assert_eq!(data.len(), 1);
-        assert_eq!(data[0], "ls.test.event");
+        {
+            let data = received.lock().unwrap();
+            assert_eq!(data.len(), 1);
+            assert_eq!(data[0], "ls.test.event");
+        }
 
         let _ = bus.unsubscribe(test_ctx(), &sub_id).await;
     }

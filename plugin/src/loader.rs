@@ -49,6 +49,11 @@ impl PluginLoader {
     ///
     /// 使用 `libloading` 在运行时加载共享库，并调用 `create_plugin` 符号
     /// 获取 `Box<dyn Plugin>` 实例.
+    ///
+    /// # Safety
+    ///
+    /// 调用者必须确保 `.so` / `.dylib` 文件来源可信，且与宿主 ABI 兼容。
+    /// 加载不受信任的动态库可能导致代码注入或进程崩溃。
     pub unsafe fn load_dynamic(&self, path: &Path) -> LsResult<(PluginInfo, libloading::Library)> {
         let lib = libloading::Library::new(path).map_err(|e| {
             LsError::Plugin(format!("cannot load library '{}': {e}", path.display()))

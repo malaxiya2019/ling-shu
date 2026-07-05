@@ -93,7 +93,7 @@ impl LingshuRuntime {
 
         let event_bus = Arc::new(InMemoryEventBus::new());
         let recovery = RecoveryManager::new(3);
-        let scheduler = InternalScheduler::new(config.runtime.max_concurrent_tasks as usize);
+        let scheduler = InternalScheduler::new(config.runtime.max_concurrent_tasks);
         let session_mgr = SessionManager::new(config.runtime.session_ttl_seconds);
         let service_key = ServiceKeyBundle::generate("lingshu");
 
@@ -233,7 +233,7 @@ async fn run_repl(runtime: &LingshuRuntime) -> LsResult<()> {
                 let prompt = if cmd.starts_with("/llm ") {
                     cmd.trim_start_matches("/llm ")
                 } else {
-                    &cmd
+                    cmd
                 };
 
                 if let Some(llm) = &runtime.llm {

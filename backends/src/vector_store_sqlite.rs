@@ -17,7 +17,6 @@ use serde_json::Value;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::info;
 
 /// SQLite 持久化向量存储.
 pub struct SQLiteVector {
@@ -395,6 +394,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::approx_constant)]
     fn test_vector_blob_roundtrip() {
         let original = vec![1.0, -2.5, 3.14, 0.0, 100.0];
         let blob = SQLiteVector::vector_to_blob(&original);

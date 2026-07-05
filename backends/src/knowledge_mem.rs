@@ -195,7 +195,7 @@ mod tests {
             config: Value::Null,
         };
         let id = kb.register_source(ctx.clone(), source).await.unwrap();
-        assert!(id.to_string().len() > 0);
+        assert!(!id.to_string().is_empty());
     }
 
     #[tokio::test]

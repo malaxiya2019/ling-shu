@@ -30,18 +30,13 @@ impl Permission {
 }
 
 /// 隔离级别.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum IsolationLevel {
     Global,
     Tenant,
     User,
+    #[default]
     Session,
-}
-
-impl Default for IsolationLevel {
-    fn default() -> Self {
-        Self::Session
-    }
 }
 
 /// 权限校验器.
@@ -56,7 +51,15 @@ impl PermissionChecker {
             admin_permissions: HashSet::new(),
         }
     }
+}
 
+impl Default for PermissionChecker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl PermissionChecker {
     /// 校验主体是否有权执行某操作.
     pub fn check(&self, granted: &[Permission], required: &Permission) -> LsResult<()> {
         if self.admin_permissions.contains(required) {

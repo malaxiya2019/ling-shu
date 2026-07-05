@@ -65,7 +65,15 @@ impl LifecycleManager {
             state: std::sync::RwLock::new(LifecycleState::Uninitialized),
         }
     }
+}
 
+impl Default for LifecycleManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl LifecycleManager {
     /// 尝试状态转换，失败返回错误.
     pub fn transition(&self, ctx: &LsContext, next: LifecycleState) -> LsResult<LifecycleState> {
         let mut state = self

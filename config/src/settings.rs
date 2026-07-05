@@ -392,7 +392,6 @@ mod tests {
         let guard = env_lock().lock().unwrap_or_else(|e| e.into_inner());
         let old: Vec<(String, String)> = std::env::vars()
             .filter(|(k, _)| k.starts_with("LS_"))
-            .map(|(k, v)| (k, v))
             .collect();
         for (k, _) in &old {
             std::env::remove_var(k);

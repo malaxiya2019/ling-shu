@@ -23,7 +23,7 @@ use std::sync::Arc;
 
 /// 全局 Prometheus 注册表.
 #[cfg(feature = "metrics")]
-pub static REGISTRY: Lazy<prometheus::Registry> = Lazy::new(|| prometheus::Registry::new());
+pub static REGISTRY: Lazy<prometheus::Registry> = Lazy::new(prometheus::Registry::new);
 
 /// 指标注册表封装.
 #[derive(Debug, Clone)]

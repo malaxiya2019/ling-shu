@@ -42,6 +42,11 @@ impl MockLlm {
         }
     }
 }
+impl Default for MockLlm {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 #[async_trait]
 impl Llm for MockLlm {
@@ -137,6 +142,11 @@ impl InMemoryEventBus {
         false
     }
 }
+impl Default for InMemoryEventBus {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 #[async_trait]
 impl EventBus for InMemoryEventBus {
@@ -209,6 +219,11 @@ impl InMemoryMemory {
         Self {
             items: RwLock::new(Vec::new()),
         }
+    }
+}
+impl Default for InMemoryMemory {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -308,6 +323,11 @@ pub struct ChatAgentBuilder {
     event_bus: Option<Box<dyn EventBus>>,
     session_manager: Option<SessionManager>,
     system_prompt: String,
+}
+impl Default for ChatAgentBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ChatAgentBuilder {

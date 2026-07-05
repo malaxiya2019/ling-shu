@@ -24,6 +24,12 @@ impl MockLlm {
     }
 }
 
+impl Default for MockLlm {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl Llm for MockLlm {
     async fn invoke(&self, _ctx: LsContext, request: LlmRequest) -> LsResult<LlmResponse> {

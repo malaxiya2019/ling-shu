@@ -55,7 +55,7 @@ impl LocalStorage {
             metadata,
             created_at: meta
                 .created()
-                .map(|t| chrono::DateTime::from(t))
+                .map(chrono::DateTime::from)
                 .unwrap_or_else(|_| chrono::Utc::now()),
         })
     }

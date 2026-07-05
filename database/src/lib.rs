@@ -25,11 +25,3 @@ pub mod postgres;
 
 #[cfg(feature = "postgres")]
 pub use postgres::PostgresDatabase;
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_database_crate_loaded() {
-        assert!(true, "lingshu-database crate loaded successfully");
-    }
-}

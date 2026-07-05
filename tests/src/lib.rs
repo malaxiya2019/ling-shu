@@ -174,7 +174,7 @@ mod tests {
     // ── 6. Security JWT + 权限 ─────────────────────
     #[tokio::test]
     async fn test_security_auth() {
-        use lingshu_core::{LsContext, LsId};
+        use lingshu_core::LsId;
         use lingshu_security::auth::JwtService;
         use lingshu_security::permission::{Permission, PermissionChecker};
 
@@ -191,7 +191,7 @@ mod tests {
         // Permission check
         let checker = PermissionChecker::new();
         let perm = Permission::new("system", "*", "manage");
-        let result = checker.check(&[perm.clone()], &perm);
+        let result = checker.check(std::slice::from_ref(&perm), &perm);
         assert!(result.is_ok());
     }
 
