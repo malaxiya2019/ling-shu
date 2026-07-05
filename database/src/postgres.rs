@@ -284,10 +284,17 @@ mod tests {
 
     async fn test_db() -> PostgresDatabase {
         let url = get_test_url();
-        // 清理并重新创建测试数据库
-        let _ = sqlx::query("DROP TABLE IF EXISTS documents CASCADE")
-            .execute(&sqlx::PgPool::connect(&url).await.unwrap())
-            .await;
+        let pool = sqlx::PgPool::connect(&url).await.unwrap();
+        // 清理所有迁移表 (CASCADE 确保级联删除依赖对象)
+        let tables = [
+            "documents", "users", "sessions", "memories",
+            "vectors", "events", "audit_logs", "plugins",
+        ];
+        for table in &tables {
+            let sql = format!("DROP TABLE IF EXISTS {{}} CASCADE", table);
+            let _ = sqlx::query(&sql).execute(&pool).await;
+        }
+        drop(pool);
         PostgresDatabase::new(&url, 2).await.unwrap()
     }
 
