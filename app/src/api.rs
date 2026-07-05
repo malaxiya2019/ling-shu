@@ -28,6 +28,12 @@ use tower_http::trace::TraceLayer;
 use tracing::info;
 
 use lingshu_core::{LsContext, LsId};
+use axum::response::{sse::{Event, Sse}, IntoResponse};
+use futures::stream::Stream;
+use futures::stream::StreamExt;
+use tokio_stream::wrappers::ReceiverStream;
+use std::convert::Infallible;
+use std::pin::Pin;
 use lingshu_traits::llm::{Llm, LlmMessage, LlmRequest, LlmRole};
 use lingshu_observability::health::HealthRegistry;
 use lingshu_plugin::PluginRegistry;
@@ -78,10 +84,11 @@ struct ModelInfo {
 struct ChatCompletionRequest {
     model: String,
     messages: Vec<ChatMsg>,
-    _stream: Option<bool>,
+    stream: Option<bool>,
     temperature: Option<f64>,
     max_tokens: Option<u32>,
     user: Option<String>,
+    tools: Option<Vec<lingshu_traits::llm::ToolDefinition>>,
 }
 
 #[derive(Deserialize)]
@@ -283,13 +290,24 @@ async fn models_handler(
 async fn chat_completions_handler(
     State(state): State<Arc<AppState>>,
     Json(req): Json<ChatCompletionRequest>,
+) -> axum::response::Response {
+    if req.stream.unwrap_or(false) {
+        return handle_streaming_chat(state, req).await.into_response();
+    }
+    handle_non_streaming_chat(state.clone(), req).await.into_response()
+}
+
+/// Handle non-streaming chat completion (supports tool calling)
+async fn handle_non_streaming_chat(
+    state: Arc<AppState>,
+    req: ChatCompletionRequest,
 ) -> Result<Json<ChatCompletionResp>, (StatusCode, Json<Value>)> {
     let runtime = &state.runtime;
     let llm = runtime.llm.as_ref().ok_or_else(|| {
         (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error": "no LLM configured"})))
     })?;
 
-    let messages: Vec<LlmMessage> = req.messages.into_iter().map(|m| {
+    let mut messages: Vec<LlmMessage> = req.messages.into_iter().map(|m| {
         let role = match m.role.as_str() {
             "system" => LlmRole::System,
             "assistant" => LlmRole::Assistant,
@@ -306,43 +324,157 @@ async fn chat_completions_handler(
         let _ = runtime.session_mgr.create(&LsContext::with_session(session_id).with_user(user)).await;
     }
 
+    // Tool calling loop: max 10 iterations
+    let tools = req.tools.clone(); // tools from original request
+    for _ in 0..10 {
+        let request = LlmRequest {
+            model: req.model.clone(),
+            messages: messages.clone(),
+            temperature: req.temperature,
+            max_tokens: req.max_tokens,
+            tools: tools.clone(),
+            stream: false,
+        };
+
+        match llm.invoke(ctx.clone(), request).await {
+            Ok(mut response) => {
+                let has_tool_calls = response.message.tool_calls.is_some()
+                    && response.message.tool_calls.as_ref().map(|c| !c.is_empty()).unwrap_or(false);
+
+                if !has_tool_calls {
+                    // No tool calls — return final response
+                    let usage = UsageInfo {
+                        prompt_tokens: response.usage.prompt_tokens,
+                        completion_tokens: response.usage.completion_tokens,
+                        total_tokens: response.usage.total_tokens,
+                    };
+                    return Ok(Json(ChatCompletionResp {
+                        id: format!("chatcmpl-{}", session_id),
+                        object: "chat.completion".into(),
+                        created: chrono::Utc::now().timestamp() as u64,
+                        model: "lingshu-1".into(),
+                        choices: vec![Choice {
+                            index: 0,
+                            message: RespMsg {
+                                role: "assistant".into(),
+                                content: response.message.content,
+                            },
+                            finish_reason: response.finish_reason,
+                        }],
+                        usage,
+                    }));
+                }
+
+                // Add assistant message with tool_calls to history
+                let tool_calls = response.message.tool_calls.take();
+                messages.push(response.message);
+
+                // Execute each tool call
+                for tool_call in tool_calls.unwrap_or_default() {
+                    let args: Value = serde_json::from_str(&tool_call.function.arguments)
+                        .unwrap_or(json!({"error": "invalid args"}));
+
+                    let tool_result = state.runtime.tool_registry.execute(
+                        &ctx,
+                        &tool_call.function.name,
+                        args,
+                    ).await;
+
+                    let result_content = match tool_result {
+                        Ok(val) => val.to_string(),
+                        Err(e) => format!("{{\"error\":\"{e}\"}}"),
+                    };
+
+                    messages.push(LlmMessage {
+                        role: LlmRole::Tool,
+                        content: result_content,
+                        name: Some(tool_call.function.name),
+                        tool_calls: None,
+                    });
+                }
+            }
+            Err(e) => {
+                return Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": format!("{}", e)})),
+                ));
+            }
+        }
+    }
+
+    Err((
+        StatusCode::INTERNAL_SERVER_ERROR,
+        Json(json!({"error": "tool call limit exceeded (max 10 iterations)"})),
+    ))
+}
+
+/// Handle streaming chat completion (SSE)
+async fn handle_streaming_chat(
+    state: Arc<AppState>,
+    req: ChatCompletionRequest,
+) -> Sse<Pin<Box<dyn Stream<Item = Result<Event, Infallible>> + Send>>> {
+    let runtime = &state.runtime;
+    let messages: Vec<LlmMessage> = req.messages.into_iter().map(|m| {
+        let role = match m.role.as_str() {
+            "system" => LlmRole::System,
+            "assistant" => LlmRole::Assistant,
+            "tool" => LlmRole::Tool,
+            _ => LlmRole::User,
+        };
+        LlmMessage { role, content: m.content, name: m.name, tool_calls: None }
+    }).collect();
+
+    let session_id = LsId::new();
+    let ctx = LsContext::with_session(session_id);
+
     let request = LlmRequest {
         model: req.model,
         messages,
         temperature: req.temperature,
         max_tokens: req.max_tokens,
         tools: None,
-        stream: false,
+        stream: true,
     };
 
-    match llm.invoke(ctx, request).await {
-        Ok(response) => {
-            let usage = UsageInfo {
-                prompt_tokens: response.usage.prompt_tokens,
-                completion_tokens: response.usage.completion_tokens,
-                total_tokens: response.usage.total_tokens,
-            };
-            Ok(Json(ChatCompletionResp {
-                id: format!("chatcmpl-{}", session_id),
-                object: "chat.completion".into(),
-                created: chrono::Utc::now().timestamp() as u64,
-                model: "lingshu-1".into(),
-                choices: vec![Choice {
-                    index: 0,
-                    message: RespMsg {
-                        role: "assistant".into(),
-                        content: response.message.content,
-                    },
-                    finish_reason: response.finish_reason,
-                }],
-                usage,
-            }))
+    let stream: Pin<Box<dyn Stream<Item = Result<Event, Infallible>> + Send>> = if let Some(llm) = &runtime.llm {
+        match llm.invoke_stream(ctx, request).await {
+            Ok(rx) => {
+                let s = ReceiverStream::new(rx).map(|chunk_result| {
+                    match chunk_result {
+                        Ok(chunk) => {
+                            let data = json!({
+                                "choices": [{
+                                    "delta": {
+                                        "content": chunk.content,
+                                    },
+                                    "index": 0,
+                                    "finish_reason": chunk.finish_reason,
+                                }]
+                            });
+                            Ok(Event::default().data(data.to_string()))
+                        }
+                        Err(_) => Ok(Event::default().data("[DONE]")),
+                    }
+                });
+                Box::pin(s)
+            }
+            Err(e) => {
+                let s = futures::stream::once(async move {
+                    Ok(Event::default().data(format!("error: {}", e)))
+                });
+                Box::pin(s)
+            }
         }
-        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": format!("{e}")})))),
-    }
+    } else {
+        let s = futures::stream::once(async {
+            Ok(Event::default().data("{\"error\":\"no LLM configured\"}"))
+        });
+        Box::pin(s)
+    };
+
+    Sse::new(stream)
 }
 
-/// POST /v1/embeddings
 async fn embeddings_handler(
     Json(req): Json<EmbedReq>,
 ) -> Json<EmbedResp> {
@@ -393,7 +525,10 @@ async fn chat_handler(
                 total_tokens: response.usage.total_tokens,
             }),
         })),
-        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": format!("{e}")})))),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": format!("{}", e)})),
+        )),
     }
 }
 
@@ -757,6 +892,7 @@ mod tests {
             llm: Some(Box::new(lingshu_backends::mock_llm::MockLlm::new())),
             service_key: None,
             root_ctx: ctx,
+            tool_registry: lingshu_runtime::ToolRegistry::new(),
         });
         let health_registry = Arc::new(lingshu_observability::health::HealthRegistry::new("lingshu-test", "1.0.0"));
         Arc::new(AppState {

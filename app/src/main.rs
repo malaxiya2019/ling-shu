@@ -23,6 +23,7 @@ use lingshu_runtime::scheduler::InternalScheduler;
 use lingshu_runtime::session::SessionManager;
 use lingshu_security::service_auth::ServiceKeyBundle;
 use lingshu_storage::LocalStorage;
+use lingshu_runtime::ToolRegistry;
 
 use crate::api::AppState;
 
@@ -59,6 +60,7 @@ pub struct LingshuRuntime {
     pub llm: Option<Box<dyn lingshu_traits::llm::Llm>>,
     pub service_key: Option<ServiceKeyBundle>,
     pub root_ctx: LsContext,
+    pub tool_registry: lingshu_runtime::ToolRegistry,
 }
 
 impl LingshuRuntime {
@@ -100,6 +102,7 @@ impl LingshuRuntime {
             .join("lingshu");
         std::fs::create_dir_all(&data_dir).ok();
         let storage = LocalStorage::new(data_dir);
+        let tool_registry = ToolRegistry::new();
 
         let llm: Option<Box<dyn lingshu_traits::llm::Llm>> = match config.llm.provider {
             LlmProvider::Mock | LlmProvider::Openai | LlmProvider::Anthropic | LlmProvider::Groq => {
@@ -118,6 +121,7 @@ impl LingshuRuntime {
             llm,
             service_key: Some(service_key),
             root_ctx,
+            tool_registry,
         };
 
         runtime.lifecycle.transition(&runtime.root_ctx, LifecycleState::Running)

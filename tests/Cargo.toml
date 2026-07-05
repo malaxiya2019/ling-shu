@@ -1,0 +1,27 @@
+[package]
+name = "lingshu-tests"
+version.workspace = true
+edition.workspace = true
+description = "Lingshu integration tests — cross-crate end-to-end verification"
+publish = false
+
+[dependencies]
+lingshu-core = { path = "../core" }
+lingshu-traits = { path = "../traits" }
+lingshu-config = { path = "../config" }
+lingshu-backends = { path = "../backends" }
+lingshu-database = { path = "../database" }
+lingshu-storage = { path = "../storage" }
+lingshu-eventbus = { path = "../eventbus" }
+lingshu-security = { path = "../security" }
+lingshu-observability = { path = "../observability" }
+lingshu-runtime = { path = "../runtime" }
+lingshu-plugin = { path = "../plugin" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tempfile = "3"

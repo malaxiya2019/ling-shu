@@ -14,8 +14,10 @@
 
 #[cfg(feature = "sqlite")]
 pub mod sqlite;
+pub mod repository;
 
 #[cfg(feature = "sqlite")]
+pub use repository::DatabaseRepository;
 pub use sqlite::SqliteDatabase;
 
 #[cfg(feature = "postgres")]

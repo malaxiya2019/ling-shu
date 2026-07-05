@@ -25,6 +25,10 @@ struct ChatRequest {
     max_tokens: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     stream: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<lingshu_traits::llm::ToolDefinition>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool_choice: Option<serde_json::Value>,
 }
 
 #[derive(Serialize)]
@@ -46,8 +50,27 @@ struct Choice {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct ResponseMessage {
     content: Option<String>,
+    #[serde(default)]
+    tool_calls: Option<Vec<OpenAiToolCall>>,
+}
+
+#[derive(Deserialize)]
+#[allow(dead_code)]
+struct OpenAiToolCall {
+    id: String,
+    #[serde(rename = "type")]
+    call_type: String,
+    function: OpenAiToolCallFunction,
+}
+
+#[derive(Deserialize)]
+#[allow(dead_code)]
+struct OpenAiToolCallFunction {
+    name: String,
+    arguments: String,
 }
 
 #[derive(Deserialize)]
@@ -133,6 +156,8 @@ impl Llm for OpenAiLlm {
             temperature: request.temperature,
             max_tokens: request.max_tokens,
             stream: Some(false),
+            tools: request.tools.clone(),
+            tool_choice: None,
         };
 
         let resp = self.client
@@ -191,6 +216,8 @@ impl Llm for OpenAiLlm {
             temperature: request.temperature,
             max_tokens: request.max_tokens,
             stream: Some(true),
+            tools: request.tools.clone(),
+            tool_choice: None,
         };
 
         let client = self.client.clone();

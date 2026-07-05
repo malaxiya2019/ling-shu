@@ -5,7 +5,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 
 /// LLM 消息角色.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum LlmRole {
     System,
     User,
@@ -19,7 +19,7 @@ pub struct LlmMessage {
     pub role: LlmRole,
     pub content: String,
     pub name: Option<String>,
-    pub tool_calls: Option<Vec<Value>>,
+    pub tool_calls: Option<Vec<ToolCall>>,
 }
 
 /// LLM 请求配置.
@@ -29,7 +29,7 @@ pub struct LlmRequest {
     pub messages: Vec<LlmMessage>,
     pub temperature: Option<f64>,
     pub max_tokens: Option<u32>,
-    pub tools: Option<Vec<Value>>,
+    pub tools: Option<Vec<ToolDefinition>>,
     pub stream: bool,
 }
 
@@ -53,11 +53,52 @@ pub struct LlmUsage {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LlmChunk {
     pub content: Option<String>,
-    pub tool_calls: Option<Vec<Value>>,
+    pub tool_calls: Option<Vec<ToolCall>>,
     pub finish_reason: Option<String>,
 }
 
+
+/// OpenAI-compatible tool definition.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolDefinition {
+    #[serde(rename = "type")]
+    pub tool_type: String,
+    pub function: ToolFunction,
+}
+
+/// Function definition within a tool.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolFunction {
+    pub name: String,
+    pub description: String,
+    pub parameters: Value,
+}
+
+/// Tool call from LLM response.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolCall {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub call_type: String,
+    pub function: ToolCallFunction,
+}
+
+/// Function call details from LLM.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolCallFunction {
+    pub name: String,
+    pub arguments: String,
+}
+
+/// Tool result to send back to LLM.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolResult {
+    pub tool_call_id: String,
+    pub content: String,
+}
+
 /// Llm — 模型调用、流式输出、结构化返回、用量统计.
+
 #[async_trait]
 pub trait Llm: Send + Sync + 'static {
     /// 发起非流式调用.

@@ -10,8 +10,10 @@ pub mod lifecycle;
 pub mod recovery;
 pub mod scheduler;
 pub mod session;
+pub mod tool_registry;
 
 pub use lifecycle::{LifecycleManager, LifecycleState};
 pub use recovery::{FaultEvent, FaultLevel, RecoveryManager, RecoveryResult, RecoveryStrategy};
 pub use scheduler::InternalScheduler;
 pub use session::{SessionInfo, SessionManager, SessionState};
+pub use tool_registry::ToolRegistry;

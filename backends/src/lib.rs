@@ -30,6 +30,7 @@ pub mod llm_openai;
 #[cfg(feature = "mock")]
 pub mod mock_llm;
 pub mod vector_store_mem;
+pub mod knowledge_mem;
 pub mod vector_memory;
 #[cfg(feature = "mock")]
 #[cfg(feature = "vector-store-sqlite")]
@@ -48,6 +49,7 @@ pub use llm_retry::{with_retry, RetryLlm};
 #[cfg(feature = "mock")]
 pub use mock_llm::MockLlm;
 pub use vector_store_mem::InMemoryVectorStore;
+pub use knowledge_mem::InMemoryKnowledge;
 pub use vector_memory::VectorMemory;
 #[cfg(feature = "vector-store-sqlite")]
 pub use vector_store_sqlite::SQLiteVector;
