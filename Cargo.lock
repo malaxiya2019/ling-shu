@@ -1629,6 +1629,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "lingshu-orchestrator"
+version = "1.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "lingshu-core",
+ "lingshu-eventbus",
+ "lingshu-observability",
+ "lingshu-runtime",
+ "lingshu-traits",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "lingshu-plugin"
 version = "1.0.0"
 dependencies = [
