@@ -326,7 +326,7 @@
       "depends_on": [
         "2.1"
       ],
-      "status": "pending"
+      "status": "completed"
     },
     {
       "id": "13.1",

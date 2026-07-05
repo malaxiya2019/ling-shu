@@ -17,6 +17,7 @@ members = [
     "plugin",
     "orchestrator",
     "polyglot",
+    "distributed",
 ]
 
 [workspace.package]
