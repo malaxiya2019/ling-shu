@@ -25,6 +25,7 @@ use lingshu_runtime::session::SessionManager;
 use lingshu_runtime::ToolRegistry;
 use lingshu_security::service_auth::ServiceKeyBundle;
 use lingshu_storage::LocalStorage;
+use lingshu_websocket::{ConnectionManager, SseBroadcaster};
 
 use crate::api::AppState;
 
@@ -326,6 +327,8 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
         runtime: runtime.clone(),
         plugin_registry: Arc::new(lingshu_plugin::PluginRegistry::new()),
         health_registry,
+        ws_manager: Arc::new(ConnectionManager::new(300)),
+        sse_broadcaster: Arc::new(SseBroadcaster::new(1024)),
     });
     let app = api::build_router(state);
 

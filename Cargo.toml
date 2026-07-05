@@ -18,6 +18,7 @@ members = [
     "orchestrator",
     "polyglot",
     "distributed",
+    "websocket",
 ]
 
 [workspace.package]

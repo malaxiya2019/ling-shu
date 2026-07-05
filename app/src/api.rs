@@ -38,6 +38,7 @@ use lingshu_core::{LsContext, LsId};
 use lingshu_observability::health::HealthRegistry;
 use lingshu_plugin::PluginRegistry;
 use lingshu_traits::llm::{ LlmMessage, LlmRequest, LlmRole};
+use lingshu_websocket::{ClientMessage, ConnectionManager, ConnectionState, SseBroadcaster, Connection};
 use std::convert::Infallible;
 use std::pin::Pin;
 use tokio_stream::wrappers::ReceiverStream;
@@ -50,6 +51,8 @@ pub struct AppState {
     pub runtime: Arc<LingshuRuntime>,
     pub plugin_registry: Arc<PluginRegistry>,
     pub health_registry: Arc<HealthRegistry>,
+    pub ws_manager: Arc<ConnectionManager>,
+    pub sse_broadcaster: Arc<SseBroadcaster>,
 }
 
 // ── Response Types ──────────────────────────────────
@@ -216,6 +219,10 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/v1/agents/{id}/resume", post(agent_resume_handler))
         .route("/v1/agents/{id}/cancel", post(agent_cancel_handler))
         .route("/ws", get(ws_handler))
+        // v2 Real-time API
+        .route("/v2/chat/stream", get(v2_chat_stream_handler))
+        .route("/v2/ws", get(v2_ws_handler))
+        .route("/v2/events", get(v2_events_handler))
         // Plugin API
         .route(
             "/v1/plugins",
@@ -878,6 +885,263 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
     info!(session_id = %session_id, "websocket disconnected");
 }
 
+// ── v2 Real-time Handlers ──────────────────────────
+
+/// GET /v2/chat/stream — SSE streaming chat (v2)
+async fn v2_chat_stream_handler(
+    State(state): State<Arc<AppState>>,
+) -> impl IntoResponse {
+    let ctx = LsContext::with_session(LsId::new());
+    let request = LlmRequest {
+        model: state.runtime.config.llm.default_model.clone(),
+        messages: vec![LlmMessage {
+            role: LlmRole::User,
+            content: "Hello".to_string(),
+            name: None,
+            tool_calls: None,
+        }],
+        temperature: Some(0.7),
+        max_tokens: Some(state.runtime.config.llm.max_tokens),
+        tools: None,
+        stream: true,
+    };
+
+    if let Some(llm) = &state.runtime.llm {
+        match llm.invoke_stream(ctx, request).await {
+            Ok(rx) => {
+                let stream = ReceiverStream::new(rx).then(|chunk_result| {
+                    futures::future::ready(match chunk_result {
+                        Ok(chunk) => Ok::<Event, Infallible>(
+                            Event::default().data(json!({
+                                "type": "chunk",
+                                "content": chunk.content.unwrap_or_default(),
+                                "index": 0u32,
+                            }).to_string())
+                        ),
+                        Err(e) => Ok(Event::default()
+                            .data(json!({"type": "error", "message": format!("{e}")}).to_string())
+                            .event("error")),
+                    })
+                });
+                Sse::new(stream).keep_alive(
+                    axum::response::sse::KeepAlive::new()
+                        .interval(std::time::Duration::from_secs(15))
+                        .text("keep-alive"),
+                )
+                .into_response()
+            }
+            Err(e) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": format!("{e}")}))).into_response()
+            }
+        }
+    } else {
+        (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error": "no LLM configured"}))).into_response()
+    }
+}
+
+/// GET /v2/ws — WebSocket with ConnectionManager (v2)
+async fn v2_ws_handler(
+    ws: WebSocketUpgrade,
+    State(state): State<Arc<AppState>>,
+) -> axum::response::Response {
+    ws.on_upgrade(move |socket| v2_handle_ws(socket, state))
+}
+
+
+async fn v2_handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
+    use futures::StreamExt;
+    use tokio_stream::wrappers::ReceiverStream;
+
+    let session_id = LsId::new();
+    let user_id = "anonymous".to_string();
+    let remote_addr = "unknown".to_string();
+    let user_agent = "unknown".to_string();
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<String>();
+    let conn_manager = state.ws_manager.clone();
+    let sid_str = session_id.to_string();
+
+    conn_manager.register(Connection::new(sid_str.clone(), user_id, tx, remote_addr, user_agent)).await;
+
+    let _ = socket.send(ws::Message::Text(
+        json!({"type": "connected", "session_id": sid_str.clone()}).to_string().into(),
+    )).await;
+
+    let ctx = LsContext::with_session(session_id);
+    let mut streaming_content = String::new();
+
+    loop {
+        tokio::select! {
+            // Forward broadcast messages to WebSocket
+            maybe_msg = rx.recv() => {
+                match maybe_msg {
+                    Some(msg) => {
+                        if socket.send(ws::Message::Text(msg.into())).await.is_err() {
+                            break;
+                        }
+                    }
+                    None => break,
+                }
+            }
+            // Receive incoming WebSocket messages
+            maybe_ws = socket.recv() => {
+                let msg = match maybe_ws {
+                    Some(Ok(msg)) => msg,
+                    _ => break,
+                };
+
+                let text = match msg {
+                    ws::Message::Text(t) => t.to_string(),
+                    ws::Message::Close(_) => break,
+                    _ => continue,
+                };
+
+                // Try to parse as ClientMessage
+                if let Ok(client_msg) = serde_json::from_str::<ClientMessage>(&text) {
+                    match client_msg {
+                        ClientMessage::Cancel => {
+                            conn_manager.update_state(&sid_str, ConnectionState::Cancelling).await;
+                            let _ = socket.send(ws::Message::Text(
+                                json!({"type": "cancelled"}).to_string().into(),
+                            )).await;
+                            continue;
+                        }
+                        ClientMessage::Pong { .. } => {
+                            conn_manager.update_activity(&sid_str).await;
+                            continue;
+                        }
+                        ClientMessage::Close { .. } => break,
+                        _ => {}
+                    }
+                }
+
+                let prompt = serde_json::from_str::<Value>(&text)
+                    .ok()
+                    .and_then(|v| v.get("prompt").and_then(|v| v.as_str()).map(|s| s.to_string()))
+                    .unwrap_or(text.trim().to_string());
+
+                if prompt.is_empty() {
+                    let _ = socket.send(ws::Message::Text(
+                        json!({"type": "error", "message": "empty prompt"}).to_string().into(),
+                    )).await;
+                    continue;
+                }
+
+                conn_manager.update_state(&sid_str, ConnectionState::Streaming).await;
+                streaming_content.clear();
+
+                if let Some(llm) = &state.runtime.llm {
+                    let child_ctx = ctx.child();
+                    let request = LlmRequest {
+                        model: state.runtime.config.llm.default_model.clone(),
+                        messages: vec![LlmMessage {
+                            role: LlmRole::User,
+                            content: prompt,
+                            name: None,
+                            tool_calls: None,
+                        }],
+                        temperature: Some(0.7),
+                        max_tokens: Some(state.runtime.config.llm.max_tokens),
+                        tools: None,
+                        stream: true,
+                    };
+
+                    match llm.invoke_stream(child_ctx, request).await {
+                        Ok(rx) => {
+                            let mut stream = ReceiverStream::new(rx);
+                            let mut completion_tokens = 0u64;
+
+                            while let Some(chunk_result) = stream.next().await {
+                                // Check for cancel
+                                if conn_manager.get_state(&sid_str).await == Some(ConnectionState::Cancelling) {
+                                    break;
+                                }
+
+                                match chunk_result {
+                                    Ok(chunk) => {
+                                        if let Some(content) = &chunk.content {
+                                            streaming_content.push_str(content);
+                                            completion_tokens += 1;
+                                            let _ = socket.send(ws::Message::Text(
+                                                json!({"type": "chunk", "content": content}).to_string().into(),
+                                            )).await;
+                                        }
+                                        if let Some(reason) = &chunk.finish_reason {
+                                            let _ = socket.send(ws::Message::Text(json!({
+                                                "type": "done",
+                                                "content": streaming_content,
+                                                "finish_reason": reason,
+                                                "usage": {
+                                                    "prompt_tokens": 0u64,
+                                                    "completion_tokens": completion_tokens,
+                                                    "total_tokens": completion_tokens,
+                                                }
+                                            }).to_string().into())).await;
+                                        }
+                                    }
+                                    Err(e) => {
+                                        let _ = socket.send(ws::Message::Text(
+                                            json!({"type": "error", "message": format!("stream error: {e}")}).to_string().into()
+                                        )).await;
+                                    }
+                                }
+                            }
+                            conn_manager.update_state(&sid_str, ConnectionState::Connected).await;
+                        }
+                        Err(e) => {
+                            let _ = socket.send(ws::Message::Text(
+                                json!({"type": "error", "message": format!("{e}")}).to_string().into(),
+                            )).await;
+                        }
+                    }
+                } else {
+                    let _ = socket.send(ws::Message::Text(
+                        json!({"type": "error", "message": "no LLM configured"}).to_string().into(),
+                    )).await;
+                }
+            }
+        }
+    }
+
+    conn_manager.unregister(&sid_str).await;
+    info!(session_id = %sid_str, "v2 websocket disconnected");
+}
+
+/// GET /v2/events — SSE system event stream
+async fn v2_events_handler(
+    State(state): State<Arc<AppState>>,
+) -> impl IntoResponse {
+    let mut rx = state.sse_broadcaster.subscribe();
+
+    let stream = async_stream::stream! {
+        loop {
+            match rx.recv().await {
+                Ok(event) => {
+                    let sse = Event::default()
+                        .event(event.event.clone())
+                        .data(event.data.to_string());
+                    if let Some(id) = &event.id {
+                        yield Ok::<_, Infallible>(sse.id(id));
+                    } else {
+                        yield Ok::<_, Infallible>(sse);
+                    }
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                    yield Ok::<_, Infallible>(
+                        Event::default().event("lagged").data(json!({"skipped": n}).to_string())
+                    );
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+            }
+        }
+    };
+
+    Sse::new(stream).keep_alive(
+        axum::response::sse::KeepAlive::new()
+            .interval(std::time::Duration::from_secs(15))
+            .text("keep-alive"),
+    )
+}
+
 
 // ── Agent Lifecycle Handlers ────────────────────────
 
@@ -1269,6 +1533,8 @@ mod tests {
             runtime,
             plugin_registry: Arc::new(lingshu_plugin::PluginRegistry::new()),
             health_registry,
+            ws_manager: Arc::new(ConnectionManager::new(300)),
+            sse_broadcaster: Arc::new(SseBroadcaster::new(1024)),
         })
     }
 

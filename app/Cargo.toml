@@ -16,6 +16,7 @@ lingshu-database = { path = "../database" }
 lingshu-observability = { path = "../observability" }
 lingshu-backends = { path = "../backends" }
 lingshu-plugin = { path = "../plugin" }
+lingshu-websocket = { path = "../websocket" }
 
 async-trait.workspace = true
 serde.workspace = true
