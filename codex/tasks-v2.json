@@ -1,0 +1,197 @@
+{
+  "project": "LingShu",
+  "version": "v2.0",
+  "language": "rust",
+  "workspace": "ling-shu",
+  "phases": [
+    {
+      "phase": 1,
+      "name": "实时能力",
+      "version": "2.1",
+      "tasks": [
+        {
+          "id": "2.1.1",
+          "name": "websocket crate",
+          "desc": "WebSocket 连接管理、SSE 推送、心跳维持",
+          "outputs": ["websocket/"],
+          "deps": ["distributed"]
+        },
+        {
+          "id": "2.1.2",
+          "name": "流式 LLM 响应",
+          "desc": "逐 token 流式输出，支持中断/恢复",
+          "outputs": ["backends/stream"],
+          "deps": ["2.1.1", "backends"]
+        },
+        {
+          "id": "2.1.3",
+          "name": "实时 Agent 执行推送",
+          "desc": "Agent 执行状态实时推送到 WebSocket 客户端",
+          "outputs": ["runtime/stream"],
+          "deps": ["2.1.2"]
+        }
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "记忆系统",
+      "version": "2.2",
+      "tasks": [
+        {
+          "id": "2.2.1",
+          "name": "memory crate",
+          "desc": "短期 Buffer + 长期 Vector 存储，Memory 接口",
+          "outputs": ["memory/"],
+          "deps": ["core", "database"]
+        },
+        {
+          "id": "2.2.2",
+          "name": "向量检索增强",
+          "desc": "语义搜索 + 混合检索 (BM25 + Vector)",
+          "outputs": ["memory/retrieval"],
+          "deps": ["2.2.1"]
+        },
+        {
+          "id": "2.2.3",
+          "name": "会话持久化",
+          "desc": "Agent 会话自动保存与恢复",
+          "outputs": ["runtime/memory"],
+          "deps": ["2.2.2"]
+        }
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "MCP 协议",
+      "version": "2.3",
+      "tasks": [
+        {
+          "id": "2.3.1",
+          "name": "mcp crate",
+          "desc": "JSON-RPC 2.0 实现，MCP 协议核心",
+          "outputs": ["mcp/"],
+          "deps": ["core"]
+        },
+        {
+          "id": "2.3.2",
+          "name": "工具发现注册",
+          "desc": "运行时工具注册、版本协商、能力发现",
+          "outputs": ["mcp/registry"],
+          "deps": ["2.3.1"]
+        },
+        {
+          "id": "2.3.3",
+          "name": "跨语言 Agent 通信",
+          "desc": "通过 MCP 桥接 Polyglot 多语言执行",
+          "outputs": ["mcp/polyglot-bridge"],
+          "deps": ["2.3.2", "polyglot"]
+        }
+      ]
+    },
+    {
+      "phase": 4,
+      "name": "平台能力",
+      "version": "2.4",
+      "tasks": [
+        {
+          "id": "2.4.1",
+          "name": "ratelimit crate",
+          "desc": "令牌桶 + 滑动窗口，per-key/per-user 限流",
+          "outputs": ["ratelimit/"],
+          "deps": ["core"]
+        },
+        {
+          "id": "2.4.2",
+          "name": "billing crate",
+          "desc": "Token 级用量跟踪 + 计费",
+          "outputs": ["billing/"],
+          "deps": ["core", "database"]
+        },
+        {
+          "id": "2.4.3",
+          "name": "audit crate",
+          "desc": "不可变审计日志、事件溯源",
+          "outputs": ["audit/"],
+          "deps": ["eventbus", "database"]
+        },
+        {
+          "id": "2.4.4",
+          "name": "prompt crate",
+          "desc": "版本化模板、变量注入、A/B 测试",
+          "outputs": ["prompt/"],
+          "deps": ["core", "database"]
+        }
+      ]
+    },
+    {
+      "phase": 5,
+      "name": "多模态",
+      "version": "2.5",
+      "tasks": [
+        {
+          "id": "2.5.1",
+          "name": "multimodal crate",
+          "desc": "图像理解、音频转写、文件分析管道",
+          "outputs": ["multimodal/"],
+          "deps": ["core", "backends"]
+        },
+        {
+          "id": "2.5.2",
+          "name": "多模态 RAG",
+          "desc": "图文混合检索与生成",
+          "outputs": ["multimodal/rag"],
+          "deps": ["2.5.1", "memory"]
+        }
+      ]
+    },
+    {
+      "phase": 6,
+      "name": "评估框架",
+      "version": "2.6",
+      "tasks": [
+        {
+          "id": "2.6.1",
+          "name": "evaluator crate",
+          "desc": "Agent 评测框架：数据集、评分、报告",
+          "outputs": ["evaluator/"],
+          "deps": ["core", "orchestrator"]
+        },
+        {
+          "id": "2.6.2",
+          "name": "回归测试套件",
+          "desc": "自动回归检测、性能基准、质量门禁",
+          "outputs": ["evaluator/regression"],
+          "deps": ["2.6.1"]
+        }
+      ]
+    },
+    {
+      "phase": 7,
+      "name": "联邦与 UI",
+      "version": "2.7",
+      "tasks": [
+        {
+          "id": "2.7.1",
+          "name": "federation crate",
+          "desc": "跨集群联邦通信、Agent 漫游、全局调度",
+          "outputs": ["federation/"],
+          "deps": ["distributed"]
+        },
+        {
+          "id": "2.7.2",
+          "name": "webui crate",
+          "desc": "Rust WASM 管理面板 (Leptos)",
+          "outputs": ["webui/"],
+          "deps": ["app"]
+        },
+        {
+          "id": "2.7.3",
+          "name": "集群监控",
+          "desc": "实时 Dashboard、节点状态、Metrics 可视化",
+          "outputs": ["webui/dashboard"],
+          "deps": ["2.7.2", "observability"]
+        }
+      ]
+    }
+  ]
+}
