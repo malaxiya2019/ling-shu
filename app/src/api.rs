@@ -13,6 +13,7 @@
 //!   GET  /ws                     — WebSocket streaming
 
 use std::sync::Arc;
+use lingshu_traits::EventBus;
 
 use axum::{
     extract::{ws, State, WebSocketUpgrade},
@@ -36,7 +37,7 @@ use futures::stream::StreamExt;
 use lingshu_core::{LsContext, LsId};
 use lingshu_observability::health::HealthRegistry;
 use lingshu_plugin::PluginRegistry;
-use lingshu_traits::llm::{Llm, LlmMessage, LlmRequest, LlmRole};
+use lingshu_traits::llm::{ LlmMessage, LlmRequest, LlmRole};
 use std::convert::Infallible;
 use std::pin::Pin;
 use tokio_stream::wrappers::ReceiverStream;
@@ -168,6 +169,7 @@ struct EmbedItem {
 
 #[derive(Deserialize)]
 struct AgentRunReq {
+    #[allow(dead_code)]
     agent_id: Option<String>,
     input: Value,
 }
@@ -208,6 +210,11 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/v1/chat", post(chat_handler))
         .route("/v1/embed", post(embed_handler))
         .route("/v1/agent/run", post(agent_run_handler))
+        .route("/v1/agents", get(agent_list_handler))
+        .route("/v1/agents/{id}", get(agent_status_handler))
+        .route("/v1/agents/{id}/pause", post(agent_pause_handler))
+        .route("/v1/agents/{id}/resume", post(agent_resume_handler))
+        .route("/v1/agents/{id}/cancel", post(agent_cancel_handler))
         .route("/ws", get(ws_handler))
         // Plugin API
         .route(
@@ -422,6 +429,8 @@ async fn handle_non_streaming_chat(
                     let tool_result = state
                         .runtime
                         .tool_registry
+                        .read()
+                        .await
                         .execute(&ctx, &tool_call.function.name, args)
                         .await;
 
@@ -614,14 +623,106 @@ async fn embed_handler(Json(req): Json<EmbedInput>) -> Json<EmbedOutput> {
     })
 }
 
-/// POST /v1/agent/run
-async fn agent_run_handler(Json(req): Json<AgentRunReq>) -> Json<AgentRunResp> {
-    let agent_id = req.agent_id.unwrap_or_else(|| LsId::new().to_string());
-    Json(AgentRunResp {
-        agent_id,
-        status: "completed".into(),
-        output: json!({"message": "agent executed", "input": req.input}),
-    })
+/// POST /v1/agent/run — 使用 DefaultAgent 执行任务
+async fn agent_run_handler(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<AgentRunReq>,
+) -> Result<Json<AgentRunResp>, (StatusCode, Json<Value>)> {
+    let runtime = &state.runtime;
+    let llm = runtime.llm.as_ref().ok_or_else(|| {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error": "no LLM configured"})),
+        )
+    })?;
+
+    let session_id = LsId::new();
+    let ctx = LsContext::with_session(session_id);
+    let tools = runtime.tool_registry.clone();
+
+    use lingshu_traits::agent::Agent;
+    let config = lingshu_backends::AgentConfig {
+        model: runtime.config.llm.default_model.clone(),
+        max_tokens: runtime.config.llm.max_tokens,
+        enable_memory: false,
+        ..lingshu_backends::AgentConfig::default()
+    };
+
+    // 发布 Agent 启动事件
+    let _ = runtime
+        .event_bus
+        .publish(
+            ctx.child(),
+            lingshu_traits::event_bus::Event {
+                event_id: uuid::Uuid::now_v7().to_string(),
+                topic: "ls.agent.run.started".into(),
+                session_id: session_id.to_string(),
+                trace_id: ctx.trace_id.to_string(),
+                payload: json!({"agent_id": config.model, "input": req.input}),
+                timestamp: chrono::Utc::now(),
+            },
+        )
+        .await;
+
+    let mut agent = lingshu_backends::DefaultAgent::new(
+        config,
+        llm.clone(),
+        tools,
+        None,
+    );
+
+    match agent.run(ctx.clone(), req.input).await {
+        Ok(output) => {
+            // 发布 Agent 完成事件
+            let _ = runtime
+                .event_bus
+                .publish(
+                    ctx.child(),
+                    lingshu_traits::event_bus::Event {
+                        event_id: uuid::Uuid::now_v7().to_string(),
+                        topic: "ls.agent.run.completed".into(),
+                        session_id: session_id.to_string(),
+                        trace_id: ctx.trace_id.to_string(),
+                        payload: json!({"agent_id": output.agent_id.to_string(), "status": format!("{:?}", output.status)}),
+                        timestamp: chrono::Utc::now(),
+                    },
+                )
+                .await;
+
+            let status = match output.status {
+                lingshu_traits::agent::AgentStatus::Completed => "completed",
+                lingshu_traits::agent::AgentStatus::Failed => "failed",
+                _ => "other",
+            };
+            Ok(Json(AgentRunResp {
+                agent_id: output.agent_id.to_string(),
+                status: status.into(),
+                output: output.data.unwrap_or(json!({"message": "no output"})),
+            }))
+        }
+        Err(e) => {
+            // 发布 Agent 失败事件
+            let _ = runtime
+                .event_bus
+                .publish(
+                    ctx.child(),
+                    lingshu_traits::event_bus::Event {
+                        event_id: uuid::Uuid::now_v7().to_string(),
+                        topic: "ls.agent.run.failed".into(),
+                        session_id: session_id.to_string(),
+                        trace_id: ctx.trace_id.to_string(),
+                        payload: json!({"error": format!("{e}")}),
+                        timestamp: chrono::Utc::now(),
+                    },
+                )
+                .await;
+
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": format!("{e}")})),
+            ))
+        }
+    }
 }
 
 /// GET /ws — WebSocket streaming chat
@@ -776,6 +877,112 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
 
     info!(session_id = %session_id, "websocket disconnected");
 }
+
+
+// ── Agent Lifecycle Handlers ────────────────────────
+
+/// GET /v1/agents — 列出所有 Agent
+async fn agent_list_handler(
+    State(state): State<Arc<AppState>>,
+) -> Json<Vec<AgentSummaryResponse>> {
+    let agents = state.runtime.agent_manager.list().await;
+    let items: Vec<AgentSummaryResponse> = agents
+        .iter()
+        .map(|a| AgentSummaryResponse {
+            agent_id: a.agent_id.to_string(),
+            name: a.name.clone(),
+            status: format!("{:?}", a.status),
+            created_at: a.created_at.to_rfc3339(),
+        })
+        .collect();
+    Json(items)
+}
+
+/// GET /v1/agents/{id} — 获取 Agent 状态
+async fn agent_status_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Result<Json<AgentSummaryResponse>, (StatusCode, Json<Value>)> {
+    let agent_id: LsId = id.parse().map_err(|_| {
+        (StatusCode::BAD_REQUEST, Json(json!({"error": "invalid agent id"})))
+    })?;
+
+    match state.runtime.agent_manager.status(&agent_id).await {
+        Ok(status) => {
+            let agents = state.runtime.agent_manager.list().await;
+            let agent = agents.iter().find(|a| a.agent_id == agent_id).ok_or_else(|| {
+                (StatusCode::NOT_FOUND, Json(json!({"error": "agent not found"})))
+            })?;
+            Ok(Json(AgentSummaryResponse {
+                agent_id: agent.agent_id.to_string(),
+                name: agent.name.clone(),
+                status: format!("{:?}", status),
+                created_at: agent.created_at.to_rfc3339(),
+            }))
+        }
+        Err(_) => Err((StatusCode::NOT_FOUND, Json(json!({"error": "agent not found"})))),
+    }
+}
+
+/// POST /v1/agents/{id}/pause — 暂停 Agent
+async fn agent_pause_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let agent_id: LsId = id.parse().map_err(|_| {
+        (StatusCode::BAD_REQUEST, Json(json!({"error": "invalid agent id"})))
+    })?;
+
+    let ctx = LsContext::with_session(LsId::new());
+    state.runtime.agent_manager.pause(&agent_id, &ctx).await.map_err(|e| {
+        (StatusCode::NOT_FOUND, Json(json!({"error": format!("{e}")})))
+    })?;
+
+    Ok(Json(json!({"status": "paused", "agent_id": agent_id.to_string()})))
+}
+
+/// POST /v1/agents/{id}/resume — 恢复 Agent
+async fn agent_resume_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let agent_id: LsId = id.parse().map_err(|_| {
+        (StatusCode::BAD_REQUEST, Json(json!({"error": "invalid agent id"})))
+    })?;
+
+    let ctx = LsContext::with_session(LsId::new());
+    state.runtime.agent_manager.resume(&agent_id, &ctx).await.map_err(|e| {
+        (StatusCode::NOT_FOUND, Json(json!({"error": format!("{e}")})))
+    })?;
+
+    Ok(Json(json!({"status": "resumed", "agent_id": agent_id.to_string()})))
+}
+
+/// POST /v1/agents/{id}/cancel — 取消 Agent
+async fn agent_cancel_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let agent_id: LsId = id.parse().map_err(|_| {
+        (StatusCode::BAD_REQUEST, Json(json!({"error": "invalid agent id"})))
+    })?;
+
+    let ctx = LsContext::with_session(LsId::new());
+    state.runtime.agent_manager.cancel(&agent_id, &ctx).await.map_err(|e| {
+        (StatusCode::NOT_FOUND, Json(json!({"error": format!("{e}")})))
+    })?;
+
+    Ok(Json(json!({"status": "cancelled", "agent_id": agent_id.to_string()})))
+}
+
+#[derive(Serialize)]
+struct AgentSummaryResponse {
+    agent_id: String,
+    name: String,
+    status: String,
+    created_at: String,
+}
+
 
 // ── Plugin Types ────────────────────────────────────
 
@@ -1048,10 +1255,11 @@ mod tests {
             recovery: RecoveryManager::new(3),
             storage: LocalStorage::new(tmp),
             config,
-            llm: Some(Box::new(lingshu_backends::mock_llm::MockLlm::new())),
+            llm: Some(Arc::new(lingshu_backends::mock_llm::MockLlm::new())),
             service_key: None,
             root_ctx: ctx,
-            tool_registry: lingshu_runtime::ToolRegistry::new(),
+            tool_registry: Arc::new(tokio::sync::RwLock::new(lingshu_runtime::ToolRegistry::new())),
+            agent_manager: lingshu_runtime::AgentManager::new(),
         });
         let health_registry = Arc::new(lingshu_observability::health::HealthRegistry::new(
             "lingshu-test",

@@ -58,10 +58,11 @@ pub struct LingshuRuntime {
     pub recovery: RecoveryManager,
     pub storage: LocalStorage,
     pub config: LsConfig,
-    pub llm: Option<Box<dyn lingshu_traits::llm::Llm>>,
+    pub llm: Option<Arc<dyn lingshu_traits::llm::Llm>>,
     pub service_key: Option<ServiceKeyBundle>,
     pub root_ctx: LsContext,
-    pub tool_registry: lingshu_runtime::ToolRegistry,
+    pub tool_registry: Arc<tokio::sync::RwLock<lingshu_runtime::ToolRegistry>>,
+    pub agent_manager: lingshu_runtime::AgentManager,
 }
 
 impl LingshuRuntime {
@@ -102,13 +103,14 @@ impl LingshuRuntime {
             .join("lingshu");
         std::fs::create_dir_all(&data_dir).ok();
         let storage = LocalStorage::new(data_dir);
-        let tool_registry = ToolRegistry::new();
+        let tool_registry = Arc::new(tokio::sync::RwLock::new(ToolRegistry::new()));
+        let agent_manager = lingshu_runtime::AgentManager::new();
 
-        let llm: Option<Box<dyn lingshu_traits::llm::Llm>> = match config.llm.provider {
+        let llm: Option<Arc<dyn lingshu_traits::llm::Llm>> = match config.llm.provider {
             LlmProvider::Mock
             | LlmProvider::Openai
             | LlmProvider::Anthropic
-            | LlmProvider::Groq => Some(lingshu_backends::build_llm(&config.llm)),
+            | LlmProvider::Groq => Some(Arc::from(lingshu_backends::build_llm(&config.llm))),
         };
 
         let runtime = Self {
@@ -123,6 +125,7 @@ impl LingshuRuntime {
             service_key: Some(service_key),
             root_ctx,
             tool_registry,
+            agent_manager,
         };
 
         runtime

@@ -52,6 +52,18 @@ impl EventTopic {
         Self::new("llm", "request", "sent")
     }
 
+    pub fn agent_run_started() -> Self {
+        Self::new("agent", "run", "started")
+    }
+
+    pub fn agent_run_completed() -> Self {
+        Self::new("agent", "run", "completed")
+    }
+
+    pub fn agent_run_failed() -> Self {
+        Self::new("agent", "run", "failed")
+    }
+
     // ── 标准能力调用主题 ──
 
     pub fn tool_called() -> Self {

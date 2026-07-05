@@ -55,8 +55,8 @@ pub use llm_openai::OpenAiLlm;
 pub use llm_retry::{with_retry, RetryLlm};
 #[cfg(feature = "mock")]
 pub use mock_llm::MockLlm;
-#[cfg(feature = "vector-store-sqlite")]
 pub use agent_default::{AgentConfig, DefaultAgent};
+#[cfg(feature = "vector-store-sqlite")]
 pub use memory_sqlite::MemorySQLite;
 pub use vector_memory::VectorMemory;
 pub use vector_store_mem::InMemoryVectorStore;
