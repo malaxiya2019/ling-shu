@@ -16,9 +16,8 @@ use rusqlite::params;
 use serde_json::Value;
 use std::path::Path;
 use std::sync::Arc;
-use std::time::Instant;
 use tokio::sync::Mutex;
-use tracing::{debug, info, warn};
+use tracing::info;
 
 /// SQLite 持久化向量存储.
 pub struct SQLiteVector {

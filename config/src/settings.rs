@@ -6,9 +6,10 @@ use std::path::{Path, PathBuf};
 use crate::env::{current_environment, Environment};
 
 /// LLM 提供商类型.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum LlmProvider {
     #[serde(rename = "openai")]
+    #[default]
     Openai,
     #[serde(rename = "anthropic")]
     Anthropic,
@@ -44,12 +45,6 @@ impl LlmProvider {
     }
 }
 
-impl Default for LlmProvider {
-    fn default() -> Self {
-        Self::Openai
-    }
-}
-
 impl std::fmt::Display for LlmProvider {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_str())
@@ -57,7 +52,7 @@ impl std::fmt::Display for LlmProvider {
 }
 
 /// 顶层配置结构 — 与 config/{dev,test,prod}.yaml 字段一一对应.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct LsConfig {
     pub runtime: RuntimeConfig,
@@ -66,19 +61,6 @@ pub struct LsConfig {
     pub llm: LlmConfig,
     pub storage: StorageConfig,
     pub database: DatabaseConfig,
-}
-
-impl Default for LsConfig {
-    fn default() -> Self {
-        Self {
-            runtime: RuntimeConfig::default(),
-            eventbus: EventBusConfig::default(),
-            security: SecurityConfig::default(),
-            llm: LlmConfig::default(),
-            storage: StorageConfig::default(),
-            database: DatabaseConfig::default(),
-        }
-    }
 }
 
 // ── 各模块配置 ──────────────────────────────────────

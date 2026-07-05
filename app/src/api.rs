@@ -692,7 +692,7 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
                 Ok(rx) => {
                     let mut stream = ReceiverStream::new(rx);
                     let mut full_content = String::new();
-                    let mut prompt_tokens = 0u64;
+                    let prompt_tokens = 0u64;
                     let mut completion_tokens = 0u64;
 
                     while let Some(chunk_result) = stream.next().await {
