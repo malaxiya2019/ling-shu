@@ -1,0 +1,27 @@
+# Lingshu 生产环境配置
+runtime:
+  max_concurrent_tasks: 128
+  session_ttl_seconds: 1800
+  enable_snapshot: true
+
+eventbus:
+  max_retries: 3
+  retention_days: 7
+  audit_retention_days: 180
+
+security:
+  default_isolation: session
+  enable_audit: true
+
+llm:
+  default_model: gpt-4o
+  max_tokens: 4096
+  timeout_seconds: 120
+
+storage:
+  provider: s3
+  bucket: lingshu-prod
+  region: us-east-1
+
+database:
+  max_connections: 20

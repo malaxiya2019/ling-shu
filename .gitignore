@@ -36,7 +36,6 @@ data/
 
 # ── Config overrides ──
 config/local.yaml
-config/prod.yaml
 config/*.local.*
 
 # ── Generated docs ──
