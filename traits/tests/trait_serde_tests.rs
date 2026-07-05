@@ -215,12 +215,14 @@ fn test_llm_messages() {
         LlmMessage {
             role: LlmRole::System,
             content: "You are a helper.".into(),
+            content_parts: None,
             name: None,
             tool_calls: None,
         },
         LlmMessage {
             role: LlmRole::User,
             content: "Hello!".into(),
+            content_parts: None,
             name: None,
             tool_calls: None,
         },

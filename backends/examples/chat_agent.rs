@@ -74,6 +74,7 @@ impl Llm for MockLlm {
             message: LlmMessage {
                 role: LlmRole::Assistant,
                 content: reply_text,
+                content_parts: None,
                 name: None,
                 tool_calls: None,
             },
@@ -444,6 +445,7 @@ impl ChatAgent {
         let mut messages = vec![LlmMessage {
             role: LlmRole::System,
             content: self.system_prompt.clone(),
+            content_parts: None,
             name: None,
             tool_calls: None,
         }];
@@ -460,6 +462,7 @@ impl ChatAgent {
                     messages.push(LlmMessage {
                         role,
                         content: msg_content.to_string(),
+                        content_parts: None,
                         name: None,
                         tool_calls: None,
                     });
@@ -470,6 +473,7 @@ impl ChatAgent {
         messages.push(LlmMessage {
             role: LlmRole::User,
             content: message.to_string(),
+            content_parts: None,
             name: None,
             tool_calls: None,
         });

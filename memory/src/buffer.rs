@@ -107,7 +107,8 @@ impl ChatBuffer {
                 lingshu_traits::llm::LlmMessage {
                     role,
                     content: item.content.clone(),
-                    name: None,
+                    content_parts: None,
+        name: None,
                     tool_calls: None,
                 }
             })

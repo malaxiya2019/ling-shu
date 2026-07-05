@@ -3,6 +3,7 @@ use lingshu_core::{LsContext, LsResult};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::fmt;
 
 /// LLM 消息角色.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -17,9 +18,98 @@ pub enum LlmRole {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LlmMessage {
     pub role: LlmRole,
+    /// 纯文本内容 (backward compatible)
     pub content: String,
+    /// 多模态内容部件 (图像/音频等)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_parts: Option<Vec<ContentPart>>,
     pub name: Option<String>,
     pub tool_calls: Option<Vec<ToolCall>>,
+}
+
+/// 多模态内容部件.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ContentPart {
+    Text {
+        #[serde(rename = "type")]
+        part_type: ContentPartType,
+        text: String,
+    },
+    ImageUrl {
+        #[serde(rename = "type")]
+        part_type: ContentPartType,
+        image_url: ImageUrl,
+    },
+}
+
+/// 内容部件类型标记.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ContentPartType {
+    Text,
+    #[serde(rename = "image_url")]
+    ImageUrl,
+}
+
+impl fmt::Display for ContentPartType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ContentPartType::Text => write!(f, "text"),
+            ContentPartType::ImageUrl => write!(f, "image_url"),
+        }
+    }
+}
+
+/// 图像 URL 或 Base64 数据.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImageUrl {
+    /// URL 或 data:image/...;base64,... 格式
+    pub url: String,
+    /// 图像细节 (auto/low/high)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+}
+
+impl ImageUrl {
+    /// 从 URL 创建.
+    pub fn new(url: impl Into<String>) -> Self {
+        Self {
+            url: url.into(),
+            detail: None,
+        }
+    }
+
+    /// 从 Base64 编码的图像数据创建.
+    pub fn from_base64(mime_type: &str, base64_data: &str) -> Self {
+        Self {
+            url: format!("data:{};base64,{}", mime_type, base64_data),
+            detail: None,
+        }
+    }
+
+    /// 设置图像细节.
+    pub fn with_detail(mut self, detail: &str) -> Self {
+        self.detail = Some(detail.to_string());
+        self
+    }
+}
+
+impl ContentPart {
+    /// 创建文本部件.
+    pub fn text(text: impl Into<String>) -> Self {
+        ContentPart::Text {
+            part_type: ContentPartType::Text,
+            text: text.into(),
+        }
+    }
+
+    /// 创建图像 URL 部件.
+    pub fn image_url(image_url: ImageUrl) -> Self {
+        ContentPart::ImageUrl {
+            part_type: ContentPartType::ImageUrl,
+            image_url,
+        }
+    }
 }
 
 /// LLM 请求配置.

@@ -19,7 +19,7 @@ members = [
     "polyglot",
     "distributed",
     "websocket",
-    "memory", "mcp",
+    "memory", "mcp", "multimodal",
 ]
 
 [workspace.package]

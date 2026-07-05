@@ -44,7 +44,8 @@ mod tests {
         let msg = LlmMessage {
             role: LlmRole::User,
             content: "Hello".into(),
-            name: None,
+            content_parts: None,
+        name: None,
             tool_calls: None,
         };
         let request = LlmRequest {

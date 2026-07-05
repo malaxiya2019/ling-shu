@@ -207,7 +207,8 @@ impl Llm for AnthropicLlm {
             message: LlmMessage {
                 role: LlmRole::Assistant,
                 content: text,
-                name: None,
+                content_parts: None,
+        name: None,
                 tool_calls: None,
             },
             finish_reason: msg_resp.stop_reason,
@@ -376,13 +377,15 @@ mod tests {
             LlmMessage {
                 role: LlmRole::User,
                 content: "hello".into(),
-                name: None,
+                content_parts: None,
+        name: None,
                 tool_calls: None,
             },
             LlmMessage {
                 role: LlmRole::Assistant,
                 content: "hi there".into(),
-                name: None,
+                content_parts: None,
+        name: None,
                 tool_calls: None,
             },
         ];
@@ -398,13 +401,15 @@ mod tests {
             LlmMessage {
                 role: LlmRole::System,
                 content: "be helpful".into(),
-                name: None,
+                content_parts: None,
+        name: None,
                 tool_calls: None,
             },
             LlmMessage {
                 role: LlmRole::User,
                 content: "hi".into(),
-                name: None,
+                content_parts: None,
+        name: None,
                 tool_calls: None,
             },
         ];
@@ -416,7 +421,8 @@ mod tests {
         let no_system = vec![LlmMessage {
             role: LlmRole::User,
             content: "hi".into(),
-            name: None,
+            content_parts: None,
+        name: None,
             tool_calls: None,
         }];
         assert_eq!(AnthropicLlm::extract_system(&no_system), None);

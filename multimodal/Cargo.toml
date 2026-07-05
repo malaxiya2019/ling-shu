@@ -1,0 +1,23 @@
+[package]
+name = "lingshu-multimodal"
+version.workspace = true
+edition.workspace = true
+description = "LSMultimodal — 多模态支持: 图像/音频处理、文件分析、多模态 RAG"
+
+[dependencies]
+lingshu-core = { path = "../core" }
+lingshu-traits = { path = "../traits" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+base64 = "0.22"
+mime_guess = "2"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp"] }
+
+[dev-dependencies]
+tempfile = "3"

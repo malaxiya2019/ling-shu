@@ -56,6 +56,7 @@ impl Llm for MockLlm {
             message: LlmMessage {
                 role: LlmRole::Assistant,
                 content: reply_text,
+                content_parts: None,
                 name: None,
                 tool_calls: None,
             },
@@ -157,12 +158,14 @@ mod tests {
                 LlmMessage {
                     role: LlmRole::System,
                     content: "test".into(),
+                    content_parts: None,
                     name: None,
                     tool_calls: None,
                 },
                 LlmMessage {
                     role: LlmRole::User,
                     content: "hello world".into(),
+                    content_parts: None,
                     name: None,
                     tool_calls: None,
                 },
@@ -186,6 +189,7 @@ mod tests {
             messages: vec![LlmMessage {
                 role: LlmRole::User,
                 content: "hello".into(),
+                content_parts: None,
                 name: None,
                 tool_calls: None,
             }],

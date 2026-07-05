@@ -136,6 +136,7 @@ impl DefaultAgent {
             role: LlmRole::Tool,
             content,
             name: None,
+            content_parts: None,
             tool_calls: None,
         }
     }
@@ -189,12 +190,14 @@ impl Agent for DefaultAgent {
                     role: LlmRole::System,
                     content: self.config.system_prompt.clone(),
                     name: None,
+                    content_parts: None,
                     tool_calls: None,
                 },
                 LlmMessage {
                     role: LlmRole::User,
                     content: input_text.clone(),
                     name: None,
+                    content_parts: None,
                     tool_calls: None,
                 },
             ];

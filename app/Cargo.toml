@@ -17,6 +17,7 @@ lingshu-observability = { path = "../observability" }
 lingshu-backends = { path = "../backends" }
 lingshu-plugin = { path = "../plugin" }
 lingshu-memory = { path = "../memory" }
+lingshu-multimodal = { path = "../multimodal" }
 lingshu-mcp = { path = "../mcp" }
 lingshu-websocket = { path = "../websocket" }
 
@@ -32,9 +33,10 @@ thiserror.workspace = true
 clap = { version = "4", features = ["derive"] }
 dirs = "6"
 mime_guess = "2"
+base64 = "0.22"
 
 # HTTP API server
-axum = { version = "0.8", features = ["ws", "json"] }
+axum = { version = "0.8", features = ["ws", "json", "multipart"] }
 tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 futures = "0.3"

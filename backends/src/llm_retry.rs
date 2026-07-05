@@ -164,6 +164,7 @@ mod tests {
                 role: LlmRole::User,
                 content: "hello".into(),
                 name: None,
+                content_parts: None,
                 tool_calls: None,
             }],
             temperature: None,

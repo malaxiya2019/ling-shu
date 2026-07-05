@@ -53,6 +53,8 @@ pub struct AppState {
     pub health_registry: Arc<HealthRegistry>,
     pub ws_manager: Arc<ConnectionManager>,
     pub sse_broadcaster: Arc<SseBroadcaster>,
+    /// 文件存储 (多模态上传)
+    pub file_store: Arc<tokio::sync::RwLock<Vec<FileRecord>>>,
 }
 
 // ── Response Types ──────────────────────────────────
@@ -127,6 +129,51 @@ struct Choice {
 struct RespMsg {
     role: String,
     content: String,
+}
+
+/// 文件上传记录.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileRecord {
+    pub id: String,
+    pub name: String,
+    pub mime_type: String,
+    pub size_bytes: u64,
+    pub file_type: String,
+    pub data: String, // Base64 encoded
+    pub analysis: Option<serde_json::Value>,
+    pub created_at: String,
+}
+
+/// 文件上传请求.
+#[derive(Deserialize)]
+struct FileUploadRequest {
+    pub name: String,
+    /// Base64 编码的文件数据
+    pub data: String,
+    /// 可选，覆盖自动检测的 MIME 类型
+    pub mime_type: Option<String>,
+}
+
+/// 文件分析请求.
+#[derive(Deserialize)]
+struct FileAnalyzeRequest {
+    pub file_id: String,
+}
+
+/// 文件列表响应.
+#[derive(Serialize)]
+struct FileListResponse {
+    pub files: Vec<FileRecord>,
+    pub total: usize,
+}
+
+/// 多模态聊天请求 (支持图像输入).
+#[derive(Deserialize)]
+struct MultimodalChatRequest {
+    pub prompt: String,
+    pub file_ids: Vec<String>,
+    pub session_id: Option<String>,
+    pub model: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -227,6 +274,12 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/v2/events", get(v2_events_handler))
         .route("/v1/mcp", post(mcp_handler))
         .route("/v1/mcp/tools", get(mcp_tools_handler))
+        // File API (多模态)
+        .route("/v1/files/upload", post(upload_file_handler))
+        .route("/v1/files/analyze", post(analyze_file_handler))
+        .route("/v1/files", get(list_files_handler))
+        .route("/v1/files/{id}", get(get_file_handler))
+        .route("/v1/chat/multimodal", post(multimodal_chat_handler))
         // Plugin API
         .route(
             "/v1/plugins",
@@ -375,7 +428,8 @@ async fn handle_non_streaming_chat(
             messages.push(LlmMessage {
                 role,
                 content: item.content.clone(),
-                name: None,
+                content_parts: None,
+        name: None,
                 tool_calls: None,
             });
         }
@@ -395,6 +449,7 @@ async fn handle_non_streaming_chat(
                 role,
                 content: m.content,
                 name: m.name,
+                content_parts: None,
                 tool_calls: None,
             }
         })
@@ -493,6 +548,7 @@ async fn handle_non_streaming_chat(
                         role: LlmRole::Tool,
                         content: result_content,
                         name: Some(tool_call.function.name),
+                        content_parts: None,
                         tool_calls: None,
                     });
                 }
@@ -541,7 +597,8 @@ async fn handle_streaming_chat(
             messages.push(LlmMessage {
                 role,
                 content: item.content.clone(),
-                name: None,
+                content_parts: None,
+        name: None,
                 tool_calls: None,
             });
         }
@@ -561,6 +618,7 @@ async fn handle_streaming_chat(
                 role,
                 content: m.content,
                 name: m.name,
+                content_parts: None,
                 tool_calls: None,
             }
         })
@@ -699,7 +757,8 @@ async fn chat_handler(
             messages.push(LlmMessage {
                 role,
                 content: item.content.clone(),
-                name: None,
+                content_parts: None,
+        name: None,
                 tool_calls: None,
             });
         }
@@ -710,6 +769,7 @@ async fn chat_handler(
     messages.push(LlmMessage {
         role: LlmRole::User,
         content: prompt.clone(),
+        content_parts: None,
         name: None,
         tool_calls: None,
     });
@@ -950,7 +1010,8 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
                     hist_messages.push(LlmMessage {
                         role,
                         content: item.content.clone(),
-                        name: None,
+                        content_parts: None,
+        name: None,
                         tool_calls: None,
                     });
                 }
@@ -958,7 +1019,8 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
             hist_messages.push(LlmMessage {
                 role: LlmRole::User,
                 content: prompt.clone(),
-                name: None,
+                content_parts: None,
+        name: None,
                 tool_calls: None,
             });
 
@@ -1077,7 +1139,8 @@ async fn v2_chat_stream_handler(
         messages: vec![LlmMessage {
             role: LlmRole::User,
             content: "Hello".to_string(),
-            name: None,
+            content_parts: None,
+        name: None,
             tool_calls: None,
         }],
         temperature: Some(0.7),
@@ -1231,7 +1294,8 @@ async fn v2_handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
                             hist_messages.push(LlmMessage {
                                 role,
                                 content: item.content.clone(),
-                                name: None,
+                                content_parts: None,
+        name: None,
                                 tool_calls: None,
                             });
                         }
@@ -1239,7 +1303,8 @@ async fn v2_handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
                     hist_messages.push(LlmMessage {
                         role: LlmRole::User,
                         content: prompt.clone(),
-                        name: None,
+                        content_parts: None,
+        name: None,
                         tool_calls: None,
                     });
 
@@ -1713,6 +1778,271 @@ async fn plugin_uninstall_handler(
     }
 }
 
+// ── File Upload & Analysis (多模态) ────────────────────
+
+/// POST /v1/files/upload — 上传文件 (Base64 JSON)
+async fn upload_file_handler(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<FileUploadRequest>,
+) -> Result<Json<FileRecord>, (StatusCode, Json<Value>)> {
+    let file_id = uuid::Uuid::now_v7().to_string();
+
+    // 解码 Base64
+    use base64::Engine;
+    let decoded = base64::engine::general_purpose::STANDARD
+        .decode(&req.data)
+        .map_err(|e| {
+            (
+                StatusCode::BAD_REQUEST,
+                Json(json!({"error": format!("base64 decode failed: {e}")})),
+            )
+        })?;
+
+    let size_bytes = decoded.len() as u64;
+    let mime_type = req.mime_type.clone().unwrap_or_else(|| {
+        lingshu_multimodal::FileAnalyzer::guess_mime(&req.name, &decoded)
+    });
+    let file_type = format!("{:?}", lingshu_multimodal::FileAnalyzer::classify(&mime_type));
+
+    // 分析文件 (图像)
+    let analysis = if mime_type.starts_with("image/") {
+        lingshu_multimodal::ImageProcessor::analyze(&decoded)
+            .ok()
+            .map(|a| serde_json::to_value(a).unwrap_or_default())
+    } else if mime_type.starts_with("audio/") {
+        lingshu_multimodal::AudioProcessor::analyze(&decoded)
+            .ok()
+            .map(|a| serde_json::to_value(a).unwrap_or_default())
+    } else {
+        None
+    };
+
+    let now = chrono::Utc::now().to_rfc3339();
+    let record = FileRecord {
+        id: file_id.clone(),
+        name: req.name.clone(),
+        mime_type,
+        size_bytes,
+        file_type,
+        data: req.data.clone(),
+        analysis,
+        created_at: now,
+    };
+
+    // 存储文件记录
+    {
+        let mut store = state.file_store.write().await;
+        store.push(record.clone());
+    }
+
+    // Publish SSE event
+    state.sse_broadcaster.publish(
+        lingshu_websocket::SseEvent::new("file.uploaded", json!({
+            "file_id": file_id,
+            "name": req.name,
+            "size_bytes": size_bytes,
+        }))
+    );
+
+    Ok(Json(record))
+}
+
+/// POST /v1/files/analyze — 分析已上传文件
+async fn analyze_file_handler(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<FileAnalyzeRequest>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let file_id = req.file_id;
+    let record = {
+        let store = state.file_store.read().await;
+        store.iter().find(|f| f.id == file_id).cloned()
+    }
+    .ok_or_else(|| {
+        (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": format!("file '{}' not found", file_id)})),
+        )
+    })?;
+
+    // 解码并分析
+    use base64::Engine;
+    let decoded = base64::engine::general_purpose::STANDARD
+        .decode(&record.data)
+        .map_err(|e| {
+            (
+                StatusCode::BAD_REQUEST,
+                Json(json!({"error": format!("base64 decode failed: {e}")})),
+            )
+        })?;
+
+    let result = if record.mime_type.starts_with("image/") {
+        let analysis = lingshu_multimodal::ImageProcessor::analyze(&decoded)
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": format!("image analysis failed: {e}")})),
+                )
+            })?;
+        json!({
+            "type": "image",
+            "analysis": analysis,
+        })
+    } else if record.mime_type.starts_with("audio/") {
+        let info = lingshu_multimodal::AudioProcessor::analyze(&decoded)
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": format!("audio analysis failed: {e}")})),
+                )
+            })?;
+        json!({
+            "type": "audio",
+            "info": info,
+        })
+    } else {
+        let file_info = lingshu_multimodal::FileAnalyzer::analyze(&record.name, &decoded)
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": format!("file analysis failed: {e}")})),
+                )
+            })?;
+        json!({
+            "type": "file",
+            "info": file_info,
+        })
+    };
+
+    Ok(Json(result))
+}
+
+/// GET /v1/files — 列出所有上传文件
+async fn list_files_handler(
+    State(state): State<Arc<AppState>>,
+) -> Json<FileListResponse> {
+    let store = state.file_store.read().await;
+    let files: Vec<FileRecord> = store.clone();
+    let total = files.len();
+    Json(FileListResponse { files, total })
+}
+
+/// GET /v1/files/{id} — 获取文件详情
+async fn get_file_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Result<Json<FileRecord>, (StatusCode, Json<Value>)> {
+    let store = state.file_store.read().await;
+    store
+        .iter()
+        .find(|f| f.id == id)
+        .cloned()
+        .ok_or_else(|| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(json!({"error": format!("file '{}' not found", id)})),
+            )
+        })
+        .map(Json)
+}
+
+/// POST /v1/chat/multimodal — 多模态聊天 (文本+图像)
+async fn multimodal_chat_handler(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<MultimodalChatRequest>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let runtime = &state.runtime;
+    let llm = runtime.llm.as_ref().ok_or_else(|| {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error": "no LLM configured"})),
+        )
+    })?;
+
+    let session_id = req
+        .session_id
+        .and_then(|s| s.parse().ok())
+        .unwrap_or_else(lingshu_core::LsId::new);
+    let ctx = lingshu_core::LsContext::with_session(session_id);
+    let session_id_str = session_id.to_string();
+
+    // 获取关联文件
+    let mut image_parts: Vec<String> = Vec::new();
+    {
+        let store = state.file_store.read().await;
+        for file_id in &req.file_ids {
+            if let Some(record) = store.iter().find(|f| f.id == *file_id) {
+                if record.mime_type.starts_with("image/") {
+                    image_parts.push(format!("data:{};base64,{}", record.mime_type, record.data));
+                }
+            }
+        }
+    }
+
+    // 构建多模态消息内容
+    let content_parts = lingshu_multimodal::MultimodalRag::build_multimodal_content(
+        &req.prompt,
+        &image_parts,
+    );
+
+    // Recall memory
+    let memory = state.runtime.memory_manager.get_or_create(&session_id_str).await;
+    let mut messages: Vec<lingshu_traits::llm::LlmMessage> = Vec::new();
+    if let Ok(mem_result) = memory.recall(&ctx, &lingshu_memory::MemoryQuery::default()).await {
+        for item in &mem_result.items {
+            let role = match item.role.as_str() {
+                "system" => lingshu_traits::llm::LlmRole::System,
+                "assistant" => lingshu_traits::llm::LlmRole::Assistant,
+                _ => lingshu_traits::llm::LlmRole::User,
+            };
+            messages.push(lingshu_traits::llm::LlmMessage {
+                role,
+                content: item.content.clone(),
+                content_parts: None,
+                name: None,
+                tool_calls: None,
+            });
+        }
+    }
+
+    messages.push(lingshu_traits::llm::LlmMessage {
+        role: lingshu_traits::llm::LlmRole::User,
+        content: req.prompt.clone(),
+        content_parts: Some(content_parts),
+        name: None,
+        tool_calls: None,
+    });
+
+    let _ = memory.store_message(&ctx, "user", &req.prompt).await;
+
+    let request = lingshu_traits::llm::LlmRequest {
+        model: req.model.unwrap_or_else(|| runtime.config.llm.default_model.clone()),
+        messages,
+        temperature: Some(0.7),
+        max_tokens: Some(runtime.config.llm.max_tokens),
+        tools: None,
+        stream: false,
+    };
+
+    match llm.invoke(ctx.clone(), request).await {
+        Ok(response) => {
+            let _ = memory.store_message(&ctx, "assistant", &response.message.content).await;
+
+            Ok(Json(json!({
+                "session_id": session_id_str,
+                "message": response.message.content,
+                "usage": {
+                    "prompt_tokens": response.usage.prompt_tokens,
+                    "completion_tokens": response.usage.completion_tokens,
+                    "total_tokens": response.usage.total_tokens,
+                }
+            })))
+        }
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": format!("{e}")})),
+        )),
+    }
+}
 // ── Tests ───────────────────────────────────────────
 
 // ── MCP (Model Context Protocol) ─────────────────────
@@ -1798,6 +2128,7 @@ mod tests {
             health_registry,
             ws_manager: Arc::new(ConnectionManager::new(300)),
             sse_broadcaster: Arc::new(SseBroadcaster::new(1024)),
+            file_store: Arc::new(tokio::sync::RwLock::new(Vec::new())),
         })
     }
 

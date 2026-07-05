@@ -251,7 +251,8 @@ async fn run_repl(runtime: &LingshuRuntime) -> LsResult<()> {
                         messages: vec![lingshu_traits::llm::LlmMessage {
                             role: lingshu_traits::llm::LlmRole::User,
                             content: prompt.to_string(),
-                            name: None,
+                            content_parts: None,
+        name: None,
                             tool_calls: None,
                         }],
                         temperature: Some(0.7),
@@ -333,6 +334,7 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
         health_registry,
         ws_manager: Arc::new(ConnectionManager::new(300)),
         sse_broadcaster: Arc::new(SseBroadcaster::new(1024)),
+        file_store: Arc::new(tokio::sync::RwLock::new(Vec::new())),
     });
     let app = api::build_router(state);
 

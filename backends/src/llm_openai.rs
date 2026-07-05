@@ -4,6 +4,7 @@
 //! - 非流式调用 (invoke)
 //! - 流式调用 (invoke_stream)
 //! - 用量统计
+//! - 多模态 (image_url)
 
 use async_trait::async_trait;
 use lingshu_core::{LsContext, LsError, LsResult};
@@ -34,7 +35,11 @@ struct ChatRequest {
 #[derive(Serialize)]
 struct ChatMessage {
     role: String,
-    content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool_call_id: Option<String>,
+    content: serde_json::Value, // String | Vec<ContentPart>
 }
 
 #[derive(Deserialize)]
@@ -96,6 +101,31 @@ struct StreamDelta {
     content: Option<String>,
 }
 
+// ── OpenAI API 内容格式 ─────────────────────────────
+
+/// OpenAI API 内容部件 (用于多模态).
+#[derive(Serialize)]
+#[serde(untagged)]
+enum OpenAiContentPart {
+    Text {
+        #[serde(rename = "type")]
+        part_type: String,
+        text: String,
+    },
+    ImageUrl {
+        #[serde(rename = "type")]
+        part_type: String,
+        image_url: OpenAiImageUrl,
+    },
+}
+
+#[derive(Serialize)]
+struct OpenAiImageUrl {
+    url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    detail: Option<String>,
+}
+
 // ── OpenAI LLM 实现 ─────────────────────────────────
 
 pub struct OpenAiLlm {
@@ -113,7 +143,7 @@ impl OpenAiLlm {
     /// # 参数
     /// - `api_key`: OpenAI API 密钥
     /// - `default_model`: 默认模型名 (如 "gpt-4o")
-    /// - `base_url`: API 基础 URL (默认 "<https://api.openai.com/v1>")
+    /// - `base_url`: API 基础 URL (默认 "https://api.openai.com/v1")
     pub fn new(
         api_key: impl Into<String>,
         default_model: impl Into<String>,
@@ -122,7 +152,7 @@ impl OpenAiLlm {
         Self {
             client: Client::new(),
             api_key: api_key.into(),
-            base_url: base_url.unwrap_or_else(|| "<https://api.openai.com/v1>".into()),
+            base_url: base_url.unwrap_or_else(|| "https://api.openai.com/v1".into()),
             default_model: default_model.into(),
             prompt_tokens: AtomicU64::new(0),
             completion_tokens: AtomicU64::new(0),
@@ -138,18 +168,56 @@ impl OpenAiLlm {
         format!("{}/chat/completions", self.base_url)
     }
 
-    fn convert_messages(msgs: &[LlmMessage]) -> Vec<ChatMessage> {
-        msgs.iter()
-            .map(|m| ChatMessage {
-                role: match m.role {
+    /// 将 LlmMessage 转换为 OpenAI ChatMessage (支持多模态).
+    fn convert_message(msg: &LlmMessage) -> ChatMessage {
+        // 如果有 content_parts，构造为数组
+        if let Some(parts) = &msg.content_parts {
+            let openai_parts: Vec<OpenAiContentPart> = parts
+                .iter()
+                .map(|part| match part {
+                    ContentPart::Text { text, .. } => OpenAiContentPart::Text {
+                        part_type: "text".into(),
+                        text: text.clone(),
+                    },
+                    ContentPart::ImageUrl { image_url, .. } => OpenAiContentPart::ImageUrl {
+                        part_type: "image_url".into(),
+                        image_url: OpenAiImageUrl {
+                            url: image_url.url.clone(),
+                            detail: image_url.detail.clone(),
+                        },
+                    },
+                })
+                .collect();
+
+            ChatMessage {
+                role: match msg.role {
                     LlmRole::System => "system".into(),
                     LlmRole::User => "user".into(),
                     LlmRole::Assistant => "assistant".into(),
                     LlmRole::Tool => "tool".into(),
                 },
-                content: m.content.clone(),
-            })
-            .collect()
+                name: msg.name.clone(),
+                tool_call_id: None,
+                content: serde_json::to_value(openai_parts).unwrap_or_default(),
+            }
+        } else {
+            // 传统纯文本模式
+            ChatMessage {
+                role: match msg.role {
+                    LlmRole::System => "system".into(),
+                    LlmRole::User => "user".into(),
+                    LlmRole::Assistant => "assistant".into(),
+                    LlmRole::Tool => "tool".into(),
+                },
+                name: msg.name.clone(),
+                tool_call_id: None,
+                content: serde_json::Value::String(msg.content.clone()),
+            }
+        }
+    }
+
+    fn convert_messages(msgs: &[LlmMessage]) -> Vec<ChatMessage> {
+        msgs.iter().map(Self::convert_message).collect()
     }
 }
 
@@ -184,13 +252,11 @@ impl Llm for OpenAiLlm {
         let chat_resp: ChatResponse = resp
             .json()
             .await
-            .map_err(|e| LsError::Llm(format!("parse failed: {e}")))?;
+            .map_err(|e| LsError::Llm(format!("parse response failed: {e}")))?;
 
-        let choice = chat_resp
-            .choices
-            .into_iter()
-            .next()
-            .ok_or_else(|| LsError::Llm("no choices returned".into()))?;
+        let choice = chat_resp.choices.into_iter().next().ok_or_else(|| {
+            LsError::Llm("no choices in response".into())
+        })?;
 
         let usage = chat_resp.usage.unwrap_or(UsageData {
             prompt_tokens: 0,
@@ -198,17 +264,33 @@ impl Llm for OpenAiLlm {
             total_tokens: 0,
         });
 
+        // 转换 tool_calls
+        let tool_calls = choice.message.tool_calls.map(|calls| {
+            calls
+                .into_iter()
+                .map(|tc| ToolCall {
+                    id: tc.id,
+                    call_type: tc.call_type,
+                    function: ToolCallFunction {
+                        name: tc.function.name,
+                        arguments: tc.function.arguments,
+                    },
+                })
+                .collect()
+        });
+
         self.prompt_tokens
-            .fetch_add(usage.prompt_tokens, Ordering::AcqRel);
+            .fetch_add(usage.prompt_tokens, Ordering::Release);
         self.completion_tokens
-            .fetch_add(usage.completion_tokens, Ordering::AcqRel);
+            .fetch_add(usage.completion_tokens, Ordering::Release);
 
         Ok(LlmResponse {
             message: LlmMessage {
                 role: LlmRole::Assistant,
                 content: choice.message.content.unwrap_or_default(),
+                content_parts: None,
                 name: None,
-                tool_calls: None,
+                tool_calls,
             },
             finish_reason: choice.finish_reason,
             usage: LlmUsage {
@@ -343,24 +425,53 @@ mod tests {
     }
 
     #[test]
-    fn test_message_conversion() {
-        let msgs = vec![
-            LlmMessage {
-                role: LlmRole::System,
-                content: "be helpful".into(),
-                name: None,
-                tool_calls: None,
-            },
-            LlmMessage {
-                role: LlmRole::User,
-                content: "hi".into(),
-                name: None,
-                tool_calls: None,
-            },
-        ];
-        let converted = OpenAiLlm::convert_messages(&msgs);
-        assert_eq!(converted.len(), 2);
-        assert_eq!(converted[0].role, "system");
-        assert_eq!(converted[1].content, "hi");
+    fn test_message_conversion_text_only() {
+        let msg = LlmMessage {
+            role: LlmRole::User,
+            content: "hi".into(),
+            content_parts: None,
+            name: None,
+            tool_calls: None,
+        };
+        let converted = OpenAiLlm::convert_message(&msg);
+        assert_eq!(converted.role, "user");
+        assert_eq!(converted.content, serde_json::Value::String("hi".into()));
+    }
+
+    #[test]
+    fn test_message_conversion_multimodal() {
+        let msg = LlmMessage {
+            role: LlmRole::User,
+            content: "".into(),
+            content_parts: Some(vec![
+                ContentPart::text("What's in this image?"),
+                ContentPart::image_url(ImageUrl::new("https://example.com/img.png")),
+            ]),
+            name: None,
+            tool_calls: None,
+        };
+        let converted = OpenAiLlm::convert_message(&msg);
+        assert_eq!(converted.role, "user");
+        assert!(converted.content.is_array());
+        let arr = converted.content.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0]["type"], "text");
+        assert_eq!(arr[0]["text"], "What's in this image?");
+        assert_eq!(arr[1]["type"], "image_url");
+        assert_eq!(arr[1]["image_url"]["url"], "https://example.com/img.png");
+    }
+
+    #[test]
+    fn test_message_conversion_system() {
+        let msg = LlmMessage {
+            role: LlmRole::System,
+            content: "be helpful".into(),
+            content_parts: None,
+            name: None,
+            tool_calls: None,
+        };
+        let converted = OpenAiLlm::convert_message(&msg);
+        assert_eq!(converted.role, "system");
+        assert_eq!(converted.content, serde_json::Value::String("be helpful".into()));
     }
 }
