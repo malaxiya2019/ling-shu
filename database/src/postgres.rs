@@ -273,7 +273,8 @@ mod tests {
     // 这些测试需要正在运行的 PostgreSQL 实例.
     // 设置环境变量 PG_TEST_URL 或使用默认的本地连接.
     fn get_test_url() -> String {
-        std::env::var("PG_TEST_URL")
+        std::env::var("DATABASE_URL")
+            .or_else(|_| std::env::var("PG_TEST_URL"))
             .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/lingshu_test".into())
     }
 
