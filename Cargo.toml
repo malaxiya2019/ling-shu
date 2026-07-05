@@ -24,6 +24,7 @@ license = "MIT OR Apache-2.0"
 description = "Lingshu Agent System — LSCode v1.0.0"
 
 [workspace.dependencies]
+serial_test = { version = "3", features = ["async"] }
 jsonwebtoken = "9"
 serde_yaml = "0.9"
 async-trait = "0.1"
