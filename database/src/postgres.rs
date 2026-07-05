@@ -287,11 +287,17 @@ mod tests {
         let pool = sqlx::PgPool::connect(&url).await.unwrap();
         // 清理所有迁移表 (CASCADE 确保级联删除依赖对象)
         let tables = [
-            "documents", "users", "sessions", "memories",
-            "vectors", "events", "audit_logs", "plugins",
+            "documents",
+            "users",
+            "sessions",
+            "memories",
+            "vectors",
+            "events",
+            "audit_logs",
+            "plugins",
         ];
         for table in &tables {
-            let sql = format!("DROP TABLE IF EXISTS {{}} CASCADE", table);
+            let sql = format!("DROP TABLE IF EXISTS {table} CASCADE");
             let _ = sqlx::query(&sql).execute(&pool).await;
         }
         drop(pool);
