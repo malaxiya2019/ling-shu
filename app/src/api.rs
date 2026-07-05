@@ -561,7 +561,8 @@ async fn ws_handler(
 }
 
 async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
-    
+    use tokio_stream::wrappers::ReceiverStream;
+    use futures::StreamExt;
 
     let session_id = LsId::new();
     let ctx = LsContext::with_session(session_id);
@@ -600,20 +601,61 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
                 temperature: Some(0.7),
                 max_tokens: Some(state.runtime.config.llm.max_tokens),
                 tools: None,
-                stream: false,
+                stream: true,
             };
 
-            match llm.invoke(child_ctx, request).await {
-                Ok(response) => {
-                    let _ = socket.send(ws::Message::Text(json!({
-                        "type": "response",
-                        "content": response.message.content,
-                        "usage": {
-                            "prompt_tokens": response.usage.prompt_tokens,
-                            "completion_tokens": response.usage.completion_tokens,
-                            "total_tokens": response.usage.total_tokens,
+            match llm.invoke_stream(child_ctx, request).await {
+                Ok(rx) => {
+                    let mut stream = ReceiverStream::new(rx);
+                    let mut full_content = String::new();
+                    let mut prompt_tokens = 0u64;
+                    let mut completion_tokens = 0u64;
+
+                    while let Some(chunk_result) = stream.next().await {
+                        match chunk_result {
+                            Ok(chunk) => {
+                                if let Some(content) = &chunk.content {
+                                    full_content.push_str(content);
+                                    completion_tokens += 1;
+                                    let _ = socket.send(ws::Message::Text(json!({
+                                        "type": "chunk",
+                                        "content": content,
+                                    }).to_string().into())).await;
+                                }
+                                if let Some(reason) = &chunk.finish_reason {
+                                    let _ = socket.send(ws::Message::Text(json!({
+                                        "type": "done",
+                                        "content": full_content,
+                                        "finish_reason": reason,
+                                        "usage": {
+                                            "prompt_tokens": prompt_tokens,
+                                            "completion_tokens": completion_tokens,
+                                            "total_tokens": prompt_tokens + completion_tokens,
+                                        }
+                                    }).to_string().into())).await;
+                                }
+                            }
+                            Err(e) => {
+                                let _ = socket.send(ws::Message::Text(
+                                    json!({"type": "error", "message": format!("stream error: {e}")}).to_string().into()
+                                )).await;
+                            }
                         }
-                    }).to_string().into())).await;
+                    }
+
+                    // Ensure done is sent if stream ended without finish_reason
+                    if !full_content.is_empty() {
+                        let _ = socket.send(ws::Message::Text(json!({
+                            "type": "done",
+                            "content": full_content,
+                            "finish_reason": null,
+                            "usage": {
+                                "prompt_tokens": prompt_tokens,
+                                "completion_tokens": completion_tokens,
+                                "total_tokens": prompt_tokens + completion_tokens,
+                            }
+                        }).to_string().into())).await;
+                    }
                 }
                 Err(e) => {
                     let _ = socket.send(ws::Message::Text(

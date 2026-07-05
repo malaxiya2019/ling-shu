@@ -10,6 +10,7 @@ mod api;
 
 use clap::Parser;
 use std::sync::Arc;
+use std::io::Write;
 use tracing::{error, info};
 
 use lingshu_core::{LsContext, LsError, LsId, LsResult};
@@ -236,17 +237,31 @@ async fn run_repl(runtime: &LingshuRuntime) -> LsResult<()> {
                         temperature: Some(0.7),
                         max_tokens: Some(runtime.config.llm.max_tokens),
                         tools: None,
-                        stream: false,
+                        stream: true,
                     };
 
-                    match llm.invoke(child_ctx, request).await {
-                        Ok(response) => {
+                    match llm.invoke_stream(child_ctx, request).await {
+                        Ok(mut rx) => {
+                            print!("\n🤖 ");
+                            std::io::stdout().flush().ok();
+                            while let Some(chunk_result) = rx.recv().await {
+                                match chunk_result {
+                                    Ok(chunk) => {
+                                        if let Some(ref content) = chunk.content {
+                                            print!("{}", content);
+                                            std::io::stdout().flush().ok();
+                                        }
+                                        if let Some(ref reason) = chunk.finish_reason {
+                                            println!("\n\n[finish_reason: {reason}]");
+                                        }
+                                    }
+                                    Err(e) => {
+                                        eprintln!("\n⚠ Stream error: {e}");
+                                        break;
+                                    }
+                                }
+                            }
                             println!();
-                            println!("🤖 {}", response.message.content);
-                            println!("\n[usage: {} prompt + {} completion | total: {} tokens]",
-                                response.usage.prompt_tokens,
-                                response.usage.completion_tokens,
-                                response.usage.total_tokens);
                         }
                         Err(e) => {
                             eprintln!("⚠ LLM error: {e}");
