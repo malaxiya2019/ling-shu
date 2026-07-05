@@ -225,6 +225,8 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/v2/chat/stream", get(v2_chat_stream_handler))
         .route("/v2/ws", get(v2_ws_handler))
         .route("/v2/events", get(v2_events_handler))
+        .route("/v1/mcp", post(mcp_handler))
+        .route("/v1/mcp/tools", get(mcp_tools_handler))
         // Plugin API
         .route(
             "/v1/plugins",
@@ -1713,6 +1715,35 @@ async fn plugin_uninstall_handler(
 
 // ── Tests ───────────────────────────────────────────
 
+// ── MCP (Model Context Protocol) ─────────────────────
+
+/// POST /v1/mcp — MCP JSON-RPC 端点
+/// 支持 tools/list 和 tools/call
+async fn mcp_handler(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<serde_json::Value>,
+) -> Json<serde_json::Value> {
+    let ctx = LsContext::with_session(LsId::new());
+    let response = state.runtime.mcp_server.handle_request(&ctx, body).await;
+    Json(serde_json::to_value(&response).unwrap_or_default())
+}
+
+/// GET /v1/mcp/tools — 列出 MCP 工具 (简化 JSON 格式)
+async fn mcp_tools_handler(
+    State(state): State<Arc<AppState>>,
+) -> Json<serde_json::Value> {
+    let ctx = LsContext::with_session(LsId::new());
+    let body = serde_json::json!({
+        "jsonrpc": "2.0",
+        "method": "tools/list",
+        "params": {},
+        "id": 1,
+    });
+    let response = state.runtime.mcp_server.handle_request(&ctx, body).await;
+    Json(serde_json::to_value(&response).unwrap_or_default())
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1755,6 +1786,7 @@ mod tests {
             tool_registry: Arc::new(tokio::sync::RwLock::new(lingshu_runtime::ToolRegistry::new())),
             agent_manager: lingshu_runtime::AgentManager::new(),
             memory_manager: lingshu_memory::SessionMemoryManager::default(),
+            mcp_server: Arc::new(lingshu_mcp::McpServer::new()),
         });
         let health_registry = Arc::new(lingshu_observability::health::HealthRegistry::new(
             "lingshu-test",

@@ -65,6 +65,7 @@ pub struct LingshuRuntime {
     pub tool_registry: Arc<tokio::sync::RwLock<lingshu_runtime::ToolRegistry>>,
     pub agent_manager: lingshu_runtime::AgentManager,
     pub memory_manager: lingshu_memory::SessionMemoryManager,
+    pub mcp_server: Arc<lingshu_mcp::McpServer>,
 }
 
 impl LingshuRuntime {
@@ -129,6 +130,7 @@ impl LingshuRuntime {
             tool_registry,
             agent_manager,
             memory_manager: lingshu_memory::SessionMemoryManager::default(),
+            mcp_server: Arc::new(lingshu_mcp::McpServer::new()),
         };
 
         runtime
