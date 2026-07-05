@@ -305,7 +305,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[serial]
+    #[serial_test::serial]
     async fn test_insert_and_get() {
         let db = test_db().await;
         let ctx = test_ctx();
@@ -322,7 +322,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[serial]
+    #[serial_test::serial]
     async fn test_pagination() {
         let db = test_db().await;
         let ctx = test_ctx();
