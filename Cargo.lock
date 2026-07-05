@@ -1665,6 +1665,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "lingshu-polyglot"
+version = "1.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "lingshu-core",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "lingshu-runtime"
 version = "1.0.0"
 dependencies = [

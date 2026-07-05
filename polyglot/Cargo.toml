@@ -1,0 +1,17 @@
+[package]
+name = "lingshu-polyglot"
+version.workspace = true
+edition.workspace = true
+description = "LSPolyglot — Multi-language code execution engine supporting 30 programming languages"
+
+[dependencies]
+lingshu-core = { path = "../core" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+tempfile = "3"

@@ -344,6 +344,20 @@
         "7.1"
       ],
       "status": "pending"
+    },
+    {
+      "id": "11.2",
+      "phase": "core",
+      "name": "polyglot engine",
+      "description": "30-language code execution engine",
+      "input": "Create PolyglotEngine with runners for all 30 languages",
+      "outputs": [
+        "polyglot/"
+      ],
+      "depends_on": [
+        "11.1"
+      ],
+      "status": "completed"
     }
   ]
 }
