@@ -1487,6 +1487,7 @@ dependencies = [
  "lingshu-core",
  "lingshu-database",
  "lingshu-eventbus",
+ "lingshu-memory",
  "lingshu-observability",
  "lingshu-plugin",
  "lingshu-runtime",
@@ -1617,6 +1618,23 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "lingshu-memory"
+version = "1.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "lingshu-core",
+ "lingshu-storage",
+ "lingshu-traits",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
  "uuid",
 ]
 

@@ -64,6 +64,7 @@ pub struct LingshuRuntime {
     pub root_ctx: LsContext,
     pub tool_registry: Arc<tokio::sync::RwLock<lingshu_runtime::ToolRegistry>>,
     pub agent_manager: lingshu_runtime::AgentManager,
+    pub memory_manager: lingshu_memory::SessionMemoryManager,
 }
 
 impl LingshuRuntime {
@@ -127,6 +128,7 @@ impl LingshuRuntime {
             root_ctx,
             tool_registry,
             agent_manager,
+            memory_manager: lingshu_memory::SessionMemoryManager::default(),
         };
 
         runtime

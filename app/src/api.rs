@@ -38,7 +38,7 @@ use lingshu_core::{LsContext, LsId};
 use lingshu_observability::health::HealthRegistry;
 use lingshu_plugin::PluginRegistry;
 use lingshu_traits::llm::{ LlmMessage, LlmRequest, LlmRole};
-use lingshu_websocket::{ClientMessage, ConnectionManager, ConnectionState, SseBroadcaster, Connection};
+use lingshu_websocket::{ClientMessage, ConnectionManager, ConnectionState, SseBroadcaster, SseEvent, Connection};
 use std::convert::Infallible;
 use std::pin::Pin;
 use tokio_stream::wrappers::ReceiverStream;
@@ -89,6 +89,7 @@ struct ModelInfo {
 
 #[derive(Deserialize)]
 struct ChatCompletionRequest {
+    session_id: Option<String>,
     model: String,
     messages: Vec<ChatMsg>,
     stream: Option<bool>,
@@ -172,6 +173,7 @@ struct EmbedItem {
 
 #[derive(Deserialize)]
 struct AgentRunReq {
+    session_id: Option<String>,
     #[allow(dead_code)]
     agent_id: Option<String>,
     input: Value,
@@ -349,7 +351,35 @@ async fn handle_non_streaming_chat(
         )
     })?;
 
-    let mut messages: Vec<LlmMessage> = req
+    let session_id = req.session_id.clone()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or_else(LsId::new);
+    let ctx = LsContext::with_session(session_id);
+    let session_id_str = session_id.to_string();
+
+    // Recall conversation history from memory
+    let memory = state.runtime.memory_manager.get_or_create(&session_id_str).await;
+    let memory_result = memory.recall(&ctx, &lingshu_memory::MemoryQuery::default()).await.ok();
+
+    // Build message list: memory history + request messages
+    let mut messages: Vec<LlmMessage> = Vec::new();
+    if let Some(result) = memory_result {
+        for item in &result.items {
+            let role = match item.role.as_str() {
+                "system" => LlmRole::System,
+                "assistant" => LlmRole::Assistant,
+                _ => LlmRole::User,
+            };
+            messages.push(LlmMessage {
+                role,
+                content: item.content.clone(),
+                name: None,
+                tool_calls: None,
+            });
+        }
+    }
+
+    let req_messages: Vec<LlmMessage> = req
         .messages
         .into_iter()
         .map(|m| {
@@ -367,9 +397,7 @@ async fn handle_non_streaming_chat(
             }
         })
         .collect();
-
-    let session_id = LsId::new();
-    let ctx = LsContext::with_session(session_id);
+    messages.extend(req_messages.clone());
 
     if let Some(ref user) = req.user {
         let _ = runtime
@@ -378,8 +406,19 @@ async fn handle_non_streaming_chat(
             .await;
     }
 
+    // Store user/system messages from this request to memory
+    for msg in &req_messages {
+        let role_str = match msg.role {
+            LlmRole::System => "system",
+            LlmRole::Assistant => continue,
+            LlmRole::User => "user",
+            LlmRole::Tool => continue,
+        };
+        let _ = memory.store_message(&ctx, role_str, &msg.content).await;
+    }
+
     // Tool calling loop: max 10 iterations
-    let tools = req.tools.clone(); // tools from original request
+    let tools = req.tools.clone();
     for _ in 0..10 {
         let request = LlmRequest {
             model: req.model.clone(),
@@ -401,7 +440,9 @@ async fn handle_non_streaming_chat(
                         .unwrap_or(false);
 
                 if !has_tool_calls {
-                    // No tool calls — return final response
+                    // Store assistant response to memory
+                    let _ = memory.store_message(&ctx, "assistant", &response.message.content).await;
+
                     let usage = UsageInfo {
                         prompt_tokens: response.usage.prompt_tokens,
                         completion_tokens: response.usage.completion_tokens,
@@ -469,13 +510,42 @@ async fn handle_non_streaming_chat(
     ))
 }
 
+
 /// Handle streaming chat completion (SSE)
 async fn handle_streaming_chat(
     state: Arc<AppState>,
     req: ChatCompletionRequest,
 ) -> Sse<Pin<Box<dyn Stream<Item = Result<Event, Infallible>> + Send>>> {
     let runtime = &state.runtime;
-    let messages: Vec<LlmMessage> = req
+
+    let session_id = req.session_id.clone()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or_else(LsId::new);
+    let ctx = LsContext::with_session(session_id);
+    let session_id_str = session_id.to_string();
+
+    // Recall conversation history from memory
+    let memory = state.runtime.memory_manager.get_or_create(&session_id_str).await;
+    let memory_result = memory.recall(&ctx, &lingshu_memory::MemoryQuery::default()).await.ok();
+
+    let mut messages: Vec<LlmMessage> = Vec::new();
+    if let Some(result) = memory_result {
+        for item in &result.items {
+            let role = match item.role.as_str() {
+                "system" => LlmRole::System,
+                "assistant" => LlmRole::Assistant,
+                _ => LlmRole::User,
+            };
+            messages.push(LlmMessage {
+                role,
+                content: item.content.clone(),
+                name: None,
+                tool_calls: None,
+            });
+        }
+    }
+
+    let req_messages: Vec<LlmMessage> = req
         .messages
         .into_iter()
         .map(|m| {
@@ -493,9 +563,7 @@ async fn handle_streaming_chat(
             }
         })
         .collect();
-
-    let session_id = LsId::new();
-    let ctx = LsContext::with_session(session_id);
+    messages.extend(req_messages.clone());
 
     let request = LlmRequest {
         model: req.model,
@@ -510,20 +578,46 @@ async fn handle_streaming_chat(
         if let Some(llm) = &runtime.llm {
             match llm.invoke_stream(ctx, request).await {
                 Ok(rx) => {
-                    let s = ReceiverStream::new(rx).map(|chunk_result| match chunk_result {
-                        Ok(chunk) => {
-                            let data = json!({
-                                "choices": [{
-                                    "delta": {
-                                        "content": chunk.content,
-                                    },
-                                    "index": 0,
-                                    "finish_reason": chunk.finish_reason,
-                                }]
-                            });
-                            Ok(Event::default().data(data.to_string()))
+                    let full_content = std::sync::Arc::new(tokio::sync::Mutex::new(String::new()));
+                    let s = ReceiverStream::new(rx).map({
+                        let memory = memory.clone();
+                        let sid = session_id_str.clone();
+                        let full = full_content.clone();
+                        move |chunk_result| match chunk_result {
+                            Ok(chunk) => {
+                                if let Some(content) = &chunk.content {
+                                    let mut buf = full.try_lock().ok();
+                                    if let Some(ref mut buf) = buf {
+                                        buf.push_str(content);
+                                    }
+                                }
+                                if chunk.finish_reason.is_some() {
+                                    let memory = memory.clone();
+                                    let sid = sid.clone();
+                                    let full = full.clone();
+                                    tokio::spawn(async move {
+                                        let content = full.lock().await.clone();
+                                        if !content.is_empty() {
+                                            let ctx = LsContext::with_session(
+                                                if let Ok(id) = sid.parse::<lingshu_core::LsId>() { id } else { lingshu_core::LsId::new() }
+                                            );
+                                            let _ = memory.store_message(&ctx, "assistant", &content).await;
+                                        }
+                                    });
+                                }
+                                let data = json!({
+                                    "choices": [{
+                                        "delta": {
+                                            "content": chunk.content,
+                                        },
+                                        "index": 0,
+                                        "finish_reason": chunk.finish_reason,
+                                    }]
+                                });
+                                Ok(Event::default().data(data.to_string()))
+                            }
+                            Err(_) => Ok(Event::default().data("[DONE]")),
                         }
-                        Err(_) => Ok(Event::default().data("[DONE]")),
                     });
                     Box::pin(s)
                 }
@@ -543,7 +637,6 @@ async fn handle_streaming_chat(
 
     Sse::new(stream)
 }
-
 async fn embeddings_handler(Json(req): Json<EmbedReq>) -> Json<EmbedResp> {
     let dims = 1536;
     let data: Vec<EmbedItem> = req
@@ -587,33 +680,67 @@ async fn chat_handler(
         .and_then(|s| s.parse().ok())
         .unwrap_or_else(LsId::new);
     let ctx = LsContext::with_session(session_id);
+    let session_id_str = session_id.to_string();
+
+    // Recall conversation history from memory
+    let memory = state.runtime.memory_manager.get_or_create(&session_id_str).await;
+    let memory_result = memory.recall(&ctx, &lingshu_memory::MemoryQuery::default()).await.ok();
+
+    let mut messages: Vec<LlmMessage> = Vec::new();
+    if let Some(result) = memory_result {
+        for item in &result.items {
+            let role = match item.role.as_str() {
+                "system" => LlmRole::System,
+                "assistant" => LlmRole::Assistant,
+                _ => LlmRole::User,
+            };
+            messages.push(LlmMessage {
+                role,
+                content: item.content.clone(),
+                name: None,
+                tool_calls: None,
+            });
+        }
+    }
+
+    // Add current user prompt
+    let prompt = req.prompt.clone();
+    messages.push(LlmMessage {
+        role: LlmRole::User,
+        content: prompt.clone(),
+        name: None,
+        tool_calls: None,
+    });
+
+    // Store user prompt to memory
+    let _ = memory.store_message(&ctx, "user", &prompt).await;
 
     let request = LlmRequest {
         model: req
             .model
             .unwrap_or_else(|| runtime.config.llm.default_model.clone()),
-        messages: vec![LlmMessage {
-            role: LlmRole::User,
-            content: req.prompt,
-            name: None,
-            tool_calls: None,
-        }],
+        messages,
         temperature: Some(0.7),
         max_tokens: Some(runtime.config.llm.max_tokens),
         tools: None,
         stream: false,
     };
 
-    match llm.invoke(ctx, request).await {
-        Ok(response) => Ok(Json(ChatResp {
-            session_id: session_id.to_string(),
-            message: response.message.content,
-            usage: Some(UsageInfo {
-                prompt_tokens: response.usage.prompt_tokens,
-                completion_tokens: response.usage.completion_tokens,
-                total_tokens: response.usage.total_tokens,
-            }),
-        })),
+    match llm.invoke(ctx.clone(), request).await {
+        Ok(response) => {
+            // Store assistant response to memory
+            let _ = memory.store_message(&ctx, "assistant", &response.message.content).await;
+
+            Ok(Json(ChatResp {
+                session_id: session_id_str,
+                message: response.message.content,
+                usage: Some(UsageInfo {
+                    prompt_tokens: response.usage.prompt_tokens,
+                    completion_tokens: response.usage.completion_tokens,
+                    total_tokens: response.usage.total_tokens,
+                }),
+            }))
+        }
         Err(e) => Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({"error": format!("{}", e)})),
@@ -643,9 +770,17 @@ async fn agent_run_handler(
         )
     })?;
 
-    let session_id = LsId::new();
+    let session_id = req.session_id.clone()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or_else(LsId::new);
     let ctx = LsContext::with_session(session_id);
+    let session_id_str = session_id.to_string();
     let tools = runtime.tool_registry.clone();
+
+    // Store agent input to memory
+    let memory = state.runtime.memory_manager.get_or_create(&session_id_str).await;
+    let input_str = serde_json::to_string(&req.input).unwrap_or_default();
+    let _ = memory.store_message(&ctx, "user", &format!("[Agent Input]: {}", input_str)).await;
 
     use lingshu_traits::agent::Agent;
     let config = lingshu_backends::AgentConfig {
@@ -663,7 +798,7 @@ async fn agent_run_handler(
             lingshu_traits::event_bus::Event {
                 event_id: uuid::Uuid::now_v7().to_string(),
                 topic: "ls.agent.run.started".into(),
-                session_id: session_id.to_string(),
+                session_id: session_id_str.clone(),
                 trace_id: ctx.trace_id.to_string(),
                 payload: json!({"agent_id": config.model, "input": req.input}),
                 timestamp: chrono::Utc::now(),
@@ -680,6 +815,10 @@ async fn agent_run_handler(
 
     match agent.run(ctx.clone(), req.input).await {
         Ok(output) => {
+            // Store agent output to memory
+            let output_str = serde_json::to_string(&output.data).unwrap_or_default();
+            let _ = memory.store_message(&ctx, "assistant", &format!("[Agent Output]: {}", output_str)).await;
+
             // 发布 Agent 完成事件
             let _ = runtime
                 .event_bus
@@ -688,7 +827,7 @@ async fn agent_run_handler(
                     lingshu_traits::event_bus::Event {
                         event_id: uuid::Uuid::now_v7().to_string(),
                         topic: "ls.agent.run.completed".into(),
-                        session_id: session_id.to_string(),
+                        session_id: session_id_str.clone(),
                         trace_id: ctx.trace_id.to_string(),
                         payload: json!({"agent_id": output.agent_id.to_string(), "status": format!("{:?}", output.status)}),
                         timestamp: chrono::Utc::now(),
@@ -696,6 +835,13 @@ async fn agent_run_handler(
                 )
                 .await;
 
+            // Publish SSE event for real-time subscribers
+            state.sse_broadcaster.publish(
+                SseEvent::new("agent.run.completed", json!({
+                    "agent_id": output.agent_id.to_string(),
+                    "status": format!("{:?}", output.status),
+                }))
+            );
             let status = match output.status {
                 lingshu_traits::agent::AgentStatus::Completed => "completed",
                 lingshu_traits::agent::AgentStatus::Failed => "failed",
@@ -716,7 +862,7 @@ async fn agent_run_handler(
                     lingshu_traits::event_bus::Event {
                         event_id: uuid::Uuid::now_v7().to_string(),
                         topic: "ls.agent.run.failed".into(),
-                        session_id: session_id.to_string(),
+                        session_id: session_id_str.clone(),
                         trace_id: ctx.trace_id.to_string(),
                         payload: json!({"error": format!("{e}")}),
                         timestamp: chrono::Utc::now(),
@@ -746,10 +892,13 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
 
     let session_id = LsId::new();
     let ctx = LsContext::with_session(session_id);
+    let session_id_str = session_id.to_string();
+
+    let memory = state.runtime.memory_manager.get_or_create(&session_id_str).await;
 
     let _ = socket
         .send(ws::Message::Text(
-            json!({"type": "connected", "session_id": session_id.to_string()})
+            json!({"type": "connected", "session_id": session_id_str.clone()})
                 .to_string()
                 .into(),
         ))
@@ -780,16 +929,40 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
             continue;
         }
 
+        // Store user prompt to memory
+        let _ = memory.store_message(&ctx, "user", &prompt).await;
+
         if let Some(llm) = &state.runtime.llm {
             let child_ctx = ctx.child();
+
+            // Recall history and prepend
+            let memory_result = memory.recall(&ctx, &lingshu_memory::MemoryQuery::default()).await.ok();
+            let mut hist_messages: Vec<LlmMessage> = Vec::new();
+            if let Some(result) = memory_result {
+                for item in &result.items {
+                    let role = match item.role.as_str() {
+                        "system" => LlmRole::System,
+                        "assistant" => LlmRole::Assistant,
+                        _ => LlmRole::User,
+                    };
+                    hist_messages.push(LlmMessage {
+                        role,
+                        content: item.content.clone(),
+                        name: None,
+                        tool_calls: None,
+                    });
+                }
+            }
+            hist_messages.push(LlmMessage {
+                role: LlmRole::User,
+                content: prompt.clone(),
+                name: None,
+                tool_calls: None,
+            });
+
             let request = LlmRequest {
                 model: state.runtime.config.llm.default_model.clone(),
-                messages: vec![LlmMessage {
-                    role: LlmRole::User,
-                    content: prompt,
-                    name: None,
-                    tool_calls: None,
-                }],
+                messages: hist_messages,
                 temperature: Some(0.7),
                 max_tokens: Some(state.runtime.config.llm.max_tokens),
                 tools: None,
@@ -821,6 +994,9 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
                                         .await;
                                 }
                                 if let Some(reason) = &chunk.finish_reason {
+                                    // Store assistant response to memory
+                                    let _ = memory.store_message(&ctx, "assistant", &full_content).await;
+
                                     let _ = socket.send(ws::Message::Text(json!({
                                         "type": "done",
                                         "content": full_content,
@@ -843,6 +1019,8 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
 
                     // Ensure done is sent if stream ended without finish_reason
                     if !full_content.is_empty() {
+                        let _ = memory.store_message(&ctx, "assistant", &full_content).await;
+
                         let _ = socket
                             .send(ws::Message::Text(
                                 json!({
@@ -882,7 +1060,7 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
         }
     }
 
-    info!(session_id = %session_id, "websocket disconnected");
+    info!(session_id = %session_id_str, "websocket disconnected");
 }
 
 // ── v2 Real-time Handlers ──────────────────────────
@@ -969,6 +1147,9 @@ async fn v2_handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
     let ctx = LsContext::with_session(session_id);
     let mut streaming_content = String::new();
 
+    // Initialize memory for this session
+    let memory = state.runtime.memory_manager.get_or_create(&sid_str).await;
+
     loop {
         tokio::select! {
             // Forward broadcast messages to WebSocket
@@ -1026,19 +1207,43 @@ async fn v2_handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
                     continue;
                 }
 
+                // Store user prompt to memory
+                let _ = memory.store_message(&ctx, "user", &prompt).await;
+
                 conn_manager.update_state(&sid_str, ConnectionState::Streaming).await;
                 streaming_content.clear();
 
                 if let Some(llm) = &state.runtime.llm {
                     let child_ctx = ctx.child();
+
+                    // Recall conversation history from memory
+                    let memory_result = memory.recall(&ctx, &lingshu_memory::MemoryQuery::default()).await.ok();
+                    let mut hist_messages: Vec<LlmMessage> = Vec::new();
+                    if let Some(result) = memory_result {
+                        for item in &result.items {
+                            let role = match item.role.as_str() {
+                                "system" => LlmRole::System,
+                                "assistant" => LlmRole::Assistant,
+                                _ => LlmRole::User,
+                            };
+                            hist_messages.push(LlmMessage {
+                                role,
+                                content: item.content.clone(),
+                                name: None,
+                                tool_calls: None,
+                            });
+                        }
+                    }
+                    hist_messages.push(LlmMessage {
+                        role: LlmRole::User,
+                        content: prompt.clone(),
+                        name: None,
+                        tool_calls: None,
+                    });
+
                     let request = LlmRequest {
                         model: state.runtime.config.llm.default_model.clone(),
-                        messages: vec![LlmMessage {
-                            role: LlmRole::User,
-                            content: prompt,
-                            name: None,
-                            tool_calls: None,
-                        }],
+                        messages: hist_messages,
                         temperature: Some(0.7),
                         max_tokens: Some(state.runtime.config.llm.max_tokens),
                         tools: None,
@@ -1066,6 +1271,9 @@ async fn v2_handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
                                             )).await;
                                         }
                                         if let Some(reason) = &chunk.finish_reason {
+                                            // Store assistant response to memory
+                                            let _ = memory.store_message(&ctx, "assistant", &streaming_content).await;
+
                                             let _ = socket.send(ws::Message::Text(json!({
                                                 "type": "done",
                                                 "content": streaming_content,
@@ -1105,6 +1313,7 @@ async fn v2_handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
     conn_manager.unregister(&sid_str).await;
     info!(session_id = %sid_str, "v2 websocket disconnected");
 }
+
 
 /// GET /v2/events — SSE system event stream
 async fn v2_events_handler(
@@ -1202,6 +1411,13 @@ async fn agent_pause_handler(
         (StatusCode::NOT_FOUND, Json(json!({"error": format!("{e}")})))
     })?;
 
+    // Publish SSE event
+    state.sse_broadcaster.publish(
+        SseEvent::new("agent.state_change", json!({
+            "agent_id": agent_id.to_string(),
+            "state": "paused",
+        }))
+    );
     Ok(Json(json!({"status": "paused", "agent_id": agent_id.to_string()})))
 }
 
@@ -1219,6 +1435,13 @@ async fn agent_resume_handler(
         (StatusCode::NOT_FOUND, Json(json!({"error": format!("{e}")})))
     })?;
 
+    // Publish SSE event
+    state.sse_broadcaster.publish(
+        SseEvent::new("agent.state_change", json!({
+            "agent_id": agent_id.to_string(),
+            "state": "resumed",
+        }))
+    );
     Ok(Json(json!({"status": "resumed", "agent_id": agent_id.to_string()})))
 }
 
@@ -1236,6 +1459,13 @@ async fn agent_cancel_handler(
         (StatusCode::NOT_FOUND, Json(json!({"error": format!("{e}")})))
     })?;
 
+    // Publish SSE event
+    state.sse_broadcaster.publish(
+        SseEvent::new("agent.state_change", json!({
+            "agent_id": agent_id.to_string(),
+            "state": "cancelled",
+        }))
+    );
     Ok(Json(json!({"status": "cancelled", "agent_id": agent_id.to_string()})))
 }
 
@@ -1524,6 +1754,7 @@ mod tests {
             root_ctx: ctx,
             tool_registry: Arc::new(tokio::sync::RwLock::new(lingshu_runtime::ToolRegistry::new())),
             agent_manager: lingshu_runtime::AgentManager::new(),
+            memory_manager: lingshu_memory::SessionMemoryManager::default(),
         });
         let health_registry = Arc::new(lingshu_observability::health::HealthRegistry::new(
             "lingshu-test",
