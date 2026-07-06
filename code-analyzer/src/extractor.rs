@@ -118,12 +118,7 @@ impl StructureExtractor {
             let name = cap[1].to_string();
             let params: Vec<String> = cap[2]
                 .split(',')
-                .map(|p| {
-                    p.split_whitespace()
-                        .last()
-                        .unwrap_or(p.trim())
-                        .to_string()
-                })
+                .map(|p| p.split_whitespace().last().unwrap_or(p.trim()).to_string())
                 .filter(|p| !p.is_empty())
                 .collect();
             // 估算行范围
@@ -305,12 +300,7 @@ impl StructureExtractor {
             let name = cap[1].to_string();
             let params: Vec<String> = cap[2]
                 .split(',')
-                .map(|p| {
-                    p.split_whitespace()
-                        .last()
-                        .unwrap_or(p.trim())
-                        .to_string()
-                })
+                .map(|p| p.split_whitespace().last().unwrap_or(p.trim()).to_string())
                 .filter(|p| !p.is_empty())
                 .collect();
             let line_start = content[..cap.get(0).unwrap().start()].lines().count() as u32 + 1;
@@ -361,9 +351,11 @@ fn find_block_end(lines: &[&str], start: usize, _total: u32) -> u32 {
         if (trimmed.starts_with("fn ")
             || trimmed.starts_with("pub fn")
             || trimmed.starts_with("struct "))
-            && found && i > start {
-                return i as u32;
-            }
+            && found
+            && i > start
+        {
+            return i as u32;
+        }
     }
     lines.len() as u32
 }

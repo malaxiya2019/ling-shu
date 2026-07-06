@@ -51,9 +51,8 @@ impl CacheShard {
     fn get(&mut self, key: &str) -> Option<String> {
         // Check TTL before accessing mutable
         let expired = self.entries.get(key).is_some_and(|e| {
-            e.ttl_secs.is_some_and(|ttl| {
-                chrono::Utc::now().timestamp() - e.created_at > ttl as i64
-            })
+            e.ttl_secs
+                .is_some_and(|ttl| chrono::Utc::now().timestamp() - e.created_at > ttl as i64)
         });
         if expired {
             self.entries.remove(key);

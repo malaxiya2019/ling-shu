@@ -449,10 +449,9 @@ fn has_cycle(adj: &HashMap<LsId, Vec<LsId>>) -> bool {
     }
 
     for &node in adj.keys() {
-        if !visited.contains(&node)
-            && dfs(node, adj, &mut visited, &mut in_stack) {
-                return true;
-            }
+        if !visited.contains(&node) && dfs(node, adj, &mut visited, &mut in_stack) {
+            return true;
+        }
     }
     false
 }

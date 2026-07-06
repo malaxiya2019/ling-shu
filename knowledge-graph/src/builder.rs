@@ -66,7 +66,11 @@ impl GraphBuilder {
         self.add_node(GraphNode {
             id: file_id.clone(),
             node_type: NodeType::File,
-            name: file_path.split('/').next_back().unwrap_or(file_path).to_string(),
+            name: file_path
+                .split('/')
+                .next_back()
+                .unwrap_or(file_path)
+                .to_string(),
             file_path: Some(file_path.to_string()),
             line_range: None,
             summary: summary.to_string(),
