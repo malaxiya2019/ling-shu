@@ -77,6 +77,7 @@ mod tests {
     use lingshu_core::LsId;
 
     #[tokio::test]
+#[allow(unused_variables)]
     async fn test_get_or_create() {
         let mgr = SessionMemoryManager::default();
         let mem = mgr.get_or_create("session-1").await;

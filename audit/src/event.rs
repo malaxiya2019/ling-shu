@@ -2,7 +2,7 @@
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use lingshu_core::{LsError, LsResult};
+use lingshu_core::LsResult;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;

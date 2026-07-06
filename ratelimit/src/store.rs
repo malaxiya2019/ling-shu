@@ -7,6 +7,7 @@ use lingshu_core::LsResult;
 
 /// 限流计数器.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct RateCounter {
     pub count: u64,
     pub window_start: i64,
@@ -14,6 +15,7 @@ pub struct RateCounter {
 
 /// 限流状态存储 trait.
 #[async_trait]
+#[allow(dead_code)]
 pub trait RateLimitStore: Send + Sync {
     /// 获取并递增计数器.
     async fn increment(&self, key: &str, window_ms: i64) -> LsResult<RateCounter>;

@@ -96,7 +96,7 @@ impl QuotaManager {
     pub async fn consume(&self, user_id: &str, tokens: u64) {
         self.usage
             .entry(user_id.to_string())
-            .and_modify(|(t, r, ts)| {
+            .and_modify(|(t, r, _ts)| {
                 *t += tokens;
                 *r += 1;
             })

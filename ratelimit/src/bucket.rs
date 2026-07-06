@@ -6,7 +6,7 @@
 use crate::{RateLimitResult, RateLimiter};
 use async_trait::async_trait;
 use chrono::Utc;
-use lingshu_core::{LsError, LsResult};
+use lingshu_core::LsResult;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 

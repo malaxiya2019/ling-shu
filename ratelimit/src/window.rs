@@ -6,7 +6,7 @@ use crate::{RateLimitResult, RateLimiter};
 use async_trait::async_trait;
 use chrono::Utc;
 use dashmap::DashMap;
-use lingshu_core::{LsError, LsResult};
+use lingshu_core::LsResult;
 
 #[derive(Debug, Clone)]
 struct WindowEntry {

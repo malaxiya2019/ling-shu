@@ -2,8 +2,8 @@
 //!
 //! 支持多层规则组合（例如：per-user 限流 + 全局限流）.
 
-use crate::{RateLimitResult, RateLimiter};
-use lingshu_core::{LsError, LsResult};
+use crate::RateLimiter;
+use lingshu_core::LsResult;
 
 /// 限流决策.
 #[derive(Debug, Clone, PartialEq, Eq)]

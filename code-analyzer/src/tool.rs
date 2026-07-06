@@ -199,6 +199,7 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::atomic::{AtomicU64, Ordering};
 
+#[allow(dead_code)]
     struct TestLlm {
         count: AtomicU64,
     }

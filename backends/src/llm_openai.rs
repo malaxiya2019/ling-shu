@@ -105,6 +105,7 @@ struct StreamDelta {
 
 /// OpenAI 流式 tool_call delta.
 #[derive(Deserialize, Clone)]
+#[allow(dead_code)]
 struct StreamToolCallDelta {
     index: usize,
     #[serde(default)]

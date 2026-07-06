@@ -38,6 +38,7 @@ pub struct ExtractionResult {
 }
 
 /// 结构提取器.
+#[allow(dead_code)]
 pub struct StructureExtractor {
     // Rust
     rust_fn: Regex,

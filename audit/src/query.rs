@@ -97,7 +97,7 @@ mod tests {
 
     #[test]
     fn test_builder_with_all_fields() {
-        let now = Utc::now();
+        let _now = Utc::now();
         let q = AuditQueryBuilder::new()
             .with_actor("alice")
             .with_event_type(AuditEventType::ApiCall)

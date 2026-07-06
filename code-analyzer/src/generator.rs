@@ -1,7 +1,7 @@
 //! 图谱生成器 — 将扫描+分析结果转换为 KnowledgeGraph.
 
 use lingshu_knowledge_graph::{
-    Complexity, EdgeType, GraphBuilder, GraphNode, KnowledgeGraph, NodeType,
+    GraphBuilder, GraphNode, KnowledgeGraph, NodeType,
 };
 
 use crate::analyzer::{AnalysisResult, ProjectSummary};
@@ -137,7 +137,7 @@ mod tests {
             file_path: path.to_string(),
             summary: format!("File: {path}"),
             tags: vec![],
-            complexity: Complexity::Simple,
+            complexity: lingshu_knowledge_graph::Complexity::Simple,
             language_notes: None,
             summaries: std::collections::HashMap::new(),
             file_summary: format!("Summary of {path}"),
@@ -173,7 +173,7 @@ mod tests {
     #[test]
     fn test_generate_with_children() {
         let generator = GraphGenerator::new();
-        let entries = vec![
+        let _entries = vec![
             dummy_entry("src/lib.rs", "rust", FileCategory::Code),
         ];
         // Create a temp file with Rust code so extractor finds functions
@@ -199,7 +199,7 @@ mod tests {
 
         // Should have 2 contains edges
         let contains_edges: Vec<_> = graph.edges.iter()
-            .filter(|e| e.edge_type == EdgeType::Contains)
+            .filter(|e| e.edge_type == lingshu_knowledge_graph::EdgeType::Contains)
             .collect();
         assert_eq!(contains_edges.len(), 2);
     }

@@ -1,7 +1,7 @@
 //! 使用报告生成.
 
 use chrono::{DateTime, Duration, Utc};
-use lingshu_core::{LsError, LsResult};
+use lingshu_core::LsResult;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

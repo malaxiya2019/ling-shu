@@ -236,6 +236,7 @@ pub struct NotifyFileObserver {
     /// Watcher 实例（持有即 keepalive，通过 &mut 访问 watch/unwatch）.
     watcher: std::sync::Mutex<Option<notify::RecommendedWatcher>>,
     /// 后台事件处理线程.
+    #[allow(dead_code)]
     thread_handle: std::sync::Mutex<Option<std::thread::JoinHandle<()>>>,
 }
 
