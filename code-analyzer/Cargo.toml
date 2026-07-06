@@ -1,0 +1,25 @@
+[package]
+name = "lingshu-code-analyzer"
+version.workspace = true
+edition.workspace = true
+description = "LSCodeAnalyzer — 代码分析引擎: 文件扫描、结构提取、LLM 语义分析、知识图谱生成"
+
+[dependencies]
+lingshu-core = { path = "../core" }
+lingshu-knowledge-graph = { path = "../knowledge-graph" }
+lingshu-traits = { path = "../traits" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tokio = { workspace = true, features = ["sync", "fs"] }
+tracing.workspace = true
+thiserror.workspace = true
+walkdir = "2"
+regex = "1"
+notify = "6"
+
+[dev-dependencies]
+tracing-subscriber.workspace = true
+tempfile = "3"

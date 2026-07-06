@@ -104,3 +104,28 @@ help:
 	@echo "  make run            — Run HTTP server"
 	@echo "  make repl           — Run REPL mode"
 	@echo "  make clean          — Clean build artifacts"
+	@echo ""
+	@echo "Docker:"
+	@echo "━━━━━━━━━"
+	@echo "  make docker-build  — Build Docker image"
+	@echo "  make docker-up     — Start containers"
+	@echo "  make docker-down   — Stop containers"
+	@echo "  make docker-logs   — Tail logs"
+
+
+# ── Docker ──
+
+docker-build:
+	docker build -t lingshu:latest .
+
+docker-up:
+	docker compose up -d
+
+docker-down:
+	docker compose down
+
+docker-logs:
+	docker compose logs -f
+
+docker-restart: docker-down docker-up
+

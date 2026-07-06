@@ -6,7 +6,7 @@ use lingshu_traits::event_bus::EventBus;
 use serde_json::Value;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use tracing::{error, info};
+use tracing::{info, warn};
 
 /// SSE broadcast channel for server-sent events
 pub struct SseBroadcaster {
@@ -27,7 +27,7 @@ impl SseBroadcaster {
     /// Publish an SSE event
     pub fn publish(&self, event: SseEvent) {
         if let Err(e) = self.tx.send(event) {
-            error!("SSE broadcast send error: {}", e);
+            warn!("SSE broadcast: no subscribers (channel closed): {}", e);
         }
     }
 }
@@ -132,6 +132,15 @@ pub mod events {
             "target": target,
             "level": level,
             "message": message,
+        }))
+    }
+
+    /// Knowledge graph update notification
+    pub fn graph_updated(project: &str, node_count: usize, edge_count: usize) -> SseEvent {
+        SseEvent::new("graph.updated", json!({
+            "project": project,
+            "node_count": node_count,
+            "edge_count": edge_count,
         }))
     }
 }

@@ -17,6 +17,10 @@ lingshu-security = { path = "../security" }
 lingshu-observability = { path = "../observability" }
 lingshu-runtime = { path = "../runtime" }
 lingshu-plugin = { path = "../plugin" }
+lingshu-ratelimit = { path = "../ratelimit" }
+lingshu-billing = { path = "../billing" }
+lingshu-audit = { path = "../audit" }
+lingshu-prompt = { path = "../prompt" }
 async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true

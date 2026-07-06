@@ -1,0 +1,22 @@
+[package]
+name = "lingshu-prompt"
+version.workspace = true
+edition.workspace = true
+description = "LSPrompt — 版本化模板、变量注入、A/B 测试提示词管理"
+
+[dependencies]
+lingshu-core = { path = "../core" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tokio = { workspace = true, features = ["sync"] }
+tracing.workspace = true
+thiserror.workspace = true
+dashmap = "6"
+regex = "1"
+rand = "0.8"
+
+[dev-dependencies]
+tracing-subscriber.workspace = true

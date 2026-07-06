@@ -25,6 +25,8 @@ use lingshu_runtime::session::SessionManager;
 use lingshu_runtime::ToolRegistry;
 use lingshu_security::service_auth::ServiceKeyBundle;
 use lingshu_storage::LocalStorage;
+use lingshu_credentials::CredentialManager;
+use lingshu_credentials::CredentialStore;
 use lingshu_websocket::{ConnectionManager, SseBroadcaster};
 
 use crate::api::AppState;
@@ -66,6 +68,19 @@ pub struct LingshuRuntime {
     pub agent_manager: lingshu_runtime::AgentManager,
     pub memory_manager: lingshu_memory::SessionMemoryManager,
     pub mcp_server: Arc<lingshu_mcp::McpServer>,
+    /// 知识图谱缓存 <project_name, KnowledgeGraph>.
+    pub graph_cache: Arc<tokio::sync::RwLock<std::collections::HashMap<String, lingshu_knowledge_graph::KnowledgeGraph>>>,
+    /// 图谱持久化存储 (SQLite, 重启恢复).
+    pub graph_store: std::sync::Arc<lingshu_knowledge_graph::GraphStore>,
+    /// 速率限制器.
+    pub rate_limiter: std::sync::Arc<lingshu_ratelimit::MultiRateLimiter>,
+    /// 审计日志.
+    pub audit_log: std::sync::Arc<lingshu_audit::AuditLog>,
+    /// 提示词管理器.
+    pub prompt_registry: std::sync::Arc<lingshu_prompt::PromptRegistry>,
+    /// 计费系统.
+    pub billing: std::sync::Arc<lingshu_billing::BillingSystem>,
+    pub credential_manager: std::sync::Arc<CredentialManager>,
 }
 
 impl LingshuRuntime {
@@ -116,6 +131,41 @@ impl LingshuRuntime {
             | LlmProvider::Groq => Some(Arc::from(lingshu_backends::build_llm(&config.llm))),
         };
 
+        // ── Initialize graph store (SQLite persistence) ───
+        let data_dir = dirs::data_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("lingshu");
+        std::fs::create_dir_all(&data_dir).ok();
+        let db_path = data_dir.join("graphs.db");
+        let graph_store = std::sync::Arc::new(
+            lingshu_knowledge_graph::GraphStore::open(&db_path)
+                .unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, "failed to open graph store, using in-memory fallback");
+                    lingshu_knowledge_graph::GraphStore::in_memory().expect("in-memory store")
+                }),
+        );
+        let graph_cache: Arc<tokio::sync::RwLock<std::collections::HashMap<String, lingshu_knowledge_graph::KnowledgeGraph>>> =
+            Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new()));
+        tracing::info!(path = %db_path.display(), "graph store initialized");
+
+        // ── Initialize credential vault (encrypted SQLite) ───
+        let cred_db_path = data_dir.join("credentials.db");
+        let master_key = std::env::var("LINGSHU_CREDENTIAL_MASTER_KEY")
+            .unwrap_or_else(|_| "lingshu-default-master-key-change-me".to_string());
+        let credential_store = std::sync::Arc::new(
+            CredentialStore::open(&cred_db_path, &master_key)
+                .unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, "failed to open credential store, using in-memory fallback");
+                    // In-memory fallback: use a temp path
+                    CredentialStore::open(
+                        &std::path::PathBuf::from("/tmp/lingshu-credentials-fallback.db"),
+                        &master_key,
+                    ).expect("in-memory credential store")
+                })
+        );
+        let credential_manager = std::sync::Arc::new(CredentialManager::new(credential_store));
+        tracing::info!(path = %cred_db_path.display(), "credential vault initialized");
+
         let runtime = Self {
             lifecycle,
             scheduler,
@@ -130,8 +180,76 @@ impl LingshuRuntime {
             tool_registry,
             agent_manager,
             memory_manager: lingshu_memory::SessionMemoryManager::default(),
-            mcp_server: Arc::new(lingshu_mcp::McpServer::new()),
+            mcp_server: {
+            let mut mcp_server = lingshu_mcp::McpServer::new();
+            let credential_tools = lingshu_mcp::credential_tools::create_credential_tools(credential_manager.clone());
+            mcp_server.register_tools(credential_tools);
+            Arc::new(mcp_server)
+        },
+            graph_store: graph_store.clone(),
+            graph_cache: graph_cache.clone(),
+            rate_limiter: std::sync::Arc::new(lingshu_ratelimit::MultiRateLimiter::new()),
+            audit_log: std::sync::Arc::new(lingshu_audit::AuditLog::new()),
+            prompt_registry: std::sync::Arc::new(lingshu_prompt::PromptRegistry::new()),
+            billing: std::sync::Arc::new(
+                lingshu_billing::BillingSystem::new(vec![]).unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, "failed to create billing system, using defaults");
+                    // Provide a default BillingSystem with no plans
+                    let tracker = std::sync::Arc::new(lingshu_billing::UsageTracker::new());
+                    let quota_mgr = std::sync::Arc::new(lingshu_billing::QuotaManager::new(vec![]));
+                    let report_gen = std::sync::Arc::new(lingshu_billing::ReportGenerator::new(tracker.clone()));
+                    lingshu_billing::BillingSystem {
+                        tracker,
+                        quota_manager: quota_mgr,
+                        report_generator: report_gen,
+                    }
+                })
+            ),
+            credential_manager,
         };
+
+        // Load persisted graphs from SQLite cache into memory
+        match graph_store.load_all().await {
+            Ok(cached) => {
+                let mut cache = graph_cache.write().await;
+                *cache = cached;
+                tracing::info!("restored {} graphs from SQLite store", cache.len());
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "failed to load cached graphs from store");
+            }
+        }
+
+        // ── Register default tools ──────────────────────────────
+        {
+            use lingshu_code_analyzer::CodeAnalysisTool;
+            let registry = runtime.tool_registry.write().await;
+
+            // 基础工具 (with default permissions)
+            registry.register(Box::new(lingshu_backends::tools::ListDirTool::new(None))).await;
+            registry.register(Box::new(lingshu_backends::tools::FileReadTool::new(None))).await;
+            registry.register(Box::new(lingshu_backends::tools::FileWriteTool::new(None))).await;
+            registry.register(Box::new(lingshu_backends::tools::ShellTool::new(None))).await;
+            registry.register(Box::new(lingshu_backends::tools::CalculatorTool)).await;
+            registry.register(Box::new(lingshu_backends::tools::CurrentTimeTool)).await;
+
+            // 代码分析工具 — 如果 LLM 可用则启用语义 enrichment
+            let code_tool = if let Some(ref llm) = runtime.llm {
+                let llm_config = lingshu_code_analyzer::LlmAnalyzerConfig {
+                    model: runtime.config.llm.default_model.clone(),
+                    ..Default::default()
+                };
+                let analyzer = Arc::new(
+                    lingshu_code_analyzer::LlmAnalyzer::new(llm.clone(), llm_config)
+                );
+                CodeAnalysisTool::new().with_llm(analyzer)
+            } else {
+                CodeAnalysisTool::new()
+            };
+            registry.register(Box::new(code_tool)).await;
+
+            info!("registered {} tools", registry.count().await);
+        }
 
         runtime
             .lifecycle
@@ -335,7 +453,11 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
         ws_manager: Arc::new(ConnectionManager::new(300)),
         sse_broadcaster: Arc::new(SseBroadcaster::new(1024)),
         file_store: Arc::new(tokio::sync::RwLock::new(Vec::new())),
+        credential_manager: runtime.credential_manager.clone(),
     });
+    // 桥接 MCP 进度通知到 SSE
+    runtime.mcp_server.bridge_sse(state.sse_broadcaster.clone());
+
     let app = api::build_router(state);
 
     let listener = tokio::net::TcpListener::bind(addr)

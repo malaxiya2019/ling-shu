@@ -15,6 +15,9 @@ uuid.workspace = true
 chrono.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
+tokio = { workspace = true, features = ["rt", "macros", "sync"] }
+lingshu-websocket = { path = "../websocket" }
+lingshu-credentials = { path = "../credentials" }
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["rt", "macros"] }
+tempfile = "3.5"

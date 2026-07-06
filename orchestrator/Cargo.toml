@@ -9,6 +9,8 @@ lingshu-core = { path = "../core" }
 lingshu-traits = { path = "../traits" }
 lingshu-eventbus = { path = "../eventbus" }
 lingshu-runtime = { path = "../runtime" }
+lingshu-code-analyzer = { path = "../code-analyzer" }
+lingshu-knowledge-graph = { path = "../knowledge-graph" }
 lingshu-observability = { path = "../observability" }
 async-trait.workspace = true
 serde.workspace = true

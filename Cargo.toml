@@ -20,6 +20,8 @@ members = [
     "distributed",
     "websocket",
     "memory", "mcp", "multimodal",
+    "ratelimit", "billing", "audit", "prompt",
+    "knowledge-graph", "code-analyzer", "credentials",
 ]
 
 [workspace.package]

@@ -99,6 +99,28 @@ struct StreamChoice {
 #[derive(Deserialize)]
 struct StreamDelta {
     content: Option<String>,
+    #[serde(default)]
+    tool_calls: Option<Vec<StreamToolCallDelta>>,
+}
+
+/// OpenAI 流式 tool_call delta.
+#[derive(Deserialize, Clone)]
+struct StreamToolCallDelta {
+    index: usize,
+    #[serde(default)]
+    id: Option<String>,
+    #[serde(rename = "type", default)]
+    call_type: Option<String>,
+    #[serde(default)]
+    function: Option<StreamFunctionDelta>,
+}
+
+#[derive(Deserialize, Clone)]
+struct StreamFunctionDelta {
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    arguments: Option<String>,
 }
 
 // ── OpenAI API 内容格式 ─────────────────────────────
@@ -375,10 +397,24 @@ impl Llm for OpenAiLlm {
                     match serde_json::from_str::<StreamChunk>(data) {
                         Ok(sc) => {
                             for choice in sc.choices {
+                                // Parse streaming tool calls into LlmChunk.tool_calls
+                                let tool_calls = choice.delta.tool_calls.map(|deltas| {
+                                    deltas.into_iter().map(|tc| {
+                                        lingshu_traits::llm::ToolCall {
+                                            id: tc.id.unwrap_or_default(),
+                                            call_type: tc.call_type.unwrap_or_else(|| "function".into()),
+                                            function: lingshu_traits::llm::ToolCallFunction {
+                                                name: tc.function.as_ref().and_then(|f| f.name.clone()).unwrap_or_default(),
+                                                arguments: tc.function.as_ref().and_then(|f| f.arguments.clone()).unwrap_or_default(),
+                                            },
+                                        }
+                                    }).collect()
+                                });
+
                                 let _ = tx
                                     .send(Ok(LlmChunk {
                                         content: choice.delta.content,
-                                        tool_calls: None,
+                                        tool_calls,
                                         finish_reason: choice.finish_reason,
                                     }))
                                     .await;

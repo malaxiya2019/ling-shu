@@ -337,3 +337,142 @@ mod tests {
         assert_eq!(all.total, 1);
     }
 }
+
+    // ── 11. RateLimit ────────────────────────────────
+    #[tokio::test]
+    async fn test_ratelimit_token_bucket_integration() {
+        use lingshu_ratelimit::TokenBucket;
+        use lingshu_ratelimit::RateLimiter;
+
+        let bucket = TokenBucket::new(100, 10.0);
+        for _ in 0..100 {
+            let r = bucket.check("test").await.unwrap();
+            assert!(r.allowed);
+        }
+        let r = bucket.check("test").await.unwrap();
+        assert!(!r.allowed);
+    }
+
+    #[tokio::test]
+    async fn test_ratelimit_sliding_window() {
+        use lingshu_ratelimit::RateLimiter;
+        use lingshu_ratelimit::SlidingWindow;
+
+        let sw = SlidingWindow::new(10, 60);
+        for _ in 0..10 {
+            let r = sw.check("key").await.unwrap();
+            assert!(r.allowed);
+        }
+        let r = sw.check("key").await.unwrap();
+        assert!(!r.allowed);
+    }
+
+    // ── 12. Billing ──────────────────────────────────
+    #[tokio::test]
+    async fn test_billing_full_flow() {
+        use lingshu_billing::{BillingPlan, BillingSystem};
+
+        let plans = vec![
+            BillingPlan::free(),
+            BillingPlan::basic(),
+            BillingPlan::pro(),
+        ];
+        let system = BillingSystem::new(plans).unwrap();
+
+        system.record_usage("alice", "gpt-4", 1000, 500).await.unwrap();
+        system.record_usage("alice", "gpt-4", 2000, 1000).await.unwrap();
+
+        let quota = system.check_quota("alice", "free").await.unwrap();
+        assert_eq!(quota.token_quota, 1_000_000);
+        assert_eq!(quota.requests_used, 2);
+        assert_eq!(quota.tokens_used, 4500);
+    }
+
+    // ── 13. Audit ────────────────────────────────────
+    #[tokio::test]
+    async fn test_audit_log_integration() {
+        use lingshu_audit::{AuditEntry, AuditEventType, AuditLog, AuditLogStore};
+        use lingshu_audit::AuditQueryBuilder;
+
+        let log = AuditLog::new();
+
+        log.append(AuditEntry::new(
+            AuditEventType::UserLogin,
+            "user.login",
+            "alice",
+            "user",
+            "user-001",
+            r#"{"ip":"10.0.0.1"}"#,
+        )).await.unwrap();
+
+        let q = AuditQueryBuilder::new()
+            .with_actor("alice")
+            .with_event_type(AuditEventType::UserLogin)
+            .build();
+
+        let results = log.query(&q).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].resource_id, "user-001");
+    }
+
+    // ── 14. Prompt ───────────────────────────────────
+    #[test]
+    fn test_prompt_template_compile() {
+        use lingshu_prompt::{TemplateEngine, PromptRegistry, TemplateVariable};
+        use std::collections::HashMap;
+
+        let engine = TemplateEngine::new();
+        let registry = PromptRegistry::new();
+
+        registry.register(
+            "test-prompt",
+            "Integration test prompt",
+            "Answer in {{ language }}: {{ query }}",
+            vec![
+                TemplateVariable {
+                    name: "language".into(),
+                    description: Some("Output language".into()),
+                    required: true,
+                    default_value: None,
+                },
+                TemplateVariable {
+                    name: "query".into(),
+                    description: Some("User query".into()),
+                    required: true,
+                    default_value: None,
+                },
+            ],
+        ).unwrap();
+
+        let mut vars = HashMap::new();
+        vars.insert("language".to_string(), "Chinese".to_string());
+        vars.insert("query".to_string(), "What is Rust?".to_string());
+
+        let compiled = registry.compile("test-prompt", &vars, &engine).unwrap();
+        assert_eq!(compiled.text, "Answer in Chinese: What is Rust?");
+    }
+
+    #[tokio::test]
+    async fn test_prompt_ab_test() {
+        use lingshu_prompt::ABTestConfig;
+        use lingshu_prompt::ABTestManager;
+        use chrono::Utc;
+
+        let mut manager = ABTestManager::new();
+        manager.register(ABTestConfig {
+            name: "test-ab".into(),
+            variant_a: "v1".into(),
+            variant_b: "v2".into(),
+            traffic_percent_b: 50,
+            enabled: true,
+            start_at: Utc::now(),
+            end_at: None,
+        }).unwrap();
+
+        manager.record_result("test-ab", "v1", true, 100.0).unwrap();
+        manager.record_result("test-ab", "v2", true, 80.0).unwrap();
+
+        let result = manager.get_result("test-ab").unwrap();
+        assert_eq!(result.a_count, 1);
+        assert_eq!(result.b_count, 1);
+    }

@@ -23,9 +23,11 @@ pub mod memory;
 pub mod types;
 pub mod vector;
 pub mod session;
+pub mod graph;
 
 pub use buffer::ChatBuffer;
 pub use memory::{DefaultMemory, Memory};
 pub use types::{MemoryConfig, MemoryItem, MemoryQuery, MemoryResult};
 pub use session::SessionMemoryManager;
+pub use graph::*;
 pub use vector::{InMemoryVectorStore, VectorMemory, VectorRecord};

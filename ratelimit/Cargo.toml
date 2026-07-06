@@ -1,0 +1,20 @@
+[package]
+name = "lingshu-ratelimit"
+version.workspace = true
+edition.workspace = true
+description = "LSRateLimit — 令牌桶 + 滑动窗口限流, per-key/per-user 速率限制"
+
+[dependencies]
+lingshu-core = { path = "../core" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tokio = { workspace = true, features = ["sync", "time"] }
+tracing.workspace = true
+thiserror.workspace = true
+dashmap = "6"
+
+[dev-dependencies]
+tracing-subscriber.workspace = true
