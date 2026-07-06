@@ -121,10 +121,8 @@ impl GraphStore {
             .map_err(|e| LsError::Internal(format!("graph store query: {e}")))?;
 
         let mut projects = Vec::new();
-        for row in rows {
-            if let Ok(name) = row {
-                projects.push(name);
-            }
+        for name in rows.flatten() {
+            projects.push(name);
         }
         Ok(projects)
     }
@@ -145,13 +143,11 @@ impl GraphStore {
             .map_err(|e| LsError::Internal(format!("graph store query: {e}")))?;
 
         let mut map = std::collections::HashMap::new();
-        for row in rows {
-            if let Ok((name, json)) = row {
-                if let Ok(graph) = serde_json::from_str::<KnowledgeGraph>(&json) {
-                    map.insert(name, graph);
-                } else {
-                    tracing::warn!(project = %name, "failed to deserialize cached graph, skipping");
-                }
+        for (name, json) in rows.flatten() {
+            if let Ok(graph) = serde_json::from_str::<KnowledgeGraph>(&json) {
+                map.insert(name, graph);
+            } else {
+                tracing::warn!(project = %name, "failed to deserialize cached graph, skipping");
             }
         }
         tracing::info!(count = map.len(), "restored graphs from store");

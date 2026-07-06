@@ -86,7 +86,7 @@ impl SseEvent {
     pub fn to_sse_string(&self) -> String {
         let mut s = String::new();
         s.push_str(&format!("event: {}\n", self.event));
-        s.push_str(&format!("data: {}\n", self.data.to_string()));
+        s.push_str(&format!("data: {}\n", self.data));
         if let Some(ref id) = self.id {
             s.push_str(&format!("id: {}\n", id));
         }

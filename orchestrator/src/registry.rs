@@ -140,7 +140,7 @@ impl AgentRegistry {
         let agents = self.agents.read().await;
         agents
             .values()
-            .filter(|a| a.tags.get(key).map_or(false, |v| v == value))
+            .filter(|a| a.tags.get(key).is_some_and(|v| v == value))
             .cloned()
             .collect()
     }

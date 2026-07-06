@@ -190,7 +190,7 @@ impl WorkflowDag {
             }
         }
         // Actually compute in-degree from reverse edges
-        for (_from, to_list) in &self.adj_list {
+        for to_list in self.adj_list.values() {
             for &to in to_list {
                 *in_degree.entry(to).or_default() += 1;
             }
@@ -449,11 +449,10 @@ fn has_cycle(adj: &HashMap<LsId, Vec<LsId>>) -> bool {
     }
 
     for &node in adj.keys() {
-        if !visited.contains(&node) {
-            if dfs(node, adj, &mut visited, &mut in_stack) {
+        if !visited.contains(&node)
+            && dfs(node, adj, &mut visited, &mut in_stack) {
                 return true;
             }
-        }
     }
     false
 }

@@ -119,8 +119,7 @@ impl StructureExtractor {
             let params: Vec<String> = cap[2]
                 .split(',')
                 .map(|p| {
-                    p.trim()
-                        .split_whitespace()
+                    p.split_whitespace()
                         .last()
                         .unwrap_or(p.trim())
                         .to_string()
@@ -307,8 +306,7 @@ impl StructureExtractor {
             let params: Vec<String> = cap[2]
                 .split(',')
                 .map(|p| {
-                    p.trim()
-                        .split_whitespace()
+                    p.split_whitespace()
                         .last()
                         .unwrap_or(p.trim())
                         .to_string()
@@ -360,14 +358,12 @@ fn find_block_end(lines: &[&str], start: usize, _total: u32) -> u32 {
                 return (i + 1) as u32;
             }
         }
-        if trimmed.starts_with("fn ")
+        if (trimmed.starts_with("fn ")
             || trimmed.starts_with("pub fn")
-            || trimmed.starts_with("struct ")
-        {
-            if found && i > start {
+            || trimmed.starts_with("struct "))
+            && found && i > start {
                 return i as u32;
             }
-        }
     }
     lines.len() as u32
 }

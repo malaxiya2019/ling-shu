@@ -483,7 +483,7 @@ async fn handle_non_streaming_chat(
         .session_id
         .clone()
         .and_then(|s| s.parse().ok())
-        .unwrap_or_else(LsId::new);
+        .unwrap_or_default();
     let ctx = LsContext::with_session(session_id);
     let session_id_str = session_id.to_string();
 
@@ -687,7 +687,7 @@ async fn handle_streaming_chat(
         .session_id
         .clone()
         .and_then(|s| s.parse().ok())
-        .unwrap_or_else(LsId::new);
+        .unwrap_or_default();
     let ctx = LsContext::with_session(session_id);
     let session_id_str = session_id.to_string();
 

@@ -51,7 +51,7 @@ impl AgentManager {
         let agents = self.agents.read().await;
         agents
             .get(agent_id)
-            .map(|e| e.status.clone())
+            .map(|e| e.status)
             .ok_or_else(|| lingshu_core::LsError::NotFound(format!("agent {agent_id}")))
     }
 
@@ -125,7 +125,7 @@ impl AgentManager {
             .map(|e| AgentSummary {
                 agent_id: e.agent_id,
                 name: e.name.clone(),
-                status: e.status.clone(),
+                status: e.status,
                 created_at: e.created_at,
             })
             .collect()

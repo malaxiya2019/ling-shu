@@ -55,7 +55,7 @@ impl SemanticAnalyzer for DefaultAnalyzer {
         _content: &str,
         language: &str,
     ) -> LsResult<AnalysisResult> {
-        let name = file_path.split('/').last().unwrap_or(file_path);
+        let name = file_path.split('/').next_back().unwrap_or(file_path);
         let summary = format!("{language} source file: {name}");
 
         let mut tags = vec![language.to_string()];

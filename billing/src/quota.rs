@@ -71,7 +71,7 @@ impl QuotaManager {
             .usage
             .get(user_id)
             .map(|e| {
-                let (t, r, ts) = e.value().clone();
+                let (t, r, ts) = *e.value();
                 // 如果已进入新周期，重置用量
                 if now.signed_duration_since(ts) > chrono::Duration::days(30) {
                     (0, 0, now)
