@@ -82,14 +82,8 @@ fn bench_multi_ratelimiter(c: &mut Criterion) {
 
     group.bench_function("check_all_2_limiters", |b| {
         let mut multi = MultiRateLimiter::new();
-        multi.add(
-            "token-bucket",
-            Arc::new(TokenBucket::new(100_000, 1000.0)),
-        );
-        multi.add(
-            "sliding-window",
-            Arc::new(SlidingWindow::new(60, 100_000)),
-        );
+        multi.add("token-bucket", Arc::new(TokenBucket::new(100_000, 1000.0)));
+        multi.add("sliding-window", Arc::new(SlidingWindow::new(60, 100_000)));
         b.to_async(tokio::runtime::Runtime::new().unwrap())
             .iter(|| async {
                 let _ = multi.check_all("bench-key").await;

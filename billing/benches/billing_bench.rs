@@ -102,17 +102,10 @@ fn bench_billing_system(c: &mut Criterion) {
             // Pre-seed some usage records
             for i in 0..100 {
                 let _ = system
-                    .record_usage(
-                        &format!("user-{}", i % 10),
-                        "gpt-4",
-                        100,
-                        50,
-                    )
+                    .record_usage(&format!("user-{}", i % 10), "gpt-4", 100, 50)
                     .await;
             }
-            let _ = system
-                .generate_report("user-1", PeriodType::Daily)
-                .await;
+            let _ = system.generate_report("user-1", PeriodType::Daily).await;
         });
     });
 
@@ -127,12 +120,7 @@ fn bench_billing_system(c: &mut Criterion) {
                     let s = sys.clone();
                     handles.push(tokio::spawn(async move {
                         let _ = s
-                            .record_usage(
-                                &format!("user-{i}"),
-                                "deepseek-chat",
-                                256,
-                                128,
-                            )
+                            .record_usage(&format!("user-{i}"), "deepseek-chat", 256, 128)
                             .await;
                     }));
                 }
