@@ -1,4 +1,8 @@
 # 🚀 Lingshu (灵枢) Agent System
+[![CI](https://github.com/malaxiya2019/ling-shu/actions/workflows/ci.yml/badge.svg)](https://github.com/malaxiya2019/ling-shu/actions/workflows/ci.yml) 
+[![Docker](https://github.com/malaxiya2019/ling-shu/actions/workflows/docker.yml/badge.svg)](https://github.com/malaxiya2019/ling-shu/actions/workflows/docker.yml) 
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE-MIT) 
+[![Rust](https://img.shields.io/badge/rust-1.88%2B-orange)](https://www.rust-lang.org/)
 
 **Lingshu** is a modular agent system framework written in Rust, designed for building production-grade AI agents with strong security, observability, and extensibility.
 
