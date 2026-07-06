@@ -56,3 +56,58 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  smoke-test:
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull image
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main"
+          docker pull "$IMAGE"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Start container
+        run: |
+          docker run -d --name lingshu-smoke \
+            -p 8080:8080 \
+            -e LS_ENV=dev \
+            "${{ env.IMAGE }}"
+
+      - name: Wait for health
+        run: |
+          for i in $(seq 1 15); do
+            if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
+              echo "✅ Health check passed"
+              exit 0
+            fi
+            echo "⏳ Waiting... ($i/15)"
+            sleep 2
+          done
+          echo "❌ Health check timed out"
+          docker logs lingshu-smoke
+          exit 1
+
+      - name: Test API endpoints
+        run: |
+          echo "=== GET /health ==="
+          curl -sf http://localhost:8080/health | head -c 200
+          echo ""
+          echo "=== GET /version ==="
+          curl -sf http://localhost:8080/version | head -c 200 || echo "(no /version endpoint)"
+          echo ""
+          echo "✅ Smoke test passed"
+
+      - name: Cleanup
+        if: always()
+        run: docker rm -f lingshu-smoke
