@@ -17,4 +17,9 @@ thiserror.workspace = true
 dashmap = "6"
 
 [dev-dependencies]
+criterion = { version = "0.5", features = ["async_futures", "async_tokio"] }
 tracing-subscriber.workspace = true
+
+[[bench]]
+name = "ratelimit_bench"
+harness = false
