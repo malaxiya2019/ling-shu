@@ -17,10 +17,10 @@
 //! └───────────────────────────────────────────┘
 //! ```
 
-pub mod log;
 pub mod event;
+pub mod log;
 pub mod query;
 
-pub use log::{AuditEntry, AuditEventType, AuditLog, AuditLogStore};
 pub use event::{EventSourcer, StoredEvent};
+pub use log::{AuditEntry, AuditEventType, AuditLog, AuditLogStore};
 pub use query::{AuditQuery, AuditQueryBuilder};

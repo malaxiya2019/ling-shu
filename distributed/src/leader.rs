@@ -53,10 +53,7 @@ pub struct LeaderElection {
 }
 
 impl LeaderElection {
-    pub fn new(
-        config: LeaderElectionConfig,
-        cluster: Arc<RwLock<ClusterState>>,
-    ) -> Self {
+    pub fn new(config: LeaderElectionConfig, cluster: Arc<RwLock<ClusterState>>) -> Self {
         let state = Arc::new(RwLock::new(LeaderElectionInternal {
             current_leader: None,
             current_term: 0,
@@ -64,7 +61,11 @@ impl LeaderElection {
             votes_received: HashSet::new(),
             is_election_running: false,
         }));
-        Self { config, state, cluster }
+        Self {
+            config,
+            state,
+            cluster,
+        }
     }
 
     pub fn state(&self) -> &Arc<RwLock<LeaderElectionInternal>> {
@@ -95,7 +96,10 @@ impl LeaderElection {
             }
         });
 
-        info!("Leader election started (priority: {})", self.config.node_priority);
+        info!(
+            "Leader election started (priority: {})",
+            self.config.node_priority
+        );
     }
 
     /// Start a new election round (Bully algorithm)
@@ -157,7 +161,10 @@ impl LeaderElection {
     pub async fn receive_heartbeat(&self, leader_id: &str, leader_addr: &str, term: u64) {
         let mut state = self.state.write().await;
         if term < state.current_term {
-            debug!("Ignoring heartbeat from stale term {} < {}", term, state.current_term);
+            debug!(
+                "Ignoring heartbeat from stale term {} < {}",
+                term, state.current_term
+            );
             return;
         }
         if term > state.current_term {
@@ -209,7 +216,9 @@ mod tests {
     async fn test_receive_heartbeat() {
         let cluster = Arc::new(RwLock::new(ClusterState::new(ClusterConfig::default())));
         let election = LeaderElection::new(LeaderElectionConfig::default(), cluster.clone());
-        election.receive_heartbeat("leader-1", "127.0.0.1:8001", 1).await;
+        election
+            .receive_heartbeat("leader-1", "127.0.0.1:8001", 1)
+            .await;
         let leader = election.current_leader().unwrap();
         assert_eq!(leader.leader_id, "leader-1");
         assert_eq!(leader.term, 1);

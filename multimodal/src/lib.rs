@@ -24,7 +24,5 @@ pub mod rag;
 
 pub use audio::{AudioInfo, AudioProcessor};
 pub use file::{FileAnalyzer, FileInfo, FileType};
-pub use image::{
-    ImageAnalysis, ImageFormat, ImageInfo, ImageProcessor, ImageResizeOptions,
-};
+pub use image::{ImageAnalysis, ImageFormat, ImageInfo, ImageProcessor, ImageResizeOptions};
 pub use rag::MultimodalRag;

@@ -96,11 +96,7 @@ impl Orchestrator {
     }
 
     /// 将智能体加入团队.
-    pub async fn join_team(
-        &self,
-        team_name: &str,
-        agent_id: &LsId,
-    ) -> LsResult<()> {
+    pub async fn join_team(&self, team_name: &str, agent_id: &LsId) -> LsResult<()> {
         let teams = self.teams.read().await;
         let team = teams
             .get(team_name)
@@ -123,7 +119,9 @@ impl Orchestrator {
         }
 
         // 写入 team 标签
-        self.registry.add_tag(agent_id, "team".into(), team_name.into()).await?;
+        self.registry
+            .add_tag(agent_id, "team".into(), team_name.into())
+            .await?;
 
         info!(agent_id = %agent_id, team = %team_name, "agent joined team");
         Ok(())
@@ -163,10 +161,7 @@ impl Orchestrator {
         // 选择智能体
         let assignment = self
             .scheduler
-            .select_agent(
-                first_capability.as_deref(),
-                ctx,
-            )
+            .select_agent(first_capability.as_deref(), ctx)
             .await?;
 
         self.scheduler.task_started(&assignment.agent_id).await;

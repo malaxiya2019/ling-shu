@@ -1,10 +1,10 @@
 //! 实用工具 — CurrentTimeTool, CalculatorTool
 
 use async_trait::async_trait;
+use chrono::{Datelike, Local, Timelike, Utc};
 use lingshu_core::{LsContext, LsError, LsId, LsResult};
 use lingshu_traits::tool::{Tool, ToolInfo, ToolParam};
 use serde_json::Value;
-use chrono::{Utc, Local, Datelike, Timelike};
 
 /// 当前时间工具.
 pub struct CurrentTimeTool;
@@ -53,37 +53,67 @@ impl Tool for CurrentTimeTool {
 
     async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> {
         self.validate(&input)?;
-        let timezone = input.get("timezone").and_then(|v| v.as_str()).unwrap_or("utc");
-        let format = input.get("format").and_then(|v| v.as_str()).unwrap_or("iso");
+        let timezone = input
+            .get("timezone")
+            .and_then(|v| v.as_str())
+            .unwrap_or("utc");
+        let format = input
+            .get("format")
+            .and_then(|v| v.as_str())
+            .unwrap_or("iso");
 
         let now_utc = Utc::now();
         let now_local = Local::now();
 
-        let (time_str, unix_ts, year, month, day, hour, minute, second, weekday, tz_name) = match timezone {
-            "local" => {
-                let ts = now_local.naive_local();
-                let unix = now_local.timestamp();
-                let wd = now_local.format("%A").to_string();
-                let tz = now_local.format("%Z").to_string();
-                let formatted = match format {
-                    "unix" => unix.to_string(),
-                    "human" => now_local.format("%Y-%m-%d %H:%M:%S %Z").to_string(),
-                    _ => now_local.format("%Y-%m-%dT%H:%M:%S%z").to_string(),
-                };
-                (formatted, unix, ts.year(), ts.month(), ts.day(), ts.hour(), ts.minute(), ts.second(), wd, tz)
-            }
-            _ => { // utc
-                let ts = now_utc.naive_utc();
-                let unix = now_utc.timestamp();
-                let wd = now_utc.format("%A").to_string();
-                let formatted = match format {
-                    "unix" => unix.to_string(),
-                    "human" => now_utc.format("%Y-%m-%d %H:%M:%S UTC").to_string(),
-                    _ => now_utc.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
-                };
-                (formatted, unix, ts.year(), ts.month(), ts.day(), ts.hour(), ts.minute(), ts.second(), wd, "UTC".to_string())
-            }
-        };
+        let (time_str, unix_ts, year, month, day, hour, minute, second, weekday, tz_name) =
+            match timezone {
+                "local" => {
+                    let ts = now_local.naive_local();
+                    let unix = now_local.timestamp();
+                    let wd = now_local.format("%A").to_string();
+                    let tz = now_local.format("%Z").to_string();
+                    let formatted = match format {
+                        "unix" => unix.to_string(),
+                        "human" => now_local.format("%Y-%m-%d %H:%M:%S %Z").to_string(),
+                        _ => now_local.format("%Y-%m-%dT%H:%M:%S%z").to_string(),
+                    };
+                    (
+                        formatted,
+                        unix,
+                        ts.year(),
+                        ts.month(),
+                        ts.day(),
+                        ts.hour(),
+                        ts.minute(),
+                        ts.second(),
+                        wd,
+                        tz,
+                    )
+                }
+                _ => {
+                    // utc
+                    let ts = now_utc.naive_utc();
+                    let unix = now_utc.timestamp();
+                    let wd = now_utc.format("%A").to_string();
+                    let formatted = match format {
+                        "unix" => unix.to_string(),
+                        "human" => now_utc.format("%Y-%m-%d %H:%M:%S UTC").to_string(),
+                        _ => now_utc.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+                    };
+                    (
+                        formatted,
+                        unix,
+                        ts.year(),
+                        ts.month(),
+                        ts.day(),
+                        ts.hour(),
+                        ts.minute(),
+                        ts.second(),
+                        wd,
+                        "UTC".to_string(),
+                    )
+                }
+            };
 
         Ok(serde_json::json!({
             "timezone": tz_name,
@@ -154,8 +184,9 @@ impl Tool for CalculatorTool {
         let expression = input["expression"].as_str().unwrap();
 
         // 使用 meval crate 进行安全求值
-        let result = meval::eval_str(expression)
-            .map_err(|e| LsError::Internal(format!("failed to evaluate expression '{expression}': {e}")))?;
+        let result = meval::eval_str(expression).map_err(|e| {
+            LsError::Internal(format!("failed to evaluate expression '{expression}': {e}"))
+        })?;
 
         Ok(serde_json::json!({
             "expression": expression,
@@ -250,9 +281,7 @@ mod tests {
     #[tokio::test]
     async fn test_calculator_invalid_expr() {
         let tool = CalculatorTool;
-        let result = tool
-            .execute(test_ctx(), json!({"expression": "2 +"}))
-            .await;
+        let result = tool.execute(test_ctx(), json!({"expression": "2 +"})).await;
         assert!(result.is_err());
     }
 

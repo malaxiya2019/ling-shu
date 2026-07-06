@@ -65,11 +65,14 @@ impl RateLimiter for SlidingWindow {
         let now = Self::current_window_key();
         let window_start = (now / self.window_ms) * self.window_ms;
 
-        let mut entry = self.state.entry(key.to_string()).or_insert_with(|| WindowEntry {
-            window_start,
-            count: 0,
-            prev_count: 0,
-        });
+        let mut entry = self
+            .state
+            .entry(key.to_string())
+            .or_insert_with(|| WindowEntry {
+                window_start,
+                count: 0,
+                prev_count: 0,
+            });
 
         let cur_start = (now / self.window_ms) * self.window_ms;
         if cur_start != entry.window_start {
@@ -104,11 +107,14 @@ impl RateLimiter for SlidingWindow {
         let now = Self::current_window_key();
         let window_start = (now / self.window_ms) * self.window_ms;
 
-        let entry = self.state.entry(key.to_string()).or_insert_with(|| WindowEntry {
-            window_start,
-            count: 0,
-            prev_count: 0,
-        });
+        let entry = self
+            .state
+            .entry(key.to_string())
+            .or_insert_with(|| WindowEntry {
+                window_start,
+                count: 0,
+                prev_count: 0,
+            });
 
         let usage = self.calculate_usage(&entry);
 

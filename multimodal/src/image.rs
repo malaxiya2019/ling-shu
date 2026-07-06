@@ -128,17 +128,14 @@ impl ImageProcessor {
     }
 
     /// 将图像缩放并编码为 Base64.
-    pub fn resize_to_base64(
-        data: &[u8],
-        options: &ImageResizeOptions,
-    ) -> LsResult<String> {
+    pub fn resize_to_base64(data: &[u8], options: &ImageResizeOptions) -> LsResult<String> {
         let img = image::load_from_memory(data)
             .map_err(|e| lingshu_core::LsError::Internal(format!("image decode failed: {e}")))?;
 
         let (w, h) = (img.width(), img.height());
         let (new_w, new_h) = if w > options.max_width || h > options.max_height {
-            let ratio = (options.max_width as f64 / w as f64)
-                .min(options.max_height as f64 / h as f64);
+            let ratio =
+                (options.max_width as f64 / w as f64).min(options.max_height as f64 / h as f64);
             ((w as f64 * ratio) as u32, (h as f64 * ratio) as u32)
         } else {
             (w, h)

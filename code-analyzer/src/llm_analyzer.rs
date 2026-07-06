@@ -51,7 +51,7 @@ impl LlmAnalyzer {
     /// 创建 LLM 分析器.
     pub fn new(llm: Arc<dyn Llm>, config: LlmAnalyzerConfig) -> Self {
         Self { llm, config }
-        }
+    }
 
     /// 获取 batch_size 配置.
     pub fn batch_size(&self) -> usize {
@@ -66,15 +66,18 @@ impl LlmAnalyzer {
     /// 获取配置引用.
     pub fn config(&self) -> &LlmAnalyzerConfig {
         &self.config
-}
+    }
 
     /// 构建文件分析 prompt.
     fn build_file_prompt(file_path: &str, content: &str, language: &str) -> String {
         // 截断过长内容
         let max_content_len = 8000;
         let truncated = if content.len() > max_content_len {
-            format!("{}\n\n... [truncated, {} bytes total]",
-                &content[..max_content_len], content.len())
+            format!(
+                "{}\n\n... [truncated, {} bytes total]",
+                &content[..max_content_len],
+                content.len()
+            )
         } else {
             content.to_string()
         };
@@ -116,7 +119,8 @@ Return ONLY valid JSON, no markdown fencing."#,
             messages: vec![
                 LlmMessage {
                     role: LlmRole::System,
-                    content: "You are a precise code analysis engine. Always respond in JSON.".into(),
+                    content: "You are a precise code analysis engine. Always respond in JSON."
+                        .into(),
                     content_parts: None,
                     name: None,
                     tool_calls: None,
@@ -160,10 +164,9 @@ Return ONLY valid JSON, no markdown fencing."#,
             file_summary: Option<String>,
         }
 
-        let parsed: LlmFileResponse = serde_json::from_str(&text)
-            .map_err(|e| lingshu_core::LsError::Internal(format!(
-                "LLM response parse failed: {e}\nRaw: {text}",
-            )))?;
+        let parsed: LlmFileResponse = serde_json::from_str(&text).map_err(|e| {
+            lingshu_core::LsError::Internal(format!("LLM response parse failed: {e}\nRaw: {text}",))
+        })?;
 
         let complexity = match parsed.complexity.to_lowercase().as_str() {
             c if c.contains("simple") => Complexity::Simple,
@@ -291,10 +294,7 @@ pub struct EnrichmentQueue {
 
 impl EnrichmentQueue {
     /// 创建 enrichment 队列并启动后台处理.
-    pub fn start(
-        analyzer: Arc<LlmAnalyzer>,
-        batch_size: usize,
-    ) -> Arc<Self> {
+    pub fn start(analyzer: Arc<LlmAnalyzer>, batch_size: usize) -> Arc<Self> {
         let (sender, mut receiver) = tokio::sync::mpsc::channel::<EnrichmentTask>(1024);
         let queue = Arc::new(Self {
             sender,
@@ -360,10 +360,12 @@ impl EnrichmentQueue {
 
     /// 提交 enrichment 任务.
     pub async fn submit(&self, task: EnrichmentTask) -> LsResult<()> {
-        self.total.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        self.sender.send(task).await.map_err(|_| {
-            lingshu_core::LsError::Internal("enrichment queue closed".into())
-        })?;
+        self.total
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.sender
+            .send(task)
+            .await
+            .map_err(|_| lingshu_core::LsError::Internal("enrichment queue closed".into()))?;
         Ok(())
     }
 }
@@ -384,7 +386,9 @@ mod tests {
 
     impl TestLlm {
         fn new() -> Self {
-            Self { prompt_tokens: AtomicU64::new(0) }
+            Self {
+                prompt_tokens: AtomicU64::new(0),
+            }
         }
     }
 
@@ -394,7 +398,11 @@ mod tests {
             self.prompt_tokens.fetch_add(1, Ordering::Relaxed);
 
             // Return a mock JSON response based on the prompt content
-            let response = if request.messages.iter().any(|m| m.content.contains("Analyze this")) {
+            let response = if request
+                .messages
+                .iter()
+                .any(|m| m.content.contains("Analyze this"))
+            {
                 r#"{
                     "summary": "Handles user authentication with JWT tokens",
                     "tags": ["authentication", "security", "jwt"],
@@ -406,7 +414,8 @@ mod tests {
                     "file_summary": "Implements JWT-based authentication including login, token verification, and refresh logic."
                 }"#.to_string()
             } else {
-                r#"{"description": "A test project", "languages": [], "frameworks": []}"#.to_string()
+                r#"{"description": "A test project", "languages": [], "frameworks": []}"#
+                    .to_string()
             };
 
             Ok(LlmResponse {
@@ -436,7 +445,10 @@ mod tests {
 
         async fn usage_stats(&self, _ctx: LsContext) -> LsResult<HashMap<String, u64>> {
             let mut map = HashMap::new();
-            map.insert("prompt_tokens".into(), self.prompt_tokens.load(Ordering::Relaxed));
+            map.insert(
+                "prompt_tokens".into(),
+                self.prompt_tokens.load(Ordering::Relaxed),
+            );
             Ok(map)
         }
     }
@@ -451,7 +463,10 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(result.summary, "Handles user authentication with JWT tokens");
+        assert_eq!(
+            result.summary,
+            "Handles user authentication with JWT tokens"
+        );
         assert!(result.tags.contains(&"authentication".to_string()));
         assert_eq!(result.complexity, Complexity::Moderate);
         assert!(result.summaries.contains_key("login"));
@@ -489,12 +504,17 @@ mod tests {
         // Use batch_size=1 so single task gets processed immediately
         let queue = EnrichmentQueue::start(analyzer, 1);
 
-        queue.submit(EnrichmentTask {
-            file_path: "src/auth.rs".into(),
-            content: "fn login() {}".into(),
-            language: "rust".into(),
-            callback: Some(std::sync::Arc::new(Callback { results: results_clone })),
-        }).await.unwrap();
+        queue
+            .submit(EnrichmentTask {
+                file_path: "src/auth.rs".into(),
+                content: "fn login() {}".into(),
+                language: "rust".into(),
+                callback: Some(std::sync::Arc::new(Callback {
+                    results: results_clone,
+                })),
+            })
+            .await
+            .unwrap();
 
         // Give queue time to process
         tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
@@ -504,6 +524,9 @@ mod tests {
 
         let locked = results.lock().unwrap();
         assert_eq!(locked.len(), 1);
-        assert_eq!(locked[0].summary, "Handles user authentication with JWT tokens");
+        assert_eq!(
+            locked[0].summary,
+            "Handles user authentication with JWT tokens"
+        );
     }
 }

@@ -24,12 +24,12 @@
 //! └──────────────────────────────────────────┘
 //! ```
 
-pub mod types;
 pub mod builder;
 pub mod memory;
 pub mod store;
+pub mod types;
 
-pub use types::*;
 pub use builder::GraphBuilder;
 pub use memory::{GraphMemory, GraphMemoryStore};
 pub use store::GraphStore;
+pub use types::*;

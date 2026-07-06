@@ -19,13 +19,13 @@
 //! ```
 
 pub mod bucket;
-pub mod window;
 pub mod guard;
 mod store;
+pub mod window;
 
 pub use bucket::TokenBucket;
-pub use window::SlidingWindow;
 pub use guard::{RateLimitDecision, RateLimitGuard, RateLimitRule};
+pub use window::SlidingWindow;
 
 use async_trait::async_trait;
 use lingshu_core::LsResult;
@@ -65,7 +65,9 @@ pub struct MultiRateLimiter {
 
 impl MultiRateLimiter {
     pub fn new() -> Self {
-        Self { limiters: Vec::new() }
+        Self {
+            limiters: Vec::new(),
+        }
     }
 
     /// 添加一个命名限流器.

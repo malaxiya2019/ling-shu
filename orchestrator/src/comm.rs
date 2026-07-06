@@ -84,9 +84,7 @@ impl InterAgentComm {
         tx.send(message)
             .await
             .map(|_| DeliveryStatus::Delivered)
-            .map_err(|_| {
-                LsError::Internal("agent inbox channel closed".into())
-            })
+            .map_err(|_| LsError::Internal("agent inbox channel closed".into()))
     }
 
     /// 广播消息给所有注册的智能体.
@@ -164,9 +162,8 @@ impl InterAgentComm {
                 timestamp: chrono::Utc::now(),
                 ttl_seconds: None,
             };
-            tx.send(msg).map_err(|_| {
-                LsError::Internal("response receiver dropped".into())
-            })?;
+            tx.send(msg)
+                .map_err(|_| LsError::Internal("response receiver dropped".into()))?;
             info!(correlation_id = %correlation_id, "response delivered");
             Ok(())
         } else {
@@ -198,8 +195,8 @@ impl Default for InterAgentComm {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
     use serde_json::json;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn test_register_and_send() {
@@ -286,12 +283,7 @@ mod tests {
                 let corr = req.correlation_id.unwrap();
                 // 发送响应
                 comm_clone
-                    .respond(
-                        &corr,
-                        json!({"result": "ok"}),
-                        server_id_clone,
-                        req.source,
-                    )
+                    .respond(&corr, json!({"result": "ok"}), server_id_clone, req.source)
                     .await
                     .unwrap();
             }

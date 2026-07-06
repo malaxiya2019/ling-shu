@@ -89,9 +89,7 @@ impl AgentScheduler {
         };
 
         if candidates.is_empty() {
-            return Err(LsError::QuotaExceeded(
-                "no available agent for task".into(),
-            ));
+            return Err(LsError::QuotaExceeded("no available agent for task".into()));
         }
 
         let strategy = *self.strategy.read().await;
@@ -107,12 +105,9 @@ impl AgentScheduler {
     }
 
     /// 轮询分配.
-    fn round_robin(
-        &self,
-        candidates: Vec<AgentInfo>,
-        task_id: String,
-    ) -> LsResult<TaskAssignment> {
-        let idx = self.round_robin_counter.fetch_add(1, Ordering::Relaxed) as usize % candidates.len();
+    fn round_robin(&self, candidates: Vec<AgentInfo>, task_id: String) -> LsResult<TaskAssignment> {
+        let idx =
+            self.round_robin_counter.fetch_add(1, Ordering::Relaxed) as usize % candidates.len();
         let agent = &candidates[idx];
         Ok(TaskAssignment {
             task_id,
@@ -153,14 +148,15 @@ impl AgentScheduler {
         let (agent, score) = candidates
             .iter()
             .map(|a| {
-                let match_count = a
-                    .capabilities
-                    .iter()
-                    .filter(|c| c.name == required)
-                    .count() as f64;
+                let match_count =
+                    a.capabilities.iter().filter(|c| c.name == required).count() as f64;
                 let total = a.capabilities.len() as f64;
                 // 匹配度 = 拥有该能力的个数 / 总能力数 (通常为 1/1 = 1.0)
-                let score = if total > 0.0 { match_count / total } else { 0.0 };
+                let score = if total > 0.0 {
+                    match_count / total
+                } else {
+                    0.0
+                };
                 (a, score)
             })
             .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
@@ -194,8 +190,8 @@ impl AgentScheduler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
     use crate::registry::make_info;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn test_round_robin() {

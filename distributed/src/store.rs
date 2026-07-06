@@ -43,7 +43,9 @@ struct DataPartition {
 
 impl DataPartition {
     fn new() -> Self {
-        Self { data: HashMap::new() }
+        Self {
+            data: HashMap::new(),
+        }
     }
 
     fn get(&self, key: &str) -> Option<&StoreValue> {
@@ -78,7 +80,10 @@ impl DataPartition {
     }
 
     fn scan_prefix(&self, prefix: &str) -> Vec<&StoreValue> {
-        self.data.values().filter(|v| v.key.starts_with(prefix)).collect()
+        self.data
+            .values()
+            .filter(|v| v.key.starts_with(prefix))
+            .collect()
     }
 }
 
@@ -99,7 +104,9 @@ impl DistributedStore {
     }
 
     fn partition_index(&self, key: &str) -> usize {
-        let hash: u64 = key.bytes().fold(0u64, |acc, b| acc.wrapping_mul(47).wrapping_add(b as u64));
+        let hash: u64 = key
+            .bytes()
+            .fold(0u64, |acc, b| acc.wrapping_mul(47).wrapping_add(b as u64));
         (hash % self.partitions.len() as u64) as usize
     }
 

@@ -117,7 +117,9 @@ impl DistributedCache {
     }
 
     fn shard_index(&self, key: &str) -> usize {
-        let hash: u64 = key.bytes().fold(0u64, |acc, b| acc.wrapping_mul(31).wrapping_add(b as u64));
+        let hash: u64 = key
+            .bytes()
+            .fold(0u64, |acc, b| acc.wrapping_mul(31).wrapping_add(b as u64));
         (hash % self.shards.len() as u64) as usize
     }
 
@@ -130,7 +132,11 @@ impl DistributedCache {
     pub async fn set(&self, key: &str, value: &str, ttl_secs: Option<u64>) {
         let idx = self.shard_index(key);
         let mut shard = self.shards[idx].write().await;
-        shard.set(key.to_string(), value.to_string(), ttl_secs.or(self.config.default_ttl_secs));
+        shard.set(
+            key.to_string(),
+            value.to_string(),
+            ttl_secs.or(self.config.default_ttl_secs),
+        );
     }
 
     pub async fn remove(&self, key: &str) -> bool {
@@ -174,7 +180,10 @@ impl DistributedCache {
     }
 
     pub async fn start_cleanup(&self) {
-        info!("Cache cleanup started (interval: {:?})", self.config.cleanup_interval);
+        info!(
+            "Cache cleanup started (interval: {:?})",
+            self.config.cleanup_interval
+        );
     }
 }
 
@@ -222,14 +231,22 @@ mod tests {
 
     #[tokio::test]
     async fn test_cache_sharding() {
-        let config = CacheConfig { shard_count: 4, ..Default::default() };
+        let config = CacheConfig {
+            shard_count: 4,
+            ..Default::default()
+        };
         let cache = DistributedCache::new(config);
         for i in 0..100 {
-            cache.set(&format!("key{}", i), &format!("val{}", i), None).await;
+            cache
+                .set(&format!("key{}", i), &format!("val{}", i), None)
+                .await;
         }
         assert_eq!(cache.len().await, 100);
         for i in 0..100 {
-            assert_eq!(cache.get(&format!("key{}", i)).await, Some(format!("val{}", i)));
+            assert_eq!(
+                cache.get(&format!("key{}", i)).await,
+                Some(format!("val{}", i))
+            );
         }
     }
 

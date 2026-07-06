@@ -39,10 +39,7 @@ pub struct EventBridge {
 }
 
 impl EventBridge {
-    pub fn new(
-        ws_manager: Arc<ConnectionManager>,
-        sse_broadcaster: Arc<SseBroadcaster>,
-    ) -> Self {
+    pub fn new(ws_manager: Arc<ConnectionManager>, sse_broadcaster: Arc<SseBroadcaster>) -> Self {
         Self {
             ws_manager,
             sse_broadcaster,
@@ -88,59 +85,77 @@ impl EventBridge {
 
 /// Predefined SSE event types
 pub mod events {
-    use serde_json::json;
     use crate::types::SseEvent;
+    use serde_json::json;
 
     /// Agent state change notification
     pub fn agent_state_change(agent_id: &str, state: &str) -> SseEvent {
-        SseEvent::new("agent.state_change", json!({
-            "agent_id": agent_id,
-            "state": state,
-        }))
+        SseEvent::new(
+            "agent.state_change",
+            json!({
+                "agent_id": agent_id,
+                "state": state,
+            }),
+        )
     }
 
     /// Workflow progress update
     pub fn workflow_progress(workflow_id: &str, step: &str, progress: f64) -> SseEvent {
-        SseEvent::new("workflow.progress", json!({
-            "workflow_id": workflow_id,
-            "step": step,
-            "progress": progress,
-        }))
+        SseEvent::new(
+            "workflow.progress",
+            json!({
+                "workflow_id": workflow_id,
+                "step": step,
+                "progress": progress,
+            }),
+        )
     }
 
     /// Token usage report
     pub fn token_usage(session_id: &str, prompt_tokens: u64, completion_tokens: u64) -> SseEvent {
-        SseEvent::new("token.usage", json!({
-            "session_id": session_id,
-            "prompt_tokens": prompt_tokens,
-            "completion_tokens": completion_tokens,
-            "total_tokens": prompt_tokens + completion_tokens,
-        }))
+        SseEvent::new(
+            "token.usage",
+            json!({
+                "session_id": session_id,
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": prompt_tokens + completion_tokens,
+            }),
+        )
     }
 
     /// System status notification
     pub fn system_status(level: &str, message: &str) -> SseEvent {
-        SseEvent::new("system.status", json!({
-            "level": level,
-            "message": message,
-        }))
+        SseEvent::new(
+            "system.status",
+            json!({
+                "level": level,
+                "message": message,
+            }),
+        )
     }
 
     /// Log entry (for real-time log streaming)
     pub fn log_entry(target: &str, level: &str, message: &str) -> SseEvent {
-        SseEvent::new("log.entry", json!({
-            "target": target,
-            "level": level,
-            "message": message,
-        }))
+        SseEvent::new(
+            "log.entry",
+            json!({
+                "target": target,
+                "level": level,
+                "message": message,
+            }),
+        )
     }
 
     /// Knowledge graph update notification
     pub fn graph_updated(project: &str, node_count: usize, edge_count: usize) -> SseEvent {
-        SseEvent::new("graph.updated", json!({
-            "project": project,
-            "node_count": node_count,
-            "edge_count": edge_count,
-        }))
+        SseEvent::new(
+            "graph.updated",
+            json!({
+                "project": project,
+                "node_count": node_count,
+                "edge_count": edge_count,
+            }),
+        )
     }
 }

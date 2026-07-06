@@ -16,8 +16,7 @@ use std::sync::Arc;
 
 use lingshu_code_analyzer::{
     AnalysisResult, ChangeCollector, EnrichmentQueue, EnrichmentTask, FileChangeEvent,
-    FileChangeKind, FileEntry, FileScanner, GraphGenerator, LlmAnalyzer,
-    ProjectSummary,
+    FileChangeKind, FileEntry, FileScanner, GraphGenerator, LlmAnalyzer, ProjectSummary,
 };
 use lingshu_core::LsResult;
 use lingshu_knowledge_graph::{Complexity, KnowledgeGraph};
@@ -228,42 +227,42 @@ impl CodeUnderstandingPipeline {
         );
 
         // 5. 可选：提交 LLM enrichment
-        let (enrichment_queue, enrichment_submitted, enrichment_files) =
-            if self.config.enable_semantic_analysis {
-                if let Some(ref analyzer) = self.llm_analyzer {
-                    let batch_size = if self.config.enrichment_batch_size > 0 {
-                        self.config.enrichment_batch_size
-                    } else {
-                        analyzer.batch_size()
-                    };
-
-                    let queue = EnrichmentQueue::start(analyzer.clone(), batch_size);
-                    let file_count = file_entries.len();
-
-                    info!("Submitting {file_count} files for LLM enrichment");
-
-                    for entry in &file_entries {
-                        let content = std::fs::read_to_string(&entry.path).unwrap_or_default();
-                        let task = EnrichmentTask {
-                            file_path: entry.path.clone(),
-                            content,
-                            language: entry.language.clone(),
-                            callback: None,
-                        };
-                        queue.submit(task).await.map_err(|e| {
-                            lingshu_core::LsError::Internal(format!(
-                                "Failed to submit enrichment: {e}"
-                            ))
-                        })?;
-                    }
-
-                    (Some(queue), true, file_count)
+        let (enrichment_queue, enrichment_submitted, enrichment_files) = if self
+            .config
+            .enable_semantic_analysis
+        {
+            if let Some(ref analyzer) = self.llm_analyzer {
+                let batch_size = if self.config.enrichment_batch_size > 0 {
+                    self.config.enrichment_batch_size
                 } else {
-                    (None, false, 0)
+                    analyzer.batch_size()
+                };
+
+                let queue = EnrichmentQueue::start(analyzer.clone(), batch_size);
+                let file_count = file_entries.len();
+
+                info!("Submitting {file_count} files for LLM enrichment");
+
+                for entry in &file_entries {
+                    let content = std::fs::read_to_string(&entry.path).unwrap_or_default();
+                    let task = EnrichmentTask {
+                        file_path: entry.path.clone(),
+                        content,
+                        language: entry.language.clone(),
+                        callback: None,
+                    };
+                    queue.submit(task).await.map_err(|e| {
+                        lingshu_core::LsError::Internal(format!("Failed to submit enrichment: {e}"))
+                    })?;
                 }
+
+                (Some(queue), true, file_count)
             } else {
                 (None, false, 0)
-            };
+            }
+        } else {
+            (None, false, 0)
+        };
 
         // 6. 可选：启动增量文件监听
         let watch_active = if self.config.enable_watch {
@@ -298,25 +297,25 @@ impl CodeUnderstandingPipeline {
     /// 启动增量文件监听（基于 project_root）.
     async fn start_watch(&self) -> LsResult<()> {
         let project_root = &self.config.project_root;
-        let collector = self.change_collector
+        let collector = self
+            .change_collector
             .clone()
             .unwrap_or_else(|| Arc::new(ChangeCollector::new()));
 
         // 尝试使用原生通知，回退到轮询模式
         let observer: Box<dyn lingshu_code_analyzer::FileObserver> =
             match lingshu_code_analyzer::NotifyFileObserver::new() {
-                Ok(notify_obs) => {
-                    Box::new(notify_obs)
-                }
+                Ok(notify_obs) => Box::new(notify_obs),
                 Err(_) => {
                     tracing::warn!("native watcher unavailable, falling back to polling");
                     Box::new(lingshu_code_analyzer::PollingFileObserver::new())
                 }
             };
 
-        let cb: lingshu_code_analyzer::FileChangeCallback = Arc::new(move |event: FileChangeEvent| {
-            collector.record(event);
-        });
+        let cb: lingshu_code_analyzer::FileChangeCallback =
+            Arc::new(move |event: FileChangeEvent| {
+                collector.record(event);
+            });
         observer.watch(project_root, cb).await?;
         info!(path = %project_root, "file watcher started");
         Ok(())

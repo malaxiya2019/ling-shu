@@ -66,7 +66,8 @@ impl RateLimiter for TokenBucket {
             inner.tokens -= 1.0;
         }
 
-        let reset_at = (inner.last_refill + (inner.capacity - inner.tokens) / inner.fill_rate) as u64;
+        let reset_at =
+            (inner.last_refill + (inner.capacity - inner.tokens) / inner.fill_rate) as u64;
 
         Ok(RateLimitResult {
             allowed,
@@ -82,7 +83,8 @@ impl RateLimiter for TokenBucket {
         Ok(RateLimitResult {
             allowed: tokens >= 1.0,
             remaining: tokens.floor() as u64,
-            reset_at: (Utc::now().timestamp() as f64 + (1.0 - tokens) / self.inner.read().await.fill_rate) as u64,
+            reset_at: (Utc::now().timestamp() as f64
+                + (1.0 - tokens) / self.inner.read().await.fill_rate) as u64,
             limit: self.inner.read().await.capacity as u64,
         })
     }

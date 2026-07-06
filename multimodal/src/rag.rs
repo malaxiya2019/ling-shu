@@ -132,9 +132,10 @@ impl MultimodalRetriever for MultimodalRag {
             .filter(|doc| {
                 doc.text.to_lowercase().contains(&query_lower)
                     || doc.title.to_lowercase().contains(&query_lower)
-                    || doc.metadata.values().any(|v| {
-                        v.to_lowercase().contains(&query_lower)
-                    })
+                    || doc
+                        .metadata
+                        .values()
+                        .any(|v| v.to_lowercase().contains(&query_lower))
             })
             .cloned()
             .collect();
@@ -175,10 +176,19 @@ mod tests {
 
     #[test]
     fn test_build_multimodal_content() {
-        let parts = MultimodalRag::build_multimodal_content("Hello", &["http://example.com/img.png".into()]);
+        let parts = MultimodalRag::build_multimodal_content(
+            "Hello",
+            &["http://example.com/img.png".into()],
+        );
         assert_eq!(parts.len(), 2);
-        assert!(matches!(parts[0], lingshu_traits::llm::ContentPart::Text { .. }));
-        assert!(matches!(parts[1], lingshu_traits::llm::ContentPart::ImageUrl { .. }));
+        assert!(matches!(
+            parts[0],
+            lingshu_traits::llm::ContentPart::Text { .. }
+        ));
+        assert!(matches!(
+            parts[1],
+            lingshu_traits::llm::ContentPart::ImageUrl { .. }
+        ));
     }
 
     #[test]
@@ -191,9 +201,15 @@ mod tests {
     fn test_file_to_message_content_image() {
         use base64::Engine;
         let data = base64::engine::general_purpose::STANDARD.encode(b"fake image data");
-        let parts = MultimodalRag::file_to_message_content("What's in this image?", data.as_bytes(), "image/png");
+        let parts = MultimodalRag::file_to_message_content(
+            "What's in this image?",
+            data.as_bytes(),
+            "image/png",
+        );
         assert_eq!(parts.len(), 2);
-        assert!(parts.iter().any(|p| matches!(p, lingshu_traits::llm::ContentPart::ImageUrl { .. })));
+        assert!(parts
+            .iter()
+            .any(|p| matches!(p, lingshu_traits::llm::ContentPart::ImageUrl { .. })));
     }
 
     #[tokio::test]

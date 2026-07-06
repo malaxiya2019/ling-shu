@@ -123,7 +123,10 @@ mod tests {
         guard.check("alice").await.unwrap();
         guard.check("alice").await.unwrap();
         let decision = guard.check("alice").await.unwrap();
-        assert!(matches!(decision, RateLimitDecision::Denied { remaining: 0, .. }));
+        assert!(matches!(
+            decision,
+            RateLimitDecision::Denied { remaining: 0, .. }
+        ));
     }
 
     #[tokio::test]

@@ -12,9 +12,7 @@
 
 use async_trait::async_trait;
 use lingshu_core::{LsContext, LsError, LsId, LsResult};
-use lingshu_traits::agent::{
-    Agent, AgentOutput, AgentSnapshot, AgentStatus,
-};
+use lingshu_traits::agent::{Agent, AgentOutput, AgentSnapshot, AgentStatus};
 use lingshu_traits::llm::{Llm, LlmMessage, LlmRequest, LlmRole};
 use lingshu_traits::memory::{Memory, MemoryItem};
 
@@ -304,10 +302,8 @@ impl Agent for DefaultAgent {
                             Ok(v) => v,
                             Err(e) => {
                                 let error_msg = format!("Failed to parse arguments: {e}");
-                                let tool_msg = Self::tool_result_to_message(
-                                    tool_call.id.clone(),
-                                    error_msg,
-                                );
+                                let tool_msg =
+                                    Self::tool_result_to_message(tool_call.id.clone(), error_msg);
                                 let mut state = self.state.lock().await;
                                 state.messages.push(tool_msg);
                                 continue;
@@ -317,9 +313,7 @@ impl Agent for DefaultAgent {
                         // Execute tool
                         let result = {
                             let registry = self.tools.read().await;
-                            registry
-                                .execute(&ctx, &tool_call.function.name, args)
-                                .await
+                            registry.execute(&ctx, &tool_call.function.name, args).await
                         };
 
                         let result_content = match result {
@@ -449,10 +443,7 @@ mod tests {
         let mut agent = make_agent();
         let ctx = LsContext::with_session(LsId::new());
 
-        assert_eq!(
-            agent.status(ctx.child()).await.unwrap(),
-            AgentStatus::Idle
-        );
+        assert_eq!(agent.status(ctx.child()).await.unwrap(), AgentStatus::Idle);
 
         agent.pause(ctx.child()).await.unwrap();
         assert_eq!(
@@ -482,9 +473,6 @@ mod tests {
         assert_eq!(snap.agent_id, agent.id());
 
         agent.restore(ctx.child(), snap).await.unwrap();
-        assert_eq!(
-            agent.status(ctx.child()).await.unwrap(),
-            AgentStatus::Idle
-        );
+        assert_eq!(agent.status(ctx.child()).await.unwrap(), AgentStatus::Idle);
     }
 }

@@ -79,9 +79,7 @@ impl AgentRegistry {
         {
             let mut idx = self.capability_index.write().await;
             for cap in &info.capabilities {
-                idx.entry(cap.name.clone())
-                    .or_default()
-                    .insert(agent_id);
+                idx.entry(cap.name.clone()).or_default().insert(agent_id);
             }
         }
 
@@ -164,11 +162,7 @@ impl AgentRegistry {
     }
 
     /// 更新智能体状态.
-    pub async fn update_status(
-        &self,
-        agent_id: &LsId,
-        status: AgentStatus,
-    ) -> LsResult<()> {
+    pub async fn update_status(&self, agent_id: &LsId, status: AgentStatus) -> LsResult<()> {
         let mut agents = self.agents.write().await;
         let entry = agents
             .get_mut(agent_id)
@@ -179,7 +173,11 @@ impl AgentRegistry {
     }
 
     /// 更新智能体标签.
-    pub async fn update_tags(&self, agent_id: &LsId, tags: HashMap<String, String>) -> LsResult<()> {
+    pub async fn update_tags(
+        &self,
+        agent_id: &LsId,
+        tags: HashMap<String, String>,
+    ) -> LsResult<()> {
         let mut agents = self.agents.write().await;
         let entry = agents
             .get_mut(agent_id)
@@ -249,7 +247,6 @@ pub fn make_info(id: LsId, name: &str, capabilities: Vec<&str>) -> AgentInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
     #[tokio::test]
     async fn test_register_and_get() {

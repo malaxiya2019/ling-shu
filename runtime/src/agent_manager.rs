@@ -58,9 +58,9 @@ impl AgentManager {
     /// 暂停 Agent.
     pub async fn pause(&self, agent_id: &LsId, ctx: &LsContext) -> LsResult<()> {
         let mut agents = self.agents.write().await;
-        let entry = agents.get_mut(agent_id).ok_or_else(|| {
-            lingshu_core::LsError::NotFound(format!("agent {agent_id}"))
-        })?;
+        let entry = agents
+            .get_mut(agent_id)
+            .ok_or_else(|| lingshu_core::LsError::NotFound(format!("agent {agent_id}")))?;
         entry.agent.pause(ctx.clone()).await?;
         entry.status = entry.agent.status(ctx.clone()).await?;
         info!(agent_id = %agent_id, status = ?entry.status, "agent paused");
@@ -70,9 +70,9 @@ impl AgentManager {
     /// 恢复 Agent.
     pub async fn resume(&self, agent_id: &LsId, ctx: &LsContext) -> LsResult<()> {
         let mut agents = self.agents.write().await;
-        let entry = agents.get_mut(agent_id).ok_or_else(|| {
-            lingshu_core::LsError::NotFound(format!("agent {agent_id}"))
-        })?;
+        let entry = agents
+            .get_mut(agent_id)
+            .ok_or_else(|| lingshu_core::LsError::NotFound(format!("agent {agent_id}")))?;
         entry.agent.resume(ctx.clone()).await?;
         entry.status = entry.agent.status(ctx.clone()).await?;
         info!(agent_id = %agent_id, status = ?entry.status, "agent resumed");
@@ -82,9 +82,9 @@ impl AgentManager {
     /// 取消 Agent.
     pub async fn cancel(&self, agent_id: &LsId, ctx: &LsContext) -> LsResult<()> {
         let mut agents = self.agents.write().await;
-        let entry = agents.get_mut(agent_id).ok_or_else(|| {
-            lingshu_core::LsError::NotFound(format!("agent {agent_id}"))
-        })?;
+        let entry = agents
+            .get_mut(agent_id)
+            .ok_or_else(|| lingshu_core::LsError::NotFound(format!("agent {agent_id}")))?;
         entry.agent.cancel(ctx.clone()).await?;
         entry.status = entry.agent.status(ctx.clone()).await?;
         info!(agent_id = %agent_id, status = ?entry.status, "agent cancelled");
@@ -94,9 +94,9 @@ impl AgentManager {
     /// 获取快照.
     pub async fn snapshot(&self, agent_id: &LsId, ctx: &LsContext) -> LsResult<AgentSnapshot> {
         let agents = self.agents.read().await;
-        let entry = agents.get(agent_id).ok_or_else(|| {
-            lingshu_core::LsError::NotFound(format!("agent {agent_id}"))
-        })?;
+        let entry = agents
+            .get(agent_id)
+            .ok_or_else(|| lingshu_core::LsError::NotFound(format!("agent {agent_id}")))?;
         entry.agent.snapshot(ctx.clone()).await
     }
 
@@ -108,9 +108,9 @@ impl AgentManager {
         snapshot: AgentSnapshot,
     ) -> LsResult<()> {
         let mut agents = self.agents.write().await;
-        let entry = agents.get_mut(agent_id).ok_or_else(|| {
-            lingshu_core::LsError::NotFound(format!("agent {agent_id}"))
-        })?;
+        let entry = agents
+            .get_mut(agent_id)
+            .ok_or_else(|| lingshu_core::LsError::NotFound(format!("agent {agent_id}")))?;
         entry.agent.restore(ctx.clone(), snapshot).await?;
         entry.status = entry.agent.status(ctx.clone()).await?;
         info!(agent_id = %agent_id, status = ?entry.status, "agent restored");
@@ -134,9 +134,9 @@ impl AgentManager {
     /// 移除 Agent.
     pub async fn remove(&self, agent_id: &LsId) -> LsResult<()> {
         let mut agents = self.agents.write().await;
-        agents.remove(agent_id).ok_or_else(|| {
-            lingshu_core::LsError::NotFound(format!("agent {agent_id}"))
-        })?;
+        agents
+            .remove(agent_id)
+            .ok_or_else(|| lingshu_core::LsError::NotFound(format!("agent {agent_id}")))?;
         info!(agent_id = %agent_id, "agent removed");
         Ok(())
     }
@@ -208,12 +208,12 @@ mod tests {
 
         async fn snapshot(&self, _ctx: LsContext) -> LsResult<AgentSnapshot> {
             Ok(AgentSnapshot {
-                    agent_id: self.id,
-                    status: self.status.clone(),
-                    context: LsContext::with_session(LsId::new()),
-                    state: Vec::new(),
-                    created_at: chrono::Utc::now(),
-                })
+                agent_id: self.id,
+                status: self.status.clone(),
+                context: LsContext::with_session(LsId::new()),
+                state: Vec::new(),
+                created_at: chrono::Utc::now(),
+            })
         }
 
         async fn restore(&mut self, _ctx: LsContext, _snap: AgentSnapshot) -> LsResult<()> {
@@ -231,10 +231,15 @@ mod tests {
         assert_eq!(mgr.count().await, 0);
 
         let id = LsId::new();
-        mgr.register(id, "test".into(), Box::new(TestAgent {
+        mgr.register(
             id,
-            status: AgentStatus::Idle,
-        })).await;
+            "test".into(),
+            Box::new(TestAgent {
+                id,
+                status: AgentStatus::Idle,
+            }),
+        )
+        .await;
 
         assert_eq!(mgr.count().await, 1);
         let list = mgr.list().await;
@@ -246,10 +251,15 @@ mod tests {
     async fn test_pause_resume() {
         let mgr = AgentManager::new();
         let id = LsId::new();
-        mgr.register(id, "test".into(), Box::new(TestAgent {
+        mgr.register(
             id,
-            status: AgentStatus::Running,
-        })).await;
+            "test".into(),
+            Box::new(TestAgent {
+                id,
+                status: AgentStatus::Running,
+            }),
+        )
+        .await;
 
         let ctx = LsContext::with_session(LsId::new());
         mgr.pause(&id, &ctx).await.unwrap();
@@ -265,10 +275,15 @@ mod tests {
     async fn test_remove() {
         let mgr = AgentManager::new();
         let id = LsId::new();
-        mgr.register(id, "test".into(), Box::new(TestAgent {
+        mgr.register(
             id,
-            status: AgentStatus::Idle,
-        })).await;
+            "test".into(),
+            Box::new(TestAgent {
+                id,
+                status: AgentStatus::Idle,
+            }),
+        )
+        .await;
 
         mgr.remove(&id).await.unwrap();
         assert_eq!(mgr.count().await, 0);

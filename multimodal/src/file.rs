@@ -178,9 +178,7 @@ fn extract_text_preview(data: &[u8]) -> Option<String> {
     let preview_len = data.len().min(max_preview);
     let preview = &data[..preview_len];
 
-    std::str::from_utf8(preview)
-        .ok()
-        .map(|s| s.to_string())
+    std::str::from_utf8(preview).ok().map(|s| s.to_string())
 }
 
 #[cfg(test)]

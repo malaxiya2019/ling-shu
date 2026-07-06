@@ -13,10 +13,7 @@ pub enum ServerMessage {
         protocol_version: String,
     },
     /// LLM response chunk (streaming)
-    Chunk {
-        content: String,
-        index: u32,
-    },
+    Chunk { content: String, index: u32 },
     /// Tool call from LLM
     ToolCall {
         id: String,
@@ -24,10 +21,7 @@ pub enum ServerMessage {
         arguments: Value,
     },
     /// Tool execution result
-    ToolResult {
-        id: String,
-        content: String,
-    },
+    ToolResult { id: String, content: String },
     /// Stream complete
     Done {
         full_content: String,
@@ -35,19 +29,11 @@ pub enum ServerMessage {
         usage: UsageInfo,
     },
     /// Server event (non-chat)
-    Event {
-        event: String,
-        data: Value,
-    },
+    Event { event: String, data: Value },
     /// Heartbeat (ping)
-    Ping {
-        timestamp: i64,
-    },
+    Ping { timestamp: i64 },
     /// Error message
-    Error {
-        message: String,
-        code: String,
-    },
+    Error { message: String, code: String },
 }
 
 /// Messages sent from client to server
@@ -63,18 +49,11 @@ pub enum ClientMessage {
     /// Cancel current stream
     Cancel,
     /// Tool result response
-    ToolResult {
-        id: String,
-        content: String,
-    },
+    ToolResult { id: String, content: String },
     /// Heartbeat (pong)
-    Pong {
-        timestamp: i64,
-    },
+    Pong { timestamp: i64 },
     /// Close connection
-    Close {
-        reason: Option<String>,
-    },
+    Close { reason: Option<String> },
 }
 
 /// Usage statistics

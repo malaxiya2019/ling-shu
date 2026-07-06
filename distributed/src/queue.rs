@@ -58,12 +58,12 @@ impl DistributedQueue {
 
     pub async fn publish(&self, topic: &str, payload: &str) -> QueueMessage {
         let mut parts = self.partitions.write().await;
-        let partition = parts.entry(topic.to_string()).or_insert_with(|| {
-            TopicPartition {
+        let partition = parts
+            .entry(topic.to_string())
+            .or_insert_with(|| TopicPartition {
                 messages: VecDeque::new(),
                 unacked: HashMap::new(),
-            }
-        });
+            });
 
         let msg = QueueMessage {
             id: uuid::Uuid::new_v4().to_string(),
@@ -83,11 +83,7 @@ impl DistributedQueue {
         msg
     }
 
-    pub async fn consume(
-        &self,
-        topic: &str,
-        batch_size: Option<usize>,
-    ) -> Vec<QueueMessage> {
+    pub async fn consume(&self, topic: &str, batch_size: Option<usize>) -> Vec<QueueMessage> {
         let batch = batch_size.unwrap_or(self.config.batch_size);
         let mut parts = self.partitions.write().await;
         let partition = match parts.get_mut(topic) {
@@ -116,7 +112,11 @@ impl DistributedQueue {
             batch_msgs.push(msg);
         }
 
-        debug!("Consumed {} messages from topic {}", batch_msgs.len(), topic);
+        debug!(
+            "Consumed {} messages from topic {}",
+            batch_msgs.len(),
+            topic
+        );
         batch_msgs
     }
 
@@ -139,7 +139,10 @@ impl DistributedQueue {
     }
 
     pub async fn start_reaper(&self) {
-        info!("Queue reaper started (interval: {:?})", self.config.poll_interval);
+        info!(
+            "Queue reaper started (interval: {:?})",
+            self.config.poll_interval
+        );
     }
 }
 

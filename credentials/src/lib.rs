@@ -14,10 +14,10 @@
 //! └─────────────────────────────────────────┘
 //! ```
 
-pub mod types;
 pub mod encrypted_store;
 pub mod manager;
+pub mod types;
 
-pub use types::*;
 pub use encrypted_store::CredentialStore;
 pub use manager::CredentialManager;
+pub use types::*;

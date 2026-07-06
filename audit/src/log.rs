@@ -244,9 +244,7 @@ mod tests {
         );
         log.append(entry).await.unwrap();
 
-        let q = AuditQueryBuilder::new()
-            .with_actor("alice")
-            .build();
+        let q = AuditQueryBuilder::new().with_actor("alice").build();
         let results = log.query(&q).await.unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].actor, "alice");

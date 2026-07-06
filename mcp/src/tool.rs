@@ -129,10 +129,7 @@ pub async fn execute_tool_to_mcp_with_progress(
 
 /// 列出所有工具（MCP 格式）
 pub fn list_tools(tools: &[Arc<dyn Tool>]) -> Vec<McpTool> {
-    tools
-        .iter()
-        .map(|t| tool_info_to_mcp(&t.info()))
-        .collect()
+    tools.iter().map(|t| tool_info_to_mcp(&t.info())).collect()
 }
 
 #[cfg(test)]
@@ -194,8 +191,7 @@ mod tests {
 
         let progress = ProgressContext::new("test-token".into(), callback);
 
-        let result =
-            execute_tool_to_mcp_with_progress(&tool, ctx, args, Some(progress)).await;
+        let result = execute_tool_to_mcp_with_progress(&tool, ctx, args, Some(progress)).await;
 
         assert!(!result.is_error);
 

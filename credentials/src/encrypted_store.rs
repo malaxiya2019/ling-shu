@@ -39,8 +39,9 @@ impl CredentialStore {
                 expires_at INTEGER,
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL
-            );"
-        ).map_err(|e| lingshu_core::LsError::Internal(format!("init credentials table: {e}")))?;
+            );",
+        )
+        .map_err(|e| lingshu_core::LsError::Internal(format!("init credentials table: {e}")))?;
 
         // Derive AES-256 key from master key
         let key = Sha256::digest(master_key.as_bytes());
@@ -58,7 +59,8 @@ impl CredentialStore {
         let mut nonce_bytes = [0u8; 12];
         OsRng.fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from_slice(&nonce_bytes);
-        let ciphertext = self.cipher
+        let ciphertext = self
+            .cipher
             .encrypt(nonce, plaintext.as_bytes())
             .map_err(|e| lingshu_core::LsError::Internal(format!("encrypt: {e}")))?;
         Ok((
@@ -69,16 +71,15 @@ impl CredentialStore {
 
     /// 解密 token.
     fn decrypt(&self, encrypted_token: &str, nonce_b64: &str) -> LsResult<String> {
-        let ciphertext = base64::Engine::decode(
-            &base64::engine::general_purpose::STANDARD,
-            encrypted_token,
-        ).map_err(|e| lingshu_core::LsError::Internal(format!("decode ciphertext: {e}")))?;
-        let nonce_bytes = base64::Engine::decode(
-            &base64::engine::general_purpose::STANDARD,
-            nonce_b64,
-        ).map_err(|e| lingshu_core::LsError::Internal(format!("decode nonce: {e}")))?;
+        let ciphertext =
+            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, encrypted_token)
+                .map_err(|e| lingshu_core::LsError::Internal(format!("decode ciphertext: {e}")))?;
+        let nonce_bytes =
+            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, nonce_b64)
+                .map_err(|e| lingshu_core::LsError::Internal(format!("decode nonce: {e}")))?;
         let nonce = Nonce::from_slice(&nonce_bytes);
-        let plaintext = self.cipher
+        let plaintext = self
+            .cipher
             .decrypt(nonce, ciphertext.as_ref())
             .map_err(|e| lingshu_core::LsError::Internal(format!("decrypt: {e}")))?;
         String::from_utf8(plaintext)
@@ -88,8 +89,7 @@ impl CredentialStore {
     /// 插入凭证.
     pub fn insert(&self, entry: &CredentialEntry) -> LsResult<()> {
         let (enc_token, nonce) = self.encrypt(&entry.token)?;
-        let scopes = serde_json::to_string(&entry.scopes)
-            .unwrap_or_else(|_| "[]".into());
+        let scopes = serde_json::to_string(&entry.scopes).unwrap_or_else(|_| "[]".into());
 
         let conn = self.conn.lock().unwrap();
         conn.execute(
@@ -123,32 +123,65 @@ impl CredentialStore {
              FROM credentials WHERE id = ?1"
         ).map_err(|e| lingshu_core::LsError::Internal(format!("prepare get: {e}")))?;
 
-        let mut rows = stmt.query(rusqlite::params![id])
+        let mut rows = stmt
+            .query(rusqlite::params![id])
             .map_err(|e| lingshu_core::LsError::Internal(format!("query get: {e}")))?;
 
-        if let Some(row) = rows.next().map_err(|e| lingshu_core::LsError::Internal(e.to_string()))? {
-            let enc_token: String = row.get(5).map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?;
-            let nonce: String = row.get(6).map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?;
+        if let Some(row) = rows
+            .next()
+            .map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?
+        {
+            let enc_token: String = row
+                .get(5)
+                .map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?;
+            let nonce: String = row
+                .get(6)
+                .map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?;
             let token = self.decrypt(&enc_token, &nonce)?;
-            let provider_str: String = row.get(1).map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?;
-            let ct_str: String = row.get(2).map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?;
-            let scopes_str: String = row.get(9).map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?;
+            let provider_str: String = row
+                .get(1)
+                .map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?;
+            let ct_str: String = row
+                .get(2)
+                .map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?;
+            let scopes_str: String = row
+                .get(9)
+                .map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?;
             let scopes: Vec<String> = serde_json::from_str(&scopes_str).unwrap_or_default();
 
             Ok(Some(CredentialEntry {
-                id: row.get(0).map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?,
+                id: row
+                    .get(0)
+                    .map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?,
                 provider: GitProvider::from_str(&provider_str).unwrap_or(GitProvider::Gitee),
-                credential_type: CredentialType::from_str(&ct_str).unwrap_or(CredentialType::PersonalAccessToken),
-                name: row.get(3).map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?,
-                description: row.get(4).map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?,
+                credential_type: CredentialType::from_str(&ct_str)
+                    .unwrap_or(CredentialType::PersonalAccessToken),
+                name: row
+                    .get(3)
+                    .map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?,
+                description: row
+                    .get(4)
+                    .map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?,
                 token,
-                username: row.get(7).map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?,
-                base_url: row.get(8).map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?,
+                username: row
+                    .get(7)
+                    .map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?,
+                base_url: row
+                    .get(8)
+                    .map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?,
                 scopes,
-                permissions_group: row.get(10).map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?,
-                expires_at: row.get(11).map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?,
-                created_at: row.get(12).map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?,
-                updated_at: row.get(13).map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?,
+                permissions_group: row
+                    .get(10)
+                    .map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?,
+                expires_at: row
+                    .get(11)
+                    .map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?,
+                created_at: row
+                    .get(12)
+                    .map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?,
+                updated_at: row
+                    .get(13)
+                    .map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?,
             }))
         } else {
             Ok(None)
@@ -163,31 +196,37 @@ impl CredentialStore {
              FROM credentials ORDER BY created_at DESC"
         ).map_err(|e| lingshu_core::LsError::Internal(format!("prepare list: {e}")))?;
 
-        let rows = stmt.query_map([], |row| {
-            let enc_token: String = row.get(5)?;
-            let masked = if enc_token.len() > 8 {
-                format!("{}...{}", &enc_token[..4], &enc_token[enc_token.len()-4..])
-            } else {
-                "***".into()
-            };
-            let scopes_str: String = row.get(8)?;
-            let scopes: Vec<String> = serde_json::from_str(&scopes_str).unwrap_or_default();
-            Ok(CredentialSummary {
-                id: row.get(0)?,
-                provider: row.get(1)?,
-                credential_type: row.get(2)?,
-                name: row.get(3)?,
-                description: row.get(4)?,
-                masked_token: masked,
-                username: row.get(6)?,
-                base_url: row.get(7)?,
-                scopes,
-                permissions_group: row.get(9)?,
-                expires_at: row.get(10)?,
-                created_at: row.get(11)?,
-                updated_at: row.get(12)?,
+        let rows = stmt
+            .query_map([], |row| {
+                let enc_token: String = row.get(5)?;
+                let masked = if enc_token.len() > 8 {
+                    format!(
+                        "{}...{}",
+                        &enc_token[..4],
+                        &enc_token[enc_token.len() - 4..]
+                    )
+                } else {
+                    "***".into()
+                };
+                let scopes_str: String = row.get(8)?;
+                let scopes: Vec<String> = serde_json::from_str(&scopes_str).unwrap_or_default();
+                Ok(CredentialSummary {
+                    id: row.get(0)?,
+                    provider: row.get(1)?,
+                    credential_type: row.get(2)?,
+                    name: row.get(3)?,
+                    description: row.get(4)?,
+                    masked_token: masked,
+                    username: row.get(6)?,
+                    base_url: row.get(7)?,
+                    scopes,
+                    permissions_group: row.get(9)?,
+                    expires_at: row.get(10)?,
+                    created_at: row.get(11)?,
+                    updated_at: row.get(12)?,
+                })
             })
-        }).map_err(|e| lingshu_core::LsError::Internal(format!("query list: {e}")))?;
+            .map_err(|e| lingshu_core::LsError::Internal(format!("query list: {e}")))?;
 
         let mut results = Vec::new();
         for row in rows {
@@ -206,9 +245,13 @@ impl CredentialStore {
 
         let new_token = req.token.as_deref().unwrap_or(&entry.token);
         let (enc_token, nonce) = self.encrypt(new_token)?;
-        let scopes = req.scopes.as_ref()
+        let scopes = req
+            .scopes
+            .as_ref()
             .map(|s| serde_json::to_string(s).unwrap_or_else(|_| "[]".into()))
-            .unwrap_or_else(|| serde_json::to_string(&entry.scopes).unwrap_or_else(|_| "[]".into()));
+            .unwrap_or_else(|| {
+                serde_json::to_string(&entry.scopes).unwrap_or_else(|_| "[]".into())
+            });
         let now = chrono::Utc::now().timestamp();
 
         let conn = self.conn.lock().unwrap();
@@ -234,10 +277,12 @@ impl CredentialStore {
     /// 删除凭证.
     pub fn delete(&self, id: &str) -> LsResult<bool> {
         let conn = self.conn.lock().unwrap();
-        let affected = conn.execute(
-            "DELETE FROM credentials WHERE id = ?1",
-            rusqlite::params![id],
-        ).map_err(|e| lingshu_core::LsError::Internal(format!("delete credential: {e}")))?;
+        let affected = conn
+            .execute(
+                "DELETE FROM credentials WHERE id = ?1",
+                rusqlite::params![id],
+            )
+            .map_err(|e| lingshu_core::LsError::Internal(format!("delete credential: {e}")))?;
         Ok(affected > 0)
     }
 
@@ -249,31 +294,37 @@ impl CredentialStore {
              FROM credentials WHERE provider = ?1 ORDER BY created_at DESC"
         ).map_err(|e| lingshu_core::LsError::Internal(format!("prepare list_by_provider: {e}")))?;
 
-        let rows = stmt.query_map(rusqlite::params![provider], |row| {
-            let enc_token: String = row.get(5)?;
-            let masked = if enc_token.len() > 8 {
-                format!("{}...{}", &enc_token[..4], &enc_token[enc_token.len()-4..])
-            } else {
-                "***".into()
-            };
-            let scopes_str: String = row.get(8)?;
-            let scopes: Vec<String> = serde_json::from_str(&scopes_str).unwrap_or_default();
-            Ok(CredentialSummary {
-                id: row.get(0)?,
-                provider: row.get(1)?,
-                credential_type: row.get(2)?,
-                name: row.get(3)?,
-                description: row.get(4)?,
-                masked_token: masked,
-                username: row.get(6)?,
-                base_url: row.get(7)?,
-                scopes,
-                permissions_group: row.get(9)?,
-                expires_at: row.get(10)?,
-                created_at: row.get(11)?,
-                updated_at: row.get(12)?,
+        let rows = stmt
+            .query_map(rusqlite::params![provider], |row| {
+                let enc_token: String = row.get(5)?;
+                let masked = if enc_token.len() > 8 {
+                    format!(
+                        "{}...{}",
+                        &enc_token[..4],
+                        &enc_token[enc_token.len() - 4..]
+                    )
+                } else {
+                    "***".into()
+                };
+                let scopes_str: String = row.get(8)?;
+                let scopes: Vec<String> = serde_json::from_str(&scopes_str).unwrap_or_default();
+                Ok(CredentialSummary {
+                    id: row.get(0)?,
+                    provider: row.get(1)?,
+                    credential_type: row.get(2)?,
+                    name: row.get(3)?,
+                    description: row.get(4)?,
+                    masked_token: masked,
+                    username: row.get(6)?,
+                    base_url: row.get(7)?,
+                    scopes,
+                    permissions_group: row.get(9)?,
+                    expires_at: row.get(10)?,
+                    created_at: row.get(11)?,
+                    updated_at: row.get(12)?,
+                })
             })
-        }).map_err(|e| lingshu_core::LsError::Internal(format!("query list_by_provider: {e}")))?;
+            .map_err(|e| lingshu_core::LsError::Internal(format!("query list_by_provider: {e}")))?;
 
         let mut results = Vec::new();
         for row in rows {

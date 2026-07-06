@@ -92,8 +92,7 @@ impl Tool for ShellTool {
 
         // 安全检查：禁止交互式命令
         let interactive_commands = [
-            "vim", "nano", "emacs", "vi", "top", "htop", "less", "more",
-            "tail -f", "watch",
+            "vim", "nano", "emacs", "vi", "top", "htop", "less", "more", "tail -f", "watch",
         ];
         let cmd_lower = cmd.to_lowercase();
         for icmd in &interactive_commands {

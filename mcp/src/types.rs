@@ -310,7 +310,6 @@ pub struct PromptDefinition {
     pub description: String,
 }
 
-
 // ── MCP 方法名常量 ──────────────────────────────────
 
 pub const METHOD_TOOLS_LIST: &str = "tools/list";

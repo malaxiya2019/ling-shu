@@ -19,11 +19,11 @@
 //! - `sqlite` — 基于 SQLite 的持久化向量存储 (feature: `vector-store-sqlite`)
 //! - `pg` — 基于 PostgreSQL 的持久化向量存储 (feature: `vector-store-pg`)
 
-#[cfg(feature = "openai")]
-pub mod tools;
+pub mod agent_default;
 #[cfg(feature = "vector-store-sqlite")]
 pub mod memory_sqlite;
-pub mod agent_default;
+#[cfg(feature = "openai")]
+pub mod tools;
 pub mod workflow;
 
 pub mod embedding_openai;
@@ -44,6 +44,7 @@ pub mod vector_store_pg;
 #[cfg(feature = "vector-store-sqlite")]
 pub mod vector_store_sqlite;
 
+pub use agent_default::{AgentConfig, DefaultAgent};
 #[cfg(feature = "openai")]
 pub use embedding_openai::OpenAiEmbedding;
 pub use knowledge_mem::InMemoryKnowledge;
@@ -53,11 +54,10 @@ pub use llm_factory::build_llm;
 #[cfg(any(feature = "openai", feature = "groq"))]
 pub use llm_openai::OpenAiLlm;
 pub use llm_retry::{with_retry, RetryLlm};
-#[cfg(feature = "mock")]
-pub use mock_llm::MockLlm;
-pub use agent_default::{AgentConfig, DefaultAgent};
 #[cfg(feature = "vector-store-sqlite")]
 pub use memory_sqlite::MemorySQLite;
+#[cfg(feature = "mock")]
+pub use mock_llm::MockLlm;
 pub use vector_memory::VectorMemory;
 pub use vector_store_mem::InMemoryVectorStore;
 #[cfg(feature = "vector-store-pg")]

@@ -29,22 +29,23 @@
 //! - `EnrichmentQueue` — 异步 enrichment 队列，支持后台批量处理
 //! - 支持 Hybrid 模式：规则分析首轮 + LLM 异步 enrichment
 
-pub mod scanner;
-pub mod extractor;
 pub mod analyzer;
+pub mod extractor;
+pub mod generator;
 pub mod llm_analyzer;
 pub mod observer;
+pub mod scanner;
 pub mod tool;
-pub mod generator;
 
-pub use scanner::{FileCategory, FileEntry, FileScanner};
-pub use extractor::{ExtractedFunction, ExtractedClass, ExtractionResult, StructureExtractor};
 pub use analyzer::{AnalysisResult, ProjectSummary, SemanticAnalyzer};
+pub use extractor::{ExtractedClass, ExtractedFunction, ExtractionResult, StructureExtractor};
+pub use generator::GraphGenerator;
 pub use llm_analyzer::{
     EnrichmentCallback, EnrichmentQueue, EnrichmentTask, LlmAnalyzer, LlmAnalyzerConfig,
 };
 pub use observer::{
-    ChangeCollector, FileChangeCallback, FileChangeEvent, FileChangeKind, FileObserver, PollingFileObserver, NotifyFileObserver,
+    ChangeCollector, FileChangeCallback, FileChangeEvent, FileChangeKind, FileObserver,
+    NotifyFileObserver, PollingFileObserver,
 };
+pub use scanner::{FileCategory, FileEntry, FileScanner};
 pub use tool::CodeAnalysisTool;
-pub use generator::GraphGenerator;

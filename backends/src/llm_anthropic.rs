@@ -208,7 +208,7 @@ impl Llm for AnthropicLlm {
                 role: LlmRole::Assistant,
                 content: text,
                 content_parts: None,
-        name: None,
+                name: None,
                 tool_calls: None,
             },
             finish_reason: msg_resp.stop_reason,
@@ -378,14 +378,14 @@ mod tests {
                 role: LlmRole::User,
                 content: "hello".into(),
                 content_parts: None,
-        name: None,
+                name: None,
                 tool_calls: None,
             },
             LlmMessage {
                 role: LlmRole::Assistant,
                 content: "hi there".into(),
                 content_parts: None,
-        name: None,
+                name: None,
                 tool_calls: None,
             },
         ];
@@ -402,14 +402,14 @@ mod tests {
                 role: LlmRole::System,
                 content: "be helpful".into(),
                 content_parts: None,
-        name: None,
+                name: None,
                 tool_calls: None,
             },
             LlmMessage {
                 role: LlmRole::User,
                 content: "hi".into(),
                 content_parts: None,
-        name: None,
+                name: None,
                 tool_calls: None,
             },
         ];
@@ -422,7 +422,7 @@ mod tests {
             role: LlmRole::User,
             content: "hi".into(),
             content_parts: None,
-        name: None,
+            name: None,
             tool_calls: None,
         }];
         assert_eq!(AnthropicLlm::extract_system(&no_system), None);

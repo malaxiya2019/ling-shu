@@ -72,12 +72,12 @@ impl Default for SessionMemoryManager {
 
 #[cfg(test)]
 mod tests {
-    use lingshu_core::LsContext;
     use super::*;
+    use lingshu_core::LsContext;
     use lingshu_core::LsId;
 
     #[tokio::test]
-#[allow(unused_variables)]
+    #[allow(unused_variables)]
     async fn test_get_or_create() {
         let mgr = SessionMemoryManager::default();
         let mem = mgr.get_or_create("session-1").await;
@@ -118,7 +118,10 @@ mod tests {
         let mem = mgr.get_or_create("test-session").await;
 
         mem.store_message(&ctx, "user", "Hello").await.unwrap();
-        let result = mem.recall(&ctx, &crate::types::MemoryQuery::default()).await.unwrap();
+        let result = mem
+            .recall(&ctx, &crate::types::MemoryQuery::default())
+            .await
+            .unwrap();
         assert_eq!(result.total, 1);
     }
 }

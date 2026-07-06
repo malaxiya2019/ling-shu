@@ -1,9 +1,9 @@
 //! Memory — Unified memory system combining short-term buffer and long-term vector storage
 
-use async_trait::async_trait;
 use crate::buffer::ChatBuffer;
 use crate::types::{MemoryConfig, MemoryItem, MemoryQuery, MemoryResult};
 use crate::vector::VectorMemory;
+use async_trait::async_trait;
 use lingshu_core::{LsContext, LsResult};
 use std::sync::Arc;
 use tracing::debug;
@@ -154,11 +154,14 @@ mod tests {
     async fn test_search_with_vector_store() {
         let ctx = LsContext::with_session(lingshu_core::LsId::new());
         let vs = Arc::new(InMemoryVectorStore::new());
-        let mem = DefaultMemory::new("test-session", MemoryConfig::default())
-            .with_vector_store(vs);
+        let mem = DefaultMemory::new("test-session", MemoryConfig::default()).with_vector_store(vs);
 
-        mem.store_message(&ctx, "user", "I like apples").await.unwrap();
-        mem.store_message(&ctx, "user", "I like dogs").await.unwrap();
+        mem.store_message(&ctx, "user", "I like apples")
+            .await
+            .unwrap();
+        mem.store_message(&ctx, "user", "I like dogs")
+            .await
+            .unwrap();
 
         let query = MemoryQuery {
             query: Some("apple".into()),

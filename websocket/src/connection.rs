@@ -42,7 +42,9 @@ impl Connection {
     /// Send a JSON message to this connection
     pub fn send(&self, msg: &ServerMessage) -> Result<(), String> {
         let json = serde_json::to_string(msg).map_err(|e| e.to_string())?;
-        self.tx.send(json).map_err(|e| format!("send failed: {}", e))
+        self.tx
+            .send(json)
+            .map_err(|e| format!("send failed: {}", e))
     }
 
     /// Update last activity timestamp
@@ -73,7 +75,10 @@ impl ConnectionManager {
         let user_id = conn.user_id.clone();
         let conn = Arc::new(conn);
 
-        self.by_session.write().await.insert(session_id.clone(), conn);
+        self.by_session
+            .write()
+            .await
+            .insert(session_id.clone(), conn);
 
         let mut by_user = self.by_user.write().await;
         by_user.entry(user_id).or_default().push(session_id);
@@ -173,7 +178,11 @@ impl ConnectionManager {
 
     /// Get connection state
     pub async fn get_state(&self, session_id: &str) -> Option<ConnectionState> {
-        self.by_session.read().await.get(session_id).map(|c| c.state)
+        self.by_session
+            .read()
+            .await
+            .get(session_id)
+            .map(|c| c.state)
     }
 
     /// Update last activity timestamp

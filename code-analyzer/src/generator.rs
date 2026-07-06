@@ -1,8 +1,6 @@
 //! 图谱生成器 — 将扫描+分析结果转换为 KnowledgeGraph.
 
-use lingshu_knowledge_graph::{
-    GraphBuilder, GraphNode, KnowledgeGraph, NodeType,
-};
+use lingshu_knowledge_graph::{GraphBuilder, GraphNode, KnowledgeGraph, NodeType};
 
 use crate::analyzer::{AnalysisResult, ProjectSummary};
 use crate::extractor::StructureExtractor;
@@ -52,10 +50,24 @@ impl GraphGenerator {
 
             // 为代码文件添加详细分析
             if entry.category == FileCategory::Code {
-                let functions: Vec<(&str, &str, [u32; 2])> = extracted.functions.iter()
-                    .map(|f| (f.name.as_str(), analysis.summaries.get(&f.name).map(|s| s.as_str()).unwrap_or(""), [f.line_start, f.line_end]))
+                let functions: Vec<(&str, &str, [u32; 2])> = extracted
+                    .functions
+                    .iter()
+                    .map(|f| {
+                        (
+                            f.name.as_str(),
+                            analysis
+                                .summaries
+                                .get(&f.name)
+                                .map(|s| s.as_str())
+                                .unwrap_or(""),
+                            [f.line_start, f.line_end],
+                        )
+                    })
                     .collect();
-                let classes: Vec<(&str, &str, [u32; 2])> = extracted.classes.iter()
+                let classes: Vec<(&str, &str, [u32; 2])> = extracted
+                    .classes
+                    .iter()
                     .map(|c| (c.name.as_str(), "", [c.line_start, c.line_end]))
                     .collect();
 
@@ -81,7 +93,19 @@ impl GraphGenerator {
                 };
 
                 builder.add_node(GraphNode {
-                    id: format!("{}:{}{}", node_type.as_str(), if entry.path.starts_with("/") || entry.path.starts_with("./") || entry.path.starts_with("..") { "" } else { "" }, entry.path),
+                    id: format!(
+                        "{}:{}{}",
+                        node_type.as_str(),
+                        if entry.path.starts_with("/")
+                            || entry.path.starts_with("./")
+                            || entry.path.starts_with("..")
+                        {
+                            ""
+                        } else {
+                            ""
+                        },
+                        entry.path
+                    ),
                     node_type,
                     name: entry.name.clone(),
                     file_path: Some(entry.path.clone()),
@@ -173,9 +197,7 @@ mod tests {
     #[test]
     fn test_generate_with_children() {
         let generator = GraphGenerator::new();
-        let _entries = vec![
-            dummy_entry("src/lib.rs", "rust", FileCategory::Code),
-        ];
+        let _entries = vec![dummy_entry("src/lib.rs", "rust", FileCategory::Code)];
         // Create a temp file with Rust code so extractor finds functions
         let dir = tempfile::TempDir::new().unwrap();
         let file_path = dir.path().join("src/lib.rs");
@@ -185,12 +207,18 @@ mod tests {
         let mut entry = dummy_entry(file_path.to_str().unwrap(), "rust", FileCategory::Code);
         entry.path = file_path.to_str().unwrap().to_string();
         let mut analysis = dummy_analysis(file_path.to_str().unwrap());
-        analysis.summaries.insert("hello".to_string(), "Greeting function".into());
-        analysis.summaries.insert("world".to_string(), "World function".into());
+        analysis
+            .summaries
+            .insert("hello".to_string(), "Greeting function".into());
+        analysis
+            .summaries
+            .insert("world".to_string(), "World function".into());
 
         let summary = ProjectSummary {
-            name: "test".into(), description: "".into(),
-            languages: vec!["rust".into()], frameworks: vec![],
+            name: "test".into(),
+            description: "".into(),
+            languages: vec!["rust".into()],
+            frameworks: vec![],
         };
 
         let graph = generator.generate("test", "abc", &[entry], &[analysis], &summary);
@@ -198,7 +226,9 @@ mod tests {
         assert_eq!(graph.nodes.len(), 3);
 
         // Should have 2 contains edges
-        let contains_edges: Vec<_> = graph.edges.iter()
+        let contains_edges: Vec<_> = graph
+            .edges
+            .iter()
             .filter(|e| e.edge_type == lingshu_knowledge_graph::EdgeType::Contains)
             .collect();
         assert_eq!(contains_edges.len(), 2);

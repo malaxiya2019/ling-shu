@@ -3,8 +3,8 @@
 //! Defines the trait for vector-based semantic memory retrieval.
 //! Actual implementation uses the storage crate for persistence.
 
-use async_trait::async_trait;
 use crate::types::{MemoryItem, MemoryQuery};
+use async_trait::async_trait;
 use lingshu_core::LsResult;
 
 /// A vector embedding with associated memory item
@@ -22,10 +22,19 @@ pub trait VectorMemory: Send + Sync {
     async fn store(&self, item: MemoryItem, embedding: Vec<f64>) -> LsResult<String>;
 
     /// Search for similar memories by query embedding
-    async fn search(&self, query: &MemoryQuery, embedding: Vec<f64>, top_k: usize) -> LsResult<Vec<VectorRecord>>;
+    async fn search(
+        &self,
+        query: &MemoryQuery,
+        embedding: Vec<f64>,
+        top_k: usize,
+    ) -> LsResult<Vec<VectorRecord>>;
 
     /// Search by text query (if embedding model is internal)
-    async fn search_by_text(&self, query: &MemoryQuery, top_k: usize) -> LsResult<Vec<VectorRecord>>;
+    async fn search_by_text(
+        &self,
+        query: &MemoryQuery,
+        top_k: usize,
+    ) -> LsResult<Vec<VectorRecord>>;
 
     /// Get memory by ID
     async fn get(&self, id: &str) -> LsResult<Option<MemoryItem>>;
@@ -38,7 +47,6 @@ pub trait VectorMemory: Send + Sync {
 }
 
 // ── In-memory implementation for testing ────────────
-
 
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -74,7 +82,12 @@ impl VectorMemory for InMemoryVectorStore {
         Ok(id)
     }
 
-    async fn search(&self, _query: &MemoryQuery, embedding: Vec<f64>, top_k: usize) -> LsResult<Vec<VectorRecord>> {
+    async fn search(
+        &self,
+        _query: &MemoryQuery,
+        embedding: Vec<f64>,
+        top_k: usize,
+    ) -> LsResult<Vec<VectorRecord>> {
         let records = self.records.read().await;
         let mut scored: Vec<VectorRecord> = records
             .iter()
@@ -85,18 +98,28 @@ impl VectorMemory for InMemoryVectorStore {
                 rec
             })
             .collect();
-        scored.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        scored.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         scored.truncate(top_k);
         Ok(scored)
     }
 
-    async fn search_by_text(&self, query: &MemoryQuery, top_k: usize) -> LsResult<Vec<VectorRecord>> {
+    async fn search_by_text(
+        &self,
+        query: &MemoryQuery,
+        top_k: usize,
+    ) -> LsResult<Vec<VectorRecord>> {
         // Simple keyword-based fallback when no embedding model available
         let records = self.records.read().await;
         let query_lower = query.query.as_deref().unwrap_or("").to_lowercase();
         let mut scored: Vec<VectorRecord> = records
             .iter()
-            .filter(|r| query_lower.is_empty() || r.item.content.to_lowercase().contains(&query_lower))
+            .filter(|r| {
+                query_lower.is_empty() || r.item.content.to_lowercase().contains(&query_lower)
+            })
             .map(|r| {
                 let mut rec = r.clone();
                 rec.score = Some(if query_lower.is_empty() { 0.0 } else { 0.5 });
@@ -109,7 +132,10 @@ impl VectorMemory for InMemoryVectorStore {
 
     async fn get(&self, id: &str) -> LsResult<Option<MemoryItem>> {
         let records = self.records.read().await;
-        Ok(records.iter().find(|r| r.item.id == id).map(|r| r.item.clone()))
+        Ok(records
+            .iter()
+            .find(|r| r.item.id == id)
+            .map(|r| r.item.clone()))
     }
 
     async fn delete(&self, id: &str) -> LsResult<bool> {
@@ -166,8 +192,14 @@ mod tests {
     #[tokio::test]
     async fn test_search_by_text() {
         let store = InMemoryVectorStore::new();
-        store.store(MemoryItem::new("s1", "user", "apple banana"), vec![]).await.unwrap();
-        store.store(MemoryItem::new("s1", "user", "cherry date"), vec![]).await.unwrap();
+        store
+            .store(MemoryItem::new("s1", "user", "apple banana"), vec![])
+            .await
+            .unwrap();
+        store
+            .store(MemoryItem::new("s1", "user", "cherry date"), vec![])
+            .await
+            .unwrap();
 
         let query = MemoryQuery {
             query: Some("apple".into()),

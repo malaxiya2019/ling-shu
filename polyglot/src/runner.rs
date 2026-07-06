@@ -17,10 +17,7 @@ pub trait LanguageRunner: Send + Sync {
 }
 
 /// Helper: execute a shell command with timeout and output limit
-pub async fn execute_command(
-    cmd: &mut Command,
-    config: &PolyglotConfig,
-) -> PolyglotResult<String> {
+pub async fn execute_command(cmd: &mut Command, config: &PolyglotConfig) -> PolyglotResult<String> {
     let timed = timeout(Duration::from_secs(config.default_timeout), cmd.output());
 
     match timed.await {
@@ -29,7 +26,11 @@ pub async fn execute_command(
             let stderr = String::from_utf8_lossy(&output.stderr).to_string();
 
             if !output.status.success() {
-                let msg = if stderr.is_empty() { stdout.clone() } else { stderr };
+                let msg = if stderr.is_empty() {
+                    stdout.clone()
+                } else {
+                    stderr
+                };
                 return Err(crate::error::PolyglotError::ExecutionFailed(msg));
             }
 

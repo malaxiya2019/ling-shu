@@ -35,11 +35,7 @@ pub trait EventStore: Send + Sync {
     ) -> LsResult<Vec<StoredEvent>>;
 
     /// 获取聚合根的当前版本.
-    async fn get_current_version(
-        &self,
-        aggregate_type: &str,
-        aggregate_id: &str,
-    ) -> LsResult<u64>;
+    async fn get_current_version(&self, aggregate_type: &str, aggregate_id: &str) -> LsResult<u64>;
 }
 
 /// 内存事件存储.
@@ -84,11 +80,7 @@ impl EventStore for InMemoryEventStore {
         Ok(filtered)
     }
 
-    async fn get_current_version(
-        &self,
-        aggregate_type: &str,
-        aggregate_id: &str,
-    ) -> LsResult<u64> {
+    async fn get_current_version(&self, aggregate_type: &str, aggregate_id: &str) -> LsResult<u64> {
         let events = self.get_events(aggregate_type, aggregate_id).await?;
         Ok(events.last().map(|e| e.version).unwrap_or(0))
     }

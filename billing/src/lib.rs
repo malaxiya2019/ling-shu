@@ -16,15 +16,15 @@
 //! └───────────────────────────────────────────┘
 //! ```
 
-pub mod usage;
 pub mod plan;
 pub mod quota;
 pub mod report;
+pub mod usage;
 
-pub use usage::{UsageRecord, UsageTracker};
 pub use plan::{BillingPlan, BillingTier, RateCard};
 pub use quota::{Quota, QuotaManager};
-pub use report::{PeriodType, UsageReport, ReportGenerator};
+pub use report::{PeriodType, ReportGenerator, UsageReport};
+pub use usage::{UsageRecord, UsageTracker};
 
 use lingshu_core::LsResult;
 use std::sync::Arc;
@@ -58,7 +58,10 @@ impl BillingSystem {
         output_tokens: u64,
     ) -> LsResult<UsageRecord> {
         let total = input_tokens + output_tokens;
-        let record = self.tracker.record(user_id, model, input_tokens, output_tokens).await?;
+        let record = self
+            .tracker
+            .record(user_id, model, input_tokens, output_tokens)
+            .await?;
         self.quota_manager.consume(user_id, total).await;
         Ok(record)
     }
@@ -69,7 +72,11 @@ impl BillingSystem {
     }
 
     /// 生成使用报告.
-    pub async fn generate_report(&self, user_id: &str, period: PeriodType) -> LsResult<UsageReport> {
+    pub async fn generate_report(
+        &self,
+        user_id: &str,
+        period: PeriodType,
+    ) -> LsResult<UsageReport> {
         self.report_generator.generate(user_id, period).await
     }
 }

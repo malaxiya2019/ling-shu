@@ -120,18 +120,28 @@ impl Language {
             return None;
         }
         let lower = first.to_lowercase();
-        if lower.contains("python") { Some(Self::Python) }
-        else if lower.contains("ruby") { Some(Self::Ruby) }
-        else if lower.contains("perl") { Some(Self::Perl) }
-        else if lower.contains("lua") { Some(Self::Lua) }
-        else if lower.contains("node") || lower.contains("deno") || lower.contains("bun") {
+        if lower.contains("python") {
+            Some(Self::Python)
+        } else if lower.contains("ruby") {
+            Some(Self::Ruby)
+        } else if lower.contains("perl") {
+            Some(Self::Perl)
+        } else if lower.contains("lua") {
+            Some(Self::Lua)
+        } else if lower.contains("node") || lower.contains("deno") || lower.contains("bun") {
             Some(Self::JavaScript)
+        } else if lower.contains("groovy") {
+            Some(Self::Groovy)
+        } else if lower.contains("julia") {
+            Some(Self::Julia)
+        } else if lower.contains("rscript") || lower.contains("r ") {
+            Some(Self::R)
+        } else if lower.contains("php") {
+            Some(Self::Php)
+        } else if lower.contains("octave") || lower.contains("matlab") {
+            Some(Self::Matlab)
+        } else {
+            None
         }
-        else if lower.contains("groovy") { Some(Self::Groovy) }
-        else if lower.contains("julia") { Some(Self::Julia) }
-        else if lower.contains("rscript") || lower.contains("r ") { Some(Self::R) }
-        else if lower.contains("php") { Some(Self::Php) }
-        else if lower.contains("octave") || lower.contains("matlab") { Some(Self::Matlab) }
-        else { None }
     }
 }

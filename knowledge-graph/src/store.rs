@@ -161,8 +161,11 @@ impl GraphStore {
     /// 删除指定项目的缓存.
     pub async fn delete(&self, project: &str) -> LsResult<()> {
         let conn = self.conn.lock().await;
-        conn.execute("DELETE FROM graph_cache WHERE project_name = ?1", params![project])
-            .map_err(|e| LsError::Internal(format!("graph store delete: {e}")))?;
+        conn.execute(
+            "DELETE FROM graph_cache WHERE project_name = ?1",
+            params![project],
+        )
+        .map_err(|e| LsError::Internal(format!("graph store delete: {e}")))?;
         Ok(())
     }
 }
@@ -194,8 +197,14 @@ mod tests {
     #[tokio::test]
     async fn test_list_projects() {
         let store = GraphStore::in_memory().unwrap();
-        store.save("a", &KnowledgeGraph::new("a", "")).await.unwrap();
-        store.save("b", &KnowledgeGraph::new("b", "")).await.unwrap();
+        store
+            .save("a", &KnowledgeGraph::new("a", ""))
+            .await
+            .unwrap();
+        store
+            .save("b", &KnowledgeGraph::new("b", ""))
+            .await
+            .unwrap();
 
         let projects = store.list_projects().await.unwrap();
         assert!(projects.contains(&"a".to_string()));
@@ -205,7 +214,10 @@ mod tests {
     #[tokio::test]
     async fn test_delete() {
         let store = GraphStore::in_memory().unwrap();
-        store.save("x", &KnowledgeGraph::new("x", "")).await.unwrap();
+        store
+            .save("x", &KnowledgeGraph::new("x", ""))
+            .await
+            .unwrap();
         assert!(store.load("x").await.unwrap().is_some());
 
         store.delete("x").await.unwrap();
@@ -215,8 +227,14 @@ mod tests {
     #[tokio::test]
     async fn test_load_all() {
         let store = GraphStore::in_memory().unwrap();
-        store.save("p1", &KnowledgeGraph::new("p1", "")).await.unwrap();
-        store.save("p2", &KnowledgeGraph::new("p2", "")).await.unwrap();
+        store
+            .save("p1", &KnowledgeGraph::new("p1", ""))
+            .await
+            .unwrap();
+        store
+            .save("p2", &KnowledgeGraph::new("p2", ""))
+            .await
+            .unwrap();
 
         let all = store.load_all().await.unwrap();
         assert_eq!(all.len(), 2);

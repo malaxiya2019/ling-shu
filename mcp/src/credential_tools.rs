@@ -81,16 +81,18 @@ impl Tool for CredentialListTool {
 
     async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> {
         let list = if let Some(provider) = str_field!(input, "provider") {
-            self.mgr.list_by_provider(&provider).map_err(|e| {
-                LsError::Internal(format!("list credentials by provider: {e}"))
-            })?
+            self.mgr
+                .list_by_provider(&provider)
+                .map_err(|e| LsError::Internal(format!("list credentials by provider: {e}")))?
         } else {
-            self.mgr.list().map_err(|e| {
-                LsError::Internal(format!("list credentials: {e}"))
-            })?
+            self.mgr
+                .list()
+                .map_err(|e| LsError::Internal(format!("list credentials: {e}")))?
         };
 
-        Ok(success_result(serde_json::to_value(list).unwrap_or_default()))
+        Ok(success_result(
+            serde_json::to_value(list).unwrap_or_default(),
+        ))
     }
 }
 
@@ -196,7 +198,12 @@ impl Tool for CredentialCreateTool {
         let scopes: Vec<String> = input
             .get("scopes")
             .and_then(|v| v.as_str())
-            .map(|s| s.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
+            .map(|s| {
+                s.split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            })
             .unwrap_or_default();
         let skip_validation = input
             .get("skip_validation")
@@ -217,16 +224,19 @@ impl Tool for CredentialCreateTool {
         };
 
         let summary = if skip_validation {
-            self.mgr.create_without_validate(req).map_err(|e| {
-                LsError::Internal(format!("create credential: {e}"))
-            })?
+            self.mgr
+                .create_without_validate(req)
+                .map_err(|e| LsError::Internal(format!("create credential: {e}")))?
         } else {
-            self.mgr.create(req).await.map_err(|e| {
-                LsError::Internal(format!("create credential: {e}"))
-            })?
+            self.mgr
+                .create(req)
+                .await
+                .map_err(|e| LsError::Internal(format!("create credential: {e}")))?
         };
 
-        Ok(success_result(serde_json::to_value(summary).unwrap_or_default()))
+        Ok(success_result(
+            serde_json::to_value(summary).unwrap_or_default(),
+        ))
     }
 }
 
@@ -269,7 +279,9 @@ impl Tool for CredentialGetTool {
     async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> {
         let id = str_field!(input, "id").unwrap();
         match self.mgr.get_summary(&id) {
-            Ok(summary) => Ok(success_result(serde_json::to_value(summary).unwrap_or_default())),
+            Ok(summary) => Ok(success_result(
+                serde_json::to_value(summary).unwrap_or_default(),
+            )),
             Err(e) => Ok(error_result(format!("credential not found: {e}"))),
         }
     }
@@ -314,7 +326,9 @@ impl Tool for CredentialDeleteTool {
     async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> {
         let id = str_field!(input, "id").unwrap();
         match self.mgr.delete(&id) {
-            Ok(true) => Ok(success_result(serde_json::json!({"deleted": true, "id": id}))),
+            Ok(true) => Ok(success_result(
+                serde_json::json!({"deleted": true, "id": id}),
+            )),
             Ok(false) => Ok(error_result(format!("credential not found: {id}"))),
             Err(e) => Ok(error_result(format!("delete failed: {e}"))),
         }
@@ -340,7 +354,8 @@ impl Tool for CredentialValidateTool {
         ToolInfo {
             tool_id: LsId::new(),
             name: "credential_validate".into(),
-            description: "验证指定 ID 的凭证是否有效，通过对目标 Git 提供商 API 做一次实际调用".into(),
+            description: "验证指定 ID 的凭证是否有效，通过对目标 Git 提供商 API 做一次实际调用"
+                .into(),
             parameters: vec![ToolParam {
                 name: "id".into(),
                 description: "要验证的凭证 ID".into(),
@@ -360,7 +375,9 @@ impl Tool for CredentialValidateTool {
     async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> {
         let id = str_field!(input, "id").unwrap();
         match self.mgr.validate(&id).await {
-            Ok(validation) => Ok(success_result(serde_json::to_value(validation).unwrap_or_default())),
+            Ok(validation) => Ok(success_result(
+                serde_json::to_value(validation).unwrap_or_default(),
+            )),
             Err(e) => Ok(error_result(format!("validate failed: {e}"))),
         }
     }
@@ -445,10 +462,12 @@ impl Tool for CredentialUpdateTool {
 
     async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> {
         let id = str_field!(input, "id").unwrap();
-        let scopes: Option<Vec<String>> = input
-            .get("scopes")
-            .and_then(|v| v.as_str())
-            .map(|s| s.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect());
+        let scopes: Option<Vec<String>> = input.get("scopes").and_then(|v| v.as_str()).map(|s| {
+            s.split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect()
+        });
 
         let req = lingshu_credentials::UpdateCredentialRequest {
             name: str_field!(input, "name"),
@@ -462,7 +481,9 @@ impl Tool for CredentialUpdateTool {
         };
 
         match self.mgr.update(&id, req).await {
-            Ok(true) => Ok(success_result(serde_json::json!({"updated": true, "id": id}))),
+            Ok(true) => Ok(success_result(
+                serde_json::json!({"updated": true, "id": id}),
+            )),
             Ok(false) => Ok(error_result(format!("credential not found: {id}"))),
             Err(e) => Ok(error_result(format!("update failed: {e}"))),
         }

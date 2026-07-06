@@ -180,17 +180,19 @@ mod tests {
     #[test]
     fn test_register_and_get() {
         let registry = PromptRegistry::new();
-        let info = registry.register(
-            "chat.system",
-            "System prompt for chat",
-            "You are {{ role }}, an AI assistant.",
-            vec![TemplateVariable {
-                name: "role".into(),
-                description: Some("Assistant role".into()),
-                required: true,
-                default_value: None,
-            }],
-        ).unwrap();
+        let info = registry
+            .register(
+                "chat.system",
+                "System prompt for chat",
+                "You are {{ role }}, an AI assistant.",
+                vec![TemplateVariable {
+                    name: "role".into(),
+                    description: Some("Assistant role".into()),
+                    required: true,
+                    default_value: None,
+                }],
+            )
+            .unwrap();
 
         assert_eq!(info.name, "chat.system");
         assert_eq!(info.current_version, 1);
@@ -209,12 +211,9 @@ mod tests {
     #[test]
     fn test_create_version() {
         let registry = PromptRegistry::new();
-        registry.register(
-            "test",
-            "test prompt",
-            "version 1",
-            vec![],
-        ).unwrap();
+        registry
+            .register("test", "test prompt", "version 1", vec![])
+            .unwrap();
 
         registry
             .create_version("test", "version 2", vec![], "updated template")
@@ -230,17 +229,19 @@ mod tests {
         let registry = PromptRegistry::new();
         let engine = TemplateEngine::new();
 
-        registry.register(
-            "greeting",
-            "Greeting prompt",
-            "Hello, {{ name }}!",
-            vec![TemplateVariable {
-                name: "name".into(),
-                description: None,
-                required: true,
-                default_value: None,
-            }],
-        ).unwrap();
+        registry
+            .register(
+                "greeting",
+                "Greeting prompt",
+                "Hello, {{ name }}!",
+                vec![TemplateVariable {
+                    name: "name".into(),
+                    description: None,
+                    required: true,
+                    default_value: None,
+                }],
+            )
+            .unwrap();
 
         let mut vars = HashMap::new();
         vars.insert("name".to_string(), "World".to_string());
@@ -252,7 +253,9 @@ mod tests {
     #[test]
     fn test_duplicate_registration() {
         let registry = PromptRegistry::new();
-        registry.register("dup", "desc", "template", vec![]).unwrap();
+        registry
+            .register("dup", "desc", "template", vec![])
+            .unwrap();
         let result = registry.register("dup", "desc", "template", vec![]);
         assert!(result.is_err());
     }

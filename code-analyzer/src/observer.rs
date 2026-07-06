@@ -90,28 +90,32 @@ impl Default for PollingFileObserver {
 #[async_trait]
 impl FileObserver for PollingFileObserver {
     async fn watch(&self, path: &str, _callback: FileChangeCallback) -> lingshu_core::LsResult<()> {
-        let mut paths = self.watched.lock().map_err(|e| {
-            lingshu_core::LsError::Internal(format!("lock error: {e}"))
-        })?;
+        let mut paths = self
+            .watched
+            .lock()
+            .map_err(|e| lingshu_core::LsError::Internal(format!("lock error: {e}")))?;
         paths.push(path.to_string());
         Ok(())
     }
 
     async fn unwatch(&self, path: &str) -> lingshu_core::LsResult<()> {
-        let mut paths = self.watched.lock().map_err(|e| {
-            lingshu_core::LsError::Internal(format!("lock error: {e}"))
-        })?;
+        let mut paths = self
+            .watched
+            .lock()
+            .map_err(|e| lingshu_core::LsError::Internal(format!("lock error: {e}")))?;
         paths.retain(|p| p != path);
         Ok(())
     }
 
     async fn pause(&self) -> lingshu_core::LsResult<()> {
-        self.paused.store(true, std::sync::atomic::Ordering::Relaxed);
+        self.paused
+            .store(true, std::sync::atomic::Ordering::Relaxed);
         Ok(())
     }
 
     async fn resume(&self) -> lingshu_core::LsResult<()> {
-        self.paused.store(false, std::sync::atomic::Ordering::Relaxed);
+        self.paused
+            .store(false, std::sync::atomic::Ordering::Relaxed);
         Ok(())
     }
 
@@ -143,7 +147,10 @@ impl ChangeCollector {
 
     /// 取出所有累积事件并清空.
     pub fn drain(&self) -> Vec<FileChangeEvent> {
-        self.events.lock().map(|mut e| e.drain(..).collect()).unwrap_or_default()
+        self.events
+            .lock()
+            .map(|mut e| e.drain(..).collect())
+            .unwrap_or_default()
     }
 
     /// 当前待处理事件数量.
@@ -350,17 +357,19 @@ impl FileObserver for NotifyFileObserver {
     async fn watch(&self, path: &str, callback: FileChangeCallback) -> lingshu_core::LsResult<()> {
         // 存储回调
         {
-            let mut cb = self.callback.lock().map_err(|e| {
-                lingshu_core::LsError::Internal(format!("lock error: {e}"))
-            })?;
+            let mut cb = self
+                .callback
+                .lock()
+                .map_err(|e| lingshu_core::LsError::Internal(format!("lock error: {e}")))?;
             *cb = Some(callback);
         }
 
         // 注册路径到 watcher
         {
-            let mut watcher_guard = self.watcher.lock().map_err(|e| {
-                lingshu_core::LsError::Internal(format!("lock error: {e}"))
-            })?;
+            let mut watcher_guard = self
+                .watcher
+                .lock()
+                .map_err(|e| lingshu_core::LsError::Internal(format!("lock error: {e}")))?;
             if let Some(ref mut w) = *watcher_guard {
                 use notify::Watcher;
                 w.watch(std::path::Path::new(path), notify::RecursiveMode::Recursive)
@@ -370,9 +379,10 @@ impl FileObserver for NotifyFileObserver {
             }
         }
 
-        let mut paths = self.paths.lock().map_err(|e| {
-            lingshu_core::LsError::Internal(format!("lock error: {e}"))
-        })?;
+        let mut paths = self
+            .paths
+            .lock()
+            .map_err(|e| lingshu_core::LsError::Internal(format!("lock error: {e}")))?;
         if !paths.contains(&path.to_string()) {
             paths.push(path.to_string());
         }
@@ -383,9 +393,10 @@ impl FileObserver for NotifyFileObserver {
 
     async fn unwatch(&self, path: &str) -> lingshu_core::LsResult<()> {
         {
-            let mut watcher_guard = self.watcher.lock().map_err(|e| {
-                lingshu_core::LsError::Internal(format!("lock error: {e}"))
-            })?;
+            let mut watcher_guard = self
+                .watcher
+                .lock()
+                .map_err(|e| lingshu_core::LsError::Internal(format!("lock error: {e}")))?;
             if let Some(ref mut w) = *watcher_guard {
                 use notify::Watcher;
                 w.unwatch(std::path::Path::new(path)).map_err(|e| {
@@ -394,20 +405,23 @@ impl FileObserver for NotifyFileObserver {
             }
         }
 
-        let mut paths = self.paths.lock().map_err(|e| {
-            lingshu_core::LsError::Internal(format!("lock error: {e}"))
-        })?;
+        let mut paths = self
+            .paths
+            .lock()
+            .map_err(|e| lingshu_core::LsError::Internal(format!("lock error: {e}")))?;
         paths.retain(|p| p != path);
         Ok(())
     }
 
     async fn pause(&self) -> lingshu_core::LsResult<()> {
-        self.paused.store(true, std::sync::atomic::Ordering::Relaxed);
+        self.paused
+            .store(true, std::sync::atomic::Ordering::Relaxed);
         Ok(())
     }
 
     async fn resume(&self) -> lingshu_core::LsResult<()> {
-        self.paused.store(false, std::sync::atomic::Ordering::Relaxed);
+        self.paused
+            .store(false, std::sync::atomic::Ordering::Relaxed);
         Ok(())
     }
 
@@ -420,7 +434,10 @@ impl std::fmt::Debug for NotifyFileObserver {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NotifyFileObserver")
             .field("watched", &self.watched_paths())
-            .field("paused", &self.paused.load(std::sync::atomic::Ordering::Relaxed))
+            .field(
+                "paused",
+                &self.paused.load(std::sync::atomic::Ordering::Relaxed),
+            )
             .finish()
     }
 }

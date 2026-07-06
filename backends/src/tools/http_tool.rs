@@ -72,7 +72,8 @@ impl Tool for HttpGetTool {
         if let Some(headers) = input.get("headers").and_then(|v| v.as_object()) {
             for (key, val) in headers {
                 if let Some(val_str) = val.as_str() {
-                    if let Ok(header_name) = reqwest::header::HeaderName::from_bytes(key.as_bytes()) {
+                    if let Ok(header_name) = reqwest::header::HeaderName::from_bytes(key.as_bytes())
+                    {
                         if let Ok(header_val) = reqwest::header::HeaderValue::from_str(val_str) {
                             req = req.header(header_name, header_val);
                         }
@@ -195,20 +196,26 @@ impl Tool for HttpPostTool {
             .map_err(|e| LsError::Internal(format!("failed to build HTTP client: {e}")))?;
 
         let body_value = &input["body"];
-        let body_str = if content_type == "application/json" || content_type == "application/json; charset=utf-8" {
+        let body_str = if content_type == "application/json"
+            || content_type == "application/json; charset=utf-8"
+        {
             serde_json::to_string(body_value)
                 .map_err(|e| LsError::Validation(format!("failed to serialize body: {e}")))?
         } else {
             body_value.as_str().unwrap_or("").to_string()
         };
 
-        let mut req = client.post(url).header("Content-Type", content_type).body(body_str);
+        let mut req = client
+            .post(url)
+            .header("Content-Type", content_type)
+            .body(body_str);
 
         // 添加自定义请求头
         if let Some(headers) = input.get("headers").and_then(|v| v.as_object()) {
             for (key, val) in headers {
                 if let Some(val_str) = val.as_str() {
-                    if let Ok(header_name) = reqwest::header::HeaderName::from_bytes(key.as_bytes()) {
+                    if let Ok(header_name) = reqwest::header::HeaderName::from_bytes(key.as_bytes())
+                    {
                         if let Ok(header_val) = reqwest::header::HeaderValue::from_str(val_str) {
                             req = req.header(header_name, header_val);
                         }
@@ -262,7 +269,9 @@ mod tests {
     #[test]
     fn test_validate_http_get() {
         let tool = HttpGetTool;
-        assert!(tool.validate(&json!({"url": "https://example.com"})).is_ok());
+        assert!(tool
+            .validate(&json!({"url": "https://example.com"}))
+            .is_ok());
         assert!(tool.validate(&json!({"url": "http://example.com"})).is_ok());
         assert!(tool.validate(&json!({"url": "ftp://bad.com"})).is_err());
         assert!(tool.validate(&json!({"url": ""})).is_err());
@@ -274,7 +283,9 @@ mod tests {
         assert!(tool
             .validate(&json!({"url": "https://api.example.com", "body": {"key": "val"}}))
             .is_ok());
-        assert!(tool.validate(&json!({"url": "https://api.example.com"})).is_err());
+        assert!(tool
+            .validate(&json!({"url": "https://api.example.com"}))
+            .is_err());
     }
 
     #[tokio::test]

@@ -78,9 +78,9 @@ impl Tool for FileReadTool {
         let path = input["path"].as_str().unwrap();
         let resolved = self.resolve_path(path)?;
 
-        let content = tokio::fs::read_to_string(&resolved)
-            .await
-            .map_err(|e| LsError::Internal(format!("failed to read file '{}': {e}", resolved.display())))?;
+        let content = tokio::fs::read_to_string(&resolved).await.map_err(|e| {
+            LsError::Internal(format!("failed to read file '{}': {e}", resolved.display()))
+        })?;
 
         Ok(serde_json::json!({
             "path": resolved.to_string_lossy(),
@@ -172,11 +172,18 @@ impl Tool for FileWriteTool {
     }
 
     fn validate(&self, input: &Value) -> LsResult<()> {
-        if input.get("path").and_then(|v| v.as_str()).unwrap_or("").is_empty() {
+        if input
+            .get("path")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .is_empty()
+        {
             return Err(LsError::Validation("missing required field: path".into()));
         }
         if input.get("content").is_none() {
-            return Err(LsError::Validation("missing required field: content".into()));
+            return Err(LsError::Validation(
+                "missing required field: content".into(),
+            ));
         }
         Ok(())
     }
@@ -189,19 +196,20 @@ impl Tool for FileWriteTool {
 
         // 确保父目录存在
         if let Some(parent) = resolved.parent() {
-            tokio::fs::create_dir_all(parent)
-                .await
-                .map_err(|e| {
-                    LsError::Internal(format!(
-                        "failed to create parent directory '{}': {e}",
-                        parent.display()
-                    ))
-                })?;
+            tokio::fs::create_dir_all(parent).await.map_err(|e| {
+                LsError::Internal(format!(
+                    "failed to create parent directory '{}': {e}",
+                    parent.display()
+                ))
+            })?;
         }
 
-        tokio::fs::write(&resolved, content)
-            .await
-            .map_err(|e| LsError::Internal(format!("failed to write file '{}': {e}", resolved.display())))?;
+        tokio::fs::write(&resolved, content).await.map_err(|e| {
+            LsError::Internal(format!(
+                "failed to write file '{}': {e}",
+                resolved.display()
+            ))
+        })?;
 
         Ok(serde_json::json!({
             "path": resolved.to_string_lossy(),
@@ -297,21 +305,27 @@ impl Tool for ListDirTool {
     async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> {
         self.validate(&input)?;
         let path = input["path"].as_str().unwrap();
-        let recursive = input.get("recursive").and_then(|v| v.as_bool()).unwrap_or(false);
+        let recursive = input
+            .get("recursive")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
         let resolved = self.resolve_path(path)?;
 
         let mut entries = Vec::new();
 
         if recursive {
-            let _walker = tokio::fs::read_dir(&resolved)
-                .await
-                .map_err(|e| LsError::Internal(format!("failed to read directory '{}': {e}", resolved.display())))?;
+            let _walker = tokio::fs::read_dir(&resolved).await.map_err(|e| {
+                LsError::Internal(format!(
+                    "failed to read directory '{}': {e}",
+                    resolved.display()
+                ))
+            })?;
 
             let mut stack: Vec<PathBuf> = vec![resolved.clone()];
             while let Some(dir) = stack.pop() {
-                let mut read_dir = tokio::fs::read_dir(&dir)
-                    .await
-                    .map_err(|e| LsError::Internal(format!("failed to read dir '{}': {e}", dir.display())))?;
+                let mut read_dir = tokio::fs::read_dir(&dir).await.map_err(|e| {
+                    LsError::Internal(format!("failed to read dir '{}': {e}", dir.display()))
+                })?;
                 while let Some(entry) = read_dir
                     .next_entry()
                     .await
@@ -335,9 +349,12 @@ impl Tool for ListDirTool {
                 }
             }
         } else {
-            let mut read_dir = tokio::fs::read_dir(&resolved)
-                .await
-                .map_err(|e| LsError::Internal(format!("failed to read directory '{}': {e}", resolved.display())))?;
+            let mut read_dir = tokio::fs::read_dir(&resolved).await.map_err(|e| {
+                LsError::Internal(format!(
+                    "failed to read directory '{}': {e}",
+                    resolved.display()
+                ))
+            })?;
 
             while let Some(entry) = read_dir
                 .next_entry()
@@ -397,7 +414,10 @@ mod tests {
     async fn test_read_file_not_found() {
         let tool = FileReadTool::default();
         let result = tool
-            .execute(test_ctx(), json!({"path": "/tmp/nonexistent_file_12345.txt"}))
+            .execute(
+                test_ctx(),
+                json!({"path": "/tmp/nonexistent_file_12345.txt"}),
+            )
             .await;
         assert!(result.is_err());
     }
@@ -436,7 +456,10 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let tool = FileWriteTool::new(Some(dir.path().to_path_buf()));
         let result = tool
-            .execute(test_ctx(), json!({"path": "/tmp/evil.txt", "content": "evil"}))
+            .execute(
+                test_ctx(),
+                json!({"path": "/tmp/evil.txt", "content": "evil"}),
+            )
             .await;
         assert!(result.is_err());
     }

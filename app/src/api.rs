@@ -12,8 +12,8 @@
 //!   POST /v1/agent/run           — Run agent
 //!   GET  /ws                     — WebSocket streaming
 
-use std::sync::Arc;
 use lingshu_traits::EventBus;
+use std::sync::Arc;
 
 use axum::{
     extract::{ws, Path, State, WebSocketUpgrade},
@@ -34,12 +34,14 @@ use axum::response::{
 };
 use futures::stream::Stream;
 use futures::stream::StreamExt;
+use lingshu_audit::{AuditEntry, AuditEventType, AuditLogStore};
 use lingshu_core::{LsContext, LsId};
 use lingshu_observability::health::HealthRegistry;
 use lingshu_plugin::PluginRegistry;
-use lingshu_traits::llm::{ LlmMessage, LlmRequest, LlmRole};
-use lingshu_websocket::{ClientMessage, ConnectionManager, ConnectionState, SseBroadcaster, SseEvent, Connection};
-use lingshu_audit::{AuditLogStore, AuditEntry, AuditEventType};
+use lingshu_traits::llm::{LlmMessage, LlmRequest, LlmRole};
+use lingshu_websocket::{
+    ClientMessage, Connection, ConnectionManager, ConnectionState, SseBroadcaster, SseEvent,
+};
 use std::convert::Infallible;
 use std::pin::Pin;
 use tokio_stream::wrappers::ReceiverStream;
@@ -296,16 +298,33 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/v1/plugins/{id}/start", post(plugin_start_handler))
         .route("/v1/plugins/{id}/stop", post(plugin_stop_handler))
         // Knowledge Graph API
-        .route("/v1/graph/{project}", get(graph_query_handler).post(graph_analyze_handler))
+        .route(
+            "/v1/graph/{project}",
+            get(graph_query_handler).post(graph_analyze_handler),
+        )
         .route("/v1/graph/{project}/view", get(graph_view_handler))
         .route("/v1/projects", get(project_list_handler))
         // Credential Vault API
         .route("/v1/credentials/ui", get(credential_ui_handler))
-        .route("/v1/credentials", get(credential_list_handler).post(credential_create_handler))
-        .route("/v1/credentials/{id}", get(credential_get_handler).put(credential_update_handler).delete(credential_delete_handler))
+        .route(
+            "/v1/credentials",
+            get(credential_list_handler).post(credential_create_handler),
+        )
+        .route(
+            "/v1/credentials/{id}",
+            get(credential_get_handler)
+                .put(credential_update_handler)
+                .delete(credential_delete_handler),
+        )
         .route("/v1/credentials/{id}/token", get(credential_token_handler))
-        .route("/v1/credentials/{id}/validate", post(credential_validate_handler))
-        .route("/v1/credentials/providers", get(credential_providers_handler))
+        .route(
+            "/v1/credentials/{id}/validate",
+            post(credential_validate_handler),
+        )
+        .route(
+            "/v1/credentials/providers",
+            get(credential_providers_handler),
+        )
         .layer(TraceLayer::new_for_http())
         .layer(cors)
         // Rate limiting middleware — wrap each request with a check
@@ -325,7 +344,8 @@ async fn rate_limit_middleware(
     next: axum::middleware::Next,
 ) -> Result<axum::response::Response, (StatusCode, Json<serde_json::Value>)> {
     // Extract client IP from headers or connection info
-    let client_ip = req.headers()
+    let client_ip = req
+        .headers()
         .get("x-forwarded-for")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("unknown")
@@ -335,7 +355,9 @@ async fn rate_limit_middleware(
         Ok(result) if !result.allowed => {
             return Err((
                 StatusCode::TOO_MANY_REQUESTS,
-                Json(serde_json::json!({"error": "rate_limit_exceeded", "message": "Too many requests. Please slow down.", "retry_after": result.reset_at})),
+                Json(
+                    serde_json::json!({"error": "rate_limit_exceeded", "message": "Too many requests. Please slow down.", "retry_after": result.reset_at}),
+                ),
             ));
         }
         Err(e) => {
@@ -457,15 +479,24 @@ async fn handle_non_streaming_chat(
         )
     })?;
 
-    let session_id = req.session_id.clone()
+    let session_id = req
+        .session_id
+        .clone()
         .and_then(|s| s.parse().ok())
         .unwrap_or_else(LsId::new);
     let ctx = LsContext::with_session(session_id);
     let session_id_str = session_id.to_string();
 
     // Recall conversation history from memory
-    let memory = state.runtime.memory_manager.get_or_create(&session_id_str).await;
-    let memory_result = memory.recall(&ctx, &lingshu_memory::MemoryQuery::default()).await.ok();
+    let memory = state
+        .runtime
+        .memory_manager
+        .get_or_create(&session_id_str)
+        .await;
+    let memory_result = memory
+        .recall(&ctx, &lingshu_memory::MemoryQuery::default())
+        .await
+        .ok();
 
     // Build message list: memory history + request messages
     let mut messages: Vec<LlmMessage> = Vec::new();
@@ -480,7 +511,7 @@ async fn handle_non_streaming_chat(
                 role,
                 content: item.content.clone(),
                 content_parts: None,
-        name: None,
+                name: None,
                 tool_calls: None,
             });
         }
@@ -549,7 +580,9 @@ async fn handle_non_streaming_chat(
 
                 if !has_tool_calls {
                     // Store assistant response to memory
-                    let _ = memory.store_message(&ctx, "assistant", &response.message.content).await;
+                    let _ = memory
+                        .store_message(&ctx, "assistant", &response.message.content)
+                        .await;
 
                     let usage = UsageInfo {
                         prompt_tokens: response.usage.prompt_tokens,
@@ -569,12 +602,16 @@ async fn handle_non_streaming_chat(
                     let _ = state.runtime.audit_log.append(audit_entry).await;
 
                     // Billing: track token usage
-                    let _ = state.runtime.billing.record_usage(
-                        &req.user.clone().unwrap_or_else(|| "anonymous".into()),
-                        &req.model,
-                        usage.prompt_tokens,
-                        usage.completion_tokens,
-                    ).await;
+                    let _ = state
+                        .runtime
+                        .billing
+                        .record_usage(
+                            &req.user.clone().unwrap_or_else(|| "anonymous".into()),
+                            &req.model,
+                            usage.prompt_tokens,
+                            usage.completion_tokens,
+                        )
+                        .await;
 
                     return Ok(Json(ChatCompletionResp {
                         id: format!("chatcmpl-{}", session_id),
@@ -639,7 +676,6 @@ async fn handle_non_streaming_chat(
     ))
 }
 
-
 /// Handle streaming chat completion (SSE) — supports tool calls and interrupt.
 async fn handle_streaming_chat(
     state: Arc<AppState>,
@@ -647,15 +683,24 @@ async fn handle_streaming_chat(
 ) -> Sse<Pin<Box<dyn Stream<Item = Result<Event, Infallible>> + Send>>> {
     let runtime = &state.runtime;
 
-    let session_id = req.session_id.clone()
+    let session_id = req
+        .session_id
+        .clone()
         .and_then(|s| s.parse().ok())
         .unwrap_or_else(LsId::new);
     let ctx = LsContext::with_session(session_id);
     let session_id_str = session_id.to_string();
 
     // Recall conversation history from memory
-    let memory = state.runtime.memory_manager.get_or_create(&session_id_str).await;
-    let memory_result = memory.recall(&ctx, &lingshu_memory::MemoryQuery::default()).await.ok();
+    let memory = state
+        .runtime
+        .memory_manager
+        .get_or_create(&session_id_str)
+        .await;
+    let memory_result = memory
+        .recall(&ctx, &lingshu_memory::MemoryQuery::default())
+        .await
+        .ok();
 
     let mut messages: Vec<LlmMessage> = Vec::new();
     if let Some(result) = memory_result {
@@ -719,7 +764,11 @@ async fn handle_streaming_chat(
             let llm = match &llm {
                 Some(llm) => llm.clone(),
                 None => {
-                    let _ = global_tx.send(Ok(Event::default().data("{\"error\":\"no LLM configured\"}"))).await;
+                    let _ = global_tx
+                        .send(Ok(
+                            Event::default().data("{\"error\":\"no LLM configured\"}")
+                        ))
+                        .await;
                     return;
                 }
             };
@@ -746,15 +795,28 @@ async fn handle_streaming_chat(
                                     has_tool_calls = true;
                                     // Ensure vec is large enough
                                     while tool_call_builders.len() < tcs.len() {
-                                        tool_call_builders.push((String::new(), String::new(), String::new(), String::new()));
+                                        tool_call_builders.push((
+                                            String::new(),
+                                            String::new(),
+                                            String::new(),
+                                            String::new(),
+                                        ));
                                     }
                                     for (i, tc) in tcs.iter().enumerate() {
                                         if i < tool_call_builders.len() {
                                             let entry = &mut tool_call_builders[i];
-                                            if !tc.id.is_empty() { entry.0 = tc.id.clone(); }
-                                            if !tc.call_type.is_empty() { entry.1 = tc.call_type.clone(); }
-                                            if !tc.function.name.is_empty() { entry.2.push_str(&tc.function.name); }
-                                            if !tc.function.arguments.is_empty() { entry.3.push_str(&tc.function.arguments); }
+                                            if !tc.id.is_empty() {
+                                                entry.0 = tc.id.clone();
+                                            }
+                                            if !tc.call_type.is_empty() {
+                                                entry.1 = tc.call_type.clone();
+                                            }
+                                            if !tc.function.name.is_empty() {
+                                                entry.2.push_str(&tc.function.name);
+                                            }
+                                            if !tc.function.arguments.is_empty() {
+                                                entry.3.push_str(&tc.function.arguments);
+                                            }
                                         }
                                     }
                                 }
@@ -769,7 +831,11 @@ async fn handle_streaming_chat(
                                         "finish_reason": chunk.finish_reason,
                                     }]
                                 });
-                                if global_tx.send(Ok(Event::default().data(data.to_string()))).await.is_err() {
+                                if global_tx
+                                    .send(Ok(Event::default().data(data.to_string())))
+                                    .await
+                                    .is_err()
+                                {
                                     return;
                                 }
 
@@ -781,7 +847,9 @@ async fn handle_streaming_chat(
                                 }
                             }
                             Err(e) => {
-                                let _ = global_tx.send(Ok(Event::default().data(format!("error: {}", e)))).await;
+                                let _ = global_tx
+                                    .send(Ok(Event::default().data(format!("error: {}", e))))
+                                    .await;
                                 return;
                             }
                         }
@@ -790,17 +858,20 @@ async fn handle_streaming_chat(
                     // If tool calls were detected, execute them and continue the loop
                     if has_tool_calls && !tool_call_builders.is_empty() {
                         // Add assistant message with tool calls to history
-                        let tool_calls: Vec<lingshu_traits::llm::ToolCall> = tool_call_builders.into_iter().map(|(id, call_type, name, args)| {
-                            lingshu_traits::llm::ToolCall {
-                                id,
-                                call_type,
-                                function: lingshu_traits::llm::ToolCallFunction {
-                                    name,
-                                    arguments: args,
+                        let tool_calls: Vec<lingshu_traits::llm::ToolCall> = tool_call_builders
+                            .into_iter()
+                            .map(
+                                |(id, call_type, name, args)| lingshu_traits::llm::ToolCall {
+                                    id,
+                                    call_type,
+                                    function: lingshu_traits::llm::ToolCallFunction {
+                                        name,
+                                        arguments: args,
+                                    },
                                 },
-                            }
-                        }).collect();
-                        
+                            )
+                            .collect();
+
                         current_messages.push(LlmMessage {
                             role: LlmRole::Assistant,
                             content: full_content.clone(),
@@ -811,7 +882,10 @@ async fn handle_streaming_chat(
 
                         // Execute each tool call (simplified: just record the call)
                         for tc in &tool_calls {
-                            let result = format!("executed tool: {} with args: {}", tc.function.name, tc.function.arguments);
+                            let result = format!(
+                                "executed tool: {} with args: {}",
+                                tc.function.name, tc.function.arguments
+                            );
                             // Forward tool execution event
                             let tool_data = json!({
                                 "type": "tool_call",
@@ -820,8 +894,12 @@ async fn handle_streaming_chat(
                                 "arguments": tc.function.arguments,
                                 "result": result,
                             });
-                            let _ = global_tx.send(Ok(Event::default().event("tool_call").data(tool_data.to_string()))).await;
-                            
+                            let _ = global_tx
+                                .send(Ok(Event::default()
+                                    .event("tool_call")
+                                    .data(tool_data.to_string())))
+                                .await;
+
                             // Add tool result to messages for next round
                             current_messages.push(LlmMessage {
                                 role: LlmRole::Tool,
@@ -831,7 +909,7 @@ async fn handle_streaming_chat(
                                 tool_calls: None,
                             });
                         }
-                        
+
                         // Continue loop to send tool results back to LLM
                         continue;
                     }
@@ -846,17 +924,25 @@ async fn handle_streaming_chat(
                     return;
                 }
                 Err(e) => {
-                    let _ = global_tx.send(Ok(Event::default().data(format!("error: {}", e)))).await;
+                    let _ = global_tx
+                        .send(Ok(Event::default().data(format!("error: {}", e))))
+                        .await;
                     return;
                 }
             }
         }
 
         // Max rounds exceeded
-        let _ = global_tx.send(Ok(Event::default().data("{\"error\":\"max tool call rounds exceeded\"}"))).await;
+        let _ = global_tx
+            .send(Ok(
+                Event::default().data("{\"error\":\"max tool call rounds exceeded\"}")
+            ))
+            .await;
     });
 
-    Sse::new(Box::pin(tokio_stream::wrappers::ReceiverStream::new(global_rx)))
+    Sse::new(Box::pin(tokio_stream::wrappers::ReceiverStream::new(
+        global_rx,
+    )))
 }
 async fn embeddings_handler(Json(req): Json<EmbedReq>) -> Json<EmbedResp> {
     let dims = 1536;
@@ -904,8 +990,15 @@ async fn chat_handler(
     let session_id_str = session_id.to_string();
 
     // Recall conversation history from memory
-    let memory = state.runtime.memory_manager.get_or_create(&session_id_str).await;
-    let memory_result = memory.recall(&ctx, &lingshu_memory::MemoryQuery::default()).await.ok();
+    let memory = state
+        .runtime
+        .memory_manager
+        .get_or_create(&session_id_str)
+        .await;
+    let memory_result = memory
+        .recall(&ctx, &lingshu_memory::MemoryQuery::default())
+        .await
+        .ok();
 
     let mut messages: Vec<LlmMessage> = Vec::new();
     if let Some(result) = memory_result {
@@ -919,7 +1012,7 @@ async fn chat_handler(
                 role,
                 content: item.content.clone(),
                 content_parts: None,
-        name: None,
+                name: None,
                 tool_calls: None,
             });
         }
@@ -952,7 +1045,9 @@ async fn chat_handler(
     match llm.invoke(ctx.clone(), request).await {
         Ok(response) => {
             // Store assistant response to memory
-            let _ = memory.store_message(&ctx, "assistant", &response.message.content).await;
+            let _ = memory
+                .store_message(&ctx, "assistant", &response.message.content)
+                .await;
 
             Ok(Json(ChatResp {
                 session_id: session_id_str,
@@ -993,7 +1088,9 @@ async fn agent_run_handler(
         )
     })?;
 
-    let session_id = req.session_id.clone()
+    let session_id = req
+        .session_id
+        .clone()
         .and_then(|s| s.parse().ok())
         .unwrap_or_else(LsId::new);
     let ctx = LsContext::with_session(session_id);
@@ -1001,9 +1098,15 @@ async fn agent_run_handler(
     let tools = runtime.tool_registry.clone();
 
     // Store agent input to memory
-    let memory = state.runtime.memory_manager.get_or_create(&session_id_str).await;
+    let memory = state
+        .runtime
+        .memory_manager
+        .get_or_create(&session_id_str)
+        .await;
     let input_str = serde_json::to_string(&req.input).unwrap_or_default();
-    let _ = memory.store_message(&ctx, "user", &format!("[Agent Input]: {}", input_str)).await;
+    let _ = memory
+        .store_message(&ctx, "user", &format!("[Agent Input]: {}", input_str))
+        .await;
 
     use lingshu_traits::agent::Agent;
     let config = lingshu_backends::AgentConfig {
@@ -1029,18 +1132,19 @@ async fn agent_run_handler(
         )
         .await;
 
-    let mut agent = lingshu_backends::DefaultAgent::new(
-        config,
-        llm.clone(),
-        tools,
-        None,
-    );
+    let mut agent = lingshu_backends::DefaultAgent::new(config, llm.clone(), tools, None);
 
     match agent.run(ctx.clone(), req.input).await {
         Ok(output) => {
             // Store agent output to memory
             let output_str = serde_json::to_string(&output.data).unwrap_or_default();
-            let _ = memory.store_message(&ctx, "assistant", &format!("[Agent Output]: {}", output_str)).await;
+            let _ = memory
+                .store_message(
+                    &ctx,
+                    "assistant",
+                    &format!("[Agent Output]: {}", output_str),
+                )
+                .await;
 
             // 发布 Agent 完成事件
             let _ = runtime
@@ -1059,12 +1163,13 @@ async fn agent_run_handler(
                 .await;
 
             // Publish SSE event for real-time subscribers
-            state.sse_broadcaster.publish(
-                SseEvent::new("agent.run.completed", json!({
+            state.sse_broadcaster.publish(SseEvent::new(
+                "agent.run.completed",
+                json!({
                     "agent_id": output.agent_id.to_string(),
                     "status": format!("{:?}", output.status),
-                }))
-            );
+                }),
+            ));
             let status = match output.status {
                 lingshu_traits::agent::AgentStatus::Completed => "completed",
                 lingshu_traits::agent::AgentStatus::Failed => "failed",
@@ -1117,7 +1222,11 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
     let ctx = LsContext::with_session(session_id);
     let session_id_str = session_id.to_string();
 
-    let memory = state.runtime.memory_manager.get_or_create(&session_id_str).await;
+    let memory = state
+        .runtime
+        .memory_manager
+        .get_or_create(&session_id_str)
+        .await;
 
     let _ = socket
         .send(ws::Message::Text(
@@ -1159,7 +1268,10 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
             let child_ctx = ctx.child();
 
             // Recall history and prepend
-            let memory_result = memory.recall(&ctx, &lingshu_memory::MemoryQuery::default()).await.ok();
+            let memory_result = memory
+                .recall(&ctx, &lingshu_memory::MemoryQuery::default())
+                .await
+                .ok();
             let mut hist_messages: Vec<LlmMessage> = Vec::new();
             if let Some(result) = memory_result {
                 for item in &result.items {
@@ -1172,7 +1284,7 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
                         role,
                         content: item.content.clone(),
                         content_parts: None,
-        name: None,
+                        name: None,
                         tool_calls: None,
                     });
                 }
@@ -1181,7 +1293,7 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
                 role: LlmRole::User,
                 content: prompt.clone(),
                 content_parts: None,
-        name: None,
+                name: None,
                 tool_calls: None,
             });
 
@@ -1220,7 +1332,9 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
                                 }
                                 if let Some(reason) = &chunk.finish_reason {
                                     // Store assistant response to memory
-                                    let _ = memory.store_message(&ctx, "assistant", &full_content).await;
+                                    let _ = memory
+                                        .store_message(&ctx, "assistant", &full_content)
+                                        .await;
 
                                     let _ = socket.send(ws::Message::Text(json!({
                                         "type": "done",
@@ -1291,9 +1405,7 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
 // ── v2 Real-time Handlers ──────────────────────────
 
 /// GET /v2/chat/stream — SSE streaming chat (v2)
-async fn v2_chat_stream_handler(
-    State(state): State<Arc<AppState>>,
-) -> impl IntoResponse {
+async fn v2_chat_stream_handler(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let ctx = LsContext::with_session(LsId::new());
     let request = LlmRequest {
         model: state.runtime.config.llm.default_model.clone(),
@@ -1301,7 +1413,7 @@ async fn v2_chat_stream_handler(
             role: LlmRole::User,
             content: "Hello".to_string(),
             content_parts: None,
-        name: None,
+            name: None,
             tool_calls: None,
         }],
         temperature: Some(0.7),
@@ -1316,30 +1428,40 @@ async fn v2_chat_stream_handler(
                 let stream = ReceiverStream::new(rx).then(|chunk_result| {
                     futures::future::ready(match chunk_result {
                         Ok(chunk) => Ok::<Event, Infallible>(
-                            Event::default().data(json!({
-                                "type": "chunk",
-                                "content": chunk.content.unwrap_or_default(),
-                                "index": 0u32,
-                            }).to_string())
+                            Event::default().data(
+                                json!({
+                                    "type": "chunk",
+                                    "content": chunk.content.unwrap_or_default(),
+                                    "index": 0u32,
+                                })
+                                .to_string(),
+                            ),
                         ),
                         Err(e) => Ok(Event::default()
                             .data(json!({"type": "error", "message": format!("{e}")}).to_string())
                             .event("error")),
                     })
                 });
-                Sse::new(stream).keep_alive(
-                    axum::response::sse::KeepAlive::new()
-                        .interval(std::time::Duration::from_secs(15))
-                        .text("keep-alive"),
-                )
-                .into_response()
+                Sse::new(stream)
+                    .keep_alive(
+                        axum::response::sse::KeepAlive::new()
+                            .interval(std::time::Duration::from_secs(15))
+                            .text("keep-alive"),
+                    )
+                    .into_response()
             }
-            Err(e) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": format!("{e}")}))).into_response()
-            }
+            Err(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": format!("{e}")})),
+            )
+                .into_response(),
         }
     } else {
-        (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error": "no LLM configured"}))).into_response()
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error": "no LLM configured"})),
+        )
+            .into_response()
     }
 }
 
@@ -1350,7 +1472,6 @@ async fn v2_ws_handler(
 ) -> axum::response::Response {
     ws.on_upgrade(move |socket| v2_handle_ws(socket, state))
 }
-
 
 async fn v2_handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
     use futures::StreamExt;
@@ -1364,11 +1485,23 @@ async fn v2_handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
     let conn_manager = state.ws_manager.clone();
     let sid_str = session_id.to_string();
 
-    conn_manager.register(Connection::new(sid_str.clone(), user_id, tx, remote_addr, user_agent)).await;
+    conn_manager
+        .register(Connection::new(
+            sid_str.clone(),
+            user_id,
+            tx,
+            remote_addr,
+            user_agent,
+        ))
+        .await;
 
-    let _ = socket.send(ws::Message::Text(
-        json!({"type": "connected", "session_id": sid_str.clone()}).to_string().into(),
-    )).await;
+    let _ = socket
+        .send(ws::Message::Text(
+            json!({"type": "connected", "session_id": sid_str.clone()})
+                .to_string()
+                .into(),
+        ))
+        .await;
 
     let ctx = LsContext::with_session(session_id);
     let mut streaming_content = String::new();
@@ -1542,11 +1675,8 @@ async fn v2_handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
     info!(session_id = %sid_str, "v2 websocket disconnected");
 }
 
-
 /// GET /v2/events — SSE system event stream
-async fn v2_events_handler(
-    State(state): State<Arc<AppState>>,
-) -> impl IntoResponse {
+async fn v2_events_handler(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let mut rx = state.sse_broadcaster.subscribe();
 
     let stream = async_stream::stream! {
@@ -1579,13 +1709,10 @@ async fn v2_events_handler(
     )
 }
 
-
 // ── Agent Lifecycle Handlers ────────────────────────
 
 /// GET /v1/agents — 列出所有 Agent
-async fn agent_list_handler(
-    State(state): State<Arc<AppState>>,
-) -> Json<Vec<AgentSummaryResponse>> {
+async fn agent_list_handler(State(state): State<Arc<AppState>>) -> Json<Vec<AgentSummaryResponse>> {
     let agents = state.runtime.agent_manager.list().await;
     let items: Vec<AgentSummaryResponse> = agents
         .iter()
@@ -1605,15 +1732,24 @@ async fn agent_status_handler(
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<Json<AgentSummaryResponse>, (StatusCode, Json<Value>)> {
     let agent_id: LsId = id.parse().map_err(|_| {
-        (StatusCode::BAD_REQUEST, Json(json!({"error": "invalid agent id"})))
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "invalid agent id"})),
+        )
     })?;
 
     match state.runtime.agent_manager.status(&agent_id).await {
         Ok(status) => {
             let agents = state.runtime.agent_manager.list().await;
-            let agent = agents.iter().find(|a| a.agent_id == agent_id).ok_or_else(|| {
-                (StatusCode::NOT_FOUND, Json(json!({"error": "agent not found"})))
-            })?;
+            let agent = agents
+                .iter()
+                .find(|a| a.agent_id == agent_id)
+                .ok_or_else(|| {
+                    (
+                        StatusCode::NOT_FOUND,
+                        Json(json!({"error": "agent not found"})),
+                    )
+                })?;
             Ok(Json(AgentSummaryResponse {
                 agent_id: agent.agent_id.to_string(),
                 name: agent.name.clone(),
@@ -1621,7 +1757,10 @@ async fn agent_status_handler(
                 created_at: agent.created_at.to_rfc3339(),
             }))
         }
-        Err(_) => Err((StatusCode::NOT_FOUND, Json(json!({"error": "agent not found"})))),
+        Err(_) => Err((
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "agent not found"})),
+        )),
     }
 }
 
@@ -1631,22 +1770,36 @@ async fn agent_pause_handler(
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     let agent_id: LsId = id.parse().map_err(|_| {
-        (StatusCode::BAD_REQUEST, Json(json!({"error": "invalid agent id"})))
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "invalid agent id"})),
+        )
     })?;
 
     let ctx = LsContext::with_session(LsId::new());
-    state.runtime.agent_manager.pause(&agent_id, &ctx).await.map_err(|e| {
-        (StatusCode::NOT_FOUND, Json(json!({"error": format!("{e}")})))
-    })?;
+    state
+        .runtime
+        .agent_manager
+        .pause(&agent_id, &ctx)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(json!({"error": format!("{e}")})),
+            )
+        })?;
 
     // Publish SSE event
-    state.sse_broadcaster.publish(
-        SseEvent::new("agent.state_change", json!({
+    state.sse_broadcaster.publish(SseEvent::new(
+        "agent.state_change",
+        json!({
             "agent_id": agent_id.to_string(),
             "state": "paused",
-        }))
-    );
-    Ok(Json(json!({"status": "paused", "agent_id": agent_id.to_string()})))
+        }),
+    ));
+    Ok(Json(
+        json!({"status": "paused", "agent_id": agent_id.to_string()}),
+    ))
 }
 
 /// POST /v1/agents/{id}/resume — 恢复 Agent
@@ -1655,22 +1808,36 @@ async fn agent_resume_handler(
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     let agent_id: LsId = id.parse().map_err(|_| {
-        (StatusCode::BAD_REQUEST, Json(json!({"error": "invalid agent id"})))
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "invalid agent id"})),
+        )
     })?;
 
     let ctx = LsContext::with_session(LsId::new());
-    state.runtime.agent_manager.resume(&agent_id, &ctx).await.map_err(|e| {
-        (StatusCode::NOT_FOUND, Json(json!({"error": format!("{e}")})))
-    })?;
+    state
+        .runtime
+        .agent_manager
+        .resume(&agent_id, &ctx)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(json!({"error": format!("{e}")})),
+            )
+        })?;
 
     // Publish SSE event
-    state.sse_broadcaster.publish(
-        SseEvent::new("agent.state_change", json!({
+    state.sse_broadcaster.publish(SseEvent::new(
+        "agent.state_change",
+        json!({
             "agent_id": agent_id.to_string(),
             "state": "resumed",
-        }))
-    );
-    Ok(Json(json!({"status": "resumed", "agent_id": agent_id.to_string()})))
+        }),
+    ));
+    Ok(Json(
+        json!({"status": "resumed", "agent_id": agent_id.to_string()}),
+    ))
 }
 
 /// POST /v1/agents/{id}/cancel — 取消 Agent
@@ -1679,22 +1846,36 @@ async fn agent_cancel_handler(
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     let agent_id: LsId = id.parse().map_err(|_| {
-        (StatusCode::BAD_REQUEST, Json(json!({"error": "invalid agent id"})))
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "invalid agent id"})),
+        )
     })?;
 
     let ctx = LsContext::with_session(LsId::new());
-    state.runtime.agent_manager.cancel(&agent_id, &ctx).await.map_err(|e| {
-        (StatusCode::NOT_FOUND, Json(json!({"error": format!("{e}")})))
-    })?;
+    state
+        .runtime
+        .agent_manager
+        .cancel(&agent_id, &ctx)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(json!({"error": format!("{e}")})),
+            )
+        })?;
 
     // Publish SSE event
-    state.sse_broadcaster.publish(
-        SseEvent::new("agent.state_change", json!({
+    state.sse_broadcaster.publish(SseEvent::new(
+        "agent.state_change",
+        json!({
             "agent_id": agent_id.to_string(),
             "state": "cancelled",
-        }))
-    );
-    Ok(Json(json!({"status": "cancelled", "agent_id": agent_id.to_string()})))
+        }),
+    ));
+    Ok(Json(
+        json!({"status": "cancelled", "agent_id": agent_id.to_string()}),
+    ))
 }
 
 #[derive(Serialize)]
@@ -1704,7 +1885,6 @@ struct AgentSummaryResponse {
     status: String,
     created_at: String,
 }
-
 
 // ── Plugin Types ────────────────────────────────────
 
@@ -1960,10 +2140,14 @@ async fn upload_file_handler(
         })?;
 
     let size_bytes = decoded.len() as u64;
-    let mime_type = req.mime_type.clone().unwrap_or_else(|| {
-        lingshu_multimodal::FileAnalyzer::guess_mime(&req.name, &decoded)
-    });
-    let file_type = format!("{:?}", lingshu_multimodal::FileAnalyzer::classify(&mime_type));
+    let mime_type = req
+        .mime_type
+        .clone()
+        .unwrap_or_else(|| lingshu_multimodal::FileAnalyzer::guess_mime(&req.name, &decoded));
+    let file_type = format!(
+        "{:?}",
+        lingshu_multimodal::FileAnalyzer::classify(&mime_type)
+    );
 
     // 分析文件 (图像)
     let analysis = if mime_type.starts_with("image/") {
@@ -1997,13 +2181,16 @@ async fn upload_file_handler(
     }
 
     // Publish SSE event
-    state.sse_broadcaster.publish(
-        lingshu_websocket::SseEvent::new("file.uploaded", json!({
-            "file_id": file_id,
-            "name": req.name,
-            "size_bytes": size_bytes,
-        }))
-    );
+    state
+        .sse_broadcaster
+        .publish(lingshu_websocket::SseEvent::new(
+            "file.uploaded",
+            json!({
+                "file_id": file_id,
+                "name": req.name,
+                "size_bytes": size_bytes,
+            }),
+        ));
 
     Ok(Json(record))
 }
@@ -2037,32 +2224,30 @@ async fn analyze_file_handler(
         })?;
 
     let result = if record.mime_type.starts_with("image/") {
-        let analysis = lingshu_multimodal::ImageProcessor::analyze(&decoded)
-            .map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({"error": format!("image analysis failed: {e}")})),
-                )
-            })?;
+        let analysis = lingshu_multimodal::ImageProcessor::analyze(&decoded).map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": format!("image analysis failed: {e}")})),
+            )
+        })?;
         json!({
             "type": "image",
             "analysis": analysis,
         })
     } else if record.mime_type.starts_with("audio/") {
-        let info = lingshu_multimodal::AudioProcessor::analyze(&decoded)
-            .map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({"error": format!("audio analysis failed: {e}")})),
-                )
-            })?;
+        let info = lingshu_multimodal::AudioProcessor::analyze(&decoded).map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": format!("audio analysis failed: {e}")})),
+            )
+        })?;
         json!({
             "type": "audio",
             "info": info,
         })
     } else {
-        let file_info = lingshu_multimodal::FileAnalyzer::analyze(&record.name, &decoded)
-            .map_err(|e| {
+        let file_info =
+            lingshu_multimodal::FileAnalyzer::analyze(&record.name, &decoded).map_err(|e| {
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     Json(json!({"error": format!("file analysis failed: {e}")})),
@@ -2078,9 +2263,7 @@ async fn analyze_file_handler(
 }
 
 /// GET /v1/files — 列出所有上传文件
-async fn list_files_handler(
-    State(state): State<Arc<AppState>>,
-) -> Json<FileListResponse> {
+async fn list_files_handler(State(state): State<Arc<AppState>>) -> Json<FileListResponse> {
     let store = state.file_store.read().await;
     let files: Vec<FileRecord> = store.clone();
     let total = files.len();
@@ -2140,15 +2323,20 @@ async fn multimodal_chat_handler(
     }
 
     // 构建多模态消息内容
-    let content_parts = lingshu_multimodal::MultimodalRag::build_multimodal_content(
-        &req.prompt,
-        &image_parts,
-    );
+    let content_parts =
+        lingshu_multimodal::MultimodalRag::build_multimodal_content(&req.prompt, &image_parts);
 
     // Recall memory
-    let memory = state.runtime.memory_manager.get_or_create(&session_id_str).await;
+    let memory = state
+        .runtime
+        .memory_manager
+        .get_or_create(&session_id_str)
+        .await;
     let mut messages: Vec<lingshu_traits::llm::LlmMessage> = Vec::new();
-    if let Ok(mem_result) = memory.recall(&ctx, &lingshu_memory::MemoryQuery::default()).await {
+    if let Ok(mem_result) = memory
+        .recall(&ctx, &lingshu_memory::MemoryQuery::default())
+        .await
+    {
         for item in &mem_result.items {
             let role = match item.role.as_str() {
                 "system" => lingshu_traits::llm::LlmRole::System,
@@ -2176,7 +2364,9 @@ async fn multimodal_chat_handler(
     let _ = memory.store_message(&ctx, "user", &req.prompt).await;
 
     let request = lingshu_traits::llm::LlmRequest {
-        model: req.model.unwrap_or_else(|| runtime.config.llm.default_model.clone()),
+        model: req
+            .model
+            .unwrap_or_else(|| runtime.config.llm.default_model.clone()),
         messages,
         temperature: Some(0.7),
         max_tokens: Some(runtime.config.llm.max_tokens),
@@ -2186,7 +2376,9 @@ async fn multimodal_chat_handler(
 
     match llm.invoke(ctx.clone(), request).await {
         Ok(response) => {
-            let _ = memory.store_message(&ctx, "assistant", &response.message.content).await;
+            let _ = memory
+                .store_message(&ctx, "assistant", &response.message.content)
+                .await;
 
             Ok(Json(json!({
                 "session_id": session_id_str,
@@ -2220,9 +2412,7 @@ async fn mcp_handler(
 }
 
 /// GET /v1/mcp/tools — 列出 MCP 工具 (简化 JSON 格式)
-async fn mcp_tools_handler(
-    State(state): State<Arc<AppState>>,
-) -> Json<serde_json::Value> {
+async fn mcp_tools_handler(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     let ctx = LsContext::with_session(LsId::new());
     let body = serde_json::json!({
         "jsonrpc": "2.0",
@@ -2234,12 +2424,10 @@ async fn mcp_tools_handler(
     Json(serde_json::to_value(&response).unwrap_or_default())
 }
 
-
-
 /// GET /v1/mcp/ui -- MCP 工具调用 WebUI
 async fn mcp_ui_handler() -> Result<Html<String>, (StatusCode, String)> {
     let html = String::from(
-r##"<!DOCTYPE html>
+        r##"<!DOCTYPE html>
 <html lang="zh-CN">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>MCP Tool Call</title>
@@ -2435,7 +2623,8 @@ function clearResult(){
  $("progress-bar").classList.remove("show")
 }
 </script>
-</body></html>"##);
+</body></html>"##,
+    );
     Ok(Html(html))
 }
 
@@ -2457,9 +2646,7 @@ async fn graph_query_handler(
 }
 
 /// 项目列表（有图谱缓存的）.
-async fn project_list_handler(
-    State(state): State<Arc<AppState>>,
-) -> Json<Vec<String>> {
+async fn project_list_handler(State(state): State<Arc<AppState>>) -> Json<Vec<String>> {
     let cache = state.runtime.graph_cache.read().await;
     Json(cache.keys().cloned().collect())
 }
@@ -2471,12 +2658,16 @@ async fn graph_view_handler(
 ) -> Result<Html<String>, (StatusCode, String)> {
     let cache = state.runtime.graph_cache.read().await;
     let graph = cache.get(&project).ok_or_else(|| {
-        (StatusCode::NOT_FOUND, format!("Project '{project}' not found"))
+        (
+            StatusCode::NOT_FOUND,
+            format!("Project '{project}' not found"),
+        )
     })?;
 
     let graph_json = serde_json::to_string_pretty(graph).unwrap_or_default();
 
-    let html = format!(r#"<!DOCTYPE html>
+    let html = format!(
+        r#"<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -2620,7 +2811,7 @@ async fn graph_view_handler(
 async fn credential_ui_handler() -> Result<Html<String>, (StatusCode, String)> {
     // Use string building to avoid format!() brace/quote conflicts
     let html = String::from(
-r##"<!DOCTYPE html>
+        r##"<!DOCTYPE html>
 <html lang="zh-CN">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Credential Vault</title>
@@ -2735,36 +2926,45 @@ function v(id){fetch(A+"/"+id+"/validate",{method:"POST"}).then(function(r){retu
 function tok(id,el){if(el.dataset.masked==="0"){el.textContent=el.dataset.mt;el.dataset.masked="1";return}fetch(A+"/"+id+"/token").then(function(r){return r.json()}).then(function(e){el.dataset.mt=el.textContent;el.textContent=e.token;el.dataset.masked="0"}).catch(function(x){t("Err:"+x,"error")})}
 refresh();
 </script>
-</body></html>"##
+</body></html>"##,
     );
     Ok(Html(html))
 }
-
-
 
 async fn graph_analyze_handler(
     State(state): State<Arc<AppState>>,
     Path(project): Path<String>,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let project_root = payload.get("project_root")
+    let project_root = payload
+        .get("project_root")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": "missing project_root"})),
-        ))?;
+        .ok_or_else(|| {
+            (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": "missing project_root"})),
+            )
+        })?;
 
-    let max_files = payload.get("max_files").and_then(|v| v.as_u64()).unwrap_or(5000) as usize;
-    let modified_since = payload.get("modified_since")
+    let max_files = payload
+        .get("max_files")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(5000) as usize;
+    let modified_since = payload
+        .get("modified_since")
         .and_then(|v| v.as_i64())
         .map(|secs| std::time::UNIX_EPOCH + std::time::Duration::from_secs(secs as u64));
 
     // Build progress callback that emits SSE events
     let sse = state.sse_broadcaster.clone();
     let project_name = project.clone();
-    let progress_callback: Option<std::sync::Arc<dyn Fn(usize, usize) + Send + Sync>> = Some(std::sync::Arc::new(move |scanned, total| {
-        sse.publish(lingshu_websocket::SseEvent::new("graph.scan_progress", serde_json::json!({"project": project_name, "scanned": scanned, "total": total})));
-    }));
+    let progress_callback: Option<std::sync::Arc<dyn Fn(usize, usize) + Send + Sync>> =
+        Some(std::sync::Arc::new(move |scanned, total| {
+            sse.publish(lingshu_websocket::SseEvent::new(
+                "graph.scan_progress",
+                serde_json::json!({"project": project_name, "scanned": scanned, "total": total}),
+            ));
+        }));
 
     // Build pipeline
     let config = lingshu_orchestrator::PipelineConfig {
@@ -2785,7 +2985,10 @@ async fn graph_analyze_handler(
             model: state.runtime.config.llm.default_model.clone(),
             ..Default::default()
         };
-        let analyzer = Arc::new(lingshu_code_analyzer::LlmAnalyzer::new(llm.clone(), llm_config));
+        let analyzer = Arc::new(lingshu_code_analyzer::LlmAnalyzer::new(
+            llm.clone(),
+            llm_config,
+        ));
         pipeline = pipeline.with_llm_analyzer(analyzer);
     }
 
@@ -2815,7 +3018,10 @@ async fn graph_analyze_handler(
             "api",
             "project",
             &project,
-            &format!("Analyzed project: {} files, {} nodes, {} edges", report.files_scanned, report.graph_nodes, report.graph_edges),
+            &format!(
+                "Analyzed project: {} files, {} nodes, {} edges",
+                report.files_scanned, report.graph_nodes, report.graph_edges
+            ),
         );
         let _ = state.runtime.audit_log.append(entry).await;
     }
@@ -2830,16 +3036,19 @@ async fn graph_analyze_handler(
 
     // Also broadcast via WS
     use lingshu_websocket::ServerMessage;
-    state.ws_manager.broadcast(&ServerMessage::Event {
-        event: "graph.updated".into(),
-        data: serde_json::json!({
-            "project": project,
-            "node_count": graph.nodes.len(),
-            "edge_count": graph.edges.len(),
-            "nodes": graph.nodes,
-            "edges": graph.edges,
-        }),
-    }).await;
+    state
+        .ws_manager
+        .broadcast(&ServerMessage::Event {
+            event: "graph.updated".into(),
+            data: serde_json::json!({
+                "project": project,
+                "node_count": graph.nodes.len(),
+                "edge_count": graph.edges.len(),
+                "nodes": graph.nodes,
+                "edges": graph.edges,
+            }),
+        })
+        .await;
 
     Ok(Json(serde_json::json!({
         "project": project,
@@ -2851,14 +3060,15 @@ async fn graph_analyze_handler(
     })))
 }
 
-
 // ── Credential Vault Handlers ────────────────────────
 
 /// 列出所有凭证（摘要）.
 async fn credential_list_handler(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<lingshu_credentials::CredentialSummary>>, (StatusCode, String)> {
-    state.credential_manager.list()
+    state
+        .credential_manager
+        .list()
         .map(Json)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
 }
@@ -2868,7 +3078,10 @@ async fn credential_create_handler(
     State(state): State<Arc<AppState>>,
     Json(req): Json<lingshu_credentials::CreateCredentialRequest>,
 ) -> Result<(StatusCode, Json<lingshu_credentials::CredentialSummary>), (StatusCode, String)> {
-    state.credential_manager.create(req).await
+    state
+        .credential_manager
+        .create(req)
+        .await
         .map(|c| (StatusCode::CREATED, Json(c)))
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))
 }
@@ -2897,7 +3110,10 @@ async fn credential_update_handler(
     Path(id): Path<String>,
     Json(req): Json<lingshu_credentials::UpdateCredentialRequest>,
 ) -> Result<Json<bool>, (StatusCode, String)> {
-    state.credential_manager.update(&id, req).await
+    state
+        .credential_manager
+        .update(&id, req)
+        .await
         .map(Json)
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))
 }
@@ -2907,7 +3123,9 @@ async fn credential_delete_handler(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, (StatusCode, String)> {
-    state.credential_manager.delete(&id)
+    state
+        .credential_manager
+        .delete(&id)
         .map(|_| StatusCode::NO_CONTENT)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
 }
@@ -2929,20 +3147,17 @@ async fn credential_validate_handler(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> Result<Json<lingshu_credentials::CredentialValidation>, (StatusCode, String)> {
-    state.credential_manager.validate(&id).await
+    state
+        .credential_manager
+        .validate(&id)
+        .await
         .map(Json)
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))
 }
 
 /// 列出支持的提供商.
 async fn credential_providers_handler() -> Json<Vec<&'static str>> {
-    Json(vec![
-        "gitee",
-        "codeup",
-        "coding",
-        "gitcode",
-        "cnb",
-    ])
+    Json(vec!["gitee", "codeup", "coding", "gitcode", "cnb"])
 }
 
 #[cfg(test)]
@@ -2975,12 +3190,11 @@ mod tests {
 
         let tmp_cred = tmp.join("credentials.db");
         let credential_store = std::sync::Arc::new(
-            lingshu_credentials::CredentialStore::open(&tmp_cred, "test-master-key")
-                .unwrap()
+            lingshu_credentials::CredentialStore::open(&tmp_cred, "test-master-key").unwrap(),
         );
-        let credential_manager = std::sync::Arc::new(
-            lingshu_credentials::CredentialManager::new(credential_store)
-        );
+        let credential_manager = std::sync::Arc::new(lingshu_credentials::CredentialManager::new(
+            credential_store,
+        ));
 
         let runtime = Arc::new(crate::LingshuRuntime {
             lifecycle,
@@ -2993,12 +3207,14 @@ mod tests {
             llm: Some(Arc::new(lingshu_backends::mock_llm::MockLlm::new())),
             service_key: None,
             root_ctx: ctx,
-            tool_registry: Arc::new(tokio::sync::RwLock::new(lingshu_runtime::ToolRegistry::new())),
+            tool_registry: Arc::new(tokio::sync::RwLock::new(
+                lingshu_runtime::ToolRegistry::new(),
+            )),
             agent_manager: lingshu_runtime::AgentManager::new(),
             memory_manager: lingshu_memory::SessionMemoryManager::default(),
             mcp_server: Arc::new(lingshu_mcp::McpServer::new()),
             graph_store: std::sync::Arc::new(
-                lingshu_knowledge_graph::GraphStore::in_memory().unwrap()
+                lingshu_knowledge_graph::GraphStore::in_memory().unwrap(),
             ),
             graph_cache: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
             rate_limiter: std::sync::Arc::new(lingshu_ratelimit::MultiRateLimiter::new()),
@@ -3008,13 +3224,14 @@ mod tests {
                 lingshu_billing::BillingSystem::new(vec![]).unwrap_or_else(|_| {
                     let tracker = std::sync::Arc::new(lingshu_billing::UsageTracker::new());
                     let quota_mgr = std::sync::Arc::new(lingshu_billing::QuotaManager::new(vec![]));
-                    let report_gen = std::sync::Arc::new(lingshu_billing::ReportGenerator::new(tracker.clone()));
+                    let report_gen =
+                        std::sync::Arc::new(lingshu_billing::ReportGenerator::new(tracker.clone()));
                     lingshu_billing::BillingSystem {
                         tracker,
                         quota_manager: quota_mgr,
                         report_generator: report_gen,
                     }
-                })
+                }),
             ),
             credential_manager,
         });
@@ -3023,11 +3240,12 @@ mod tests {
             "1.0.0",
         ));
         // Need credential store for test
-        let tmp_cred_test = std::env::temp_dir().join("lingshu-test").join("credentials.db");
+        let tmp_cred_test = std::env::temp_dir()
+            .join("lingshu-test")
+            .join("credentials.db");
         std::fs::create_dir_all(tmp_cred_test.parent().unwrap()).ok();
         let test_cred_store = std::sync::Arc::new(
-            lingshu_credentials::CredentialStore::open(&tmp_cred_test, "test-master-key")
-                .unwrap()
+            lingshu_credentials::CredentialStore::open(&tmp_cred_test, "test-master-key").unwrap(),
         );
         Arc::new(AppState {
             runtime,
@@ -3036,9 +3254,9 @@ mod tests {
             ws_manager: Arc::new(ConnectionManager::new(300)),
             sse_broadcaster: Arc::new(SseBroadcaster::new(1024)),
             file_store: Arc::new(tokio::sync::RwLock::new(Vec::new())),
-            credential_manager: std::sync::Arc::new(
-                lingshu_credentials::CredentialManager::new(test_cred_store)
-            ),
+            credential_manager: std::sync::Arc::new(lingshu_credentials::CredentialManager::new(
+                test_cred_store,
+            )),
         })
     }
 

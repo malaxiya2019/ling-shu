@@ -33,8 +33,12 @@ pub struct ProjectSummary {
 #[async_trait]
 pub trait SemanticAnalyzer: Send + Sync {
     /// 分析单个文件.
-    async fn analyze_file(&self, file_path: &str, content: &str, language: &str)
-        -> LsResult<AnalysisResult>;
+    async fn analyze_file(
+        &self,
+        file_path: &str,
+        content: &str,
+        language: &str,
+    ) -> LsResult<AnalysisResult>;
 
     /// 分析项目概况.
     async fn analyze_project(&self, project_name: &str) -> LsResult<ProjectSummary>;
@@ -90,7 +94,10 @@ mod tests {
     #[tokio::test]
     async fn test_default_analyzer() {
         let analyzer = DefaultAnalyzer;
-        let result = analyzer.analyze_file("src/main.rs", "fn main() {}", "rust").await.unwrap();
+        let result = analyzer
+            .analyze_file("src/main.rs", "fn main() {}", "rust")
+            .await
+            .unwrap();
         assert!(result.summary.contains("rust"));
         assert!(result.tags.contains(&"entry-point".to_string()));
     }
@@ -98,7 +105,10 @@ mod tests {
     #[tokio::test]
     async fn test_default_analyzer_test_file() {
         let analyzer = DefaultAnalyzer;
-        let result = analyzer.analyze_file("tests/test_foo.rs", "fn test() {}", "rust").await.unwrap();
+        let result = analyzer
+            .analyze_file("tests/test_foo.rs", "fn test() {}", "rust")
+            .await
+            .unwrap();
         assert!(result.tags.contains(&"test".to_string()));
     }
 }

@@ -6,15 +6,23 @@ use lingshu_core::{LsContext, LsError, LsId, LsResult};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::Arc;
 use std::fmt;
+use std::sync::Arc;
 use tracing::{debug, info, warn};
 
 /// 节点输出数据.
 pub type NodeOutput = Value;
 
 /// 节点处理函数.
-pub type NodeHandler = Arc<dyn Fn(LsContext, Value) -> std::pin::Pin<Box<dyn std::future::Future<Output = LsResult<NodeOutput>> + Send>> + Send + Sync>;
+pub type NodeHandler = Arc<
+    dyn Fn(
+            LsContext,
+            Value,
+        )
+            -> std::pin::Pin<Box<dyn std::future::Future<Output = LsResult<NodeOutput>> + Send>>
+        + Send
+        + Sync,
+>;
 
 /// 工作流节点.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,7 +110,7 @@ pub struct WorkflowDag {
     name: String,
     nodes: HashMap<LsId, WorkflowNode>,
     handlers: HashMap<LsId, NodeHandler>,
-    adj_list: HashMap<LsId, Vec<LsId>>,  // node -> dependents
+    adj_list: HashMap<LsId, Vec<LsId>>, // node -> dependents
 }
 
 impl WorkflowDag {
@@ -515,9 +523,7 @@ mod tests {
             "hello",
             "Says hello",
             Value::Null,
-            Arc::new(|_ctx, _input| {
-                Box::pin(async { Ok(json!({"message": "hello"})) })
-            }),
+            Arc::new(|_ctx, _input| Box::pin(async { Ok(json!({"message": "hello"})) })),
         );
         let result = wf.execute(test_ctx(), Value::Null).await.unwrap();
         assert!(result.success);
@@ -532,15 +538,24 @@ mod tests {
     #[tokio::test]
     async fn test_linear_dag() {
         let mut wf = WorkflowDag::new("linear");
-        let a = wf.add_node("step_a", "Step A", Value::Null, Arc::new(|_ctx, _input| {
-            Box::pin(async { Ok(json!({"step": "A"})) })
-        }));
-        let b = wf.add_node("step_b", "Step B", Value::Null, Arc::new(|_ctx, _input| {
-            Box::pin(async { Ok(json!({"step": "B"})) })
-        }));
-        let c = wf.add_node("step_c", "Step C", Value::Null, Arc::new(|_ctx, _input| {
-            Box::pin(async { Ok(json!({"step": "C"})) })
-        }));
+        let a = wf.add_node(
+            "step_a",
+            "Step A",
+            Value::Null,
+            Arc::new(|_ctx, _input| Box::pin(async { Ok(json!({"step": "A"})) })),
+        );
+        let b = wf.add_node(
+            "step_b",
+            "Step B",
+            Value::Null,
+            Arc::new(|_ctx, _input| Box::pin(async { Ok(json!({"step": "B"})) })),
+        );
+        let c = wf.add_node(
+            "step_c",
+            "Step C",
+            Value::Null,
+            Arc::new(|_ctx, _input| Box::pin(async { Ok(json!({"step": "C"})) })),
+        );
 
         wf.add_edge(a, b).unwrap();
         wf.add_edge(b, c).unwrap();
@@ -558,18 +573,30 @@ mod tests {
     #[tokio::test]
     async fn test_fork_join_dag() {
         let mut wf = WorkflowDag::new("fork-join");
-        let start = wf.add_node("start", "Start", Value::Null, Arc::new(|_ctx, _input| {
-            Box::pin(async { Ok(json!({"phase": "start"})) })
-        }));
-        let fork_a = wf.add_node("fork_a", "Fork A", Value::Null, Arc::new(|_ctx, _input| {
-            Box::pin(async { Ok(json!({"branch": "A"})) })
-        }));
-        let fork_b = wf.add_node("fork_b", "Fork B", Value::Null, Arc::new(|_ctx, _input| {
-            Box::pin(async { Ok(json!({"branch": "B"})) })
-        }));
-        let join = wf.add_node("join", "Join", Value::Null, Arc::new(|_ctx, _input| {
-            Box::pin(async { Ok(json!({"phase": "join"})) })
-        }));
+        let start = wf.add_node(
+            "start",
+            "Start",
+            Value::Null,
+            Arc::new(|_ctx, _input| Box::pin(async { Ok(json!({"phase": "start"})) })),
+        );
+        let fork_a = wf.add_node(
+            "fork_a",
+            "Fork A",
+            Value::Null,
+            Arc::new(|_ctx, _input| Box::pin(async { Ok(json!({"branch": "A"})) })),
+        );
+        let fork_b = wf.add_node(
+            "fork_b",
+            "Fork B",
+            Value::Null,
+            Arc::new(|_ctx, _input| Box::pin(async { Ok(json!({"branch": "B"})) })),
+        );
+        let join = wf.add_node(
+            "join",
+            "Join",
+            Value::Null,
+            Arc::new(|_ctx, _input| Box::pin(async { Ok(json!({"phase": "join"})) })),
+        );
 
         wf.add_edge(start, fork_a).unwrap();
         wf.add_edge(start, fork_b).unwrap();
@@ -584,12 +611,18 @@ mod tests {
     #[tokio::test]
     async fn test_cycle_detection() {
         let mut wf = WorkflowDag::new("cycle-test");
-        let a = wf.add_node("a", "A", Value::Null, Arc::new(|_ctx, _input| {
-            Box::pin(async { Ok(Value::Null) })
-        }));
-        let b = wf.add_node("b", "B", Value::Null, Arc::new(|_ctx, _input| {
-            Box::pin(async { Ok(Value::Null) })
-        }));
+        let a = wf.add_node(
+            "a",
+            "A",
+            Value::Null,
+            Arc::new(|_ctx, _input| Box::pin(async { Ok(Value::Null) })),
+        );
+        let b = wf.add_node(
+            "b",
+            "B",
+            Value::Null,
+            Arc::new(|_ctx, _input| Box::pin(async { Ok(Value::Null) })),
+        );
 
         wf.add_edge(a, b).unwrap();
         // Creating a cycle: b -> a
@@ -600,11 +633,14 @@ mod tests {
     #[tokio::test]
     async fn test_node_failure() {
         let mut wf = WorkflowDag::new("failure-test");
-        wf.add_node("fail", "Fail node", Value::Null, Arc::new(|_ctx, _input| {
-            Box::pin(async {
-                Err(LsError::Internal("intentional failure".into()))
-            })
-        }));
+        wf.add_node(
+            "fail",
+            "Fail node",
+            Value::Null,
+            Arc::new(|_ctx, _input| {
+                Box::pin(async { Err(LsError::Internal("intentional failure".into())) })
+            }),
+        );
 
         let result = wf.execute(test_ctx(), Value::Null).await.unwrap();
         assert!(!result.success);
@@ -614,12 +650,18 @@ mod tests {
     #[tokio::test]
     async fn test_workflow_info() {
         let mut wf = WorkflowDag::new("info-test");
-        let a = wf.add_node("a", "", Value::Null, Arc::new(|_ctx, _input| {
-            Box::pin(async { Ok(Value::Null) })
-        }));
-        let b = wf.add_node("b", "", Value::Null, Arc::new(|_ctx, _input| {
-            Box::pin(async { Ok(Value::Null) })
-        }));
+        let a = wf.add_node(
+            "a",
+            "",
+            Value::Null,
+            Arc::new(|_ctx, _input| Box::pin(async { Ok(Value::Null) })),
+        );
+        let b = wf.add_node(
+            "b",
+            "",
+            Value::Null,
+            Arc::new(|_ctx, _input| Box::pin(async { Ok(Value::Null) })),
+        );
         wf.add_edge(a, b).unwrap();
 
         let info = wf.info();

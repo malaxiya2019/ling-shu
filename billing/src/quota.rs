@@ -109,10 +109,7 @@ mod tests {
     use super::*;
 
     fn test_plans() -> Vec<BillingPlan> {
-        vec![
-            BillingPlan::free(),
-            BillingPlan::basic(),
-        ]
+        vec![BillingPlan::free(), BillingPlan::basic()]
     }
 
     #[tokio::test]

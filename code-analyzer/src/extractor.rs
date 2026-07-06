@@ -116,14 +116,23 @@ impl StructureExtractor {
         let mut functions = Vec::new();
         for cap in self.rust_fn.captures_iter(content) {
             let name = cap[1].to_string();
-            let params: Vec<String> = cap[2].split(',')
-                .map(|p| p.trim().split_whitespace().last().unwrap_or(p.trim()).to_string())
+            let params: Vec<String> = cap[2]
+                .split(',')
+                .map(|p| {
+                    p.trim()
+                        .split_whitespace()
+                        .last()
+                        .unwrap_or(p.trim())
+                        .to_string()
+                })
                 .filter(|p| !p.is_empty())
                 .collect();
             // 估算行范围
             let line_start = content[..cap.get(0).unwrap().start()].lines().count() as u32 + 1;
             functions.push(ExtractedFunction {
-                name, params, line_start,
+                name,
+                params,
+                line_start,
                 line_end: find_block_end(lines.as_slice(), line_start as usize, total_lines),
             });
         }
@@ -133,7 +142,9 @@ impl StructureExtractor {
             let name = cap[1].to_string();
             let line_start = content[..cap.get(0).unwrap().start()].lines().count() as u32 + 1;
             classes.push(ExtractedClass {
-                name, methods: vec![], line_start,
+                name,
+                methods: vec![],
+                line_start,
                 line_end: find_block_end(lines.as_slice(), line_start as usize, total_lines),
             });
         }
@@ -143,11 +154,17 @@ impl StructureExtractor {
             let source = cap[1].trim().to_string().replace(" ", "");
             let line_number = content[..cap.get(0).unwrap().start()].lines().count() as u32 + 1;
             imports.push(ExtractedImport {
-                source, specifiers: vec![], line_number,
+                source,
+                specifiers: vec![],
+                line_number,
             });
         }
 
-        ExtractionResult { functions, classes, imports }
+        ExtractionResult {
+            functions,
+            classes,
+            imports,
+        }
     }
 
     fn extract_python(&self, content: &str) -> ExtractionResult {
@@ -157,19 +174,30 @@ impl StructureExtractor {
         let mut functions = Vec::new();
         for cap in self.py_fn.captures_iter(content) {
             let name = cap[1].to_string();
-            let params: Vec<String> = cap[2].split(',')
+            let params: Vec<String> = cap[2]
+                .split(',')
                 .map(|p| p.trim().to_string())
                 .filter(|p| !p.is_empty() && p != "self" && p != "cls")
                 .collect();
             let line_start = content[..cap.get(0).unwrap().start()].lines().count() as u32 + 1;
-            functions.push(ExtractedFunction { name, params, line_start, line_end: total_lines });
+            functions.push(ExtractedFunction {
+                name,
+                params,
+                line_start,
+                line_end: total_lines,
+            });
         }
 
         let mut classes = Vec::new();
         for cap in self.py_class.captures_iter(content) {
             let name = cap[1].to_string();
             let line_start = content[..cap.get(0).unwrap().start()].lines().count() as u32 + 1;
-            classes.push(ExtractedClass { name, methods: vec![], line_start, line_end: total_lines });
+            classes.push(ExtractedClass {
+                name,
+                methods: vec![],
+                line_start,
+                line_end: total_lines,
+            });
         }
 
         let mut imports = Vec::new();
@@ -178,7 +206,11 @@ impl StructureExtractor {
             for spec in cap[1].split(',') {
                 let spec = spec.trim().to_string();
                 if !spec.is_empty() {
-                    imports.push(ExtractedImport { source: spec.clone(), specifiers: vec![], line_number });
+                    imports.push(ExtractedImport {
+                        source: spec.clone(),
+                        specifiers: vec![],
+                        line_number,
+                    });
                 }
             }
         }
@@ -186,10 +218,18 @@ impl StructureExtractor {
             let source = cap[1].to_string();
             let line_number = content[..cap.get(0).unwrap().start()].lines().count() as u32 + 1;
             let specifiers: Vec<String> = cap[2].split(',').map(|s| s.trim().to_string()).collect();
-            imports.push(ExtractedImport { source, specifiers, line_number });
+            imports.push(ExtractedImport {
+                source,
+                specifiers,
+                line_number,
+            });
         }
 
-        ExtractionResult { functions, classes, imports }
+        ExtractionResult {
+            functions,
+            classes,
+            imports,
+        }
     }
 
     fn extract_typescript(&self, content: &str) -> ExtractionResult {
@@ -198,28 +238,45 @@ impl StructureExtractor {
         let mut functions = Vec::new();
         for cap in self.ts_fn.captures_iter(content) {
             let name = cap[1].to_string();
-            let params: Vec<String> = cap[2].split(',')
+            let params: Vec<String> = cap[2]
+                .split(',')
                 .map(|p| p.trim().split(':').next().unwrap_or(p.trim()).to_string())
                 .filter(|p| !p.is_empty())
                 .collect();
             let line_start = content[..cap.get(0).unwrap().start()].lines().count() as u32 + 1;
-            functions.push(ExtractedFunction { name, params, line_start, line_end: total_lines });
+            functions.push(ExtractedFunction {
+                name,
+                params,
+                line_start,
+                line_end: total_lines,
+            });
         }
         for cap in self.ts_arrow.captures_iter(content) {
             let name = cap[1].to_string();
-            let params: Vec<String> = cap[2].split(',')
+            let params: Vec<String> = cap[2]
+                .split(',')
                 .map(|p| p.trim().to_string())
                 .filter(|p| !p.is_empty())
                 .collect();
             let line_start = content[..cap.get(0).unwrap().start()].lines().count() as u32 + 1;
-            functions.push(ExtractedFunction { name, params, line_start, line_end: total_lines });
+            functions.push(ExtractedFunction {
+                name,
+                params,
+                line_start,
+                line_end: total_lines,
+            });
         }
 
         let mut classes = Vec::new();
         for cap in self.ts_class.captures_iter(content) {
             let name = cap[1].to_string();
             let line_start = content[..cap.get(0).unwrap().start()].lines().count() as u32 + 1;
-            classes.push(ExtractedClass { name, methods: vec![], line_start, line_end: total_lines });
+            classes.push(ExtractedClass {
+                name,
+                methods: vec![],
+                line_start,
+                line_end: total_lines,
+            });
         }
 
         let mut imports = Vec::new();
@@ -227,10 +284,18 @@ impl StructureExtractor {
             let source = cap[2].to_string();
             let line_number = content[..cap.get(0).unwrap().start()].lines().count() as u32 + 1;
             let specifiers: Vec<String> = cap[1].split(',').map(|s| s.trim().to_string()).collect();
-            imports.push(ExtractedImport { source, specifiers, line_number });
+            imports.push(ExtractedImport {
+                source,
+                specifiers,
+                line_number,
+            });
         }
 
-        ExtractionResult { functions, classes, imports }
+        ExtractionResult {
+            functions,
+            classes,
+            imports,
+        }
     }
 
     fn extract_go(&self, content: &str) -> ExtractionResult {
@@ -239,22 +304,43 @@ impl StructureExtractor {
         let mut functions = Vec::new();
         for cap in self.go_fn.captures_iter(content) {
             let name = cap[1].to_string();
-            let params: Vec<String> = cap[2].split(',')
-                .map(|p| p.trim().split_whitespace().last().unwrap_or(p.trim()).to_string())
+            let params: Vec<String> = cap[2]
+                .split(',')
+                .map(|p| {
+                    p.trim()
+                        .split_whitespace()
+                        .last()
+                        .unwrap_or(p.trim())
+                        .to_string()
+                })
                 .filter(|p| !p.is_empty())
                 .collect();
             let line_start = content[..cap.get(0).unwrap().start()].lines().count() as u32 + 1;
-            functions.push(ExtractedFunction { name, params, line_start, line_end: total_lines });
+            functions.push(ExtractedFunction {
+                name,
+                params,
+                line_start,
+                line_end: total_lines,
+            });
         }
 
         let mut classes = Vec::new();
         for cap in self.go_struct.captures_iter(content) {
             let name = cap[1].to_string();
             let line_start = content[..cap.get(0).unwrap().start()].lines().count() as u32 + 1;
-            classes.push(ExtractedClass { name, methods: vec![], line_start, line_end: total_lines });
+            classes.push(ExtractedClass {
+                name,
+                methods: vec![],
+                line_start,
+                line_end: total_lines,
+            });
         }
 
-        ExtractionResult { functions, classes, imports: vec![] }
+        ExtractionResult {
+            functions,
+            classes,
+            imports: vec![],
+        }
     }
 }
 
@@ -274,7 +360,10 @@ fn find_block_end(lines: &[&str], start: usize, _total: u32) -> u32 {
                 return (i + 1) as u32;
             }
         }
-        if trimmed.starts_with("fn ") || trimmed.starts_with("pub fn") || trimmed.starts_with("struct ") {
+        if trimmed.starts_with("fn ")
+            || trimmed.starts_with("pub fn")
+            || trimmed.starts_with("struct ")
+        {
             if found && i > start {
                 return i as u32;
             }

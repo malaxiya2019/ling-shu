@@ -85,9 +85,7 @@ impl ABTestManager {
             )));
         }
         if config.traffic_percent_b > 100 {
-            return Err(LsError::Internal(
-                "traffic_percent_b must be 0-100".into(),
-            ));
+            return Err(LsError::Internal("traffic_percent_b must be 0-100".into()));
         }
         let name = config.name.clone();
         self.configs.insert(name.clone(), config);
@@ -97,9 +95,10 @@ impl ABTestManager {
 
     /// 选择变体（根据流量分配）.
     pub fn select_variant(&self, test_name: &str) -> LsResult<String> {
-        let config = self.configs.get(test_name).ok_or_else(|| {
-            LsError::NotFound(format!("AB test '{test_name}' not found"))
-        })?;
+        let config = self
+            .configs
+            .get(test_name)
+            .ok_or_else(|| LsError::NotFound(format!("AB test '{test_name}' not found")))?;
 
         if !config.enabled {
             return Ok(config.variant_a.clone());
@@ -129,13 +128,15 @@ impl ABTestManager {
         success: bool,
         latency_ms: f64,
     ) -> LsResult<()> {
-        let config = self.configs.get(test_name).ok_or_else(|| {
-            LsError::NotFound(format!("AB test '{test_name}' not found"))
-        })?;
+        let config = self
+            .configs
+            .get(test_name)
+            .ok_or_else(|| LsError::NotFound(format!("AB test '{test_name}' not found")))?;
 
-        let stats = self.stats.get_mut(test_name).ok_or_else(|| {
-            LsError::NotFound(format!("AB test '{test_name}' stats not found"))
-        })?;
+        let stats = self
+            .stats
+            .get_mut(test_name)
+            .ok_or_else(|| LsError::NotFound(format!("AB test '{test_name}' stats not found")))?;
 
         if variant == config.variant_a {
             stats.0 += 1;
@@ -156,13 +157,15 @@ impl ABTestManager {
 
     /// 获取测试结果.
     pub fn get_result(&self, test_name: &str) -> LsResult<ABTestResult> {
-        let config = self.configs.get(test_name).ok_or_else(|| {
-            LsError::NotFound(format!("AB test '{test_name}' not found"))
-        })?;
+        let config = self
+            .configs
+            .get(test_name)
+            .ok_or_else(|| LsError::NotFound(format!("AB test '{test_name}' not found")))?;
 
-        let stats = self.stats.get(test_name).ok_or_else(|| {
-            LsError::NotFound(format!("AB test '{test_name}' stats not found"))
-        })?;
+        let stats = self
+            .stats
+            .get(test_name)
+            .ok_or_else(|| LsError::NotFound(format!("AB test '{test_name}' stats not found")))?;
 
         Ok(ABTestResult {
             test_name: test_name.to_string(),

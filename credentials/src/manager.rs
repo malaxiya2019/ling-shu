@@ -22,7 +22,8 @@ impl CredentialManager {
         let validation = self.validate_inner(&entry).await;
         if !validation.valid {
             return Err(lingshu_core::LsError::Internal(format!(
-                "credential validation failed: {}", validation.message
+                "credential validation failed: {}",
+                validation.message
             )));
         }
         self.store.insert(&entry)?;
@@ -30,7 +31,10 @@ impl CredentialManager {
     }
 
     /// 创建凭证（跳过 API 验证，仅加密存储）.
-    pub fn create_without_validate(&self, req: CreateCredentialRequest) -> LsResult<CredentialSummary> {
+    pub fn create_without_validate(
+        &self,
+        req: CreateCredentialRequest,
+    ) -> LsResult<CredentialSummary> {
         let entry = self.build_entry(req)?;
         self.store.insert(&entry)?;
         self.get_summary(&entry.id)
@@ -38,10 +42,15 @@ impl CredentialManager {
 
     /// 从请求构建 CredentialEntry.
     fn build_entry(&self, req: CreateCredentialRequest) -> LsResult<CredentialEntry> {
-        let provider = GitProvider::from_str(&req.provider)
-            .ok_or_else(|| lingshu_core::LsError::Internal(format!("unknown provider: {}", req.provider)))?;
-        let ct = CredentialType::from_str(&req.credential_type)
-            .ok_or_else(|| lingshu_core::LsError::Internal(format!("unknown credential type: {}", req.credential_type)))?;
+        let provider = GitProvider::from_str(&req.provider).ok_or_else(|| {
+            lingshu_core::LsError::Internal(format!("unknown provider: {}", req.provider))
+        })?;
+        let ct = CredentialType::from_str(&req.credential_type).ok_or_else(|| {
+            lingshu_core::LsError::Internal(format!(
+                "unknown credential type: {}",
+                req.credential_type
+            ))
+        })?;
 
         let now = chrono::Utc::now().timestamp();
         let id = uuid::Uuid::new_v4().to_string();
@@ -70,10 +79,15 @@ impl CredentialManager {
 
     /// 获取凭证摘要（不含 token）.
     pub fn get_summary(&self, id: &str) -> LsResult<CredentialSummary> {
-        let entry = self.store.get(id)?
-            .ok_or_else(|| lingshu_core::LsError::Internal(format!("credential not found: {id}")))?;
+        let entry = self.store.get(id)?.ok_or_else(|| {
+            lingshu_core::LsError::Internal(format!("credential not found: {id}"))
+        })?;
         let masked = if entry.token.len() > 8 {
-            format!("{}...{}", &entry.token[..4], &entry.token[entry.token.len()-4..])
+            format!(
+                "{}...{}",
+                &entry.token[..4],
+                &entry.token[entry.token.len() - 4..]
+            )
         } else {
             "***".into()
         };
@@ -116,8 +130,9 @@ impl CredentialManager {
 
     /// 验证凭证（对目标提供商 API 做一次实际调用）.
     pub async fn validate(&self, id: &str) -> LsResult<CredentialValidation> {
-        let entry = self.store.get(id)?
-            .ok_or_else(|| lingshu_core::LsError::Internal(format!("credential not found: {id}")))?;
+        let entry = self.store.get(id)?.ok_or_else(|| {
+            lingshu_core::LsError::Internal(format!("credential not found: {id}"))
+        })?;
         Ok(self.validate_inner(&entry).await)
     }
 
@@ -137,7 +152,10 @@ impl CredentialManager {
 
 /// 验证 Gitee 凭证: GET https://gitee.com/api/v5/user
 async fn validate_gitee(entry: &CredentialEntry) -> CredentialValidation {
-    let url = entry.base_url.as_deref().unwrap_or("https://gitee.com/api/v5/user");
+    let url = entry
+        .base_url
+        .as_deref()
+        .unwrap_or("https://gitee.com/api/v5/user");
     match validate_with_get(url, &entry.token).await {
         Ok(scopes) => CredentialValidation {
             id: entry.id.clone(),
@@ -160,7 +178,10 @@ async fn validate_gitee(entry: &CredentialEntry) -> CredentialValidation {
 
 /// 验证 Codeup 凭证: GET https://codeup.aliyun.com/api/v1/user
 async fn validate_codeup(entry: &CredentialEntry) -> CredentialValidation {
-    let url = entry.base_url.as_deref().unwrap_or("https://codeup.aliyun.com/api/v1/user");
+    let url = entry
+        .base_url
+        .as_deref()
+        .unwrap_or("https://codeup.aliyun.com/api/v1/user");
     match validate_with_get(url, &entry.token).await {
         Ok(scopes) => CredentialValidation {
             id: entry.id.clone(),
@@ -183,7 +204,10 @@ async fn validate_codeup(entry: &CredentialEntry) -> CredentialValidation {
 
 /// 验证 CODING 凭证: GET https://<team>.coding.net/api/current_user
 async fn validate_coding(entry: &CredentialEntry) -> CredentialValidation {
-    let url = entry.base_url.as_deref().unwrap_or("https://e.coding.net/api/current_user");
+    let url = entry
+        .base_url
+        .as_deref()
+        .unwrap_or("https://e.coding.net/api/current_user");
     match validate_with_get(url, &entry.token).await {
         Ok(scopes) => CredentialValidation {
             id: entry.id.clone(),
@@ -206,7 +230,10 @@ async fn validate_coding(entry: &CredentialEntry) -> CredentialValidation {
 
 /// 验证 GitCode 凭证: GET https://api.gitcode.com/user
 async fn validate_gitcode(entry: &CredentialEntry) -> CredentialValidation {
-    let url = entry.base_url.as_deref().unwrap_or("https://api.gitcode.com/user");
+    let url = entry
+        .base_url
+        .as_deref()
+        .unwrap_or("https://api.gitcode.com/user");
     match validate_with_get(url, &entry.token).await {
         Ok(scopes) => CredentialValidation {
             id: entry.id.clone(),
@@ -229,7 +256,10 @@ async fn validate_gitcode(entry: &CredentialEntry) -> CredentialValidation {
 
 /// 验证 CNB 凭证: GET https://cnb.cool/api/v1/user
 async fn validate_cnb(entry: &CredentialEntry) -> CredentialValidation {
-    let url = entry.base_url.as_deref().unwrap_or("https://cnb.cool/api/v1/user");
+    let url = entry
+        .base_url
+        .as_deref()
+        .unwrap_or("https://cnb.cool/api/v1/user");
     match validate_with_get(url, &entry.token).await {
         Ok(scopes) => CredentialValidation {
             id: entry.id.clone(),
@@ -268,11 +298,16 @@ async fn validate_with_get(url: &str, token: &str) -> Result<Vec<String>, String
     if response.status().is_success() {
         let body: serde_json::Value = response.json().await.unwrap_or_default();
         // Try to extract scopes from response headers or body
-        let scopes = body.get("scopes")
+        let scopes = body
+            .get("scopes")
             .or_else(|| body.get("permissions"))
             .or_else(|| body.get("scope"))
             .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default();
         Ok(scopes)
     } else {

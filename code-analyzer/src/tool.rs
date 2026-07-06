@@ -139,13 +139,7 @@ impl Tool for CodeAnalysisTool {
 
         // 4. Build knowledge graph
         let generator = GraphGenerator::new();
-        let graph = generator.generate(
-            project_name,
-            "unknown",
-            &file_entries,
-            &analyses,
-            &summary,
-        );
+        let graph = generator.generate(project_name, "unknown", &file_entries, &analyses, &summary);
 
         // 5. Optional LLM enrichment
         let enrichment_count = if enable_semantic {
@@ -199,7 +193,7 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::atomic::{AtomicU64, Ordering};
 
-#[allow(dead_code)]
+    #[allow(dead_code)]
     struct TestLlm {
         count: AtomicU64,
     }
@@ -211,7 +205,9 @@ mod tests {
             Ok(LlmResponse {
                 message: LlmMessage {
                     role: LlmRole::Assistant,
-                    content: r#"{"summary":"test","tags":["test"],"complexity":"Simple","functions":{}}"#.into(),
+                    content:
+                        r#"{"summary":"test","tags":["test"],"complexity":"Simple","functions":{}}"#
+                            .into(),
                     content_parts: None,
                     name: None,
                     tool_calls: None,
@@ -229,7 +225,8 @@ mod tests {
             &self,
             _ctx: LsContext,
             _request: LlmRequest,
-        ) -> LsResult<tokio::sync::mpsc::Receiver<LsResult<lingshu_traits::llm::LlmChunk>>> {
+        ) -> LsResult<tokio::sync::mpsc::Receiver<LsResult<lingshu_traits::llm::LlmChunk>>>
+        {
             unimplemented!()
         }
 

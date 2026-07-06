@@ -69,7 +69,13 @@ impl MemorySQLite {
     fn build_insert(
         item: &MemoryItem,
     ) -> LsResult<(
-        String, String, String, String, Option<u64>, String, Option<String>,
+        String,
+        String,
+        String,
+        String,
+        Option<u64>,
+        String,
+        Option<String>,
     )> {
         let expires_at = item.ttl_seconds.map(|ttl| {
             let exp = item.created_at + chrono::Duration::seconds(ttl as i64);
@@ -264,8 +270,13 @@ impl Memory for MemorySQLite {
         let id_str = memory_id.to_string();
 
         let affected = db
-            .execute("DELETE FROM memories WHERE id = ?1", rusqlite::params![id_str])
-            .map_err(|e| LsError::Internal(format!("failed to delete memory '{memory_id}': {e}")))?;
+            .execute(
+                "DELETE FROM memories WHERE id = ?1",
+                rusqlite::params![id_str],
+            )
+            .map_err(|e| {
+                LsError::Internal(format!("failed to delete memory '{memory_id}': {e}"))
+            })?;
 
         if affected == 0 {
             return Err(LsError::NotFound(format!("memory {memory_id}")));

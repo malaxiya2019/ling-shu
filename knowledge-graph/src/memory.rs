@@ -101,9 +101,9 @@ impl GraphMemory {
         to_id: &str,
     ) -> LsResult<Vec<String>> {
         let graphs = self.graphs.read().await;
-        let graph = graphs.get(graph_name).ok_or_else(|| {
-            lingshu_core::LsError::NotFound(format!("graph '{graph_name}'"))
-        })?;
+        let graph = graphs
+            .get(graph_name)
+            .ok_or_else(|| lingshu_core::LsError::NotFound(format!("graph '{graph_name}'")))?;
 
         // BFS
         let mut visited: std::collections::HashSet<&str> = std::collections::HashSet::new();
@@ -117,9 +117,13 @@ impl GraphMemory {
                 return Ok(path);
             }
             for edge in &graph.edges {
-                let neighbor = if edge.source == current { Some(&edge.target) }
-                    else if edge.target == current { Some(&edge.source) }
-                    else { None };
+                let neighbor = if edge.source == current {
+                    Some(&edge.target)
+                } else if edge.target == current {
+                    Some(&edge.source)
+                } else {
+                    None
+                };
                 if let Some(nid) = neighbor {
                     if visited.insert(nid) {
                         let mut new_path = path.clone();
@@ -130,7 +134,9 @@ impl GraphMemory {
             }
         }
 
-        Err(lingshu_core::LsError::NotFound(format!("no path from {from_id} to {to_id}")))
+        Err(lingshu_core::LsError::NotFound(format!(
+            "no path from {from_id} to {to_id}"
+        )))
     }
 }
 
@@ -154,9 +160,9 @@ impl GraphMemoryStore for GraphMemory {
 
     async fn add_node(&self, graph_name: &str, node: GraphNode) -> LsResult<bool> {
         let mut graphs = self.graphs.write().await;
-        let graph = graphs.get_mut(graph_name).ok_or_else(|| {
-            lingshu_core::LsError::NotFound(format!("graph '{graph_name}'"))
-        })?;
+        let graph = graphs
+            .get_mut(graph_name)
+            .ok_or_else(|| lingshu_core::LsError::NotFound(format!("graph '{graph_name}'")))?;
 
         if graph.nodes.iter().any(|n| n.id == node.id) {
             return Ok(false);
@@ -167,14 +173,21 @@ impl GraphMemoryStore for GraphMemory {
 
     async fn add_edge(&self, graph_name: &str, edge: GraphEdge) -> LsResult<bool> {
         let mut graphs = self.graphs.write().await;
-        let graph = graphs.get_mut(graph_name).ok_or_else(|| {
-            lingshu_core::LsError::NotFound(format!("graph '{graph_name}'"))
-        })?;
+        let graph = graphs
+            .get_mut(graph_name)
+            .ok_or_else(|| lingshu_core::LsError::NotFound(format!("graph '{graph_name}'")))?;
 
-        let key = format!("{}|{}|{}", edge.edge_type.as_str(), edge.source, edge.target);
-        if graph.edges.iter().any(|e| {
-            format!("{}|{}|{}", e.edge_type.as_str(), e.source, e.target) == key
-        }) {
+        let key = format!(
+            "{}|{}|{}",
+            edge.edge_type.as_str(),
+            edge.source,
+            edge.target
+        );
+        if graph
+            .edges
+            .iter()
+            .any(|e| format!("{}|{}|{}", e.edge_type.as_str(), e.source, e.target) == key)
+        {
             return Ok(false);
         }
         graph.edges.push(edge);
@@ -183,12 +196,14 @@ impl GraphMemoryStore for GraphMemory {
 
     async fn search_nodes(&self, graph_name: &str, query: &str) -> LsResult<Vec<GraphNode>> {
         let graphs = self.graphs.read().await;
-        let graph = graphs.get(graph_name).ok_or_else(|| {
-            lingshu_core::LsError::NotFound(format!("graph '{graph_name}'"))
-        })?;
+        let graph = graphs
+            .get(graph_name)
+            .ok_or_else(|| lingshu_core::LsError::NotFound(format!("graph '{graph_name}'")))?;
 
         let q = query.to_lowercase();
-        Ok(graph.nodes.iter()
+        Ok(graph
+            .nodes
+            .iter()
             .filter(|n| {
                 n.name.to_lowercase().contains(&q)
                     || n.summary.to_lowercase().contains(&q)
@@ -200,17 +215,27 @@ impl GraphMemoryStore for GraphMemory {
 
     async fn get_neighbors(&self, graph_name: &str, node_id: &str) -> LsResult<Vec<GraphNode>> {
         let graphs = self.graphs.read().await;
-        let graph = graphs.get(graph_name).ok_or_else(|| {
-            lingshu_core::LsError::NotFound(format!("graph '{graph_name}'"))
-        })?;
+        let graph = graphs
+            .get(graph_name)
+            .ok_or_else(|| lingshu_core::LsError::NotFound(format!("graph '{graph_name}'")))?;
 
-        let neighbor_ids: std::collections::HashSet<String> = graph.edges.iter()
+        let neighbor_ids: std::collections::HashSet<String> = graph
+            .edges
+            .iter()
             .filter(|e| e.source == node_id || e.target == node_id)
-            .map(|e| if e.source == node_id { &e.target } else { &e.source })
+            .map(|e| {
+                if e.source == node_id {
+                    &e.target
+                } else {
+                    &e.source
+                }
+            })
             .cloned()
             .collect();
 
-        Ok(graph.nodes.iter()
+        Ok(graph
+            .nodes
+            .iter()
             .filter(|n| neighbor_ids.contains(&n.id))
             .cloned()
             .collect())
@@ -242,35 +267,47 @@ mod tests {
         let graph = KnowledgeGraph::new("test", "abc");
         mem.store_graph(graph).await.unwrap();
 
-        let added = mem.add_node("test", GraphNode {
-            id: "file:main.rs".into(),
-            node_type: NodeType::File,
-            name: "main.rs".into(),
-            file_path: Some("main.rs".into()),
-            line_range: None,
-            summary: "entry".into(),
-            tags: vec![],
-            complexity: Complexity::Simple,
-            language: None,
-            domain_meta: None,
-            knowledge_meta: None,
-        }).await.unwrap();
+        let added = mem
+            .add_node(
+                "test",
+                GraphNode {
+                    id: "file:main.rs".into(),
+                    node_type: NodeType::File,
+                    name: "main.rs".into(),
+                    file_path: Some("main.rs".into()),
+                    line_range: None,
+                    summary: "entry".into(),
+                    tags: vec![],
+                    complexity: Complexity::Simple,
+                    language: None,
+                    domain_meta: None,
+                    knowledge_meta: None,
+                },
+            )
+            .await
+            .unwrap();
         assert!(added);
 
         // duplicate
-        let dup = mem.add_node("test", GraphNode {
-            id: "file:main.rs".into(),
-            node_type: NodeType::File,
-            name: "main.rs".into(),
-            file_path: None,
-            line_range: None,
-            summary: "".into(),
-            tags: vec![],
-            complexity: Complexity::Simple,
-            language: None,
-            domain_meta: None,
-            knowledge_meta: None,
-        }).await.unwrap();
+        let dup = mem
+            .add_node(
+                "test",
+                GraphNode {
+                    id: "file:main.rs".into(),
+                    node_type: NodeType::File,
+                    name: "main.rs".into(),
+                    file_path: None,
+                    line_range: None,
+                    summary: "".into(),
+                    tags: vec![],
+                    complexity: Complexity::Simple,
+                    language: None,
+                    domain_meta: None,
+                    knowledge_meta: None,
+                },
+            )
+            .await
+            .unwrap();
         assert!(!dup);
     }
 
@@ -279,8 +316,20 @@ mod tests {
         let _ = tracing_subscriber::fmt::try_init();
         let mem = GraphMemory::new();
         let mut builder = crate::GraphBuilder::new("test", "abc");
-        builder.add_knowledge_node("a1", NodeType::Article, "Rust Guide", "Guide to Rust", "docs");
-        builder.add_knowledge_node("e1", NodeType::Entity, "ownership", "Ownership system", "concept");
+        builder.add_knowledge_node(
+            "a1",
+            NodeType::Article,
+            "Rust Guide",
+            "Guide to Rust",
+            "docs",
+        );
+        builder.add_knowledge_node(
+            "e1",
+            NodeType::Entity,
+            "ownership",
+            "Ownership system",
+            "concept",
+        );
         mem.store_graph(builder.build()).await.unwrap();
 
         let results = mem.search_nodes("test", "rust").await.unwrap();
@@ -293,8 +342,17 @@ mod tests {
         let graph = KnowledgeGraph::new("agent-session", "");
         mem.store_graph(graph).await.unwrap();
 
-        mem.record_interaction("agent-session", "agent-1", "search", "Searched for files").await.unwrap();
-        mem.record_interaction("agent-session", "agent-1", "analyze", "Analyzed architecture").await.unwrap();
+        mem.record_interaction("agent-session", "agent-1", "search", "Searched for files")
+            .await
+            .unwrap();
+        mem.record_interaction(
+            "agent-session",
+            "agent-1",
+            "analyze",
+            "Analyzed architecture",
+        )
+        .await
+        .unwrap();
 
         let g = mem.get_graph("agent-session").await.unwrap().unwrap();
         assert_eq!(g.nodes.len(), 2);
@@ -308,30 +366,59 @@ mod tests {
         let mem = GraphMemory::new();
         let mut builder = GraphBuilder::new("net", "");
         builder.add_node(GraphNode {
-            id: "a".into(), node_type: NodeType::Concept, name: "A".into(),
-            file_path: None, line_range: None, summary: "".into(), tags: vec![],
-            complexity: Complexity::Simple, language: None,
-            domain_meta: None, knowledge_meta: None,
+            id: "a".into(),
+            node_type: NodeType::Concept,
+            name: "A".into(),
+            file_path: None,
+            line_range: None,
+            summary: "".into(),
+            tags: vec![],
+            complexity: Complexity::Simple,
+            language: None,
+            domain_meta: None,
+            knowledge_meta: None,
         });
         builder.add_node(GraphNode {
-            id: "b".into(), node_type: NodeType::Concept, name: "B".into(),
-            file_path: None, line_range: None, summary: "".into(), tags: vec![],
-            complexity: Complexity::Simple, language: None,
-            domain_meta: None, knowledge_meta: None,
+            id: "b".into(),
+            node_type: NodeType::Concept,
+            name: "B".into(),
+            file_path: None,
+            line_range: None,
+            summary: "".into(),
+            tags: vec![],
+            complexity: Complexity::Simple,
+            language: None,
+            domain_meta: None,
+            knowledge_meta: None,
         });
         builder.add_node(GraphNode {
-            id: "c".into(), node_type: NodeType::Concept, name: "C".into(),
-            file_path: None, line_range: None, summary: "".into(), tags: vec![],
-            complexity: Complexity::Simple, language: None,
-            domain_meta: None, knowledge_meta: None,
+            id: "c".into(),
+            node_type: NodeType::Concept,
+            name: "C".into(),
+            file_path: None,
+            line_range: None,
+            summary: "".into(),
+            tags: vec![],
+            complexity: Complexity::Simple,
+            language: None,
+            domain_meta: None,
+            knowledge_meta: None,
         });
         builder.add_edge(GraphEdge {
-            source: "a".into(), target: "b".into(), edge_type: EdgeType::Related,
-            direction: EdgeDirection::Forward, description: None, weight: 1.0,
+            source: "a".into(),
+            target: "b".into(),
+            edge_type: EdgeType::Related,
+            direction: EdgeDirection::Forward,
+            description: None,
+            weight: 1.0,
         });
         builder.add_edge(GraphEdge {
-            source: "b".into(), target: "c".into(), edge_type: EdgeType::Related,
-            direction: EdgeDirection::Forward, description: None, weight: 1.0,
+            source: "b".into(),
+            target: "c".into(),
+            edge_type: EdgeType::Related,
+            direction: EdgeDirection::Forward,
+            description: None,
+            weight: 1.0,
         });
         mem.store_graph(builder.build()).await.unwrap();
 

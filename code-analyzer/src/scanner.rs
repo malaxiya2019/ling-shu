@@ -50,12 +50,24 @@ impl FileScanner {
     pub fn new() -> Self {
         Self {
             ignore_patterns: vec![
-                ".git".into(), "node_modules".into(), "target".into(),
-                ".venv".into(), "__pycache__".into(), ".next".into(),
-                "dist".into(), "build".into(), ".codex".into(),
-                ".claude".into(), ".cursor".into(), ".copilot".into(),
-                "vendor".into(), ".terraform".into(), ".bzr".into(),
-                ".hg".into(), ".svn".into(), "CVS".into(),
+                ".git".into(),
+                "node_modules".into(),
+                "target".into(),
+                ".venv".into(),
+                "__pycache__".into(),
+                ".next".into(),
+                "dist".into(),
+                "build".into(),
+                ".codex".into(),
+                ".claude".into(),
+                ".cursor".into(),
+                ".copilot".into(),
+                "vendor".into(),
+                ".terraform".into(),
+                ".bzr".into(),
+                ".hg".into(),
+                ".svn".into(),
+                "CVS".into(),
             ],
         }
     }
@@ -137,16 +149,19 @@ impl FileScanner {
     /// 文件分类.
     fn categorize(extension: &str, path: &str) -> FileCategory {
         match extension {
-            "rs" | "py" | "js" | "ts" | "tsx" | "jsx" | "go" | "java"
-            | "rb" | "c" | "h" | "cpp" | "hpp" | "cs" | "swift"
-            | "kt" | "scala" | "php" | "r" | "zig" | "hs" | "ex"
-            | "clj" | "erl" | "dart" | "lisp" | "ml" | "vue" | "svelte" => FileCategory::Code,
-            "json" | "yaml" | "yml" | "toml" | "ini" | "cfg" | "conf"
-            | "env" | "xml" | "props" | "properties" => FileCategory::Config,
+            "rs" | "py" | "js" | "ts" | "tsx" | "jsx" | "go" | "java" | "rb" | "c" | "h"
+            | "cpp" | "hpp" | "cs" | "swift" | "kt" | "scala" | "php" | "r" | "zig" | "hs"
+            | "ex" | "clj" | "erl" | "dart" | "lisp" | "ml" | "vue" | "svelte" => {
+                FileCategory::Code
+            }
+            "json" | "yaml" | "yml" | "toml" | "ini" | "cfg" | "conf" | "env" | "xml" | "props"
+            | "properties" => FileCategory::Config,
             "md" | "markdown" | "rst" | "txt" | "adoc" | "wiki" => FileCategory::Docs,
-            "dockerfile" | "makefile" | "Dockerfile" | "Makefile" | "mk"
-            | "tf" | "hcl" => {
-                if path.contains("docker") || extension == "dockerfile" || path.ends_with("Dockerfile") {
+            "dockerfile" | "makefile" | "Dockerfile" | "Makefile" | "mk" | "tf" | "hcl" => {
+                if path.contains("docker")
+                    || extension == "dockerfile"
+                    || path.ends_with("Dockerfile")
+                {
                     FileCategory::Infra
                 } else {
                     FileCategory::Infra
@@ -167,9 +182,8 @@ impl FileScanner {
             .into_iter()
             .filter_entry(|e| !self.should_ignore(e.path()))
         {
-            let entry = entry.map_err(|e| {
-                lingshu_core::LsError::Internal(format!("walk error: {e}"))
-            })?;
+            let entry =
+                entry.map_err(|e| lingshu_core::LsError::Internal(format!("walk error: {e}")))?;
 
             let path = entry.path();
 
@@ -191,20 +205,27 @@ impl FileScanner {
                 continue;
             }
 
-            let ext = path.extension()
+            let ext = path
+                .extension()
                 .map(|e| e.to_string_lossy().to_lowercase())
                 .unwrap_or_default();
 
-            let name = path.file_name()
+            let name = path
+                .file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_default();
 
             // 处理无扩展名的特殊文件 (Dockerfile, Makefile 等)
             let effective_ext = if ext.is_empty() {
-                if name == "Dockerfile" { "dockerfile".into() }
-                else if name == "Makefile" { "makefile".into() }
-                else if name == "Procfile" { "yaml".into() }
-                else { ext.clone() }
+                if name == "Dockerfile" {
+                    "dockerfile".into()
+                } else if name == "Makefile" {
+                    "makefile".into()
+                } else if name == "Procfile" {
+                    "yaml".into()
+                } else {
+                    ext.clone()
+                }
             } else {
                 ext.clone()
             };
@@ -230,18 +251,47 @@ impl FileScanner {
     }
 
     fn is_binary(&self, path: &Path) -> bool {
-        let ext = path.extension()
+        let ext = path
+            .extension()
             .map(|e| e.to_string_lossy().to_lowercase())
             .unwrap_or_default();
         matches!(
             ext.as_str(),
-            "png" | "jpg" | "jpeg" | "gif" | "bmp" | "ico" | "svg"
-            | "woff" | "woff2" | "ttf" | "eot"
-            | "mp3" | "mp4" | "avi" | "mov" | "wav"
-            | "zip" | "tar" | "gz" | "bz2" | "7z" | "rar"
-            | "pdf" | "doc" | "docx" | "xls" | "xlsx"
-            | "o" | "so" | "dylib" | "dll" | "exe" | "wasm"
-            | "class" | "jar"
+            "png"
+                | "jpg"
+                | "jpeg"
+                | "gif"
+                | "bmp"
+                | "ico"
+                | "svg"
+                | "woff"
+                | "woff2"
+                | "ttf"
+                | "eot"
+                | "mp3"
+                | "mp4"
+                | "avi"
+                | "mov"
+                | "wav"
+                | "zip"
+                | "tar"
+                | "gz"
+                | "bz2"
+                | "7z"
+                | "rar"
+                | "pdf"
+                | "doc"
+                | "docx"
+                | "xls"
+                | "xlsx"
+                | "o"
+                | "so"
+                | "dylib"
+                | "dll"
+                | "exe"
+                | "wasm"
+                | "class"
+                | "jar"
         )
     }
 }
@@ -278,7 +328,12 @@ mod tests {
         let entries = scanner.scan(dir.path()).unwrap();
 
         // Should find all 7 files
-        assert_eq!(entries.len(), 7, "expected 7 files, got {:?}", entries.iter().map(|e| &e.path).collect::<Vec<_>>());
+        assert_eq!(
+            entries.len(),
+            7,
+            "expected 7 files, got {:?}",
+            entries.iter().map(|e| &e.path).collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -292,12 +347,30 @@ mod tests {
     #[test]
     fn test_file_categorization() {
         assert_eq!(FileScanner::categorize("rs", "main.rs"), FileCategory::Code);
-        assert_eq!(FileScanner::categorize("json", "config.json"), FileCategory::Config);
-        assert_eq!(FileScanner::categorize("md", "readme.md"), FileCategory::Docs);
-        assert_eq!(FileScanner::categorize("sh", "build.sh"), FileCategory::Script);
-        assert_eq!(FileScanner::categorize("html", "index.html"), FileCategory::Markup);
-        assert_eq!(FileScanner::categorize("tf", "main.tf"), FileCategory::Infra);
-        assert_eq!(FileScanner::categorize("sql", "query.sql"), FileCategory::Data);
+        assert_eq!(
+            FileScanner::categorize("json", "config.json"),
+            FileCategory::Config
+        );
+        assert_eq!(
+            FileScanner::categorize("md", "readme.md"),
+            FileCategory::Docs
+        );
+        assert_eq!(
+            FileScanner::categorize("sh", "build.sh"),
+            FileCategory::Script
+        );
+        assert_eq!(
+            FileScanner::categorize("html", "index.html"),
+            FileCategory::Markup
+        );
+        assert_eq!(
+            FileScanner::categorize("tf", "main.tf"),
+            FileCategory::Infra
+        );
+        assert_eq!(
+            FileScanner::categorize("sql", "query.sql"),
+            FileCategory::Data
+        );
     }
 
     #[test]

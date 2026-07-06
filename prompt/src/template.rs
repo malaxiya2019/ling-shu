@@ -41,8 +41,7 @@ impl Default for TemplateEngine {
 impl TemplateEngine {
     pub fn new() -> Self {
         Self {
-            pattern: Regex::new(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}")
-                .expect("valid regex"),
+            pattern: Regex::new(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}").expect("valid regex"),
         }
     }
 
@@ -77,16 +76,20 @@ impl TemplateEngine {
         template_version: &str,
     ) -> CompiledPrompt {
         let mut used = HashMap::new();
-        let result = self.pattern.replace_all(template, |caps: &regex::Captures| {
-            let name = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-            if let Some(value) = variables.get(name) {
-                used.insert(name.to_string(), value.clone());
-                value.clone()
-            } else {
-                // 保留原占位符
-                caps.get(0).map(|m| m.as_str().to_string()).unwrap_or_default()
-            }
-        });
+        let result = self
+            .pattern
+            .replace_all(template, |caps: &regex::Captures| {
+                let name = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                if let Some(value) = variables.get(name) {
+                    used.insert(name.to_string(), value.clone());
+                    value.clone()
+                } else {
+                    // 保留原占位符
+                    caps.get(0)
+                        .map(|m| m.as_str().to_string())
+                        .unwrap_or_default()
+                }
+            });
 
         CompiledPrompt {
             text: result.to_string(),

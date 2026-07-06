@@ -11,12 +11,15 @@
 
 pub mod comm;
 pub mod orchestrator;
+pub mod pipeline;
 pub mod registry;
 pub mod scheduler;
-pub mod pipeline;
 
 pub use comm::{AgentMessage, DeliveryStatus, InterAgentComm, MessageEnvelope};
 pub use orchestrator::{DelegationResult, Orchestrator, OrchestratorConfig, TeamConfig};
-pub use registry::{AgentCapability, AgentInfo, AgentRegistry, AgentProbe, ProbeResult};
+pub use pipeline::{
+    default_code_graph, CodeUnderstandingPipeline, IncrementalChange, PipelineConfig,
+    PipelineReport,
+};
+pub use registry::{AgentCapability, AgentInfo, AgentProbe, AgentRegistry, ProbeResult};
 pub use scheduler::{AgentScheduler, ScheduleStrategy, TaskAssignment};
-pub use pipeline::{CodeUnderstandingPipeline, IncrementalChange, PipelineConfig, PipelineReport, default_code_graph};

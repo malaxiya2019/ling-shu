@@ -100,7 +100,12 @@ impl ExecutionTracker {
         let records = self.records.read().await;
         records
             .iter()
-            .filter(|r| matches!(r.state, ToolExecutionState::Running | ToolExecutionState::Pending))
+            .filter(|r| {
+                matches!(
+                    r.state,
+                    ToolExecutionState::Running | ToolExecutionState::Pending
+                )
+            })
             .cloned()
             .collect()
     }
@@ -115,13 +120,23 @@ impl ExecutionTracker {
     /// 按 execution_id 查询单条记录
     pub(crate) async fn get_execution(&self, execution_id: &str) -> Option<ToolExecutionRecord> {
         let records = self.records.read().await;
-        records.iter().find(|r| r.execution_id == execution_id).cloned()
+        records
+            .iter()
+            .find(|r| r.execution_id == execution_id)
+            .cloned()
     }
 
     /// 按 session_id 查询记录
-    pub(crate) async fn get_executions_by_session(&self, session_id: &str) -> Vec<ToolExecutionRecord> {
+    pub(crate) async fn get_executions_by_session(
+        &self,
+        session_id: &str,
+    ) -> Vec<ToolExecutionRecord> {
         let records = self.records.read().await;
-        records.iter().filter(|r| r.session_id == session_id).cloned().collect()
+        records
+            .iter()
+            .filter(|r| r.session_id == session_id)
+            .cloned()
+            .collect()
     }
 
     /// 获取全部记录
@@ -151,8 +166,7 @@ pub struct McpServer {
     /// 工具执行追踪器
     tracker: ExecutionTracker,
     /// 进度通知外部发送器（如 SSE/WebSocket 桥接）
-    progress_sender:
-        Arc<Mutex<Option<tokio::sync::mpsc::UnboundedSender<ProgressNotification>>>>,
+    progress_sender: Arc<Mutex<Option<tokio::sync::mpsc::UnboundedSender<ProgressNotification>>>>,
 }
 
 impl McpServer {
@@ -197,11 +211,7 @@ impl McpServer {
     }
 
     /// 处理 JSON-RPC 请求，返回 JSON-RPC 响应
-    pub async fn handle_request(
-        &self,
-        ctx: &LsContext,
-        body: Value,
-    ) -> JsonRpcResponse<Value> {
+    pub async fn handle_request(&self, ctx: &LsContext, body: Value) -> JsonRpcResponse<Value> {
         let request_id = body.get("id").and_then(|v| v.as_u64()).unwrap_or(0);
 
         // 校验 jsonrpc 版本
@@ -251,11 +261,7 @@ impl McpServer {
     }
 
     /// `tools/list` — 列出所有可用工具
-    async fn handle_tools_list(
-        &self,
-        id: u64,
-        _params: Value,
-    ) -> JsonRpcResponse<Value> {
+    async fn handle_tools_list(&self, id: u64, _params: Value) -> JsonRpcResponse<Value> {
         let tools: Vec<McpTool> = self
             .tools
             .iter()
@@ -345,12 +351,8 @@ impl McpServer {
                     });
 
                     // 发送 SSE 通知
-                    let notification = ProgressNotification::new(
-                        token_for_cb.clone(),
-                        progress,
-                        total,
-                        message,
-                    );
+                    let notification =
+                        ProgressNotification::new(token_for_cb.clone(), progress, total, message);
                     if let Ok(guard) = sender.try_lock() {
                         if let Some(ref tx) = *guard {
                             let _ = tx.send(notification);
@@ -375,13 +377,8 @@ impl McpServer {
 
         // 执行工具（支持进度回调）
         let result = if let Some(progress) = callback {
-            tool::execute_tool_to_mcp_with_progress(
-                &*tool,
-                ctx.clone(),
-                arguments,
-                Some(progress),
-            )
-            .await
+            tool::execute_tool_to_mcp_with_progress(&*tool, ctx.clone(), arguments, Some(progress))
+                .await
         } else {
             tool::execute_tool_to_mcp(&*tool, ctx.clone(), arguments).await
         };
@@ -426,11 +423,7 @@ impl McpServer {
     }
 
     /// `resources/list` — 列出可用资源（当前为空）
-    async fn handle_resources_list(
-        &self,
-        id: u64,
-        _params: Value,
-    ) -> JsonRpcResponse<Value> {
+    async fn handle_resources_list(&self, id: u64, _params: Value) -> JsonRpcResponse<Value> {
         let result = ResourcesListResult {
             resources: Vec::new(),
             next_cursor: None,
@@ -444,11 +437,7 @@ impl McpServer {
     }
 
     /// `prompts/list` — 列出可用提示（当前为空）
-    async fn handle_prompts_list(
-        &self,
-        id: u64,
-        _params: Value,
-    ) -> JsonRpcResponse<Value> {
+    async fn handle_prompts_list(&self, id: u64, _params: Value) -> JsonRpcResponse<Value> {
         let result = PromptsListResult {
             prompts: Vec::new(),
             next_cursor: None,
@@ -472,10 +461,7 @@ impl McpServer {
     ///
     /// 所有 notifications/progress 通知将自动通过 SseBroadcaster 转发。
     /// 需要在 McpServer 初始化后调用一次。
-    pub fn bridge_sse(
-        &self,
-        broadcaster: std::sync::Arc<lingshu_websocket::SseBroadcaster>,
-    ) {
+    pub fn bridge_sse(&self, broadcaster: std::sync::Arc<lingshu_websocket::SseBroadcaster>) {
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
         self.set_progress_sender(tx);
 
@@ -685,8 +671,7 @@ mod tests {
         assert!(resp.error.is_none());
         assert_eq!(resp.id, 1);
 
-        let result: ToolsListResult =
-            serde_json::from_value(resp.result.unwrap()).unwrap();
+        let result: ToolsListResult = serde_json::from_value(resp.result.unwrap()).unwrap();
         // 2 registered + 1 built-in (mcp_status) = 3
         assert_eq!(result.tools.len(), 3);
     }
@@ -711,8 +696,7 @@ mod tests {
             resp.error
         );
 
-        let result: ToolsCallResult =
-            serde_json::from_value(resp.result.unwrap()).unwrap();
+        let result: ToolsCallResult = serde_json::from_value(resp.result.unwrap()).unwrap();
         assert!(!result.is_error);
         let text = match &result.content[0] {
             McpContent::Text { text } => text.as_str(),
@@ -778,8 +762,7 @@ mod tests {
             resp.error
         );
 
-        let status: McpStatusResult =
-            serde_json::from_value(resp.result.unwrap()).unwrap();
+        let status: McpStatusResult = serde_json::from_value(resp.result.unwrap()).unwrap();
         // EchoTool + built-in mcp_status
         assert_eq!(status.registered_tools, 2);
         assert!(!status.server_version.is_empty());
@@ -812,18 +795,27 @@ mod tests {
         });
 
         let resp = server.handle_request(&ctx, status_body).await;
-        assert!(resp.result.is_some(), "expected result, got error: {:?}", resp.error);
+        assert!(
+            resp.result.is_some(),
+            "expected result, got error: {:?}",
+            resp.error
+        );
 
-        let result: ToolsCallResult =
-            serde_json::from_value(resp.result.unwrap()).unwrap();
+        let result: ToolsCallResult = serde_json::from_value(resp.result.unwrap()).unwrap();
         assert!(!result.is_error);
         let text = match &result.content[0] {
             McpContent::Text { text } => text.as_str(),
             _ => "",
         };
         // Should contain total_tool_calls and records
-        assert!(text.contains("total_tool_calls"), "expected stats in response, got: {text}");
-        assert!(text.contains("records"), "expected records in response, got: {text}");
+        assert!(
+            text.contains("total_tool_calls"),
+            "expected stats in response, got: {text}"
+        );
+        assert!(
+            text.contains("records"),
+            "expected records in response, got: {text}"
+        );
     }
 
     #[tokio::test]
@@ -870,10 +862,13 @@ mod tests {
         });
 
         let resp = server.handle_request(&ctx, body).await;
-        assert!(resp.result.is_some(), "expected result, got error: {:?}", resp.error);
+        assert!(
+            resp.result.is_some(),
+            "expected result, got error: {:?}",
+            resp.error
+        );
 
-        let result: ResourcesListResult =
-            serde_json::from_value(resp.result.unwrap()).unwrap();
+        let result: ResourcesListResult = serde_json::from_value(resp.result.unwrap()).unwrap();
         assert!(result.resources.is_empty());
     }
 
@@ -889,10 +884,13 @@ mod tests {
         });
 
         let resp = server.handle_request(&ctx, body).await;
-        assert!(resp.result.is_some(), "expected result, got error: {:?}", resp.error);
+        assert!(
+            resp.result.is_some(),
+            "expected result, got error: {:?}",
+            resp.error
+        );
 
-        let result: PromptsListResult =
-            serde_json::from_value(resp.result.unwrap()).unwrap();
+        let result: PromptsListResult = serde_json::from_value(resp.result.unwrap()).unwrap();
         assert!(result.prompts.is_empty());
     }
 
@@ -910,10 +908,13 @@ mod tests {
         });
 
         let resp = server.handle_request(&ctx, body).await;
-        assert!(resp.result.is_some(), "expected result, got error: {:?}", resp.error);
+        assert!(
+            resp.result.is_some(),
+            "expected result, got error: {:?}",
+            resp.error
+        );
 
-        let result: ToolsCallResult =
-            serde_json::from_value(resp.result.unwrap()).unwrap();
+        let result: ToolsCallResult = serde_json::from_value(resp.result.unwrap()).unwrap();
         assert!(!result.is_error);
         assert!(
             result.execution_id.is_some(),
@@ -934,7 +935,11 @@ mod tests {
         });
 
         let status_resp = server.handle_request(&ctx, status_body).await;
-        assert!(status_resp.result.is_some(), "expected result, got error: {:?}", status_resp.error);
+        assert!(
+            status_resp.result.is_some(),
+            "expected result, got error: {:?}",
+            status_resp.error
+        );
 
         let status_result: ToolsCallResult =
             serde_json::from_value(status_resp.result.unwrap()).unwrap();
@@ -943,7 +948,10 @@ mod tests {
             McpContent::Text { text } => text.as_str(),
             _ => "",
         };
-        assert!(text.contains(&eid), "response should contain the execution_id: {text}");
+        assert!(
+            text.contains(&eid),
+            "response should contain the execution_id: {text}"
+        );
     }
 
     #[tokio::test]
@@ -952,7 +960,7 @@ mod tests {
         let db_path = dir.path().join("test.db");
         let store = std::sync::Arc::new(
             lingshu_credentials::CredentialStore::open(&db_path, "test-master-key-for-testing")
-                .expect("open store")
+                .expect("open store"),
         );
         let mgr = std::sync::Arc::new(lingshu_credentials::CredentialManager::new(store));
         let mut server = McpServer::new();
@@ -968,17 +976,38 @@ mod tests {
         });
 
         let resp = server.handle_request(&ctx, body).await;
-        assert!(resp.result.is_some(), "expected result, got error: {:?}", resp.error);
+        assert!(
+            resp.result.is_some(),
+            "expected result, got error: {:?}",
+            resp.error
+        );
 
-        let result: ToolsListResult =
-            serde_json::from_value(resp.result.unwrap()).unwrap();
+        let result: ToolsListResult = serde_json::from_value(resp.result.unwrap()).unwrap();
         let tool_names: Vec<&str> = result.tools.iter().map(|t| t.name.as_str()).collect();
-        assert!(tool_names.contains(&"credential_list"), "credential_list should be in tools list");
-        assert!(tool_names.contains(&"credential_create"), "credential_create should be in tools list");
-        assert!(tool_names.contains(&"credential_get"), "credential_get should be in tools list");
-        assert!(tool_names.contains(&"credential_update"), "credential_update should be in tools list");
-        assert!(tool_names.contains(&"credential_delete"), "credential_delete should be in tools list");
-        assert!(tool_names.contains(&"credential_validate"), "credential_validate should be in tools list");
+        assert!(
+            tool_names.contains(&"credential_list"),
+            "credential_list should be in tools list"
+        );
+        assert!(
+            tool_names.contains(&"credential_create"),
+            "credential_create should be in tools list"
+        );
+        assert!(
+            tool_names.contains(&"credential_get"),
+            "credential_get should be in tools list"
+        );
+        assert!(
+            tool_names.contains(&"credential_update"),
+            "credential_update should be in tools list"
+        );
+        assert!(
+            tool_names.contains(&"credential_delete"),
+            "credential_delete should be in tools list"
+        );
+        assert!(
+            tool_names.contains(&"credential_validate"),
+            "credential_validate should be in tools list"
+        );
     }
 
     #[tokio::test]
@@ -987,7 +1016,7 @@ mod tests {
         let db_path = dir.path().join("test2.db");
         let store = std::sync::Arc::new(
             lingshu_credentials::CredentialStore::open(&db_path, "test-master-key-for-testing")
-                .expect("open store")
+                .expect("open store"),
         );
         let mgr = std::sync::Arc::new(lingshu_credentials::CredentialManager::new(store));
         let mut server = McpServer::new();
@@ -1014,10 +1043,18 @@ mod tests {
         });
 
         let create_resp = server.handle_request(&ctx, create_body).await;
-        assert!(create_resp.result.is_some(), "create failed: {:?}", create_resp.error);
+        assert!(
+            create_resp.result.is_some(),
+            "create failed: {:?}",
+            create_resp.error
+        );
         let create_result: ToolsCallResult =
             serde_json::from_value(create_resp.result.unwrap()).unwrap();
-        assert!(!create_result.is_error, "create should not error: {:?}", create_result.content);
+        assert!(
+            !create_result.is_error,
+            "create should not error: {:?}",
+            create_result.content
+        );
 
         // List credentials via tools/call
         let list_body = serde_json::json!({
@@ -1031,7 +1068,11 @@ mod tests {
         });
 
         let list_resp = server.handle_request(&ctx, list_body).await;
-        assert!(list_resp.result.is_some(), "list failed: {:?}", list_resp.error);
+        assert!(
+            list_resp.result.is_some(),
+            "list failed: {:?}",
+            list_resp.error
+        );
         let list_result: ToolsCallResult =
             serde_json::from_value(list_resp.result.unwrap()).unwrap();
         assert!(!list_result.is_error, "list should not error");
@@ -1039,8 +1080,13 @@ mod tests {
             McpContent::Text { text } => text.as_str(),
             _ => "",
         };
-        assert!(text.contains("test-credential"), "list should contain created credential: {text}");
-        assert!(text.contains("gitee"), "list should contain provider gitee: {text}");
+        assert!(
+            text.contains("test-credential"),
+            "list should contain created credential: {text}"
+        );
+        assert!(
+            text.contains("gitee"),
+            "list should contain provider gitee: {text}"
+        );
     }
-
 }

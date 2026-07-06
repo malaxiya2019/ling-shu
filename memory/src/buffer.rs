@@ -108,7 +108,7 @@ impl ChatBuffer {
                     role,
                     content: item.content.clone(),
                     content_parts: None,
-        name: None,
+                    name: None,
                     tool_calls: None,
                 }
             })

@@ -1,7 +1,7 @@
 //! 图构建器 — 参照 UA 的 GraphBuilder，防重复节点/边.
 
-use std::collections::HashSet;
 use crate::types::*;
+use std::collections::HashSet;
 
 /// 图构建器（去重保证）.
 pub struct GraphBuilder {
@@ -37,7 +37,12 @@ impl GraphBuilder {
 
     /// 添加边（去重）.
     pub fn add_edge(&mut self, edge: GraphEdge) -> bool {
-        let key = format!("{}|{}|{}", edge.edge_type.as_str(), edge.source, edge.target);
+        let key = format!(
+            "{}|{}|{}",
+            edge.edge_type.as_str(),
+            edge.source,
+            edge.target
+        );
         if self.edge_keys.contains(&key) {
             return false;
         }
@@ -177,7 +182,9 @@ impl GraphBuilder {
     /// 构建最终图谱.
     pub fn build(self) -> KnowledgeGraph {
         // 收集语言集合
-        let mut languages: Vec<String> = self.nodes.iter()
+        let mut languages: Vec<String> = self
+            .nodes
+            .iter()
             .filter_map(|n| n.language.clone())
             .collect::<HashSet<_>>()
             .into_iter()
@@ -196,12 +203,18 @@ impl GraphBuilder {
 impl KnowledgeGraph {
     /// 按类型查询节点.
     pub fn nodes_by_type(&self, node_type: &NodeType) -> Vec<&GraphNode> {
-        self.nodes.iter().filter(|n| n.node_type == *node_type).collect()
+        self.nodes
+            .iter()
+            .filter(|n| n.node_type == *node_type)
+            .collect()
     }
 
     /// 按标签查询节点.
     pub fn nodes_by_tag(&self, tag: &str) -> Vec<&GraphNode> {
-        self.nodes.iter().filter(|n| n.tags.contains(&tag.to_string())).collect()
+        self.nodes
+            .iter()
+            .filter(|n| n.tags.contains(&tag.to_string()))
+            .collect()
     }
 
     /// 查询某个节点的出边.
@@ -217,7 +230,8 @@ impl KnowledgeGraph {
     /// 全文搜索节点.
     pub fn search(&self, query: &str) -> Vec<&GraphNode> {
         let q = query.to_lowercase();
-        self.nodes.iter()
+        self.nodes
+            .iter()
             .filter(|n| {
                 n.name.to_lowercase().contains(&q)
                     || n.summary.to_lowercase().contains(&q)
@@ -228,12 +242,15 @@ impl KnowledgeGraph {
 
     /// 获取文件导入图.
     pub fn file_import_graph(&self) -> Vec<(&GraphNode, &GraphNode)> {
-        let file_nodes: HashSet<String> = self.nodes.iter()
+        let file_nodes: HashSet<String> = self
+            .nodes
+            .iter()
             .filter(|n| n.node_type == NodeType::File)
             .map(|n| n.id.clone())
             .collect();
 
-        self.edges.iter()
+        self.edges
+            .iter()
             .filter(|e| e.edge_type == EdgeType::Imports)
             .filter_map(|e| {
                 let src = self.nodes.iter().find(|n| n.id == e.source)?;
@@ -285,27 +302,47 @@ mod tests {
     fn test_builder_dedup_edges() {
         let mut builder = GraphBuilder::new("test", "abc");
         builder.add_node(GraphNode {
-            id: "file:a.rs".into(), node_type: NodeType::File, name: "a.rs".into(),
-            file_path: Some("a.rs".into()), line_range: None, summary: "".into(),
-            tags: vec![], complexity: Complexity::Simple, language: None,
-            domain_meta: None, knowledge_meta: None,
+            id: "file:a.rs".into(),
+            node_type: NodeType::File,
+            name: "a.rs".into(),
+            file_path: Some("a.rs".into()),
+            line_range: None,
+            summary: "".into(),
+            tags: vec![],
+            complexity: Complexity::Simple,
+            language: None,
+            domain_meta: None,
+            knowledge_meta: None,
         });
         builder.add_node(GraphNode {
-            id: "file:b.rs".into(), node_type: NodeType::File, name: "b.rs".into(),
-            file_path: Some("b.rs".into()), line_range: None, summary: "".into(),
-            tags: vec![], complexity: Complexity::Simple, language: None,
-            domain_meta: None, knowledge_meta: None,
+            id: "file:b.rs".into(),
+            node_type: NodeType::File,
+            name: "b.rs".into(),
+            file_path: Some("b.rs".into()),
+            line_range: None,
+            summary: "".into(),
+            tags: vec![],
+            complexity: Complexity::Simple,
+            language: None,
+            domain_meta: None,
+            knowledge_meta: None,
         });
 
         assert!(builder.add_edge(GraphEdge {
-            source: "file:a.rs".into(), target: "file:b.rs".into(),
-            edge_type: EdgeType::Imports, direction: EdgeDirection::Forward,
-            description: None, weight: 0.7,
+            source: "file:a.rs".into(),
+            target: "file:b.rs".into(),
+            edge_type: EdgeType::Imports,
+            direction: EdgeDirection::Forward,
+            description: None,
+            weight: 0.7,
         }));
         assert!(!builder.add_edge(GraphEdge {
-            source: "file:a.rs".into(), target: "file:b.rs".into(),
-            edge_type: EdgeType::Imports, direction: EdgeDirection::Forward,
-            description: None, weight: 0.7,
+            source: "file:a.rs".into(),
+            target: "file:b.rs".into(),
+            edge_type: EdgeType::Imports,
+            direction: EdgeDirection::Forward,
+            description: None,
+            weight: 0.7,
         }));
     }
 
@@ -324,14 +361,29 @@ mod tests {
         let graph = builder.build();
         assert_eq!(graph.nodes.len(), 3);
         assert_eq!(graph.edges.len(), 2);
-        assert!(graph.edges.iter().all(|e| e.edge_type == EdgeType::Contains));
+        assert!(graph
+            .edges
+            .iter()
+            .all(|e| e.edge_type == EdgeType::Contains));
     }
 
     #[test]
     fn test_search() {
         let mut builder = GraphBuilder::new("test", "abc");
-        builder.add_knowledge_node("article:1", NodeType::Article, "Rust Book", "The Rust Programming Language", "documentation");
-        builder.add_knowledge_node("entity:1", NodeType::Entity, "ownership", "Rust ownership system", "concept");
+        builder.add_knowledge_node(
+            "article:1",
+            NodeType::Article,
+            "Rust Book",
+            "The Rust Programming Language",
+            "documentation",
+        );
+        builder.add_knowledge_node(
+            "entity:1",
+            NodeType::Entity,
+            "ownership",
+            "Rust ownership system",
+            "concept",
+        );
 
         let graph = builder.build();
         let results = graph.search("rust");
@@ -345,7 +397,15 @@ mod tests {
         let mut builder = GraphBuilder::new("test", "abc");
         builder.add_knowledge_node("a1", NodeType::Article, "A", "Article A", "docs");
         builder.add_knowledge_node("a2", NodeType::Article, "B", "Article B", "docs");
-        builder.add_file_with_children("f1.rs", "file", vec![], Complexity::Simple, "rust", vec![], vec![]);
+        builder.add_file_with_children(
+            "f1.rs",
+            "file",
+            vec![],
+            Complexity::Simple,
+            "rust",
+            vec![],
+            vec![],
+        );
 
         let graph = builder.build();
         assert_eq!(graph.nodes_by_type(&NodeType::Article).len(), 2);

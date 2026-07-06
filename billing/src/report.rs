@@ -17,7 +17,10 @@ pub enum PeriodType {
     /// 最近 30 天.
     Monthly,
     /// 自定义范围.
-    Custom { start: DateTime<Utc>, end: DateTime<Utc> },
+    Custom {
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    },
 }
 
 /// 使用报告.
@@ -124,7 +127,10 @@ mod tests {
         tracker.record("alice", "gpt-3.5", 200, 100).await.unwrap();
 
         let generator = ReportGenerator::new(tracker);
-        let report = generator.generate("alice", PeriodType::Daily).await.unwrap();
+        let report = generator
+            .generate("alice", PeriodType::Daily)
+            .await
+            .unwrap();
 
         assert_eq!(report.user_id, "alice");
         assert_eq!(report.total_requests, 2);

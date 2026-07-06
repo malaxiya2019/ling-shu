@@ -151,12 +151,15 @@ impl ClusterState {
     /// Detect failed nodes based on heartbeat timeout
     pub fn detect_failures(&mut self) -> Vec<String> {
         let now = chrono::Utc::now().timestamp();
-        let timeout = self.config.heartbeat_interval.as_secs() as i64
-            * self.config.suspicion_mult as i64;
+        let timeout =
+            self.config.heartbeat_interval.as_secs() as i64 * self.config.suspicion_mult as i64;
         let mut failed = Vec::new();
         for (id, node) in self.members.iter_mut() {
             if node.status == NodeStatus::Alive && (now - node.last_heartbeat) > timeout {
-                warn!("Node {} suspected dead (last heartbeat: {})", id, node.last_heartbeat);
+                warn!(
+                    "Node {} suspected dead (last heartbeat: {})",
+                    id, node.last_heartbeat
+                );
                 node.status = NodeStatus::Suspect;
             }
             if node.status == NodeStatus::Suspect && (now - node.last_heartbeat) > timeout * 2 {

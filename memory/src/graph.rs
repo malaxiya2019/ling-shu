@@ -56,7 +56,10 @@ impl HybridMemory {
         _metadata: serde_json::Value,
     ) -> LsResult<MemoryItem> {
         let item = MemoryItem::new(session_id, role, content);
-        let item = item.with_metadata("stored_at", serde_json::json!(chrono::Utc::now().to_rfc3339()));
+        let item = item.with_metadata(
+            "stored_at",
+            serde_json::json!(chrono::Utc::now().to_rfc3339()),
+        );
 
         self.buffer.add(item.clone()).await;
         self.vector.store(item.clone(), vec![]).await?;
@@ -66,7 +69,11 @@ impl HybridMemory {
                 .record_interaction(
                     &format!("session:{session_id}"),
                     role,
-                    if role == "user" { "user_message" } else { "assistant_response" },
+                    if role == "user" {
+                        "user_message"
+                    } else {
+                        "assistant_response"
+                    },
                     content,
                 )
                 .await?;
@@ -77,11 +84,16 @@ impl HybridMemory {
 
     pub async fn search(&self, query: &MemoryQuery) -> LsResult<HybridSearchResult> {
         // 1. 缓冲检索
-        let from_buffer: Vec<HybridMemoryItem> = self.buffer
+        let from_buffer: Vec<HybridMemoryItem> = self
+            .buffer
             .all()
             .await
             .into_iter()
-            .map(|item| HybridMemoryItem { memory: item, graph_node: None, relationship: None })
+            .map(|item| HybridMemoryItem {
+                memory: item,
+                graph_node: None,
+                relationship: None,
+            })
             .collect();
         let n_buffer = from_buffer.len();
 
@@ -91,7 +103,11 @@ impl HybridMemory {
                 .search_by_text(query, query.limit)
                 .await?
                 .into_iter()
-                .map(|r| HybridMemoryItem { memory: r.item, graph_node: None, relationship: None })
+                .map(|r| HybridMemoryItem {
+                    memory: r.item,
+                    graph_node: None,
+                    relationship: None,
+                })
                 .collect()
         } else {
             Vec::new()
@@ -104,7 +120,8 @@ impl HybridMemory {
                 let graph_name = format!("session:{session_id}");
                 let search_term = query.query.as_deref().unwrap_or("");
                 if let Ok(nodes) = self.graph.search_nodes(&graph_name, search_term).await {
-                    nodes.into_iter()
+                    nodes
+                        .into_iter()
                         .map(|node| HybridMemoryItem {
                             memory: MemoryItem::new(session_id, "system", &node.summary),
                             graph_node: Some(node),
@@ -134,7 +151,12 @@ impl HybridMemory {
             }
         }
 
-        Ok(HybridSearchResult { items: merged, from_buffer: n_buffer, from_vector: n_vector, from_graph: n_graph })
+        Ok(HybridSearchResult {
+            items: merged,
+            from_buffer: n_buffer,
+            from_vector: n_vector,
+            from_graph: n_graph,
+        })
     }
 
     pub async fn find_path(
@@ -144,7 +166,9 @@ impl HybridMemory {
         to_concept: &str,
     ) -> LsResult<Vec<String>> {
         let graph_name = format!("session:{session_id}");
-        self.graph.find_path(&graph_name, from_concept, to_concept).await
+        self.graph
+            .find_path(&graph_name, from_concept, to_concept)
+            .await
     }
 
     pub async fn import_knowledge(
@@ -165,16 +189,23 @@ mod tests {
     #[tokio::test]
     async fn test_store_and_search() {
         let hm = HybridMemory::new("session-1", 100, true);
-        hm.store("session-1", "user", "Hello world", serde_json::json!({})).await.unwrap();
-        hm.store("session-1", "assistant", "Hi there!", serde_json::json!({})).await.unwrap();
+        hm.store("session-1", "user", "Hello world", serde_json::json!({}))
+            .await
+            .unwrap();
+        hm.store("session-1", "assistant", "Hi there!", serde_json::json!({}))
+            .await
+            .unwrap();
 
-        let result = hm.search(&MemoryQuery {
-            session_id: Some("session-1".into()),
-            query: None,
-            limit: 10,
-            offset: 0,
-            min_relevance: None,
-        }).await.unwrap();
+        let result = hm
+            .search(&MemoryQuery {
+                session_id: Some("session-1".into()),
+                query: None,
+                limit: 10,
+                offset: 0,
+                min_relevance: None,
+            })
+            .await
+            .unwrap();
 
         assert_eq!(result.items.len(), 2);
         assert_eq!(result.from_buffer, 2);
@@ -185,18 +216,27 @@ mod tests {
         let hm = HybridMemory::new("session-1", 100, true);
 
         let mut builder = GraphBuilder::new("knowledge-base", "");
-        builder.add_knowledge_node("topic:rust", NodeType::Topic, "Rust", "Systems programming language", "programming");
+        builder.add_knowledge_node(
+            "topic:rust",
+            NodeType::Topic,
+            "Rust",
+            "Systems programming language",
+            "programming",
+        );
         let graph = builder.build();
 
         hm.import_knowledge("session-1", graph).await.unwrap();
 
-        let result = hm.search(&MemoryQuery {
-            session_id: Some("session-1".into()),
-            query: Some("rust".into()),
-            limit: 10,
-            offset: 0,
-            min_relevance: None,
-        }).await.unwrap();
+        let result = hm
+            .search(&MemoryQuery {
+                session_id: Some("session-1".into()),
+                query: Some("rust".into()),
+                limit: 10,
+                offset: 0,
+                min_relevance: None,
+            })
+            .await
+            .unwrap();
 
         assert!(result.from_graph > 0 || !result.items.is_empty());
     }

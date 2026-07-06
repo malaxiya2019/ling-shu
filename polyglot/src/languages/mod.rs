@@ -1,5 +1,5 @@
-mod interpreted;
 mod compiled;
+mod interpreted;
 mod vm;
 
 use crate::config::PolyglotConfig;

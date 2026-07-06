@@ -277,9 +277,11 @@ impl Llm for OpenAiLlm {
             .await
             .map_err(|e| LsError::Llm(format!("parse response failed: {e}")))?;
 
-        let choice = chat_resp.choices.into_iter().next().ok_or_else(|| {
-            LsError::Llm("no choices in response".into())
-        })?;
+        let choice = chat_resp
+            .choices
+            .into_iter()
+            .next()
+            .ok_or_else(|| LsError::Llm("no choices in response".into()))?;
 
         let usage = chat_resp.usage.unwrap_or(UsageData {
             prompt_tokens: 0,
@@ -400,16 +402,27 @@ impl Llm for OpenAiLlm {
                             for choice in sc.choices {
                                 // Parse streaming tool calls into LlmChunk.tool_calls
                                 let tool_calls = choice.delta.tool_calls.map(|deltas| {
-                                    deltas.into_iter().map(|tc| {
-                                        lingshu_traits::llm::ToolCall {
+                                    deltas
+                                        .into_iter()
+                                        .map(|tc| lingshu_traits::llm::ToolCall {
                                             id: tc.id.unwrap_or_default(),
-                                            call_type: tc.call_type.unwrap_or_else(|| "function".into()),
+                                            call_type: tc
+                                                .call_type
+                                                .unwrap_or_else(|| "function".into()),
                                             function: lingshu_traits::llm::ToolCallFunction {
-                                                name: tc.function.as_ref().and_then(|f| f.name.clone()).unwrap_or_default(),
-                                                arguments: tc.function.as_ref().and_then(|f| f.arguments.clone()).unwrap_or_default(),
+                                                name: tc
+                                                    .function
+                                                    .as_ref()
+                                                    .and_then(|f| f.name.clone())
+                                                    .unwrap_or_default(),
+                                                arguments: tc
+                                                    .function
+                                                    .as_ref()
+                                                    .and_then(|f| f.arguments.clone())
+                                                    .unwrap_or_default(),
                                             },
-                                        }
-                                    }).collect()
+                                        })
+                                        .collect()
                                 });
 
                                 let _ = tx
@@ -509,6 +522,9 @@ mod tests {
         };
         let converted = OpenAiLlm::convert_message(&msg);
         assert_eq!(converted.role, "system");
-        assert_eq!(converted.content, serde_json::Value::String("be helpful".into()));
+        assert_eq!(
+            converted.content,
+            serde_json::Value::String("be helpful".into())
+        );
     }
 }

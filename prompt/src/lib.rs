@@ -17,10 +17,10 @@
 //! └──────────────────────────────────────────┘
 //! ```
 
-pub mod template;
-pub mod registry;
 pub mod abtest;
+pub mod registry;
+pub mod template;
 
-pub use template::{CompiledPrompt, TemplateEngine, TemplateVariable};
-pub use registry::{PromptInfo, PromptRegistry, PromptVersion};
 pub use abtest::{ABTestConfig, ABTestManager, ABTestResult};
+pub use registry::{PromptInfo, PromptRegistry, PromptVersion};
+pub use template::{CompiledPrompt, TemplateEngine, TemplateVariable};

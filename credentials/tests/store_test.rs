@@ -41,8 +41,7 @@ fn test_open_creates_db() {
     let db_path = dir.path().join("test.db");
     assert!(!db_path.exists(), "db should not exist yet");
 
-    let store = CredentialStore::open(&db_path, "test-key")
-        .expect("open should create db");
+    let store = CredentialStore::open(&db_path, "test-key").expect("open should create db");
     drop(store);
 
     assert!(db_path.exists(), "db should be created");
@@ -55,7 +54,8 @@ fn test_insert_and_get() {
 
     store.insert(&entry).expect("insert should succeed");
 
-    let retrieved = store.get("test-001")
+    let retrieved = store
+        .get("test-001")
         .expect("get should succeed")
         .expect("entry should exist");
 
@@ -63,7 +63,10 @@ fn test_insert_and_get() {
     assert_eq!(retrieved.name, "test-test-001");
     assert_eq!(retrieved.token, "ghp_test_token_test-001"); // decrypted!
     assert_eq!(retrieved.provider, GitProvider::Gitee);
-    assert_eq!(retrieved.credential_type, CredentialType::PersonalAccessToken);
+    assert_eq!(
+        retrieved.credential_type,
+        CredentialType::PersonalAccessToken
+    );
     assert_eq!(retrieved.username, Some("testuser".into()));
     assert_eq!(retrieved.scopes, vec!["api", "repo"]);
     assert!(retrieved.expires_at.is_some());
@@ -72,7 +75,8 @@ fn test_insert_and_get() {
 #[test]
 fn test_get_not_found() {
     let (store, _dir) = setup_store();
-    let result = store.get("nonexistent")
+    let result = store
+        .get("nonexistent")
         .expect("get nonexistent should succeed");
     assert!(result.is_none(), "nonexistent entry should be None");
 }
@@ -95,7 +99,10 @@ fn test_list_after_insert() {
 
     // 验证摘要不暴露 token
     for summary in &list {
-        assert!(!summary.masked_token.is_empty(), "masked_token should not be empty");
+        assert!(
+            !summary.masked_token.is_empty(),
+            "masked_token should not be empty"
+        );
         assert!(
             summary.masked_token.contains("..."),
             "masked_token should be masked: {}",
@@ -145,10 +152,13 @@ fn test_update() {
         expires_at: Some(9999999999),
     };
 
-    let found = store.update("upd-001", &req).expect("update should succeed");
+    let found = store
+        .update("upd-001", &req)
+        .expect("update should succeed");
     assert!(found, "update should return true for existing entry");
 
-    let entry = store.get("upd-001")
+    let entry = store
+        .get("upd-001")
         .expect("get should succeed")
         .expect("entry should exist after update");
 
@@ -174,7 +184,8 @@ fn test_update_not_found() {
         permissions_group: None,
         expires_at: None,
     };
-    let found = store.update("nonexistent", &req)
+    let found = store
+        .update("nonexistent", &req)
         .expect("update nonexistent should succeed");
     assert!(!found, "update nonexistent should return false");
 }
@@ -194,7 +205,8 @@ fn test_delete() {
 #[test]
 fn test_delete_not_found() {
     let (store, _dir) = setup_store();
-    let deleted = store.delete("nonexistent")
+    let deleted = store
+        .delete("nonexistent")
         .expect("delete nonexistent should succeed");
     assert!(!deleted, "delete nonexistent should return false");
 }
@@ -213,11 +225,12 @@ fn test_encrypted_token_is_not_plaintext() {
     let store2 = CredentialStore::open(
         &_dir.path().join("credentials.db"),
         "different-key-wont-work-0000000000000000",
-    ).expect("open with different key");
+    )
+    .expect("open with different key");
     drop(store2); // we only need this to not conflict
 
-    let conn = rusqlite::Connection::open(_dir.path().join("credentials.db"))
-        .expect("open db directly");
+    let conn =
+        rusqlite::Connection::open(_dir.path().join("credentials.db")).expect("open db directly");
     let enc_token: String = conn
         .query_row(
             "SELECT encrypted_token FROM credentials WHERE id = ?1",
@@ -241,7 +254,8 @@ fn test_decrypt_with_wrong_key_fails() {
     let store2 = CredentialStore::open(
         &_dir.path().join("credentials.db"),
         "different-master-key-00000000000000000000000",
-    ).expect("open with different key");
+    )
+    .expect("open with different key");
 
     let result = store2.get("key-001");
     match result {
@@ -284,7 +298,12 @@ fn test_all_provider_types() {
     // 验证按提供商过滤
     for (provider, _) in &providers {
         let filtered = store.list_by_provider(provider.as_str()).expect("filter");
-        assert_eq!(filtered.len(), 1, "should find 1 entry for {}", provider.as_str());
+        assert_eq!(
+            filtered.len(),
+            1,
+            "should find 1 entry for {}",
+            provider.as_str()
+        );
         assert_eq!(filtered[0].provider, provider.as_str());
     }
 }
@@ -298,7 +317,8 @@ fn test_empty_token() {
     entry.token = String::new();
     store.insert(&entry).expect("insert empty token");
 
-    let retrieved = store.get("empty-token")
+    let retrieved = store
+        .get("empty-token")
         .expect("get")
         .expect("entry should exist");
     assert_eq!(retrieved.token, "", "empty token roundtrip");
@@ -311,7 +331,8 @@ fn test_very_long_token() {
     entry.token = "A".repeat(10000);
     store.insert(&entry).expect("insert long token");
 
-    let retrieved = store.get("long-token")
+    let retrieved = store
+        .get("long-token")
         .expect("get")
         .expect("entry should exist");
     assert_eq!(retrieved.token.len(), 10000);
@@ -325,7 +346,8 @@ fn test_special_chars_in_token() {
     entry.token = "!@#$%^&*()_+-={}[]|:;'<>,.?/~`你好".into();
     store.insert(&entry).expect("insert special chars");
 
-    let retrieved = store.get("special")
+    let retrieved = store
+        .get("special")
         .expect("get")
         .expect("entry should exist");
     assert_eq!(retrieved.token, "!@#$%^&*()_+-={}[]|:;'<>,.?/~`你好");
@@ -337,7 +359,9 @@ fn test_multiple_entries() {
     let n = 100;
 
     for i in 0..n {
-        store.insert(&make_entry(&format!("multi-{i:03}"))).expect("insert");
+        store
+            .insert(&make_entry(&format!("multi-{i:03}")))
+            .expect("insert");
     }
 
     let list = store.list().expect("list");
@@ -346,7 +370,8 @@ fn test_multiple_entries() {
     // 随机抽查
     for i in (0..n).step_by(10) {
         let id = format!("multi-{i:03}");
-        let entry = store.get(&id)
+        let entry = store
+            .get(&id)
             .expect("get")
             .unwrap_or_else(|| panic!("entry {id} should exist"));
         assert_eq!(entry.token, format!("ghp_test_token_{id}"));
@@ -360,7 +385,10 @@ fn test_duplicate_insert_fails() {
 
     let dup = make_entry("dup");
     let result = store.insert(&dup);
-    assert!(result.is_err(), "duplicate insert should fail due to PK constraint");
+    assert!(
+        result.is_err(),
+        "duplicate insert should fail due to PK constraint"
+    );
 }
 
 #[test]
