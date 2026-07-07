@@ -37,6 +37,15 @@ impl Default for WasmSandboxConfig {
     }
 }
 
+/// 包装类型，实现 wasmtime_wasi::WasiView.
+struct WasiState(Option<wasmtime_wasi::WasiCtx>);
+
+impl wasmtime_wasi::WasiView for WasiState {
+    fn ctx(&mut self) -> &mut wasmtime_wasi::WasiCtx {
+        self.0.as_mut().expect("WasiCtx not initialized")
+    }
+}
+
 /// WASM 插件沙箱.
 pub struct WasmSandbox {
     /// 运行时引擎.
@@ -44,7 +53,7 @@ pub struct WasmSandbox {
     /// 沙箱配置.
     config: WasmSandboxConfig,
     /// 已加载的 WASM 模块.
-    modules: Vec<(PluginInfo, wasmtime::Store<Option<wasmtime_wasi::WasiCtx>>)>,
+    modules: Vec<(PluginInfo, wasmtime::Store<WasiState>)>,
 }
 
 impl WasmSandbox {
@@ -63,11 +72,6 @@ impl WasmSandbox {
         wasm_config.wasm_component_model(true);
         wasm_config.wasm_multi_value(true);
         wasm_config.wasm_memory64(true);
-
-        // 使用 memory_config 设置内存限制 (wasmtime 24.x API)
-        let mut mem_config = wasmtime::MemoryConfig::default();
-        mem_config.max_size(self.config.max_memory);
-        wasm_config.memory_config(mem_config);
 
         let engine = wasmtime::Engine::new(&wasm_config)
             .map_err(|e| LsError::Plugin(format!("failed to create WASM engine: {e}")))?;
@@ -92,14 +96,8 @@ impl WasmSandbox {
         let module = wasmtime::Module::new(engine, &wasm_bytes)
             .map_err(|e| LsError::Plugin(format!("invalid WASM module: {e}")))?;
 
-        // 创建 store (用于沙箱状态跟踪)
-        let mut store = wasmtime::Store::new(engine, None::<wasmtime_wasi::WasiCtx>);
-
-        // 创建链接器 (限制 WASI 访问)
-        let mut linker = wasmtime::Linker::new(engine);
-
         // 根据配置选择性添加 WASI
-        if self.config.enable_filesystem {
+        let wasi_state = if self.config.enable_filesystem {
             let mut wasi_ctx_builder = wasmtime_wasi::WasiCtxBuilder::new()
                 .inherit_stderr()
                 .inherit_stdout();
@@ -112,11 +110,18 @@ impl WasmSandbox {
                     })?;
             }
 
-            let wasi = wasi_ctx_builder.build();
-            *store.data_mut() = Some(wasi);
+            WasiState(Some(wasi_ctx_builder.build()))
+        } else {
+            WasiState(None)
+        };
 
-            // wasmtime 24.x: sync::add_to_linker in preview2
-            wasmtime_wasi::sync::add_to_linker(&mut linker, |state| state.as_mut().unwrap())
+        let mut store = wasmtime::Store::new(engine, wasi_state);
+
+        // 创建组件链接器
+        let mut linker = wasmtime::component::Linker::new(engine);
+
+        if self.config.enable_filesystem {
+            wasmtime_wasi::add_to_linker_sync(&mut linker)
                 .map_err(|e| LsError::Plugin(format!("failed to add WASI linker: {e}")))?;
         }
 
