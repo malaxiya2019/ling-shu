@@ -549,6 +549,19 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
     let state = Arc::new(AppState {
         runtime: runtime.clone(),
         plugin_registry: Arc::new(lingshu_plugin::PluginRegistry::new()),
+        plugin_market: tokio::sync::RwLock::new(
+            lingshu_plugin::market::PluginMarket::new(
+                vec![
+                    lingshu_plugin::market::RegistrySource::GitHubReleases(
+                        "lingshu-org/lingshu-plugins".into(),
+                    ),
+                ],
+                std::path::PathBuf::from("plugins"),
+            ),
+        ),
+        hot_reload_watcher: lingshu_plugin::hot_reload::HotReloadWatcher::new(
+            std::path::PathBuf::from("plugins"),
+        ),
         health_registry,
         ws_manager: Arc::new(ConnectionManager::new(300)),
         sse_broadcaster: Arc::new(SseBroadcaster::new(1024)),

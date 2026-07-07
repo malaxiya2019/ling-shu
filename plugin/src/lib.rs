@@ -1,4 +1,4 @@
-//! 🧩 Lingshu Plugin Runtime (Phase 8)
+//! 🧩 Lingshu Plugin Runtime (Phase 8 + v3.0)
 //!
 //! 提供插件注册、加载、沙箱隔离与生命周期管理能力。
 //!
@@ -10,6 +10,19 @@
 
 pub mod loader;
 pub mod sandbox;
+pub mod manifest;
+pub mod market;
+pub mod hot_reload;
+
+#[cfg(feature = "wasm")]
+pub mod wasm;
+
+pub use manifest::{
+    DependencyResolver, ExtendedManifest, MarketMeta, PluginDependency,
+    PluginDepType, VersionCompat,
+};
+pub use market::{InstallOptions, MarketPluginEntry, MarketSearchResult, PluginMarket, RegistrySource};
+pub use hot_reload::{HotReloadEvent, HotReloadWatcher};
 
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -195,6 +208,78 @@ impl PluginRegistry {
     /// 已注册插件数量.
     pub async fn count(&self) -> usize {
         self.plugins.read().await.len()
+    }
+
+    /// 注册插件并检查依赖.
+    pub async fn register_with_deps(
+        &self,
+        plugin: Box<dyn Plugin>,
+        lib: Option<libloading::Library>,
+        deps: &[PluginDependency],
+    ) -> LsResult<LsId> {
+        let mut installed = std::collections::HashMap::new();
+        let plugins = self.plugins.read().await;
+        for entry in plugins.values() {
+            installed.insert(
+                entry.info.manifest.name.clone(),
+                entry.info.manifest.version.clone(),
+            );
+        }
+        drop(plugins);
+
+        let unsatisfied = DependencyResolver::check_dependencies(&installed, deps);
+        if !unsatisfied.is_empty() {
+            let missing: Vec<String> = unsatisfied
+                .iter()
+                .map(|d| format!("{} ({})", d.name, d.version_req))
+                .collect();
+            return Err(LsError::Plugin(format!(
+                "unsatisfied dependencies: {}",
+                missing.join(", ")
+            )));
+        }
+
+        self.register(plugin, lib).await
+    }
+
+    /// 获取指定名称的插件信息.
+    pub async fn get_info_by_name(&self, name: &str) -> LsResult<PluginInfo> {
+        let map = self.plugins.read().await;
+        for entry in map.values() {
+            if entry.info.manifest.name == name {
+                return Ok(entry.info.clone());
+            }
+        }
+        Err(LsError::PluginNotFound(name.to_string()))
+    }
+
+    /// 按版本过滤已注册插件.
+    pub async fn list_by_version(&self, version_req: &str) -> Vec<PluginInfo> {
+        let req = semver::VersionReq::parse(version_req).ok();
+        let map = self.plugins.read().await;
+        map.values()
+            .filter(|entry| {
+                if let Some(ref req) = req {
+                    if let Ok(v) = semver::Version::parse(&entry.info.manifest.version) {
+                        return req.matches(&v);
+                    }
+                }
+                false
+            })
+            .map(|entry| entry.info.clone())
+            .collect()
+    }
+
+    /// 批量注册插件.
+    pub async fn register_batch(
+        &self,
+        plugins: Vec<(Box<dyn Plugin>, Option<libloading::Library>)>,
+    ) -> LsResult<Vec<LsId>> {
+        let mut ids = Vec::with_capacity(plugins.len());
+        for (plugin, lib) in plugins {
+            ids.push(self.register(plugin, lib).await?);
+        }
+        Ok(ids)
     }
 }
 

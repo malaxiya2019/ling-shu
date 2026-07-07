@@ -18,7 +18,7 @@ use std::sync::Arc;
 use lingshu_evaluator;
 use lingshu_federation;
 use axum::{
-    extract::{ws, Path, State, WebSocketUpgrade},
+    extract::{ws, Path, Query, State, WebSocketUpgrade},
     response::Redirect,
     http::{header, Method, StatusCode},
     response::{Html, Json},
@@ -40,7 +40,7 @@ use futures::stream::StreamExt;
 use lingshu_audit::{AuditEntry, AuditEventType, AuditLogStore};
 use lingshu_core::{LsContext, LsError, LsId, LsResult};
 use lingshu_observability::health::HealthRegistry;
-use lingshu_plugin::PluginRegistry;
+use lingshu_plugin::{PluginRegistry, market::{PluginMarket, RegistrySource, MarketPluginEntry, InstallOptions}, hot_reload::{HotReloadWatcher}};
 use lingshu_traits::llm::{LlmMessage, LlmRequest, LlmRole};
 use lingshu_websocket::{
     ClientMessage, Connection, ConnectionManager, ConnectionState, SseBroadcaster, SseEvent,
@@ -56,6 +56,8 @@ use crate::LingshuRuntime;
 pub struct AppState {
     pub runtime: Arc<LingshuRuntime>,
     pub plugin_registry: Arc<PluginRegistry>,
+    pub plugin_market: tokio::sync::RwLock<PluginMarket>,
+    pub hot_reload_watcher: HotReloadWatcher,
     pub health_registry: Arc<HealthRegistry>,
     pub ws_manager: Arc<ConnectionManager>,
     pub sse_broadcaster: Arc<SseBroadcaster>,
@@ -817,6 +819,22 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         )
         .route("/v1/plugins/{id}/start", post(plugin_start_handler))
         .route("/v1/plugins/{id}/stop", post(plugin_stop_handler))
+        // Plugin Market API
+        .route(
+            "/v1/plugins/market/search",
+            get(market_search_handler),
+        )
+        .route(
+            "/v1/plugins/market/install",
+            post(market_install_handler),
+        )
+        .route(
+            "/v1/plugins/market/sources",
+            get(market_sources_handler).post(market_add_source_handler),
+        )
+        .route("/v1/plugins/hotreload/start", post(hot_reload_start_handler))
+        .route("/v1/plugins/hotreload/stop", post(hot_reload_stop_handler))
+
         // Knowledge Graph API
         .route(
             "/v1/graph/{project}",
@@ -2915,6 +2933,189 @@ async fn plugin_uninstall_handler(
     }
 }
 
+// ── Plugin Market API ────────────────────────────────
+
+#[derive(Serialize)]
+struct MarketSearchResponse {
+    query: String,
+    total: usize,
+    plugins: Vec<MarketPluginEntry>,
+}
+
+#[derive(Deserialize)]
+struct MarketInstallRequest {
+    name: String,
+    version: String,
+    download_url: String,
+    checksum: Option<String>,
+}
+
+#[derive(Serialize)]
+struct MarketInstallResponse {
+    name: String,
+    version: String,
+    path: String,
+    status: String,
+}
+
+#[derive(Deserialize)]
+struct MarketAddSourceRequest {
+    source_type: String,
+    source_url: String,
+}
+
+#[derive(Serialize)]
+struct MarketSourceItem {
+    source_type: String,
+    source_url: String,
+}
+
+#[derive(Serialize)]
+#[allow(dead_code)]
+struct HotReloadStatusResponse {
+    running: bool,
+    watch_dir: String,
+}
+
+/// GET /v1/plugins/market/search — 搜索市场插件
+async fn market_search_handler(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Json<MarketSearchResponse> {
+    let query = params.get("q").map(|s| s.as_str()).unwrap_or("");
+    let market = state.plugin_market.read().await;
+    match market.search(query).await {
+        Ok(result) => Json(MarketSearchResponse {
+            query: result.query,
+            total: result.total,
+            plugins: result.plugins,
+        }),
+        Err(_e) => Json(MarketSearchResponse {
+            query: query.to_string(),
+            total: 0,
+            plugins: vec![],
+        }),
+    }
+}
+
+/// POST /v1/plugins/market/install — 从市场安装插件
+async fn market_install_handler(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<MarketInstallRequest>,
+) -> Result<Json<MarketInstallResponse>, (StatusCode, Json<Value>)> {
+    let entry = MarketPluginEntry {
+        id: format!("{}@{}", req.name, req.version),
+        name: req.name.clone(),
+        version: req.version.clone(),
+        description: String::new(),
+        author: None,
+        categories: vec![],
+        tags: vec![],
+        download_url: req.download_url,
+        checksum: req.checksum,
+        size: None,
+    };
+
+    let install_dir = state
+        .plugin_market
+        .read()
+        .await
+        .install_dir()
+        .to_path_buf();
+
+    let options = InstallOptions {
+        target_dir: install_dir,
+        skip_verify: false,
+        force: false,
+    };
+
+    match state
+        .plugin_market
+        .write()
+        .await
+        .install(&entry, &options)
+        .await
+    {
+        Ok(path) => Ok(Json(MarketInstallResponse {
+            name: req.name,
+            version: req.version,
+            path: path.to_string_lossy().to_string(),
+            status: "installed".into(),
+        })),
+        Err(e) => Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": format!("{e}")})),
+        )),
+    }
+}
+
+/// GET /v1/plugins/market/sources — 列出市场源
+async fn market_sources_handler(
+    State(_state): State<Arc<AppState>>,
+) -> Json<Vec<MarketSourceItem>> {
+    Json(vec![])
+}
+
+/// POST /v1/plugins/market/sources — 添加市场源
+async fn market_add_source_handler(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<MarketAddSourceRequest>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let source = match req.source_type.as_str() {
+        "github" => RegistrySource::GitHubReleases(req.source_url.clone()),
+        "url" => RegistrySource::Url(req.source_url.clone()),
+        "local" => RegistrySource::LocalDir(std::path::PathBuf::from(&req.source_url)),
+        _ => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(json!({"error": format!("unknown source type: {}", req.source_type)})),
+            ));
+        }
+    };
+
+    state.plugin_market.write().await.add_source(source);
+    Ok(Json(json!({"status": "source_added"})))
+}
+
+/// POST /v1/plugins/hotreload/start — 启动热重载监控
+async fn hot_reload_start_handler(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let ctx = state.runtime.root_ctx.child();
+    match state
+        .hot_reload_watcher
+        .start(
+            state.plugin_registry.clone(),
+            std::sync::Arc::new(lingshu_plugin::loader::PluginLoader::new("1.0.0")),
+            ctx,
+            std::sync::Arc::new(|event| {
+                tracing::info!("hot-reload event: {:?}", event);
+            }),
+        )
+        .await
+    {
+        Ok(()) => Ok(Json(json!({"status": "hot_reload_started"}))),
+        Err(e) => Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": format!("{e}")})),
+        )),
+    }
+}
+
+/// POST /v1/plugins/hotreload/stop — 停止热重载监控
+async fn hot_reload_stop_handler(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    match state.hot_reload_watcher.stop().await {
+        Ok(()) => Ok(Json(json!({"status": "hot_reload_stopped"}))),
+        Err(e) => Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": format!("{e}")})),
+        )),
+    }
+}
+
+
 // ── File Upload & Analysis (多模态) ────────────────────
 
 /// POST /v1/files/upload — 上传文件 (Base64 JSON)
@@ -4274,6 +4475,12 @@ mod tests {
         Arc::new(AppState {
             runtime,
             plugin_registry: Arc::new(lingshu_plugin::PluginRegistry::new()),
+            plugin_market: tokio::sync::RwLock::new(
+                lingshu_plugin::market::PluginMarket::new(vec![], std::path::PathBuf::from("/tmp/test-plugins"))
+            ),
+            hot_reload_watcher: lingshu_plugin::hot_reload::HotReloadWatcher::new(
+                std::path::PathBuf::from("/tmp/test-plugins")
+            ),
             health_registry,
             ws_manager: Arc::new(ConnectionManager::new(300)),
             sse_broadcaster: Arc::new(SseBroadcaster::new(1024)),

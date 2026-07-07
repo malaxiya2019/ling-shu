@@ -1,0 +1,19 @@
+{
+    "name": "hello-plugin",
+    "version": "1.0.0",
+    "description": "A simple Hello World example plugin for Lingshu",
+    "author": "Lingshu Team",
+    "homepage": "https://github.com/lingshu-org/hello-plugin",
+    "license": "MIT",
+    "plugin_type": "dynamic",
+    "entry_point": "create_plugin",
+    "permissions": [
+        {"resource": "logging", "actions": ["info", "warn"]}
+    ],
+    "min_api_version": "1.0.0",
+    "categories": ["example", "demo"],
+    "tags": ["hello", "example"],
+    "repository": "https://github.com/lingshu-org/hello-plugin",
+    "readme": "Hello Plugin example for Lingshu Agent System",
+    "dependencies": []
+}

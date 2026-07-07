@@ -2,7 +2,7 @@
 name = "lingshu-plugin"
 version.workspace = true
 edition.workspace = true
-description = "Lingshu Plugin Runtime — plugin registry, loader, sandbox"
+description = "Lingshu Plugin Runtime — registry, loader, sandbox, market, hot-reload, WASM"
 
 [dependencies]
 lingshu-core = { path = "../core" }
@@ -17,3 +17,18 @@ tokio.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
 libloading = "0.8"
+semver = "1"
+reqwest = { version = "0.12", features = ["json"] }
+notify = { version = "7", features = ["macos_kqueue"] }
+sha2 = "0.10"
+hex = "0.4"
+flate2 = "1"
+tar = "0.4"
+tempfile = "3"
+url = "2"
+wasmtime = { version = "24", optional = true, features = ["component-model"] }
+wasmtime-wasi = { version = "24", optional = true }
+
+[features]
+default = []
+wasm = ["dep:wasmtime", "dep:wasmtime-wasi"]

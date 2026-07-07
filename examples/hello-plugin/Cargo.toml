@@ -1,0 +1,18 @@
+[package]
+name = "hello-plugin"
+version = "1.0.0"
+edition = "2021"
+description = "Example Lingshu plugin — Hello World"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+lingshu-core = { path = "../../core" }
+lingshu-traits = { path = "../../traits" }
+async-trait = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+tokio = { version = "1", features = ["full"] }
