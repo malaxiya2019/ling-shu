@@ -1,19 +1,13 @@
 name: Build External Dependencies
 
-# 构建 LingShu 所需的外部依赖（watch-skill）。
-# 在 CI 上先安装所有依赖，再逐一下载 aarch64 manylinux wheels，
-# 打包供 Termux 离线安装。
-
 on:
   workflow_dispatch:
     inputs:
       python-version:
-        description: "Python version"
         default: "3.12"
         type: choice
         options: ["3.11", "3.12"]
       extras:
-        description: "Feature extras (comma-separated)"
         default: "api"
 
 permissions:
@@ -21,17 +15,18 @@ permissions:
 
 jobs:
   build-watch-skill:
-    name: Bundle watch-skill wheels
+    name: watch-skill ${{ matrix.platform }}
     strategy:
       matrix:
         include:
           - platform: x86_64
-            runner: ubuntu-latest
             pip_platform: manylinux2014_x86_64
           - platform: aarch64
-            runner: ubuntu-latest
             pip_platform: manylinux2014_aarch64
-    runs-on: ${{ matrix.runner }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: /tmp/watch-skill
     steps:
       - uses: actions/checkout@v4
 
@@ -40,47 +35,40 @@ jobs:
         with:
           python-version: ${{ github.event.inputs.python-version || '3.12' }}
 
-      - name: Checkout and build watch-skill
+      - name: Clone watch-skill
         run: |
-          git clone --depth 1 https://github.com/oxbshw/watch-skill.git /tmp/watch-skill
-          cd /tmp/watch-skill
+          git clone --depth 1 https://github.com/oxbshw/watch-skill.git .
           uv build
 
-      - name: Install all deps to get locked dependency list
+      - name: Install deps & freeze
         run: |
-          cd /tmp/watch-skill
           EXTRAS="${{ github.event.inputs.extras || 'api' }}"
-          # 安装所有依赖
           for extra in $(echo "$EXTRAS" | tr ',' ' '); do
-            uv sync --no-dev --extra "$extra"
+            uv sync --no-dev --extra "$extra" --directory /tmp/watch-skill
           done
-          # 导出 flat 依赖列表 (排除 watch-skill 自身)
-          uv pip freeze | grep -v "^watch-skill @ " | grep -v "^-e " > /tmp/requirements.txt
-          echo "=== Locked deps ==="
+          uv pip freeze --directory /tmp/watch-skill | grep -v "^watch-skill @ " > /tmp/requirements.txt
+          echo "=== Locked deps ($(wc -l < /tmp/requirements.txt) packages) ==="
           cat /tmp/requirements.txt
 
-      - name: Download aarch64 wheels
+      - name: Download ${{ matrix.pip_platform }} wheels
         run: |
-          mkdir -p dist/deps
+          mkdir -p /tmp/wheels
           PLATFORM="${{ matrix.pip_platform }}"
-          echo "Downloading for platform: $PLATFORM"
           while IFS= read -r pkg; do
             [ -z "$pkg" ] && continue
-            echo "  → $pkg"
-            pip download \
-              "$pkg" \
+            pip download "$pkg" \
               --platform "$PLATFORM" \
               --only-binary :all: \
-              --dest dist/deps/ \
+              --dest /tmp/wheels \
               --python-version ${{ github.event.inputs.python-version || '3.12' }} \
-              --no-deps \
-              2>&1 || echo "  [SKIP] no $PLATFORM wheel for: $pkg"
+              --no-deps 2>&1 || echo "[SKIP] $pkg"
           done < /tmp/requirements.txt
+          echo "=== Downloaded $(ls /tmp/wheels/*.whl 2>/dev/null | wc -l) wheels ==="
 
-      - name: Rename for Termux compatibility
+      - name: Rename for Termux
         if: matrix.platform == 'aarch64'
         run: |
-          cd dist/deps
+          cd /tmp/wheels
           for whl in *.whl; do
             [ -f "$whl" ] || continue
             newname=$(echo "$whl" | sed 's/manylinux[0-9_]*/linux/g; s/musllinux[0-9_]*/linux/g')
@@ -89,30 +77,27 @@ jobs:
 
       - name: Bundle
         run: |
-          cd /tmp/watch-skill
-          mkdir -p dist 2>/dev/null
-          # 收集 wheel
-          cp ${{ github.workspace }}/dist/deps/*.whl dist/ 2>/dev/null || true
-          cp ${{ github.workspace }}/dist/*.whl dist/ 2>/dev/null || true
+          # 复制 watch-skill wheel
+          cp dist/*.whl /tmp/wheels/ 2>/dev/null || true
           # 安装脚本
-          cat > dist/install-termux.sh << 'SCRIPT'
+          cat > /tmp/wheels/install-termux.sh << 'SCRIPT'
           #!/data/data/com.termux/files/usr/bin/bash
           set -euo pipefail
-          SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-          pip install --no-index --find-links "$SCRIPT_DIR" --no-deps watch-skill
-          for whl in "$SCRIPT_DIR"/*.whl; do
-            pip install --no-index --find-links "$SCRIPT_DIR" --no-deps "$whl"
+          DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          echo "Installing watch-skill ($(ls "$DIR"/*.whl | wc -l) wheels)..."
+          pip install --no-index --find-links "$DIR" --no-deps "$DIR"/watch_skill-*.whl
+          for whl in "$DIR"/*.whl; do
+            [ "$(basename "$whl")" = "${whl##watch_skill}" ] && continue
+            pip install --no-index --find-links "$DIR" --no-deps "$whl" 2>/dev/null || true
           done
-          echo "✅ watch-skill installed. Run: watch-skill serve"
+          echo "Done. Try: watch-skill doctor"
           SCRIPT
-          chmod +x dist/install-termux.sh
-          # 打包
-          tar czf ${{ github.workspace }}/watch-skill-${{ matrix.platform }}-py${{ github.event.inputs.python-version || '3.12' }}.tar.gz \
-            -C dist .
-          ls -lh ${{ github.workspace }}/watch-skill-${{ matrix.platform }}-*.tar.gz
+          chmod +x /tmp/wheels/install-termux.sh
+          tar czf ${{ github.workspace }}/watch-skill-${{ matrix.platform }}.tar.gz -C /tmp/wheels .
+          ls -lh ${{ github.workspace }}/watch-skill-${{ matrix.platform }}.tar.gz
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: watch-skill-${{ matrix.platform }}
-          path: watch-skill-${{ matrix.platform }}-*.tar.gz
+          path: watch-skill-${{ matrix.platform }}.tar.gz
