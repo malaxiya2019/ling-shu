@@ -39,9 +39,12 @@ jobs:
         run: |
           uv build
           uv sync --no-dev --extra ${{ github.event.inputs.extras || 'api' }}
-          # 用 pip list 代替 uv pip freeze
-          $VIRTUAL_ENV/bin/pip list --format=freeze --exclude watch-skill > /tmp/requirements.txt
+          # uv 不使用标准 venv/bin/pip，用 uv tool 或 uv run
+          uv run --frozen pip list --format=freeze 2>/dev/null | grep -v "^watch-skill @ " > /tmp/requirements.txt || \
+            uv pip freeze 2>/dev/null | grep -v "^watch-skill @ " > /tmp/requirements.txt || \
+            true
           echo "DEPS: $(wc -l < /tmp/requirements.txt) packages"
+          head -5 /tmp/requirements.txt
 
       - name: Download ${{ matrix.pip_platform }} wheels
         run: |
@@ -53,9 +56,9 @@ jobs:
               --only-binary :all: \
               --dest /tmp/wheels \
               --python-version ${{ github.event.inputs.python-version || '3.12' }} \
-              --no-deps 2>&1 | head -2 || echo "[SKIP] $pkg"
+              --no-deps 2>&1 | head -1 || echo "[SKIP] $pkg"
           done < /tmp/requirements.txt
-          echo "DOWNLOADS: $(ls /tmp/wheels/*.whl 2>/dev/null | wc -l) wheels"
+          echo "WHEELS: $(ls /tmp/wheels/*.whl 2>/dev/null | wc -l) files"
 
       - name: Rename (aarch64)
         if: matrix.platform == 'aarch64'
