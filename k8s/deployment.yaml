@@ -68,6 +68,26 @@ spec:
                 configMapKeyRef:
                   name: lingshu-config
                   key: LS_CLUSTER_SEED
+            - name: LS_PLUGIN_MARKET_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: lingshu-config
+                  key: LS_PLUGIN_MARKET_ENABLED
+            - name: LS_PLUGIN_INSTALL_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: lingshu-config
+                  key: LS_PLUGIN_INSTALL_DIR
+            - name: LS_PLUGIN_AUTO_DISCOVER
+              valueFrom:
+                configMapKeyRef:
+                  name: lingshu-config
+                  key: LS_PLUGIN_AUTO_DISCOVER
+            - name: LS_PLUGIN_REFRESH_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: lingshu-config
+                  key: LS_PLUGIN_REFRESH_INTERVAL
             - name: OPENAI_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -108,6 +128,8 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/lingshu
+            - name: plugins
+              mountPath: /var/lib/lingshu/plugins
             - name: config
               mountPath: /etc/lingshu/config
               readOnly: true
@@ -115,6 +137,8 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: lingshu-data
+        - name: plugins
+          emptyDir: {}
         - name: config
           configMap:
             name: lingshu-config

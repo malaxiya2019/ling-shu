@@ -1,0 +1,34 @@
+{{- if .Values.pluginMarket.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "lingshu.fullname" . }}-plugin-config
+  labels:
+    {{- include "lingshu.labels" . | nindent 4 }}
+data:
+  plugin.yaml: |
+    {{- with .Values.pluginMarket }}
+    enabled: {{ .enabled }}
+    install_dir: {{ .installDir }}
+    auto_discover: {{ .autoDiscover }}
+    registry_sources:
+      {{- range .sources }}
+      - {{ . | quote }}
+      {{- end }}
+    default_plugins:
+      {{- range $name, $version := .defaultPlugins }}
+      - name: {{ $name }}
+        version: {{ $version | quote }}
+      {{- end }}
+    {{- end }}
+  marketplace-config.yaml: |
+    marketplace:
+      refresh_interval: {{ .Values.pluginMarket.refreshInterval | default 300 }}
+      max_plugins: {{ .Values.pluginMarket.maxPlugins | default 100 }}
+      verify_checksums: {{ .Values.pluginMarket.verifyChecksums | default true }}
+      allow_local_sources: {{ .Values.pluginMarket.allowLocalSources | default false }}
+      hot_reload:
+        enabled: {{ .Values.pluginMarket.hotReload.enabled | default false }}
+        watch_dir: {{ .Values.pluginMarket.hotReload.watchDir | default "/var/lib/lingshu/plugins" }}
+        debounce_seconds: {{ .Values.pluginMarket.hotReload.debounceSeconds | default 2 }}
+{{- end }}

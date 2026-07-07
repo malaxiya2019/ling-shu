@@ -87,3 +87,25 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+# ── Plugin Market ──
+pluginMarket:
+  enabled: true
+  installDir: /var/lib/lingshu/plugins
+  autoDiscover: "true"
+  refreshInterval: 300
+  maxPlugins: 100
+  verifyChecksums: true
+  allowLocalSources: false
+  sources:
+    - "lingshu-org/lingshu-plugins"
+  defaultPlugins: {}
+    # example-plugin: "1.0.0"
+  hotReload:
+    enabled: false
+    watchDir: /var/lib/lingshu/plugins
+    debounceSeconds: 2
+  persistence:
+    enabled: true
+    size: 2Gi
+    storageClass: ""

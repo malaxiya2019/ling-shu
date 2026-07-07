@@ -1,0 +1,17 @@
+{{- if and .Values.pluginMarket.enabled .Values.pluginMarket.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "lingshu.fullname" . }}-plugins
+  labels:
+    {{- include "lingshu.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.pluginMarket.persistence.size }}
+  {{- if .Values.pluginMarket.persistence.storageClass }}
+  storageClassName: {{ .Values.pluginMarket.persistence.storageClass }}
+  {{- end }}
+{{- end }}

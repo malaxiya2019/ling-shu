@@ -28,6 +28,36 @@ spec:
       {{- end }}
       serviceAccountName: {{ include "lingshu.serviceAccountName" . }}
       terminationGracePeriodSeconds: 60
+      {{- if .Values.pluginMarket.enabled }}
+      initContainers:
+        - name: plugin-init
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              INSTALL_DIR="{{ .Values.pluginMarket.installDir }}"
+              mkdir -p "$INSTALL_DIR"
+              echo "Initializing plugin directory at $INSTALL_DIR"
+              {{- if .Values.pluginMarket.defaultPlugins }}
+              echo "Default plugins configured for first-run download:"
+              {{- range $name, $version := .Values.pluginMarket.defaultPlugins }}
+              echo "  - {{ $name }}@{{ $version }}"
+              {{- end }}
+              {{- end }}
+          volumeMounts:
+            - name: plugins
+              mountPath: {{ .Values.pluginMarket.installDir }}
+          resources:
+            limits:
+              cpu: 200m
+              memory: 128Mi
+            requests:
+              cpu: 50m
+              memory: 32Mi
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -87,6 +117,24 @@ spec:
                   name: {{ include "lingshu.fullname" . }}-secrets
                   key: credential_master_key
             {{- end }}
+            {{- if .Values.pluginMarket.enabled }}
+            - name: LS_PLUGIN_MARKET_ENABLED
+              value: "true"
+            - name: LS_PLUGIN_INSTALL_DIR
+              value: {{ .Values.pluginMarket.installDir | quote }}
+            - name: LS_PLUGIN_AUTO_DISCOVER
+              value: {{ .Values.pluginMarket.autoDiscover | quote }}
+            - name: LS_PLUGIN_REFRESH_INTERVAL
+              value: {{ .Values.pluginMarket.refreshInterval | quote }}
+            {{- if .Values.pluginMarket.hotReload.enabled }}
+            - name: LS_PLUGIN_HOT_RELOAD_ENABLED
+              value: "true"
+            - name: LS_PLUGIN_HOT_RELOAD_WATCH_DIR
+              value: {{ .Values.pluginMarket.hotReload.watchDir | quote }}
+            - name: LS_PLUGIN_HOT_RELOAD_DEBOUNCE_SECS
+              value: {{ .Values.pluginMarket.hotReload.debounceSeconds | quote }}
+            {{- end }}
+            {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:
@@ -106,9 +154,34 @@ spec:
             - name: data
               mountPath: /var/lib/lingshu
             {{- end }}
+            {{- if and .Values.pluginMarket.enabled .Values.pluginMarket.persistence.enabled }}
+            - name: plugins
+              mountPath: {{ .Values.pluginMarket.installDir }}
+            {{- end }}
+            {{- if .Values.pluginMarket.enabled }}
+            - name: config
+              mountPath: /etc/lingshu/plugin.yaml
+              subPath: plugin.yaml
+            - name: config
+              mountPath: /etc/lingshu/marketplace-config.yaml
+              subPath: marketplace-config.yaml
+            {{- end }}
       volumes:
         {{- if .Values.persistence.enabled }}
         - name: data
           persistentVolumeClaim:
             claimName: {{ include "lingshu.fullname" . }}-data
+        {{- end }}
+        {{- if and .Values.pluginMarket.enabled .Values.pluginMarket.persistence.enabled }}
+        - name: plugins
+          persistentVolumeClaim:
+            claimName: {{ include "lingshu.fullname" . }}-plugins
+        {{- else if .Values.pluginMarket.enabled }}
+        - name: plugins
+          emptyDir: {}
+        {{- end }}
+        {{- if .Values.pluginMarket.enabled }}
+        - name: config
+          configMap:
+            name: {{ include "lingshu.fullname" . }}-plugin-config
         {{- end }}
