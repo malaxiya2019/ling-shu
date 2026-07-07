@@ -38,11 +38,28 @@ impl Default for WasmSandboxConfig {
 }
 
 /// 包装类型，实现 wasmtime_wasi::WasiView.
-struct WasiState(Option<wasmtime_wasi::WasiCtx>);
+struct WasiState {
+    ctx: Option<wasmtime_wasi::WasiCtx>,
+    table: wasmtime::component::ResourceTable,
+}
+
+impl WasiState {
+    fn new(ctx: Option<wasmtime_wasi::WasiCtx>) -> Self {
+        Self {
+            ctx,
+            table: wasmtime::component::ResourceTable::new(),
+        }
+    }
+}
 
 impl wasmtime_wasi::WasiView for WasiState {
+    fn table(&mut self) -> &mut wasmtime::component::ResourceTable {
+        &mut self.table
+    }
+
     fn ctx(&mut self) -> &mut wasmtime_wasi::WasiCtx {
-        self.0.as_mut().expect("WasiCtx not initialized")
+        self.ctx
+            .get_or_insert_with(|| wasmtime_wasi::WasiCtxBuilder::new().build())
     }
 }
 
@@ -104,15 +121,20 @@ impl WasmSandbox {
 
             for dir in &self.config.allowed_dirs {
                 wasi_ctx_builder = wasi_ctx_builder
-                    .preopened_dir(dir, dir, wasmtime_wasi::DirPerms::all(), wasmtime_wasi::FilePerms::all())
+                    .preopened_dir(
+                        dir,
+                        dir,
+                        wasmtime_wasi::DirPerms::all(),
+                        wasmtime_wasi::FilePerms::all(),
+                    )
                     .map_err(|e| {
                         LsError::Plugin(format!("cannot preopen dir '{}': {e}", dir))
                     })?;
             }
 
-            WasiState(Some(wasi_ctx_builder.build()))
+            WasiState::new(Some(wasi_ctx_builder.build()))
         } else {
-            WasiState(None)
+            WasiState::new(None)
         };
 
         let mut store = wasmtime::Store::new(engine, wasi_state);
