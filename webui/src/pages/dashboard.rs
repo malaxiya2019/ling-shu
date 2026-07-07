@@ -14,7 +14,7 @@ struct DashboardData {
 #[function_component(Dashboard)]
 pub fn dashboard() -> Html {
     let lang = use_lang();
-    let strings = lang.strings;
+    let strings = lang.strings();
     let data = use_state(DashboardData::default);
 
     {

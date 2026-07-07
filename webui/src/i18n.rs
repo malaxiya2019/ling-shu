@@ -4,13 +4,12 @@
 //! 自动检测浏览器语言，也可以在侧边栏或右下角悬浮按钮手动切换。
 
 use yew::prelude::*;
-use std::rc::Rc;
 
 /// 支持的语言
 #[derive(Clone, Debug, PartialEq)]
 pub enum Locale {
-    Zh, // 中文
-    En, // English
+    Zh,
+    En,
 }
 
 impl Locale {
@@ -18,13 +17,6 @@ impl Locale {
         match self {
             Locale::Zh => "中文",
             Locale::En => "English",
-        }
-    }
-
-    pub fn bcp47(&self) -> &'static str {
-        match self {
-            Locale::Zh => "zh-CN",
-            Locale::En => "en-US",
         }
     }
 
@@ -37,7 +29,6 @@ impl Locale {
 }
 
 /// 翻译字符串集合
-#[derive(Clone, Debug)]
 pub struct Translations {
     pub app_title: &'static str,
     pub nav_dashboard: &'static str,
@@ -64,7 +55,6 @@ pub struct Translations {
     pub dash_ql_api_docs: &'static str,
     pub dash_ql_api_docs_desc: &'static str,
     pub dash_active_count: &'static str,
-    pub dash_plugins_title: &'static str,
     pub plugins_title: &'static str,
     pub plugins_installed: &'static str,
     pub plugins_market: &'static str,
@@ -78,9 +68,6 @@ pub struct Translations {
     pub plugins_install: &'static str,
     pub plugins_hot_reload_start: &'static str,
     pub plugins_hot_reload_stop: &'static str,
-    pub plugins_installed_fmt: &'static str,
-    pub plugins_hot_reload_started: &'static str,
-    pub plugins_hot_reload_stopped: &'static str,
     pub lang_switch: &'static str,
     pub lang_zh: &'static str,
     pub lang_en: &'static str,
@@ -92,7 +79,6 @@ pub struct Translations {
     pub security_title: &'static str,
 }
 
-/// 英文翻译
 const EN: Translations = Translations {
     app_title: "Lingshu Admin",
     nav_dashboard: "Dashboard",
@@ -119,7 +105,6 @@ const EN: Translations = Translations {
     dash_ql_api_docs: "API Docs",
     dash_ql_api_docs_desc: "View API documentation",
     dash_active_count: "{} active",
-    dash_plugins_title: "Installed Plugins ({})",
     plugins_title: "🧩 Plugins",
     plugins_installed: "Installed Plugins ({})",
     plugins_market: "Plugin Market",
@@ -133,9 +118,6 @@ const EN: Translations = Translations {
     plugins_install: "📥 Install",
     plugins_hot_reload_start: "▶ Start Hot Reload",
     plugins_hot_reload_stop: "⏹ Stop Hot Reload",
-    plugins_installed_fmt: "Installed {} v{} in {}",
-    plugins_hot_reload_started: "Hot reload started",
-    plugins_hot_reload_stopped: "Hot reload stopped",
     lang_switch: "🌐 Language",
     lang_zh: "中文",
     lang_en: "English",
@@ -147,7 +129,6 @@ const EN: Translations = Translations {
     security_title: "🕷️ Security",
 };
 
-/// 中文翻译
 const ZH: Translations = Translations {
     app_title: "灵枢管理面板",
     nav_dashboard: "仪表盘",
@@ -174,7 +155,6 @@ const ZH: Translations = Translations {
     dash_ql_api_docs: "API 文档",
     dash_ql_api_docs_desc: "查看接口文档",
     dash_active_count: "{} 个活跃",
-    dash_plugins_title: "已安装插件 ({})",
     plugins_title: "🧩 插件管理",
     plugins_installed: "已安装插件 ({})",
     plugins_market: "插件市场",
@@ -188,9 +168,6 @@ const ZH: Translations = Translations {
     plugins_install: "📥 安装",
     plugins_hot_reload_start: "▶ 启动热加载",
     plugins_hot_reload_stop: "⏹ 停止热加载",
-    plugins_installed_fmt: "已安装 {} v{} 到 {}",
-    plugins_hot_reload_started: "热加载已启动",
-    plugins_hot_reload_stopped: "热加载已停止",
     lang_switch: "🌐 语言",
     lang_zh: "中文",
     lang_en: "English",
@@ -202,7 +179,7 @@ const ZH: Translations = Translations {
     security_title: "🕷️ 安全中心",
 };
 
-/// 根据语言选择翻译
+/// 获取语言对应的翻译
 pub fn t(locale: &Locale) -> &'static Translations {
     match locale {
         Locale::Zh => &ZH,
@@ -224,12 +201,17 @@ pub fn detect_locale() -> Locale {
 
 // ── Yew Context ──────────────────────────────────────
 
-/// 语言上下文值
+/// 语言上下文 — 通过 Yew Context 传递给所有子组件
 #[derive(Clone, Debug, PartialEq)]
 pub struct LangContext {
     pub locale: Locale,
-    pub strings: &'static Translations,
-    pub on_toggle: Rc<dyn Fn()>,
+    pub on_toggle: Callback<()>,
+}
+
+impl LangContext {
+    pub fn strings(&self) -> &'static Translations {
+        t(&self.locale)
+    }
 }
 
 /// Hook 获取当前语言上下文
@@ -246,28 +228,27 @@ pub struct LanguageProviderProps {
 #[function_component(LanguageProvider)]
 pub fn language_provider(props: &LanguageProviderProps) -> Html {
     let detected = detect_locale();
-    let locale = use_state(|| detected);
+    let locale_handle = use_state(|| detected);
 
     let on_toggle = {
-        let locale = locale.clone();
-        Rc::new(move || {
-            let next = locale.toggle();
-            locale.set(next);
-        }) as Rc<dyn Fn()>
+        let h = locale_handle.clone();
+        Callback::from(move |_| {
+            let next = h.toggle();
+            h.set(next);
+        })
     };
 
-    let lang_ctx = LangContext {
-        locale: (*locale).clone(),
-        strings: t(&locale),
+    let ctx = LangContext {
+        locale: (*locale_handle).clone(),
         on_toggle: on_toggle.clone(),
     };
 
-    let children = props.children.clone();
+    let locale = (*locale_handle).clone();
 
     html! {
-        <ContextProvider<LangContext> context={lang_ctx}>
-            { children }
-            <FloatingLangToggle on_toggle={on_toggle} locale={(*locale).clone()} />
+        <ContextProvider<LangContext> context={ctx}>
+            { props.children.clone() }
+            <FloatingLangToggle locale={locale} on_toggle={on_toggle} />
         </ContextProvider<LangContext>>
     }
 }
@@ -275,7 +256,7 @@ pub fn language_provider(props: &LanguageProviderProps) -> Html {
 /// 右下角悬浮语言切换按钮
 #[derive(Properties, Clone, PartialEq)]
 struct FloatingLangToggleProps {
-    pub on_toggle: Rc<dyn Fn()>,
+    pub on_toggle: Callback<()>,
     pub locale: Locale,
 }
 
@@ -283,12 +264,13 @@ struct FloatingLangToggleProps {
 fn floating_lang_toggle(props: &FloatingLangToggleProps) -> Html {
     let onclick = {
         let cb = props.on_toggle.clone();
-        Callback::from(move |_| cb())
+        Callback::from(move |_| cb.emit(()))
     };
 
     html! {
         <>
-            <button class="lang-toggle" onclick={onclick} title={format!("Switch to {}", props.locale.toggle().label())}>
+            <button class="lang-toggle" onclick={onclick}
+                title={format!("Switch to {}", props.locale.toggle().label())}>
                 <span class="lang-toggle-icon">{ "🌐" }</span>
                 <span class="lang-toggle-label">{ props.locale.label() }</span>
             </button>

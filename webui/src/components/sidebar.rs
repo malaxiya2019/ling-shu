@@ -11,7 +11,7 @@ pub struct SidebarProps {
 #[function_component(Sidebar)]
 pub fn sidebar(props: &SidebarProps) -> Html {
     let lang = use_lang();
-    let strings = lang.strings;
+    let strings = lang.strings();
 
     let on_click_dash = {
         let cb = props.on_navigate.clone();
@@ -74,13 +74,13 @@ pub fn sidebar(props: &SidebarProps) -> Html {
     let toggle_zh = {
         let cb = lang.on_toggle.clone();
         Callback::from(move |_| {
-            if !is_zh { cb() }
+            if !is_zh { cb.emit(()) }
         })
     };
     let toggle_en = {
         let cb = lang.on_toggle.clone();
         Callback::from(move |_| {
-            if is_zh { cb() }
+            if is_zh { cb.emit(()) }
         })
     };
 

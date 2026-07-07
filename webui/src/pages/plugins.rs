@@ -5,7 +5,7 @@ use yew::prelude::*;
 #[function_component(Plugins)]
 pub fn plugins() -> Html {
     let lang = use_lang();
-    let strings = lang.strings;
+    let strings = lang.strings();
 
     let installed = use_state(|| Vec::<PluginListItem>::new());
     let market_results = use_state(|| MarketSearchResponse {
