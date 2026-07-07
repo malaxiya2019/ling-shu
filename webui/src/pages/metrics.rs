@@ -1,5 +1,5 @@
-use yew::prelude::*;
 use crate::api::client;
+use yew::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, serde::Deserialize)]
 pub struct MetricSample {
@@ -58,7 +58,9 @@ pub fn metrics() -> Html {
                     }
                 });
             });
-            move || { handle.cancel(); }
+            move || {
+                handle.cancel();
+            }
         });
     }
 

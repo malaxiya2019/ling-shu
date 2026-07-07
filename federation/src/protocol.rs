@@ -233,10 +233,12 @@ pub fn decode_frame(data: &[u8]) -> Result<(FederationMessage, usize), String> {
     }
     let len = u32::from_be_bytes([data[0], data[1], data[2], data[3]]) as usize;
     if data.len() < 4 + len {
-        return Err(format!("frame too short: need {len} bytes, got {}", data.len() - 4));
+        return Err(format!(
+            "frame too short: need {len} bytes, got {}",
+            data.len() - 4
+        ));
     }
-    let json = std::str::from_utf8(&data[4..4 + len])
-        .map_err(|e| format!("invalid utf-8: {e}"))?;
+    let json = std::str::from_utf8(&data[4..4 + len]).map_err(|e| format!("invalid utf-8: {e}"))?;
     let msg = decode_message(json)?;
     Ok((msg, 4 + len))
 }

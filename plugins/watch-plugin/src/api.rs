@@ -196,17 +196,21 @@ impl WatchClient {
 
     /// 健康检查.
     pub async fn health(&self) -> Result<HealthResponse, String> {
-        let resp = self.client
+        let resp = self
+            .client
             .get(format!("{}/health", self.base_url))
             .send()
             .await
             .map_err(|e| format!("health check failed: {}", e))?;
-        resp.json().await.map_err(|e| format!("deserialize failed: {}", e))
+        resp.json()
+            .await
+            .map_err(|e| format!("deserialize failed: {}", e))
     }
 
     /// 观看视频.
     pub async fn watch(&self, req: &WatchRequest) -> Result<WatchResponse, String> {
-        let resp = self.client
+        let resp = self
+            .client
             .post(format!("{}/v1/watch", self.base_url))
             .json(req)
             .send()
@@ -217,12 +221,15 @@ impl WatchClient {
             let body = resp.text().await.unwrap_or_default();
             return Err(format!("watch failed ({status}): {body}"));
         }
-        resp.json().await.map_err(|e| format!("deserialize failed: {}", e))
+        resp.json()
+            .await
+            .map_err(|e| format!("deserialize failed: {}", e))
     }
 
     /// 询问视频.
     pub async fn ask(&self, req: &AskRequest) -> Result<AskResponse, String> {
-        let resp = self.client
+        let resp = self
+            .client
             .post(format!("{}/v1/ask", self.base_url))
             .json(req)
             .send()
@@ -233,33 +240,42 @@ impl WatchClient {
             let body = resp.text().await.unwrap_or_default();
             return Err(format!("ask failed ({status}): {body}"));
         }
-        resp.json().await.map_err(|e| format!("deserialize failed: {}", e))
+        resp.json()
+            .await
+            .map_err(|e| format!("deserialize failed: {}", e))
     }
 
     /// 搜索视频.
     pub async fn search(&self, query: &str) -> Result<Vec<SearchResult>, String> {
-        let resp = self.client
+        let resp = self
+            .client
             .get(format!("{}/v1/search", self.base_url))
             .query(&[("q", query)])
             .send()
             .await
             .map_err(|e| format!("search failed: {}", e))?;
-        resp.json().await.map_err(|e| format!("deserialize failed: {}", e))
+        resp.json()
+            .await
+            .map_err(|e| format!("deserialize failed: {}", e))
     }
 
     /// 列出视频.
     pub async fn list_videos(&self) -> Result<Vec<VideoItem>, String> {
-        let resp = self.client
+        let resp = self
+            .client
             .get(format!("{}/v1/videos", self.base_url))
             .send()
             .await
             .map_err(|e| format!("list videos failed: {}", e))?;
-        resp.json().await.map_err(|e| format!("deserialize failed: {}", e))
+        resp.json()
+            .await
+            .map_err(|e| format!("deserialize failed: {}", e))
     }
 
     /// 捕获屏幕/UI.
     pub async fn capture(&self, req: &CaptureRequest) -> Result<CaptureResponse, String> {
-        let resp = self.client
+        let resp = self
+            .client
             .post(format!("{}/v1/capture", self.base_url))
             .json(req)
             .send()
@@ -270,12 +286,15 @@ impl WatchClient {
             let body = resp.text().await.unwrap_or_default();
             return Err(format!("capture failed ({status}): {body}"));
         }
-        resp.json().await.map_err(|e| format!("deserialize failed: {}", e))
+        resp.json()
+            .await
+            .map_err(|e| format!("deserialize failed: {}", e))
     }
 
     /// 启动 THE LOOP.
     pub async fn loop_start(&self, req: &LoopStartRequest) -> Result<LoopResponse, String> {
-        let resp = self.client
+        let resp = self
+            .client
             .post(format!("{}/v1/loops", self.base_url))
             .json(req)
             .send()
@@ -286,12 +305,15 @@ impl WatchClient {
             let body = resp.text().await.unwrap_or_default();
             return Err(format!("loop start failed ({status}): {body}"));
         }
-        resp.json().await.map_err(|e| format!("deserialize failed: {}", e))
+        resp.json()
+            .await
+            .map_err(|e| format!("deserialize failed: {}", e))
     }
 
     /// THE LOOP 迭代.
     pub async fn loop_iterate(&self, loop_id: &str) -> Result<LoopResponse, String> {
-        let resp = self.client
+        let resp = self
+            .client
             .post(format!("{}/v1/loops/{}/iterate", self.base_url, loop_id))
             .send()
             .await
@@ -301,16 +323,21 @@ impl WatchClient {
             let body = resp.text().await.unwrap_or_default();
             return Err(format!("loop iterate failed ({status}): {body}"));
         }
-        resp.json().await.map_err(|e| format!("deserialize failed: {}", e))
+        resp.json()
+            .await
+            .map_err(|e| format!("deserialize failed: {}", e))
     }
 
     /// THE LOOP 状态.
     pub async fn loop_status(&self, loop_id: &str) -> Result<LoopResponse, String> {
-        let resp = self.client
+        let resp = self
+            .client
             .get(format!("{}/v1/loops/{}", self.base_url, loop_id))
             .send()
             .await
             .map_err(|e| format!("loop status failed: {}", e))?;
-        resp.json().await.map_err(|e| format!("deserialize failed: {}", e))
+        resp.json()
+            .await
+            .map_err(|e| format!("deserialize failed: {}", e))
     }
 }

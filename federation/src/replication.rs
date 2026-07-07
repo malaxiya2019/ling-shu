@@ -108,7 +108,10 @@ impl StateReplicator {
 
     /// 添加要复制的命名空间.
     pub async fn add_namespace(&self, namespace: &str) {
-        self.replicated_namespaces.write().await.push(namespace.to_string());
+        self.replicated_namespaces
+            .write()
+            .await
+            .push(namespace.to_string());
     }
 
     /// 写状态并同步复制到远端.
@@ -168,7 +171,10 @@ impl StateReplicator {
     }
 
     /// 处理入站的状态复制消息.
-    pub async fn handle_replicate(&self, payload: StateReplicatePayload) -> StateReplicateAckPayload {
+    pub async fn handle_replicate(
+        &self,
+        payload: StateReplicatePayload,
+    ) -> StateReplicateAckPayload {
         let result = self
             .backend
             .set(&payload.namespace, &payload.key, payload.value)

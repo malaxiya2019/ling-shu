@@ -5,9 +5,7 @@
 use crate::protocol::{
     self, encode_frame, FederationMessage, HelloAckPayload, HelloPayload, ProtocolError,
 };
-use crate::types::{
-    FederationConfig, FederationLink, FederationNode, FederationNodeStatus,
-};
+use crate::types::{FederationConfig, FederationLink, FederationNode, FederationNodeStatus};
 use lingshu_core::{LsId, LsResult};
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -142,7 +140,9 @@ impl LinkManager {
             Ok(s) => s,
             Err(e) => {
                 warn!(peer = %addr, error = %e, "connect failed");
-                return Err(lingshu_core::LsError::Internal(format!("connect failed: {e}")));
+                return Err(lingshu_core::LsError::Internal(format!(
+                    "connect failed: {e}"
+                )));
             }
         };
 
@@ -158,9 +158,18 @@ impl LinkManager {
         let listen_addr = self.config.listen_addr;
 
         handle_outbound(
-            stream, &target_id, &local_id, &local_name, &listen_addr,
-            &nodes, &connections, &links, &event_tx, &capabilities,
-        ).await
+            stream,
+            &target_id,
+            &local_id,
+            &local_name,
+            &listen_addr,
+            &nodes,
+            &connections,
+            &links,
+            &event_tx,
+            &capabilities,
+        )
+        .await
     }
 
     pub async fn connect_all(&self) {
@@ -178,7 +187,12 @@ impl LinkManager {
     }
 
     pub fn send(&self, cluster_id: &str, msg: FederationMessage) -> bool {
-        if let Some(tx) = self.connections.try_read().ok().and_then(|c| c.get(cluster_id).cloned()) {
+        if let Some(tx) = self
+            .connections
+            .try_read()
+            .ok()
+            .and_then(|c| c.get(cluster_id).cloned())
+        {
             tx.send(msg).is_ok()
         } else {
             false
@@ -212,7 +226,10 @@ impl LinkManager {
     }
 
     #[allow(dead_code)]
-    pub async fn node_capabilities(&self, cluster_id: &str) -> Option<Vec<crate::types::Capability>> {
+    pub async fn node_capabilities(
+        &self,
+        cluster_id: &str,
+    ) -> Option<Vec<crate::types::Capability>> {
         self.capabilities.read().await.get(cluster_id).cloned()
     }
 
@@ -234,7 +251,7 @@ async fn handle_inbound(
     peer_addr: SocketAddr,
     local_id: &LsId,
     local_name: &str,
-      _listen_addr: &SocketAddr,
+    _listen_addr: &SocketAddr,
     nodes: &NodeMap,
     connections: &ConnMap,
     _links: &LinkMap,
@@ -242,15 +259,18 @@ async fn handle_inbound(
     _capabilities: &CapMap,
 ) -> Result<(), String> {
     let mut buf = vec![0u8; 4096];
-    let n = stream.read(&mut buf).await.map_err(|e| format!("read hello failed: {e}"))?;
+    let n = stream
+        .read(&mut buf)
+        .await
+        .map_err(|e| format!("read hello failed: {e}"))?;
     let (msg, _consumed) = protocol::decode_frame(&buf[..n])?;
 
     let hello = match msg {
         FederationMessage::Hello(h) => h,
         other => {
             let err = ProtocolError::new(100, "expected Hello");
-            let _ = encode_frame(&FederationMessage::Error(err))
-                .map(|frame| stream.try_write(&frame));
+            let _ =
+                encode_frame(&FederationMessage::Error(err)).map(|frame| stream.try_write(&frame));
             return Err(format!("expected Hello, got {other:?}"));
         }
     };
@@ -261,17 +281,28 @@ async fn handle_inbound(
         peer_cluster_name: local_name.to_string(),
         protocol_version: protocol::FEDERATION_PROTOCOL_VERSION.into(),
         compatible,
-        incompatible_reason: if compatible { None } else {
-            Some(format!("version mismatch: local={}, remote={}",
-                protocol::FEDERATION_PROTOCOL_VERSION, hello.protocol_version))
+        incompatible_reason: if compatible {
+            None
+        } else {
+            Some(format!(
+                "version mismatch: local={}, remote={}",
+                protocol::FEDERATION_PROTOCOL_VERSION,
+                hello.protocol_version
+            ))
         },
     });
 
     let ack_frame = encode_frame(&ack)?;
-    stream.write_all(&ack_frame).await.map_err(|e| format!("write ack failed: {e}"))?;
+    stream
+        .write_all(&ack_frame)
+        .await
+        .map_err(|e| format!("write ack failed: {e}"))?;
 
     if !compatible {
-        return Err(format!("incompatible version: remote={}", hello.protocol_version));
+        return Err(format!(
+            "incompatible version: remote={}",
+            hello.protocol_version
+        ));
     }
 
     let cluster_id = hello.cluster_id.clone();
@@ -279,7 +310,10 @@ async fn handle_inbound(
     nodes.write().await.insert(cluster_id.clone(), remote_node);
 
     let (reader, writer) = stream.into_split();
-    let (tx, mut rx): (mpsc::UnboundedSender<FederationMessage>, mpsc::UnboundedReceiver<FederationMessage>) = mpsc::unbounded_channel();
+    let (tx, mut rx): (
+        mpsc::UnboundedSender<FederationMessage>,
+        mpsc::UnboundedReceiver<FederationMessage>,
+    ) = mpsc::unbounded_channel();
     connections.write().await.insert(cluster_id.clone(), tx);
 
     let cid = cluster_id.clone();
@@ -288,7 +322,9 @@ async fn handle_inbound(
         while let Some(msg) = rx.recv().await {
             match encode_frame(&msg) {
                 Ok(frame) => {
-                    if writer.write_all(&frame).await.is_err() { break; }
+                    if writer.write_all(&frame).await.is_err() {
+                        break;
+                    }
                 }
                 Err(e) => {
                     warn!("encode failed in write loop: {e}");
@@ -309,7 +345,7 @@ async fn handle_outbound(
     local_id: &LsId,
     local_name: &str,
     listen_addr: &SocketAddr,
-      _nodes: &NodeMap,
+    _nodes: &NodeMap,
     connections: &ConnMap,
     _links: &LinkMap,
     _event_tx: &EvtTx,
@@ -325,12 +361,17 @@ async fn handle_outbound(
 
     let frame = encode_frame(&hello)
         .map_err(|e| lingshu_core::LsError::Internal(format!("encode hello failed: {e}")))?;
-    stream.write_all(&frame).await
+    stream
+        .write_all(&frame)
+        .await
         .map_err(|e| lingshu_core::LsError::Internal(format!("write hello failed: {e}")))?;
 
     let cid = cluster_id.to_string();
     let (reader, writer) = stream.into_split();
-    let (tx, mut rx): (mpsc::UnboundedSender<FederationMessage>, mpsc::UnboundedReceiver<FederationMessage>) = mpsc::unbounded_channel();
+    let (tx, mut rx): (
+        mpsc::UnboundedSender<FederationMessage>,
+        mpsc::UnboundedReceiver<FederationMessage>,
+    ) = mpsc::unbounded_channel();
     connections.write().await.insert(cid.clone(), tx);
 
     let cid_w = cid.clone();
@@ -339,7 +380,9 @@ async fn handle_outbound(
         while let Some(msg) = rx.recv().await {
             match encode_frame(&msg) {
                 Ok(frame) => {
-                    if writer.write_all(&frame).await.is_err() { break; }
+                    if writer.write_all(&frame).await.is_err() {
+                        break;
+                    }
                 }
                 Err(e) => {
                     warn!("encode failed in write loop: {e}");

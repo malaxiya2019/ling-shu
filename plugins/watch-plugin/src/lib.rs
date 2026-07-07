@@ -25,9 +25,7 @@ use async_trait::async_trait;
 use std::sync::Arc;
 
 use lingshu_core::{LsContext, LsId, LsResult};
-use lingshu_traits::plugin::{
-    Plugin, PluginInfo, PluginManifest, PluginPermission, PluginStatus,
-};
+use lingshu_traits::plugin::{Plugin, PluginInfo, PluginManifest, PluginPermission, PluginStatus};
 
 /// Watch Skill 插件.
 pub struct WatchPlugin {
@@ -89,7 +87,8 @@ impl WatchPlugin {
         let manifest = PluginManifest {
             name: "watch-plugin".into(),
             version: "1.0.0".into(),
-            description: "Watch Skill — 视频分析插件。观看视频、问答、跨视频搜索、UI录制分析".into(),
+            description: "Watch Skill — 视频分析插件。观看视频、问答、跨视频搜索、UI录制分析"
+                .into(),
             author: Some("Lingshu Team".into()),
             homepage: Some("https://github.com/oxbshw/watch-skill".into()),
             license: Some("MIT".into()),
@@ -195,7 +194,10 @@ impl Plugin for WatchPlugin {
     }
 
     async fn stop(&self, _ctx: LsContext) -> LsResult<()> {
-        tracing::info!(plugin = "watch-plugin", "Stopping watch-skill API server...");
+        tracing::info!(
+            plugin = "watch-plugin",
+            "Stopping watch-skill API server..."
+        );
         self.manager.stop().await.map_err(|e| {
             lingshu_core::LsError::Plugin(format!("Watch Skill stop failed: {}", e))
         })?;
@@ -211,9 +213,8 @@ impl Plugin for WatchPlugin {
 // ── Re-exports ──────────────────────────────────────
 
 pub use api::{
-    AskRequest, AskResponse, CaptureRequest, CaptureResponse, Evidence, FrameInfo,
-    LoopResponse, LoopStartRequest, SearchResult, VideoItem, WatchClient, WatchRequest,
-    WatchResponse,
+    AskRequest, AskResponse, CaptureRequest, CaptureResponse, Evidence, FrameInfo, LoopResponse,
+    LoopStartRequest, SearchResult, VideoItem, WatchClient, WatchRequest, WatchResponse,
 };
-pub use manager::WatchStatus;
 pub use manager::WatchManager;
+pub use manager::WatchStatus;

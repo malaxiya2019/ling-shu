@@ -181,7 +181,8 @@ impl Federation {
                 "cluster_name": self.config.cluster_name,
                 "action": "started",
             }),
-        ).await;
+        )
+        .await;
 
         info!("federation started");
         Ok(())
@@ -197,7 +198,8 @@ impl Federation {
                     "nodes_discovered": nodes.len(),
                     "cluster_id": self.cluster_id.to_string(),
                 }),
-            ).await;
+            )
+            .await;
         }
         Ok(nodes)
     }
@@ -221,9 +223,7 @@ impl Federation {
         stats.connected_nodes = self.link_mgr.online_nodes().await.len();
         stats.total_nodes = self.discovery_mgr.cached_nodes().await.len();
         stats.active_links = self.link_mgr.all_links().await.len();
-        stats.uptime_seconds = (chrono::Utc::now() - self.started_at)
-            .num_seconds()
-            .max(0) as u64;
+        stats.uptime_seconds = (chrono::Utc::now() - self.started_at).num_seconds().max(0) as u64;
         stats.clone()
     }
 
@@ -244,7 +244,8 @@ impl Federation {
                 "cluster_name": self.config.cluster_name,
                 "action": "stopped",
             }),
-        ).await;
+        )
+        .await;
 
         self.link_mgr.stop().await;
         info!("federation stopped");

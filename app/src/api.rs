@@ -15,19 +15,19 @@
 use lingshu_traits::EventBus;
 use std::sync::Arc;
 
-use lingshu_evaluator;
-use lingshu_federation;
 use axum::{
     extract::{ws, Path, Query, State, WebSocketUpgrade},
-    response::Redirect,
     http::{header, Method, StatusCode},
+    response::Redirect,
     response::{Html, Json},
     routing::{get, post},
     Router,
 };
+use lingshu_evaluator;
+use lingshu_federation;
+use lingshu_watch_plugin;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use lingshu_watch_plugin;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing::info;
@@ -41,7 +41,11 @@ use futures::stream::StreamExt;
 use lingshu_audit::{AuditEntry, AuditEventType, AuditLogStore};
 use lingshu_core::{LsContext, LsError, LsId, LsResult};
 use lingshu_observability::health::HealthRegistry;
-use lingshu_plugin::{PluginRegistry, market::{PluginMarket, RegistrySource, MarketPluginEntry, InstallOptions}, hot_reload::{HotReloadWatcher}};
+use lingshu_plugin::{
+    hot_reload::HotReloadWatcher,
+    market::{InstallOptions, MarketPluginEntry, PluginMarket, RegistrySource},
+    PluginRegistry,
+};
 use lingshu_traits::llm::{LlmMessage, LlmRequest, LlmRole};
 use lingshu_websocket::{
     ClientMessage, Connection, ConnectionManager, ConnectionState, SseBroadcaster, SseEvent,
@@ -264,12 +268,12 @@ struct EmbedOutput {
 
 // ── Router ──────────────────────────────────────────
 
-
 // ── API Documentation ─────────────────────────────────
 
 /// Render HTML API documentation page.
 async fn docs_handler() -> Html<&'static str> {
-    Html(r#"<!DOCTYPE html>
+    Html(
+        r#"<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -408,7 +412,8 @@ async fn docs_handler() -> Html<&'static str> {
     <tr><td><span class="method post">POST</span></td><td><code>/v1/federation/execute</code></td><td>Remote execution</td></tr>
   </table>
 </body>
-</html>"#)
+</html>"#,
+    )
 }
 
 /// Return OpenAPI 3.0 JSON spec.
@@ -707,7 +712,8 @@ async fn openapi_json_handler() -> Json<serde_json::Value> {
 /// Server-rendered admin dashboard page.
 /// Fetches live data from REST API via JavaScript.
 async fn admin_handler() -> Html<String> {
-    Html(format!(r##"<!DOCTYPE html>
+    Html(format!(
+        r##"<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -892,7 +898,8 @@ async fn admin_handler() -> Html<String> {
     }})();
   </script>
 </body>
-</html>"##))
+</html>"##
+    ))
 }
 pub fn build_router(state: Arc<AppState>) -> Router {
     let cors = CorsLayer::new()
@@ -945,19 +952,16 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/v1/plugins/{id}/start", post(plugin_start_handler))
         .route("/v1/plugins/{id}/stop", post(plugin_stop_handler))
         // Plugin Market API
-        .route(
-            "/v1/plugins/market/search",
-            get(market_search_handler),
-        )
-        .route(
-            "/v1/plugins/market/install",
-            post(market_install_handler),
-        )
+        .route("/v1/plugins/market/search", get(market_search_handler))
+        .route("/v1/plugins/market/install", post(market_install_handler))
         .route(
             "/v1/plugins/market/sources",
             get(market_sources_handler).post(market_add_source_handler),
         )
-        .route("/v1/plugins/hotreload/start", post(hot_reload_start_handler))
+        .route(
+            "/v1/plugins/hotreload/start",
+            post(hot_reload_start_handler),
+        )
         .route("/v1/plugins/hotreload/stop", post(hot_reload_stop_handler))
         .route("/v1/plugins/events", get(plugin_events_handler))
         // BeEF Security Testing API
@@ -974,7 +978,6 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/v1/watch/ask", post(watch_ask_handler))
         .route("/v1/watch/search", get(watch_search_handler))
         .route("/v1/watch/videos", get(watch_list_videos_handler))
-
         // Knowledge Graph API
         .route(
             "/v1/graph/{project}",
@@ -1090,10 +1093,8 @@ fn extract_token_from_request(req: &axum::extract::Request) -> Option<String> {
 // ── Admin Password Verification ──────────────────────
 
 fn verify_admin_password(username: &str, password: &str) -> bool {
-    let expected_user = std::env::var("LS_ADMIN_USER")
-        .unwrap_or_else(|_| "admin".to_string());
-    let expected_pass = std::env::var("LS_ADMIN_PASSWORD")
-        .unwrap_or_else(|_| "admin".to_string());
+    let expected_user = std::env::var("LS_ADMIN_USER").unwrap_or_else(|_| "admin".to_string());
+    let expected_pass = std::env::var("LS_ADMIN_PASSWORD").unwrap_or_else(|_| "admin".to_string());
 
     let user_match = constant_time_eq(username.as_bytes(), expected_user.as_bytes());
     let pass_match = constant_time_eq(password.as_bytes(), expected_pass.as_bytes());
@@ -1115,7 +1116,8 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 
 /// 登录页面 (GET).
 async fn login_page_handler() -> Html<String> {
-    Html(format!(r##"<!DOCTYPE html>
+    Html(format!(
+        r##"<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -1190,7 +1192,8 @@ async fn login_page_handler() -> Html<String> {
     }});
   </script>
 </body>
-</html>"##))
+</html>"##
+    ))
 }
 
 #[derive(Deserialize)]
@@ -1210,7 +1213,10 @@ struct LoginResponse {
 async fn login_handler(
     State(state): State<Arc<AppState>>,
     Json(req): Json<LoginRequest>,
-) -> Result<(StatusCode, [(&'static str, String); 2], Json<LoginResponse>), (StatusCode, Json<serde_json::Value>)> {
+) -> Result<
+    (StatusCode, [(&'static str, String); 2], Json<LoginResponse>),
+    (StatusCode, Json<serde_json::Value>),
+> {
     if !verify_admin_password(&req.username, &req.password) {
         return Err((
             StatusCode::UNAUTHORIZED,
@@ -1239,7 +1245,10 @@ async fn login_handler(
         StatusCode::OK,
         [
             ("content-type", "application/json".to_string()),
-            ("set-cookie", format!("lingshu_session={token}; Path=/; HttpOnly; SameSite=Lax")),
+            (
+                "set-cookie",
+                format!("lingshu_session={token}; Path=/; HttpOnly; SameSite=Lax"),
+            ),
         ],
         Json(body),
     ))
@@ -1251,7 +1260,10 @@ async fn logout_handler() -> (StatusCode, [(&'static str, &'static str); 2], &'s
         StatusCode::FOUND,
         [
             ("location", "/login"),
-            ("set-cookie", "lingshu_session=; Path=/; HttpOnly; Max-Age=0"),
+            (
+                "set-cookie",
+                "lingshu_session=; Path=/; HttpOnly; Max-Age=0",
+            ),
         ],
         "Redirecting to login...",
     )
@@ -1269,20 +1281,25 @@ async fn auth_me_handler(
         .and_then(|v| v.strip_prefix("Bearer "))
         .map(|s| s.to_string())
         .or_else(|| {
-            headers.get(header::COOKIE).and_then(|v| v.to_str().ok()).and_then(|cookie_str| {
-                for pair in cookie_str.split(';') {
-                    let pair = pair.trim();
-                    if let Some(val) = pair.strip_prefix("lingshu_session=") {
-                        return Some(val.to_string());
+            headers
+                .get(header::COOKIE)
+                .and_then(|v| v.to_str().ok())
+                .and_then(|cookie_str| {
+                    for pair in cookie_str.split(';') {
+                        let pair = pair.trim();
+                        if let Some(val) = pair.strip_prefix("lingshu_session=") {
+                            return Some(val.to_string());
+                        }
                     }
-                }
-                None
-            })
+                    None
+                })
         });
 
     match token {
         Some(t) => match state.jwt_service.authenticate(&t) {
-            Ok(auth) => Json(serde_json::json!({"authenticated": true, "user_id": auth.user_id, "roles": auth.roles})),
+            Ok(auth) => Json(
+                serde_json::json!({"authenticated": true, "user_id": auth.user_id, "roles": auth.roles}),
+            ),
             Err(_) => Json(serde_json::json!({"authenticated": false})),
         },
         None => Json(serde_json::json!({"authenticated": false})),
@@ -2090,11 +2107,14 @@ async fn agent_run_handler(
     let mut agent = lingshu_backends::DefaultAgent::new(config, llm.clone(), tools, None);
 
     // 发布 Agent 启动事件到 Plugin EventBus
-    state.plugin_event_bus.publish(&lingshu_plugin::event::Event::new(
-        lingshu_plugin::event::EventType::AgentStarted,
-        format!("agent:{}", session_id_str),
-        serde_json::json!({"session_id": session_id_str, "model": model_name}),
-    )).await;
+    state
+        .plugin_event_bus
+        .publish(&lingshu_plugin::event::Event::new(
+            lingshu_plugin::event::EventType::AgentStarted,
+            format!("agent:{}", session_id_str),
+            serde_json::json!({"session_id": session_id_str, "model": model_name}),
+        ))
+        .await;
 
     match agent.run(ctx.clone(), req.input).await {
         Ok(output) => {
@@ -2167,13 +2187,15 @@ async fn agent_run_handler(
                 )
                 .await;
 
-
             // 发布 Agent 失败事件到 Plugin EventBus
-            state.plugin_event_bus.publish(&lingshu_plugin::event::Event::new(
-                lingshu_plugin::event::EventType::AgentFailed(format!("{}", e)),
-                format!("agent:{}", session_id_str),
-                serde_json::json!({"session_id": session_id_str, "error": format!("{}", e)}),
-            )).await;
+            state
+                .plugin_event_bus
+                .publish(&lingshu_plugin::event::Event::new(
+                    lingshu_plugin::event::EventType::AgentFailed(format!("{}", e)),
+                    format!("agent:{}", session_id_str),
+                    serde_json::json!({"session_id": session_id_str, "error": format!("{}", e)}),
+                ))
+                .await;
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(json!({"error": format!("{e}")})),
@@ -3215,12 +3237,7 @@ async fn market_install_handler(
         size: None,
     };
 
-    let install_dir = state
-        .plugin_market
-        .read()
-        .await
-        .install_dir()
-        .to_path_buf();
+    let install_dir = state.plugin_market.read().await.install_dir().to_path_buf();
 
     let options = InstallOptions {
         target_dir: install_dir,
@@ -3346,9 +3363,10 @@ async fn beef_start_handler(
     let manager_lock = state.beef_manager.read().await;
     match &*manager_lock {
         Some(manager) => {
-            manager.start().await.map_err(|e| {
-                (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e})))
-            })?;
+            manager
+                .start()
+                .await
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e}))))?;
             let beef_status = manager.status().await;
             Ok(Json(json!({
                 "status": "started",
@@ -3369,9 +3387,10 @@ async fn beef_stop_handler(
     let manager_lock = state.beef_manager.read().await;
     match &*manager_lock {
         Some(manager) => {
-            manager.stop().await.map_err(|e| {
-                (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e})))
-            })?;
+            manager
+                .stop()
+                .await
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e}))))?;
             Ok(Json(json!({"status": "stopped"})))
         }
         None => Err((
@@ -3389,9 +3408,10 @@ async fn beef_restart_handler(
     match &*manager_lock {
         Some(manager) => {
             let _ = manager.stop().await;
-            manager.start().await.map_err(|e| {
-                (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e})))
-            })?;
+            manager
+                .start()
+                .await
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e}))))?;
             Ok(Json(json!({"status": "restarted"})))
         }
         None => Err((
@@ -3414,19 +3434,17 @@ async fn beef_hooks_handler(
                     let base_url = format!("http://127.0.0.1:{}", port);
                     let mut client = lingshu_beef_plugin::BeefClient::new(&base_url);
                     match client.login("beef", "beef").await {
-                        Ok(()) => {
-                            match client.list_hooks().await {
-                                Ok(browsers) => Ok(Json(json!({
-                                    "online": true,
-                                    "count": browsers.len(),
-                                    "hooks": browsers,
-                                }))),
-                                Err(e) => Err((
-                                    StatusCode::BAD_GATEWAY,
-                                    Json(json!({"error": format!("BeEF API error: {e}")})),
-                                )),
-                            }
-                        }
+                        Ok(()) => match client.list_hooks().await {
+                            Ok(browsers) => Ok(Json(json!({
+                                "online": true,
+                                "count": browsers.len(),
+                                "hooks": browsers,
+                            }))),
+                            Err(e) => Err((
+                                StatusCode::BAD_GATEWAY,
+                                Json(json!({"error": format!("BeEF API error: {e}")})),
+                            )),
+                        },
                         Err(e) => Err((
                             StatusCode::UNAUTHORIZED,
                             Json(json!({"error": format!("BeEF auth failed: {e}")})),
@@ -4489,7 +4507,6 @@ async fn credential_providers_handler() -> Json<Vec<&'static str>> {
     Json(vec!["gitee", "codeup", "coding", "gitcode", "cnb"])
 }
 
-
 // ── Evaluator API ───────────────────────────────────
 
 /// LLM-backed evaluable target for running test suites.
@@ -4507,22 +4524,23 @@ impl lingshu_evaluator::Evaluable for LlmEvaluable {
     ) -> LsResult<lingshu_evaluator::ExecutedOutput> {
         let req = lingshu_traits::llm::LlmRequest {
             model: self.model.clone(),
-            messages: vec![
-                lingshu_traits::llm::LlmMessage {
-                    role: lingshu_traits::llm::LlmRole::User,
-                    content: case.input.to_string(),
-                    name: None,
-                    content_parts: None,
-                    tool_calls: None,
-                },
-            ],
+            messages: vec![lingshu_traits::llm::LlmMessage {
+                role: lingshu_traits::llm::LlmRole::User,
+                content: case.input.to_string(),
+                name: None,
+                content_parts: None,
+                tool_calls: None,
+            }],
             temperature: None,
             max_tokens: Some(4096),
             stream: false,
             tools: None,
         };
         let start = std::time::Instant::now();
-        let resp = self.llm.invoke(ctx.clone(), req).await
+        let resp = self
+            .llm
+            .invoke(ctx.clone(), req)
+            .await
             .map_err(|e| LsError::Internal(format!("LLM invoke error: {e}")))?;
         let latency = start.elapsed();
         Ok(lingshu_evaluator::ExecutedOutput {
@@ -4589,10 +4607,15 @@ async fn eval_result_handler(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<lingshu_evaluator::EvaluationResult>, (StatusCode, String)> {
     let store = state.runtime.eval_store.read().await;
-    store.clone().ok_or_else(|| {
-        (StatusCode::NOT_FOUND, "No evaluation results available".to_string())
-    })
-    .map(Json)
+    store
+        .clone()
+        .ok_or_else(|| {
+            (
+                StatusCode::NOT_FOUND,
+                "No evaluation results available".to_string(),
+            )
+        })
+        .map(Json)
 }
 
 /// 回归检测 — 对比当前与基线结果.
@@ -4600,8 +4623,13 @@ async fn eval_regression_handler(
     State(state): State<Arc<AppState>>,
     Json(req): Json<RegressionRequest>,
 ) -> Json<lingshu_evaluator::RegressionResult> {
-    let current = state.runtime.eval_store.read().await.clone().unwrap_or_else(|| {
-        lingshu_evaluator::EvaluationResult {
+    let current = state
+        .runtime
+        .eval_store
+        .read()
+        .await
+        .clone()
+        .unwrap_or_else(|| lingshu_evaluator::EvaluationResult {
             id: LsId::new(),
             suite_name: String::new(),
             target_name: String::new(),
@@ -4617,11 +4645,14 @@ async fn eval_regression_handler(
             metrics: lingshu_evaluator::MetricsSummary::default(),
             case_results: vec![],
             metadata: std::collections::HashMap::new(),
-        }
-    });
+        });
     let baseline = req.baseline.unwrap_or(current.clone());
     let thresholds = lingshu_evaluator::RegressionThresholds::default();
-    Json(lingshu_evaluator::RegressionDetector::detect(&current, &baseline, &thresholds))
+    Json(lingshu_evaluator::RegressionDetector::detect(
+        &current,
+        &baseline,
+        &thresholds,
+    ))
 }
 
 /// 回归检测请求体.
@@ -4633,9 +4664,7 @@ struct RegressionRequest {
 // ── Federation API ─────────────────────────────────
 
 /// 获取联邦状态.
-async fn federation_status_handler(
-    State(state): State<Arc<AppState>>,
-) -> Json<serde_json::Value> {
+async fn federation_status_handler(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     let stats = state.runtime.federation.stats().await;
     let nodes = state.runtime.federation.online_nodes().await;
     Json(serde_json::json!({
@@ -4667,19 +4696,26 @@ async fn federation_nodes_handler(
     State(state): State<Arc<AppState>>,
 ) -> Json<Vec<serde_json::Value>> {
     let nodes = state.runtime.federation.online_nodes().await;
-    Json(nodes.into_iter().map(|n| serde_json::json!({
-        "cluster_id": n.cluster_id.to_string(),
-        "name": n.name,
-        "version": n.version,
-        "addrs": n.addrs.iter().map(|a| a.to_string()).collect::<Vec<_>>(),
-        "status": format!("{:?}", n.status),
-        "capabilities": n.capabilities.into_iter().map(|c| serde_json::json!({
-            "id": c.id,
-            "name": c.name,
-            "version": c.version,
-            "description": c.description,
-        })).collect::<Vec<_>>(),
-    })).collect())
+    Json(
+        nodes
+            .into_iter()
+            .map(|n| {
+                serde_json::json!({
+                    "cluster_id": n.cluster_id.to_string(),
+                    "name": n.name,
+                    "version": n.version,
+                    "addrs": n.addrs.iter().map(|a| a.to_string()).collect::<Vec<_>>(),
+                    "status": format!("{:?}", n.status),
+                    "capabilities": n.capabilities.into_iter().map(|c| serde_json::json!({
+                        "id": c.id,
+                        "name": c.name,
+                        "version": c.version,
+                        "description": c.description,
+                    })).collect::<Vec<_>>(),
+                })
+            })
+            .collect(),
+    )
 }
 
 /// 远程执行请求.
@@ -4702,8 +4738,15 @@ async fn federation_execute_handler(
             "Federation is not enabled".to_string(),
         ));
     }
-    let result = state.runtime.federation
-        .execute(&req.target_cluster, &req.target, req.payload, req.timeout_secs.unwrap_or(30))
+    let result = state
+        .runtime
+        .federation
+        .execute(
+            &req.target_cluster,
+            &req.target,
+            req.payload,
+            req.timeout_secs.unwrap_or(30),
+        )
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok(Json(result))
@@ -4784,10 +4827,13 @@ mod tests {
             ),
             credential_manager,
             eval_store: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
-            federation: std::sync::Arc::new(lingshu_federation::Federation::new(
-                lingshu_core::LsId::new(),
-                lingshu_federation::FederationConfig::default(),
-            ).await),
+            federation: std::sync::Arc::new(
+                lingshu_federation::Federation::new(
+                    lingshu_core::LsId::new(),
+                    lingshu_federation::FederationConfig::default(),
+                )
+                .await,
+            ),
             config_rx: {
                 let (_, rx) = tokio::sync::broadcast::channel(16);
                 rx
@@ -4808,12 +4854,15 @@ mod tests {
         Arc::new(AppState {
             runtime,
             plugin_event_bus: plugin_event_bus.clone(),
-            plugin_registry: Arc::new(lingshu_plugin::PluginRegistry::with_event_bus(plugin_event_bus)),
-            plugin_market: tokio::sync::RwLock::new(
-                lingshu_plugin::market::PluginMarket::new(vec![], std::path::PathBuf::from("/tmp/test-plugins"))
-            ),
+            plugin_registry: Arc::new(lingshu_plugin::PluginRegistry::with_event_bus(
+                plugin_event_bus,
+            )),
+            plugin_market: tokio::sync::RwLock::new(lingshu_plugin::market::PluginMarket::new(
+                vec![],
+                std::path::PathBuf::from("/tmp/test-plugins"),
+            )),
             hot_reload_watcher: lingshu_plugin::hot_reload::HotReloadWatcher::new(
-                std::path::PathBuf::from("/tmp/test-plugins")
+                std::path::PathBuf::from("/tmp/test-plugins"),
             ),
             beef_manager: Arc::new(tokio::sync::RwLock::new(None)),
             watch_manager: Arc::new(tokio::sync::RwLock::new(None)),
@@ -4824,7 +4873,10 @@ mod tests {
             credential_manager: std::sync::Arc::new(lingshu_credentials::CredentialManager::new(
                 test_cred_store,
             )),
-            jwt_service: lingshu_security::auth::JwtService::new("test-jwt-secret-for-unit-tests", 3600),
+            jwt_service: lingshu_security::auth::JwtService::new(
+                "test-jwt-secret-for-unit-tests",
+                3600,
+            ),
         })
     }
 
@@ -5070,9 +5122,10 @@ async fn watch_start_handler(
     let manager_lock = state.watch_manager.read().await;
     match &*manager_lock {
         Some(manager) => {
-            manager.start().await.map_err(|e| {
-                (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e})))
-            })?;
+            manager
+                .start()
+                .await
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e}))))?;
             let status = manager.status().await;
             Ok(Json(json!({
                 "status": "started",
@@ -5093,9 +5146,10 @@ async fn watch_stop_handler(
     let manager_lock = state.watch_manager.read().await;
     match &*manager_lock {
         Some(manager) => {
-            manager.stop().await.map_err(|e| {
-                (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e})))
-            })?;
+            manager
+                .stop()
+                .await
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e}))))?;
             Ok(Json(json!({"status": "stopped"})))
         }
         None => Err((
@@ -5130,9 +5184,10 @@ async fn watch_video_handler(
                 budget: None,
                 inline_frames: 2,
             };
-            let resp = client.watch(&watch_req).await.map_err(|e| {
-                (StatusCode::BAD_GATEWAY, Json(json!({"error": e})))
-            })?;
+            let resp = client
+                .watch(&watch_req)
+                .await
+                .map_err(|e| (StatusCode::BAD_GATEWAY, Json(json!({"error": e}))))?;
             Ok(Json(json!(resp)))
         }
         None => Err((
@@ -5163,9 +5218,10 @@ async fn watch_ask_handler(
                 max_frames: 6,
                 inline_frames: 2,
             };
-            let resp = client.ask(&ask_req).await.map_err(|e| {
-                (StatusCode::BAD_GATEWAY, Json(json!({"error": e})))
-            })?;
+            let resp = client
+                .ask(&ask_req)
+                .await
+                .map_err(|e| (StatusCode::BAD_GATEWAY, Json(json!({"error": e}))))?;
             Ok(Json(json!(resp)))
         }
         None => Err((
@@ -5191,9 +5247,10 @@ async fn watch_search_handler(
     match &*manager_lock {
         Some(manager) => {
             let client = lingshu_watch_plugin::WatchClient::new(manager.api_base_url());
-            let results = client.search(query).await.map_err(|e| {
-                (StatusCode::BAD_GATEWAY, Json(json!({"error": e})))
-            })?;
+            let results = client
+                .search(query)
+                .await
+                .map_err(|e| (StatusCode::BAD_GATEWAY, Json(json!({"error": e}))))?;
             Ok(Json(json!(results)))
         }
         None => Err((
@@ -5211,9 +5268,10 @@ async fn watch_list_videos_handler(
     match &*manager_lock {
         Some(manager) => {
             let client = lingshu_watch_plugin::WatchClient::new(manager.api_base_url());
-            let videos = client.list_videos().await.map_err(|e| {
-                (StatusCode::BAD_GATEWAY, Json(json!({"error": e})))
-            })?;
+            let videos = client
+                .list_videos()
+                .await
+                .map_err(|e| (StatusCode::BAD_GATEWAY, Json(json!({"error": e}))))?;
             Ok(Json(json!(videos)))
         }
         None => Err((

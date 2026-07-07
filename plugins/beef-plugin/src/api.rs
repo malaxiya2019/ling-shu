@@ -116,7 +116,8 @@ impl BeefClient {
 
     /// 登录 BeEF.
     pub async fn login(&mut self, username: &str, password: &str) -> Result<(), String> {
-        let resp: BeefLoginResponse = self.client
+        let resp: BeefLoginResponse = self
+            .client
             .post(format!("{}/api/admin/login", self.base_url))
             .json(&BeefLogin {
                 username: username.to_string(),
@@ -139,7 +140,8 @@ impl BeefClient {
 
     /// 获取所有钩住的浏览器.
     pub async fn list_hooks(&self) -> Result<Vec<HookedBrowser>, String> {
-        let resp: HooksResponse = self.client
+        let resp: HooksResponse = self
+            .client
             .get(format!("{}/api/hooks", self.base_url))
             .send()
             .await
@@ -154,15 +156,50 @@ impl BeefClient {
                 for (id, info) in hooks {
                     browsers.push(HookedBrowser {
                         id,
-                        ip: info.get("ip").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                        browser: info.get("browser").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                        version: info.get("version").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                        os: info.get("os").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                        platform: info.get("platform").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                        domain: info.get("domain").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                        hooked_at: info.get("hooked_at").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-                        status: info.get("status").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                        session: info.get("session").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                        ip: info
+                            .get("ip")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("unknown")
+                            .to_string(),
+                        browser: info
+                            .get("browser")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("unknown")
+                            .to_string(),
+                        version: info
+                            .get("version")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("unknown")
+                            .to_string(),
+                        os: info
+                            .get("os")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("unknown")
+                            .to_string(),
+                        platform: info
+                            .get("platform")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("unknown")
+                            .to_string(),
+                        domain: info
+                            .get("domain")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("unknown")
+                            .to_string(),
+                        hooked_at: info
+                            .get("hooked_at")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or_default()
+                            .to_string(),
+                        status: info
+                            .get("status")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("unknown")
+                            .to_string(),
+                        session: info
+                            .get("session")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string()),
                     });
                 }
             }
@@ -179,8 +216,12 @@ impl BeefClient {
         module_id: &str,
         options: HashMap<String, serde_json::Value>,
     ) -> Result<ModuleExecResponse, String> {
-        let resp: ModuleExecResponse = self.client
-            .post(format!("{}/api/modules/{}/{}/execute", self.base_url, zombie_id, module_id))
+        let resp: ModuleExecResponse = self
+            .client
+            .post(format!(
+                "{}/api/modules/{}/{}/execute",
+                self.base_url, zombie_id, module_id
+            ))
             .json(&ModuleExecRequest {
                 zombie: Some(zombie_id.to_string()),
                 module: Some(module_id.to_string()),

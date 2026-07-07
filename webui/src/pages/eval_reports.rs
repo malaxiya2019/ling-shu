@@ -1,6 +1,6 @@
-use yew::prelude::*;
 use crate::api::client::{self, EvalResultSummary};
 use crate::components::status_card::StatusCard;
+use yew::prelude::*;
 
 #[function_component(EvalReports)]
 pub fn eval_reports() -> Html {
@@ -28,12 +28,17 @@ pub fn eval_reports() -> Html {
             r.id.clone(),
             r.timestamp.clone(),
         ),
-        None => ("—".to_string(), "pending".to_string(), "—".to_string(), "—".to_string()),
+        None => (
+            "—".to_string(),
+            "pending".to_string(),
+            "—".to_string(),
+            "—".to_string(),
+        ),
     };
 
     let status_quality = match eval_status.as_str() {
         "passed" | "success" => "ok",
-        "failed" | "error"   => "err",
+        "failed" | "error" => "err",
         _ => "warn",
     };
 

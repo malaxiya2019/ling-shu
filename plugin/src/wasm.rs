@@ -127,9 +127,7 @@ impl WasmSandbox {
                         wasmtime_wasi::DirPerms::all(),
                         wasmtime_wasi::FilePerms::all(),
                     )
-                    .map_err(|e| {
-                        LsError::Plugin(format!("cannot preopen dir '{}': {e}", dir))
-                    })?;
+                    .map_err(|e| LsError::Plugin(format!("cannot preopen dir '{}': {e}", dir)))?;
             }
 
             WasiState::new(Some(wasi_ctx_builder.build()))

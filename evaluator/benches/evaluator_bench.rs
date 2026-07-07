@@ -1,7 +1,7 @@
 //! LSEvaluator — Criterion 基准测试.
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use lingshu_evaluator::metrics::{self, score_exact, score_contains, score_json_structure};
+use lingshu_evaluator::metrics::{self, score_contains, score_exact, score_json_structure};
 use serde_json::json;
 
 fn bench_scoring(c: &mut Criterion) {

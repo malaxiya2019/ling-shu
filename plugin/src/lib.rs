@@ -8,23 +8,25 @@
 //! - [`loader::PluginLoader`] — 静态/动态插件加载器
 //! - [`sandbox::check_permission`] — 权限检查沙箱
 
+pub mod event;
+pub mod hot_reload;
 pub mod loader;
-pub mod sandbox;
 pub mod manifest;
 pub mod market;
-pub mod hot_reload;
-pub mod event;
+pub mod sandbox;
 
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
-pub use manifest::{
-    DependencyResolver, ExtendedManifest, MarketMeta, PluginDependency,
-    PluginDepType, VersionCompat,
-};
-pub use market::{InstallOptions, MarketPluginEntry, MarketSearchResult, PluginMarket, RegistrySource};
+pub use event::{Event, EventBus, EventCallback, EventType, Registrar};
 pub use hot_reload::{HotReloadEvent, HotReloadWatcher};
-pub use event::{EventBus, EventType, Event, EventCallback, Registrar};
+pub use manifest::{
+    DependencyResolver, ExtendedManifest, MarketMeta, PluginDepType, PluginDependency,
+    VersionCompat,
+};
+pub use market::{
+    InstallOptions, MarketPluginEntry, MarketSearchResult, PluginMarket, RegistrySource,
+};
 
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -102,13 +104,13 @@ impl PluginRegistry {
         );
 
         info!(plugin_id = %plugin_id, "plugin registered");
-        self.event_bus.publish(
-            &event::Event::new(
+        self.event_bus
+            .publish(&event::Event::new(
                 event::EventType::PluginInstalled,
                 format!("plugin:{}", plugin_name),
                 serde_json::json!({"plugin_id": plugin_id.to_string(), "name": &plugin_name}),
-            ),
-        ).await;
+            ))
+            .await;
         Ok(plugin_id)
     }
 
@@ -233,7 +235,8 @@ impl PluginRegistry {
     /// 卸载插件.
     pub async fn unregister(&self, plugin_id: &LsId) -> LsResult<()> {
         let mut map = self.plugins.write().await;
-        let removed = map.remove(plugin_id)
+        let removed = map
+            .remove(plugin_id)
             .ok_or_else(|| LsError::PluginNotFound(plugin_id.to_string()))?;
         info!(plugin_id = %plugin_id, "plugin unregistered");
         self.event_bus.publish(

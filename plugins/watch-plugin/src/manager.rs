@@ -73,7 +73,10 @@ impl WatchManager {
     pub async fn start(&self) -> Result<(), String> {
         let mut status = self.status.write().await;
         if *status != WatchStatus::Stopped {
-            return Err(format!("Watch Skill is not stopped (current: {:?})", status));
+            return Err(format!(
+                "Watch Skill is not stopped (current: {:?})",
+                status
+            ));
         }
 
         *status = WatchStatus::Starting;
@@ -87,9 +90,12 @@ impl WatchManager {
         // 启动 watch-skill api 服务 (uvicorn)
         let child = Command::new(&self.python_bin)
             .args([
-                "-m", "watch_skill.surfaces.api",
-                "--port", &self.api_port.to_string(),
-                "--host", &self.api_host,
+                "-m",
+                "watch_skill.surfaces.api",
+                "--port",
+                &self.api_port.to_string(),
+                "--host",
+                &self.api_host,
             ])
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
@@ -129,7 +135,10 @@ impl WatchManager {
             // 健康检查
             if self.health_check().await {
                 let mut status = self.status.write().await;
-                *status = WatchStatus::Running { pid, port: self.api_port };
+                *status = WatchStatus::Running {
+                    pid,
+                    port: self.api_port,
+                };
                 info!(pid = pid, port = self.api_port, "watch-skill API is ready");
                 return Ok(());
             }
@@ -139,7 +148,10 @@ impl WatchManager {
             }
         }
 
-        let msg = format!("watch-skill did not become ready within {} seconds", max_retries);
+        let msg = format!(
+            "watch-skill did not become ready within {} seconds",
+            max_retries
+        );
         let mut status = self.status.write().await;
         *status = WatchStatus::Failed(msg.clone());
         Err(msg)
@@ -154,7 +166,9 @@ impl WatchManager {
             info!("stopping watch-skill process");
 
             // SIGTERM
-            child.start_kill().map_err(|e| format!("kill failed: {}", e))?;
+            child
+                .start_kill()
+                .map_err(|e| format!("kill failed: {}", e))?;
 
             for _ in 0..5 {
                 tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -170,7 +184,10 @@ impl WatchManager {
             }
 
             // SIGKILL
-            child.kill().await.map_err(|e| format!("force kill failed: {}", e))?;
+            child
+                .kill()
+                .await
+                .map_err(|e| format!("force kill failed: {}", e))?;
             let _ = child.wait().await;
             info!("watch-skill force killed");
         }
@@ -201,9 +218,7 @@ impl WatchManager {
                     true
                 }
             }
-            WatchStatus::Stopped | WatchStatus::Failed(_) => {
-                self.start().await.is_ok()
-            }
+            WatchStatus::Stopped | WatchStatus::Failed(_) => self.start().await.is_ok(),
             WatchStatus::Starting => true,
         }
     }

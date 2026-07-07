@@ -18,7 +18,8 @@ impl RegressionDetector {
     ) -> RegressionResult {
         let score_delta = current.overall_score - baseline.overall_score;
         let pass_rate_delta = current.pass_rate() - baseline.pass_rate();
-        let latency_delta = duration_diff(&current.metrics.avg_latency, &baseline.metrics.avg_latency);
+        let latency_delta =
+            duration_diff(&current.metrics.avg_latency, &baseline.metrics.avg_latency);
         let cost_delta = current.metrics.total_cost - baseline.metrics.total_cost;
 
         // 逐用例对比
@@ -85,10 +86,7 @@ impl RegressionDetector {
     }
 
     /// 将当前结果保存为基线.
-    pub fn save_baseline(
-        result: &EvaluationResult,
-        path: impl AsRef<Path>,
-    ) -> Result<(), String> {
+    pub fn save_baseline(result: &EvaluationResult, path: impl AsRef<Path>) -> Result<(), String> {
         let data = serde_json::to_string_pretty(result)
             .map_err(|e| format!("failed to serialize baseline: {e}"))?;
         std::fs::write(path.as_ref(), data)
@@ -123,8 +121,8 @@ impl Default for RegressionThresholds {
 
 /// 计算 Duration 差值（current - baseline，负值表示变快）.
 fn duration_diff(current: &Duration, baseline: &Duration) -> Duration {
-    let diff_nanos = current.as_nanos().max(baseline.as_nanos())
-        - baseline.as_nanos().min(current.as_nanos());
+    let diff_nanos =
+        current.as_nanos().max(baseline.as_nanos()) - baseline.as_nanos().min(current.as_nanos());
     Duration::from_nanos(diff_nanos as u64)
 }
 
@@ -202,23 +200,18 @@ mod tests {
             "baseline",
             0.95,
             1.0,
-            vec![
-                (true, 1.0, "c1"),
-                (true, 0.9, "c2"),
-            ],
+            vec![(true, 1.0, "c1"), (true, 0.9, "c2")],
         );
 
         let current = make_result(
             "current",
             0.45,
             0.5,
-            vec![
-                (true, 0.9, "c1"),
-                (false, 0.0, "c2"),
-            ],
+            vec![(true, 0.9, "c1"), (false, 0.0, "c2")],
         );
 
-        let result = RegressionDetector::detect(&current, &baseline, &RegressionThresholds::default());
+        let result =
+            RegressionDetector::detect(&current, &baseline, &RegressionThresholds::default());
         assert!(result.has_regression, "should detect regression");
         assert!(result.score_delta < 0.0, "score should decrease");
     }
@@ -239,7 +232,8 @@ mod tests {
             vec![(true, 1.0, "c1"), (true, 0.9, "c2")],
         );
 
-        let result = RegressionDetector::detect(&current, &baseline, &RegressionThresholds::default());
+        let result =
+            RegressionDetector::detect(&current, &baseline, &RegressionThresholds::default());
         assert!(!result.has_regression, "should not detect regression");
         assert!(result.score_delta > 0.0, "score should increase");
     }

@@ -15,10 +15,10 @@ pub struct StatusCardProps {
 #[function_component(StatusCard)]
 pub fn status_card(props: &StatusCardProps) -> Html {
     let color = match props.status.as_deref() {
-        Some("ok")   => "#3fb950",
+        Some("ok") => "#3fb950",
         Some("warn") => "#d29922",
-        Some("err")  => "#f85149",
-        _            => "#58a6ff",
+        Some("err") => "#f85149",
+        _ => "#58a6ff",
     };
 
     html! {

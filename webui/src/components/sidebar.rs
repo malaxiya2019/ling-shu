@@ -1,5 +1,5 @@
-use yew::prelude::*;
 use crate::pages::Page;
+use yew::prelude::*;
 
 #[derive(Properties, Clone, PartialEq)]
 pub struct SidebarProps {
@@ -34,12 +34,36 @@ pub fn sidebar(props: &SidebarProps) -> Html {
         Callback::from(move |_| cb.emit(Page::Security))
     };
 
-    let dash_class = if matches!(props.active_page, Page::Dashboard) { "active" } else { "" };
-    let fed_class = if matches!(props.active_page, Page::Federation) { "active" } else { "" };
-    let eval_class = if matches!(props.active_page, Page::EvalReports) { "active" } else { "" };
-    let metrics_class = if matches!(props.active_page, Page::Metrics) { "active" } else { "" };
-    let plugins_class = if matches!(props.active_page, Page::Plugins) { "active" } else { "" };
-    let security_class = if matches!(props.active_page, Page::Security) { "active" } else { "" };
+    let dash_class = if matches!(props.active_page, Page::Dashboard) {
+        "active"
+    } else {
+        ""
+    };
+    let fed_class = if matches!(props.active_page, Page::Federation) {
+        "active"
+    } else {
+        ""
+    };
+    let eval_class = if matches!(props.active_page, Page::EvalReports) {
+        "active"
+    } else {
+        ""
+    };
+    let metrics_class = if matches!(props.active_page, Page::Metrics) {
+        "active"
+    } else {
+        ""
+    };
+    let plugins_class = if matches!(props.active_page, Page::Plugins) {
+        "active"
+    } else {
+        ""
+    };
+    let security_class = if matches!(props.active_page, Page::Security) {
+        "active"
+    } else {
+        ""
+    };
 
     html! {
         <nav class="sidebar">

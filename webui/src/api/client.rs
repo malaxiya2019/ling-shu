@@ -4,7 +4,6 @@ use gloo_net::http::Request;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-
 // ── Response types mirroring the backend API ──────────
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -117,7 +116,6 @@ pub struct AuthStatus {
 pub async fn get_auth_me() -> Result<AuthStatus, String> {
     get_json::<AuthStatus>("/api/auth/me").await
 }
-
 
 // ── Plugin Market API types ──────────────────────────
 
@@ -341,7 +339,9 @@ pub async fn hot_reload_start() -> Result<(), String> {
         .send()
         .await
         .map_err(|e| format!("request failed: {e}"))?;
-    if !resp.ok() { return Err(format!("HTTP {}", resp.status())); }
+    if !resp.ok() {
+        return Err(format!("HTTP {}", resp.status()));
+    }
     Ok(())
 }
 
@@ -350,7 +350,9 @@ pub async fn hot_reload_stop() -> Result<(), String> {
         .send()
         .await
         .map_err(|e| format!("request failed: {e}"))?;
-    if !resp.ok() { return Err(format!("HTTP {}", resp.status())); }
+    if !resp.ok() {
+        return Err(format!("HTTP {}", resp.status()));
+    }
     Ok(())
 }
 
@@ -411,8 +413,11 @@ pub async fn beef_start() -> Result<BeefActionResponse, String> {
         .send()
         .await
         .map_err(|e| format!("request failed: {e}"))?;
-    if !resp.ok() { return Err(format!("HTTP {}", resp.status())); }
-    resp.json::<BeefActionResponse>().await
+    if !resp.ok() {
+        return Err(format!("HTTP {}", resp.status()));
+    }
+    resp.json::<BeefActionResponse>()
+        .await
         .map_err(|e| format!("deserialize: {e}"))
 }
 
@@ -421,8 +426,11 @@ pub async fn beef_stop() -> Result<BeefActionResponse, String> {
         .send()
         .await
         .map_err(|e| format!("request failed: {e}"))?;
-    if !resp.ok() { return Err(format!("HTTP {}", resp.status())); }
-    resp.json::<BeefActionResponse>().await
+    if !resp.ok() {
+        return Err(format!("HTTP {}", resp.status()));
+    }
+    resp.json::<BeefActionResponse>()
+        .await
         .map_err(|e| format!("deserialize: {e}"))
 }
 
@@ -431,8 +439,11 @@ pub async fn beef_restart() -> Result<BeefActionResponse, String> {
         .send()
         .await
         .map_err(|e| format!("request failed: {e}"))?;
-    if !resp.ok() { return Err(format!("HTTP {}", resp.status())); }
-    resp.json::<BeefActionResponse>().await
+    if !resp.ok() {
+        return Err(format!("HTTP {}", resp.status()));
+    }
+    resp.json::<BeefActionResponse>()
+        .await
         .map_err(|e| format!("deserialize: {e}"))
 }
 

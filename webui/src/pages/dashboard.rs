@@ -1,6 +1,6 @@
-use yew::prelude::*;
+use crate::api::client::{self, HealthResponse, PluginListResponse, VersionInfo};
 use crate::components::status_card::StatusCard;
-use crate::api::client::{self, HealthResponse, VersionInfo, PluginListResponse};
+use yew::prelude::*;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 struct DashboardData {
@@ -28,7 +28,11 @@ pub fn dashboard() -> Html {
                     Ok(v) => d.version = Some(v),
                     Err(e) => {
                         let err = d.error.clone();
-                        d.error = if err.is_empty() { format!("version: {e}") } else { format!("{err}; version: {e}") };
+                        d.error = if err.is_empty() {
+                            format!("version: {e}")
+                        } else {
+                            format!("{err}; version: {e}")
+                        };
                     }
                 }
                 // Fetch plugins
@@ -36,7 +40,11 @@ pub fn dashboard() -> Html {
                     Ok(p) => d.plugins = Some(p),
                     Err(e) => {
                         let err = d.error.clone();
-                        d.error = if err.is_empty() { format!("plugins: {e}") } else { format!("{err}; plugins: {e}") };
+                        d.error = if err.is_empty() {
+                            format!("plugins: {e}")
+                        } else {
+                            format!("{err}; plugins: {e}")
+                        };
                     }
                 }
                 data.set(d);
@@ -55,8 +63,15 @@ pub fn dashboard() -> Html {
     };
 
     let plugin_count = data.plugins.as_ref().map(|p| p.total).unwrap_or(0);
-    let active_plugins = data.plugins.as_ref()
-        .map(|p| p.plugins.iter().filter(|pl| pl.status == "running" || pl.status == "active").count())
+    let active_plugins = data
+        .plugins
+        .as_ref()
+        .map(|p| {
+            p.plugins
+                .iter()
+                .filter(|pl| pl.status == "running" || pl.status == "active")
+                .count()
+        })
         .unwrap_or(0);
 
     html! {

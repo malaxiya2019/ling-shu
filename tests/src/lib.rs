@@ -302,7 +302,7 @@ mod tests {
         use lingshu_traits::database::Pagination;
         use lingshu_traits::repository::Repository;
         use serde::{Deserialize, Serialize};
-        
+
         #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
         struct Product {
             id: Option<String>,
@@ -491,11 +491,10 @@ async fn test_prompt_ab_test() {
 
 // ── 15. HTTP Integration Tests ────────────────────
 
-
 /// 启动一个最小的测试 HTTP 服务器，返回 base URL。
 #[cfg(test)]
 pub(crate) async fn spawn_test_server() -> String {
-    use axum::{routing::get, Router, Json};
+    use axum::{routing::get, Json, Router};
     use std::net::TcpListener as StdListener;
 
     let app = Router::new()

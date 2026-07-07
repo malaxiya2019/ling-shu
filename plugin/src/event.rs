@@ -85,11 +85,7 @@ pub struct Event {
 
 impl Event {
     /// 创建一个新事件.
-    pub fn new(
-        event_type: EventType,
-        source: impl Into<String>,
-        payload: impl Serialize,
-    ) -> Self {
+    pub fn new(event_type: EventType, source: impl Into<String>, payload: impl Serialize) -> Self {
         Self {
             timestamp: Utc::now(),
             event_type,
@@ -252,9 +248,7 @@ impl EventBus {
         let event_type = event.event_type.clone();
         let callbacks = {
             let registrar = self.registrar.clone();
-            futures::executor::block_on(async move {
-                registrar.callbacks_for(&event_type).await
-            })
+            futures::executor::block_on(async move { registrar.callbacks_for(&event_type).await })
         };
         for cb in callbacks {
             let event_clone = event.clone();
@@ -275,10 +269,16 @@ impl Default for EventBus {
 #[macro_export]
 macro_rules! emit_event {
     ($bus:expr, $type:expr, $source:expr, $payload:expr) => {
-        $bus.publish(&$crate::event::Event::new($type, $source, $payload)).await;
+        $bus.publish(&$crate::event::Event::new($type, $source, $payload))
+            .await;
     };
     ($bus:expr, $type:expr, $source:expr) => {
-        $bus.publish(&$crate::event::Event::new($type, $source, serde_json::json!({}))).await;
+        $bus.publish(&$crate::event::Event::new(
+            $type,
+            $source,
+            serde_json::json!({}),
+        ))
+        .await;
     };
 }
 

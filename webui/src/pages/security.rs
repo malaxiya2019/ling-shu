@@ -1,7 +1,7 @@
 //! 🕷️ BeEF Security Testing Dashboard
 
+use crate::api::client::{self, BeefHookedBrowser, BeefStatusResponse};
 use yew::prelude::*;
-use crate::api::client::{self, BeefStatusResponse, BeefHookedBrowser};
 
 #[function_component(Security)]
 pub fn security() -> Html {
@@ -24,7 +24,7 @@ pub fn security() -> Html {
                 }
                 match client::beef_hooks().await {
                     Ok(h) => hooks.set(h.browsers),
-                    Err(_) => {},
+                    Err(_) => {}
                 }
             });
             || ()
@@ -116,7 +116,10 @@ pub fn security() -> Html {
         })
     };
 
-    let is_running = status.as_ref().map(|s| s.status == "running").unwrap_or(false);
+    let is_running = status
+        .as_ref()
+        .map(|s| s.status == "running")
+        .unwrap_or(false);
     let status_color = if is_running { "#3fb950" } else { "#f85149" };
     let status_text = if is_running { "Running" } else { "Stopped" };
 

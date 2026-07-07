@@ -266,7 +266,9 @@ mod tests {
         assert!(DependencyResolver::validate_version_req(">=1.0.0"));
         assert!(DependencyResolver::validate_version_req("~2.3.4"));
         assert!(DependencyResolver::validate_version_req("^0.5"));
-        assert!(!DependencyResolver::validate_version_req("not-a-version-req"));
+        assert!(!DependencyResolver::validate_version_req(
+            "not-a-version-req"
+        ));
     }
 
     #[test]

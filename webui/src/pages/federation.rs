@@ -1,7 +1,7 @@
-use yew::prelude::*;
-use crate::api::client::{self, FederationStatus, FederationNodeInfo};
+use crate::api::client::{self, FederationNodeInfo, FederationStatus};
 use crate::components::status_card::StatusCard;
 use crate::components::topology_graph::TopologyGraph;
+use yew::prelude::*;
 
 #[function_component(Federation)]
 pub fn federation() -> Html {

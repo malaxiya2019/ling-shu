@@ -1,8 +1,8 @@
 use lingshu_core::LsResult;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use crate::env::{current_environment, Environment};
 
@@ -518,9 +518,6 @@ storage:
     }
 }
 
-
-
-
 // ── Config Hot Reload ────────────────────────────────
 
 /// 配置变更通知.
@@ -544,10 +541,7 @@ impl ConfigWatcher {
     /// 启动配置监听 (后台 std::thread)。
     ///
     /// 当配置文件变化时，通过 `tx` 发送 `ConfigEvent`。
-    pub fn spawn(
-        env: &str,
-        tx: std::sync::mpsc::Sender<ConfigEvent>,
-    ) -> Self {
+    pub fn spawn(env: &str, tx: std::sync::mpsc::Sender<ConfigEvent>) -> Self {
         let env_owned = env.to_string();
         let stop_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let flag = stop_flag.clone();
@@ -555,8 +549,12 @@ impl ConfigWatcher {
         std::thread::spawn(move || {
             // 初始加载
             match LsConfig::load_for_env(&env_owned) {
-                Ok(cfg) => { let _ = tx.send(ConfigEvent::Reloaded(cfg)); }
-                Err(e) => { let _ = tx.send(ConfigEvent::Error(e.to_string())); }
+                Ok(cfg) => {
+                    let _ = tx.send(ConfigEvent::Reloaded(cfg));
+                }
+                Err(e) => {
+                    let _ = tx.send(ConfigEvent::Error(e.to_string()));
+                }
             }
 
             let mut last_mtime: Option<std::time::SystemTime> = None;
@@ -570,8 +568,12 @@ impl ConfigWatcher {
                         if last_mtime.map(|t| mtime > t).unwrap_or(true) {
                             last_mtime = Some(mtime);
                             match LsConfig::load_for_env(&env_owned) {
-                                Ok(cfg) => { let _ = tx.send(ConfigEvent::Reloaded(cfg)); }
-                                Err(e) => { let _ = tx.send(ConfigEvent::Error(e.to_string())); }
+                                Ok(cfg) => {
+                                    let _ = tx.send(ConfigEvent::Reloaded(cfg));
+                                }
+                                Err(e) => {
+                                    let _ = tx.send(ConfigEvent::Error(e.to_string()));
+                                }
                             }
                         }
                     }

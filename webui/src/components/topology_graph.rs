@@ -1,5 +1,5 @@
-use yew::prelude::*;
 use crate::api::client::FederationNodeInfo;
+use yew::prelude::*;
 
 #[derive(Properties, Clone, PartialEq)]
 pub struct TopologyProps {

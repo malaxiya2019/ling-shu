@@ -1,7 +1,7 @@
 use yew::prelude::*;
 
 use crate::components::sidebar::Sidebar;
-use crate::pages::{Page, Dashboard, Federation, EvalReports, Metrics, Plugins, Security};
+use crate::pages::{Dashboard, EvalReports, Federation, Metrics, Page, Plugins, Security};
 
 #[function_component(App)]
 pub fn app() -> Html {

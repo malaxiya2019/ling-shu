@@ -14,11 +14,7 @@ use tracing::{info, warn};
 #[async_trait]
 pub trait Evaluable: Send + Sync {
     /// 执行单个测试用例，返回实际输出.
-    async fn execute(
-        &self,
-        ctx: &LsContext,
-        case: &TestCase,
-    ) -> LsResult<ExecutedOutput>;
+    async fn execute(&self, ctx: &LsContext, case: &TestCase) -> LsResult<ExecutedOutput>;
 
     /// 返回目标名称.
     fn target_name(&self) -> &str;
@@ -40,7 +36,11 @@ pub struct ExecutedOutput {
 // ── 内置评分器 ─────────────────────────────────────
 
 /// 根据 ExpectedType 计算评分.
-pub fn score_output(actual: &serde_json::Value, expected: &serde_json::Value, kind: ExpectedType) -> f64 {
+pub fn score_output(
+    actual: &serde_json::Value,
+    expected: &serde_json::Value,
+    kind: ExpectedType,
+) -> f64 {
     match kind {
         ExpectedType::Exact => metrics::score_exact(actual, expected),
         ExpectedType::Contains => metrics::score_contains(actual, expected),
@@ -63,8 +63,14 @@ fn score_numeric_range(actual: &serde_json::Value, expected: &serde_json::Value)
         Some(n) => n,
         None => return 0.0,
     };
-    let min = expected.get("min").and_then(|v| v.as_f64()).unwrap_or(f64::NEG_INFINITY);
-    let max = expected.get("max").and_then(|v| v.as_f64()).unwrap_or(f64::INFINITY);
+    let min = expected
+        .get("min")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(f64::NEG_INFINITY);
+    let max = expected
+        .get("max")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(f64::INFINITY);
     if actual_num >= min && actual_num <= max {
         // 在范围内按位置给分（越靠近中间越高）
         if min.is_infinite() || max.is_infinite() {
@@ -334,7 +340,11 @@ mod tests {
 
         #[async_trait]
         impl Evaluable for SlowEvaluable {
-            async fn execute(&self, _ctx: &LsContext, _case: &TestCase) -> LsResult<ExecutedOutput> {
+            async fn execute(
+                &self,
+                _ctx: &LsContext,
+                _case: &TestCase,
+            ) -> LsResult<ExecutedOutput> {
                 tokio::time::sleep(Duration::from_secs(60)).await;
                 Ok(ExecutedOutput {
                     output: json!("too late"),
@@ -345,8 +355,12 @@ mod tests {
                 })
             }
 
-            fn target_name(&self) -> &str { "slow" }
-            fn target_version(&self) -> &str { "1.0" }
+            fn target_name(&self) -> &str {
+                "slow"
+            }
+            fn target_version(&self) -> &str {
+                "1.0"
+            }
         }
 
         let target = Arc::new(SlowEvaluable);
@@ -373,12 +387,21 @@ mod tests {
     fn test_numeric_range_score() {
         let range = json!({"min": 0, "max": 100});
         let score = score_numeric_range(&json!(50), &range);
-        assert!((score - 1.0).abs() < 1e-6, "midpoint should score 1.0, got {score}");
+        assert!(
+            (score - 1.0).abs() < 1e-6,
+            "midpoint should score 1.0, got {score}"
+        );
 
         let score = score_numeric_range(&json!(0), &range);
-        assert!((score - 0.0).abs() < 1e-6, "boundary should score 0.0, got {score}");
+        assert!(
+            (score - 0.0).abs() < 1e-6,
+            "boundary should score 0.0, got {score}"
+        );
 
         let score = score_numeric_range(&json!(-1), &range);
-        assert!((score - 0.0).abs() < 1e-6, "below min should score 0.0, got {score}");
+        assert!(
+            (score - 0.0).abs() < 1e-6,
+            "below min should score 0.0, got {score}"
+        );
     }
 }

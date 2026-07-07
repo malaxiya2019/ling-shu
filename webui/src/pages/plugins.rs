@@ -1,5 +1,5 @@
+use crate::api::client::{self, MarketPluginEntry, MarketSearchResponse, PluginListItem};
 use yew::prelude::*;
-use crate::api::client::{self, PluginListItem, MarketPluginEntry, MarketSearchResponse};
 
 #[function_component(Plugins)]
 pub fn plugins() -> Html {
@@ -76,7 +76,10 @@ pub fn plugins() -> Html {
                 };
                 match client::market_install(&req).await {
                     Ok(resp) => {
-                        s.set(format!("Installed {} v{} in {}", resp.name, resp.version, resp.path));
+                        s.set(format!(
+                            "Installed {} v{} in {}",
+                            resp.name, resp.version, resp.path
+                        ));
                         // Refresh installed list
                         if let Ok(list) = client::get_plugins().await {
                             inst.set(list.plugins);
@@ -99,12 +102,18 @@ pub fn plugins() -> Html {
             wasm_bindgen_futures::spawn_local(async move {
                 if *hr {
                     match client::hot_reload_stop().await {
-                        Ok(()) => { hr.set(false); s.set("Hot reload stopped".into()); }
+                        Ok(()) => {
+                            hr.set(false);
+                            s.set("Hot reload stopped".into());
+                        }
                         Err(err) => e.set(err),
                     }
                 } else {
                     match client::hot_reload_start().await {
-                        Ok(()) => { hr.set(true); s.set("Hot reload started".into()); }
+                        Ok(()) => {
+                            hr.set(true);
+                            s.set("Hot reload started".into());
+                        }
                         Err(err) => e.set(err),
                     }
                 }

@@ -80,7 +80,9 @@ impl RemoteExecutor {
                 );
                 Ok(response)
             }
-            Ok(Err(_)) => Err(lingshu_core::LsError::Internal("execution cancelled".into())),
+            Ok(Err(_)) => Err(lingshu_core::LsError::Internal(
+                "execution cancelled".into(),
+            )),
             Err(_) => {
                 self.pending.write().await.remove(&request_id);
                 Err(lingshu_core::LsError::Internal(format!(

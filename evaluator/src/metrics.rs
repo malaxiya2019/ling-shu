@@ -16,12 +16,22 @@ pub fn compute_metrics(results: &[EvalCaseResult]) -> MetricsSummary {
     let accuracy = passed / n;
 
     // 精确率 & 召回率: 将 score >= 0.5 视为正例
-    let tp = results.iter().filter(|r| r.score >= 0.5 && r.passed).count() as f64;
-    let fp = results.iter().filter(|r| r.score >= 0.5 && !r.passed).count() as f64;
+    let tp = results
+        .iter()
+        .filter(|r| r.score >= 0.5 && r.passed)
+        .count() as f64;
+    let fp = results
+        .iter()
+        .filter(|r| r.score >= 0.5 && !r.passed)
+        .count() as f64;
     let fn_val = results.iter().filter(|r| r.score < 0.5 && r.passed).count() as f64;
 
     let precision = if tp + fp > 0.0 { tp / (tp + fp) } else { 0.0 };
-    let recall = if tp + fn_val > 0.0 { tp / (tp + fn_val) } else { 0.0 };
+    let recall = if tp + fn_val > 0.0 {
+        tp / (tp + fn_val)
+    } else {
+        0.0
+    };
     let f1_score = if precision + recall > 0.0 {
         2.0 * precision * recall / (precision + recall)
     } else {
@@ -46,7 +56,10 @@ pub fn compute_metrics(results: &[EvalCaseResult]) -> MetricsSummary {
     // Token 统计
     let avg_input_tokens = results.iter().map(|r| r.input_tokens as f64).sum::<f64>() / n;
     let avg_output_tokens = results.iter().map(|r| r.output_tokens as f64).sum::<f64>() / n;
-    let total_tokens: u64 = results.iter().map(|r| r.input_tokens + r.output_tokens).sum();
+    let total_tokens: u64 = results
+        .iter()
+        .map(|r| r.input_tokens + r.output_tokens)
+        .sum();
 
     // 成本统计
     let total_cost: f64 = results.iter().map(|r| r.cost).sum();
@@ -219,9 +232,7 @@ impl RegexLite {
         let mut match_idx = 0;
 
         while t_idx < text.len() {
-            if p_idx < pattern.len()
-                && (pattern[p_idx] == text[t_idx] || pattern[p_idx] == b'?')
-            {
+            if p_idx < pattern.len() && (pattern[p_idx] == text[t_idx] || pattern[p_idx] == b'?') {
                 p_idx += 1;
                 t_idx += 1;
             } else if p_idx < pattern.len() && pattern[p_idx] == b'*' {
@@ -269,12 +280,18 @@ mod tests {
         let actual = json!({"name": "Alice", "age": 30});
         let expected = json!({"name": "Bob", "age": 25});
         let score = score_json_structure(&actual, &expected);
-        assert!((score - 1.0).abs() < 1e-6, "structure should match regardless of values");
+        assert!(
+            (score - 1.0).abs() < 1e-6,
+            "structure should match regardless of values"
+        );
 
         let actual = json!({"name": "Alice", "extra": true});
         let expected = json!({"name": "Bob"});
         let score = score_json_structure(&actual, &expected);
-        assert!((score - 1.0).abs() < 1e-6, "extra keys in actual are ignored");
+        assert!(
+            (score - 1.0).abs() < 1e-6,
+            "extra keys in actual are ignored"
+        );
     }
 
     #[test]

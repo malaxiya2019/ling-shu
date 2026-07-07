@@ -108,7 +108,9 @@ impl FederationNode {
 
     /// 是否拥有指定能力.
     pub fn has_capability(&self, cap: &str) -> bool {
-        self.capabilities.iter().any(|c| c.name == cap || c.id == cap)
+        self.capabilities
+            .iter()
+            .any(|c| c.name == cap || c.id == cap)
     }
 }
 

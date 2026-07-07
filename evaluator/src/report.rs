@@ -131,7 +131,10 @@ impl ReportGenerator {
 
         // 标题
         md.push_str(&format!("# 📊 评测报告: {}\n\n", result.suite_name));
-        md.push_str(&format!("**目标**: `{}` v{}  \n", result.target_name, result.target_version));
+        md.push_str(&format!(
+            "**目标**: `{}` v{}  \n",
+            result.target_name, result.target_version
+        ));
         md.push_str(&format!(
             "**时间**: {} — {}  \n",
             result.started_at.format("%Y-%m-%d %H:%M:%S"),
@@ -222,7 +225,9 @@ impl ReportGenerator {
 
         // 用例详情
         md.push_str("\n## 📋 用例详情\n\n");
-        md.push_str("| # | 用例 | 状态 | 得分 | 延迟 | Token | 成本 |\n|---|---|---|---|---|---|---|\n");
+        md.push_str(
+            "| # | 用例 | 状态 | 得分 | 延迟 | Token | 成本 |\n|---|---|---|---|---|---|---|\n",
+        );
         for (i, c) in result.case_results.iter().enumerate() {
             let status = if c.passed { "✅" } else { "❌" };
             md.push_str(&format!(
@@ -257,8 +262,8 @@ impl ReportGenerator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lingshu_core::LsId;
     use crate::types::*;
+    use lingshu_core::LsId;
     use std::time::Duration;
 
     fn sample_result() -> EvaluationResult {

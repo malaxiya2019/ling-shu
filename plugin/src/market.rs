@@ -105,10 +105,7 @@ impl PluginMarket {
     }
 
     /// 从 GitHub Releases 发现插件.
-    async fn discover_github(
-        &self,
-        repo: &str,
-    ) -> LsResult<Vec<MarketPluginEntry>> {
+    async fn discover_github(&self, repo: &str) -> LsResult<Vec<MarketPluginEntry>> {
         let api_url = format!(
             "https://api.github.com/repos/{}/releases?per_page=100",
             repo
@@ -218,9 +215,8 @@ impl PluginMarket {
         for entry in std::fs::read_dir(dir)
             .map_err(|e| LsError::Plugin(format!("cannot read dir '{}': {e}", dir.display())))?
         {
-            let entry = entry.map_err(|e| {
-                LsError::Plugin(format!("error reading dir entry: {e}"))
-            })?;
+            let entry =
+                entry.map_err(|e| LsError::Plugin(format!("error reading dir entry: {e}")))?;
             let path = entry.path();
 
             if path.is_dir() {
@@ -228,15 +224,9 @@ impl PluginMarket {
                 if manifest_path.exists() {
                     match crate::manifest::load_manifest_from_path(&manifest_path) {
                         Ok(manifest) => {
-                            let pkg_path = path.join(format!(
-                                "{}.tar.gz",
-                                manifest.base.name
-                            ));
+                            let pkg_path = path.join(format!("{}.tar.gz", manifest.base.name));
                             entries.push(MarketPluginEntry {
-                                id: format!(
-                                    "{}@{}",
-                                    manifest.base.name, manifest.base.version
-                                ),
+                                id: format!("{}@{}", manifest.base.name, manifest.base.version),
                                 name: manifest.base.name,
                                 version: manifest.base.version,
                                 description: manifest.base.description,
@@ -396,10 +386,7 @@ impl PluginMarket {
     }
 
     /// 检查依赖是否满足.
-    pub fn check_dependencies(
-        &self,
-        deps: &[PluginDependency],
-    ) -> Vec<PluginDependency> {
+    pub fn check_dependencies(&self, deps: &[PluginDependency]) -> Vec<PluginDependency> {
         crate::manifest::DependencyResolver::check_dependencies(&self.installed, deps)
     }
 
@@ -443,9 +430,9 @@ struct GitHubAsset {
 
 #[cfg(test)]
 mod tests {
-    use tokio;
     use super::*;
     use tempfile::TempDir;
+    use tokio;
 
     #[test]
     fn test_market_plugin_entry_serialization() {
@@ -578,7 +565,9 @@ mod tests {
         // Just verify the entry serialization and manually place the plugin
         std::fs::create_dir_all(&install_dir).unwrap();
         std::fs::write(install_dir.join("test-plugin.plugin"), plugin_content).unwrap();
-        market.installed.insert("test-plugin".into(), "1.0.0".into());
+        market
+            .installed
+            .insert("test-plugin".into(), "1.0.0".into());
 
         assert!(install_dir.join("test-plugin.plugin").exists());
         assert!(market.installed.contains_key("test-plugin"));

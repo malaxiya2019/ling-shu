@@ -20,8 +20,8 @@ use lingshu_core::{LsContext, LsError, LsId, LsResult};
 use lingshu_credentials::CredentialManager;
 use lingshu_credentials::CredentialStore;
 use lingshu_evaluator;
-use lingshu_federation;
 use lingshu_eventbus::bus::InMemoryEventBus;
+use lingshu_federation;
 use lingshu_observability::ObservabilityConfig;
 use lingshu_runtime::lifecycle::{LifecycleManager, LifecycleState};
 use lingshu_runtime::recovery::RecoveryManager;
@@ -98,7 +98,8 @@ pub struct LingshuRuntime {
     pub billing: std::sync::Arc<lingshu_billing::BillingSystem>,
     pub credential_manager: std::sync::Arc<CredentialManager>,
     /// 评测结果缓存 (ES).
-    pub eval_store: std::sync::Arc<tokio::sync::RwLock<Option<lingshu_evaluator::EvaluationResult>>>,
+    pub eval_store:
+        std::sync::Arc<tokio::sync::RwLock<Option<lingshu_evaluator::EvaluationResult>>>,
     /// 联邦通信 (Fed).
     pub federation: std::sync::Arc<lingshu_federation::Federation>,
     /// 配置热重载通知接收器.
@@ -176,7 +177,8 @@ impl LingshuRuntime {
         let federation = {
             let mut fed_config = lingshu_federation::FederationConfig::default();
             fed_config.enabled = !cli.no_federation;
-            fed_config.listen_addr = format!("0.0.0.0:{}", cli.federation_port).parse()
+            fed_config.listen_addr = format!("0.0.0.0:{}", cli.federation_port)
+                .parse()
                 .unwrap_or_else(|_| "0.0.0.0:9550".parse().unwrap());
             std::sync::Arc::new(lingshu_federation::Federation::new(LsId::new(), fed_config).await)
         };
@@ -249,15 +251,19 @@ impl LingshuRuntime {
             federation,
             config_rx: {
                 let (config_tx, config_rx) = tokio::sync::broadcast::channel(16);
-                let (std_tx, std_rx) = std::sync::mpsc::channel::<lingshu_config::settings::ConfigEvent>();
+                let (std_tx, std_rx) =
+                    std::sync::mpsc::channel::<lingshu_config::settings::ConfigEvent>();
                 let _watcher = lingshu_config::settings::ConfigWatcher::spawn(&cli.env, std_tx);
                 let std_rx = std::sync::Arc::new(std::sync::Mutex::new(std_rx));
                 tokio::spawn(async move {
                     loop {
                         let rx = std_rx.clone();
-                        let event = tokio::task::spawn_blocking(move || rx.lock().unwrap().recv()).await;
+                        let event =
+                            tokio::task::spawn_blocking(move || rx.lock().unwrap().recv()).await;
                         match event {
-                            Ok(Ok(evt)) => { let _ = config_tx.send(evt); }
+                            Ok(Ok(evt)) => {
+                                let _ = config_tx.send(evt);
+                            }
                             _ => break,
                         }
                     }
@@ -511,27 +517,30 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
     // Register LLM health check
     {
         let llm = runtime.llm.clone();
-        let check = lingshu_observability::health::RuntimeHealth::new("llm", Arc::new(
-            tokio::sync::watch::channel(llm.is_some()).1
-        ));
+        let check = lingshu_observability::health::RuntimeHealth::new(
+            "llm",
+            Arc::new(tokio::sync::watch::channel(llm.is_some()).1),
+        );
         health_registry.register(Box::new(check)).await;
     }
 
     // Register storage health check
     {
         let _storage_path = format!("{}", runtime.storage.base_path().display());
-        let check = lingshu_observability::health::RuntimeHealth::new("storage", Arc::new(
-            tokio::sync::watch::channel(true).1
-        ));
+        let check = lingshu_observability::health::RuntimeHealth::new(
+            "storage",
+            Arc::new(tokio::sync::watch::channel(true).1),
+        );
         health_registry.register(Box::new(check)).await;
     }
 
     // Register federation health check (if enabled)
     {
         let fed_enabled = runtime.federation.config.enabled;
-        let check = lingshu_observability::health::RuntimeHealth::new("federation", Arc::new(
-            tokio::sync::watch::channel(fed_enabled).1
-        ));
+        let check = lingshu_observability::health::RuntimeHealth::new(
+            "federation",
+            Arc::new(tokio::sync::watch::channel(fed_enabled).1),
+        );
         health_registry.register(Box::new(check)).await;
     }
 
@@ -547,24 +556,27 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
         }
     }
 
-
     let plugin_event_bus = Arc::new(lingshu_plugin::event::EventBus::new());
-    runtime.agent_manager.set_event_bus(plugin_event_bus.clone()).await;
-    runtime.federation.set_event_bus(plugin_event_bus.clone()).await;
+    runtime
+        .agent_manager
+        .set_event_bus(plugin_event_bus.clone())
+        .await;
+    runtime
+        .federation
+        .set_event_bus(plugin_event_bus.clone())
+        .await;
     let state = Arc::new(AppState {
         runtime: runtime.clone(),
         plugin_event_bus: plugin_event_bus.clone(),
-        plugin_registry: Arc::new(lingshu_plugin::PluginRegistry::with_event_bus(plugin_event_bus.clone())),
-        plugin_market: tokio::sync::RwLock::new(
-            lingshu_plugin::market::PluginMarket::new(
-                vec![
-                    lingshu_plugin::market::RegistrySource::GitHubReleases(
-                        "lingshu-org/lingshu-plugins".into(),
-                    ),
-                ],
-                std::path::PathBuf::from("plugins"),
-            ),
-        ),
+        plugin_registry: Arc::new(lingshu_plugin::PluginRegistry::with_event_bus(
+            plugin_event_bus.clone(),
+        )),
+        plugin_market: tokio::sync::RwLock::new(lingshu_plugin::market::PluginMarket::new(
+            vec![lingshu_plugin::market::RegistrySource::GitHubReleases(
+                "lingshu-org/lingshu-plugins".into(),
+            )],
+            std::path::PathBuf::from("plugins"),
+        )),
         hot_reload_watcher: lingshu_plugin::hot_reload::HotReloadWatcher::new(
             std::path::PathBuf::from("plugins"),
         ),
@@ -585,7 +597,7 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
         let sse = state.sse_broadcaster.clone();
         let eb = state.plugin_event_bus.clone();
         tokio::spawn(async move {
-            use lingshu_plugin::event::{Event, EventType, EventCallback};
+            use lingshu_plugin::event::{Event, EventCallback, EventType};
             use lingshu_websocket::types::SseEvent;
             let cb: EventCallback = Arc::new(move |event: Event| {
                 let data = serde_json::json!({
@@ -597,31 +609,21 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
                 let sse_event = SseEvent::new("plugin:event", data);
                 sse.publish(sse_event);
             });
-            eb.registrar().register(
-                EventType::PluginInstalled,
-                cb.clone(),
-                "sse-bridge",
-            ).await;
-            eb.registrar().register(
-                EventType::PluginLoaded,
-                cb.clone(),
-                "sse-bridge",
-            ).await;
-            eb.registrar().register(
-                EventType::PluginStarted,
-                cb.clone(),
-                "sse-bridge",
-            ).await;
-            eb.registrar().register(
-                EventType::PluginStopped,
-                cb.clone(),
-                "sse-bridge",
-            ).await;
-            eb.registrar().register(
-                EventType::PluginUninstalled,
-                cb,
-                "sse-bridge",
-            ).await;
+            eb.registrar()
+                .register(EventType::PluginInstalled, cb.clone(), "sse-bridge")
+                .await;
+            eb.registrar()
+                .register(EventType::PluginLoaded, cb.clone(), "sse-bridge")
+                .await;
+            eb.registrar()
+                .register(EventType::PluginStarted, cb.clone(), "sse-bridge")
+                .await;
+            eb.registrar()
+                .register(EventType::PluginStopped, cb.clone(), "sse-bridge")
+                .await;
+            eb.registrar()
+                .register(EventType::PluginUninstalled, cb, "sse-bridge")
+                .await;
         });
     }
 
@@ -631,9 +633,22 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
         let plugin_registry = state.plugin_registry.clone();
         let _plugin_event_bus = state.plugin_event_bus.clone();
         tokio::spawn(async move {
-            match plugin_registry.register(Box::new(lingshu_beef_plugin::BeefPlugin::new(std::path::PathBuf::from("beef"))), None).await {
+            match plugin_registry
+                .register(
+                    Box::new(lingshu_beef_plugin::BeefPlugin::new(
+                        std::path::PathBuf::from("beef"),
+                    )),
+                    None,
+                )
+                .await
+            {
                 Ok(id) => {
-                    *beef_manager.write().await = Some(Arc::new(lingshu_beef_plugin::BeefManager::new(std::path::PathBuf::from("beef"), "ruby", 3000)));
+                    *beef_manager.write().await =
+                        Some(Arc::new(lingshu_beef_plugin::BeefManager::new(
+                            std::path::PathBuf::from("beef"),
+                            "ruby",
+                            3000,
+                        )));
                     tracing::info!(plugin_id = %id, "BeEF security testing plugin registered");
                 }
                 Err(e) => {

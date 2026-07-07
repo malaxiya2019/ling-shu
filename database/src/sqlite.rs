@@ -63,7 +63,9 @@ impl SqliteDatabase {
                 applied_at TEXT NOT NULL DEFAULT (datetime('now'))
             );",
         )
-        .map_err(|e| LsError::Internal(format!("migrations tracking table creation failed: {e}")))?;
+        .map_err(|e| {
+            LsError::Internal(format!("migrations tracking table creation failed: {e}"))
+        })?;
 
         // 按顺序执行所有迁移
         let migrations: &[(&str, &str)] = &[

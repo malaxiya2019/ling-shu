@@ -60,10 +60,7 @@ impl BeefManager {
         info!(dir = %self.beef_dir.display(), "starting BeEF process");
 
         // 检查 Ruby 是否可用
-        let ruby_check = Command::new(&self.ruby_bin)
-            .arg("--version")
-            .output()
-            .await;
+        let ruby_check = Command::new(&self.ruby_bin).arg("--version").output().await;
         match ruby_check {
             Ok(output) => {
                 let version = String::from_utf8_lossy(&output.stdout);
@@ -148,7 +145,9 @@ impl BeefManager {
         if let Some(ref mut child) = *child_lock {
             info!("stopping BeEF process");
             // 先尝试优雅退出 (SIGTERM)
-            child.start_kill().map_err(|e| format!("kill failed: {}", e))?;
+            child
+                .start_kill()
+                .map_err(|e| format!("kill failed: {}", e))?;
 
             // 等待最多 5 秒
             for _ in 0..5 {
@@ -165,7 +164,10 @@ impl BeefManager {
             }
 
             // 强制杀死
-            child.kill().await.map_err(|e| format!("force kill failed: {}", e))?;
+            child
+                .kill()
+                .await
+                .map_err(|e| format!("force kill failed: {}", e))?;
             let _ = child.wait().await;
             info!("BeEF force killed");
         }
@@ -202,9 +204,7 @@ impl BeefManager {
                     true
                 }
             }
-            BeefStatus::Stopped | BeefStatus::Failed(_) => {
-                self.start().await.is_ok()
-            }
+            BeefStatus::Stopped | BeefStatus::Failed(_) => self.start().await.is_ok(),
             BeefStatus::Starting => true, // 已经在启动中
         }
     }

@@ -26,10 +26,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use lingshu_core::{LsContext, LsId, LsResult};
-use lingshu_traits::plugin::{
-    Plugin, PluginInfo, PluginManifest, PluginPermission, PluginStatus,
-};
-
+use lingshu_traits::plugin::{Plugin, PluginInfo, PluginManifest, PluginPermission, PluginStatus};
 
 /// BeEF 安全测试插件.
 pub struct BeefPlugin {
@@ -88,11 +85,7 @@ impl BeefPlugin {
 
     /// 使用自定义配置创建 BeEF 插件.
     pub fn with_config(config: BeefConfig) -> Self {
-        let manager = BeefManager::new(
-            config.beef_dir.clone(),
-            &config.ruby_bin,
-            config.port,
-        );
+        let manager = BeefManager::new(config.beef_dir.clone(), &config.ruby_bin, config.port);
 
         let manifest = PluginManifest {
             name: "beef-plugin".into(),
@@ -143,7 +136,9 @@ impl BeefPlugin {
     pub async fn client(&self) -> Result<api::BeefClient, String> {
         let base_url = format!("http://127.0.0.1:{}", self.config.port);
         let mut client = api::BeefClient::new(&base_url);
-        client.login(&self.config.username, &self.config.password).await?;
+        client
+            .login(&self.config.username, &self.config.password)
+            .await?;
         Ok(client)
     }
 
@@ -192,9 +187,10 @@ impl Plugin for BeefPlugin {
         );
 
         // 启动 BeEF 子进程
-        self.manager.start().await.map_err(|e| {
-            lingshu_core::LsError::Plugin(format!("BeEF start failed: {}", e))
-        })?;
+        self.manager
+            .start()
+            .await
+            .map_err(|e| lingshu_core::LsError::Plugin(format!("BeEF start failed: {}", e)))?;
 
         // 更新插件状态
         tracing::info!(
@@ -207,9 +203,10 @@ impl Plugin for BeefPlugin {
 
     async fn stop(&self, _ctx: LsContext) -> LsResult<()> {
         tracing::info!(plugin = "beef-plugin", "Stopping BeEF process...");
-        self.manager.stop().await.map_err(|e| {
-            lingshu_core::LsError::Plugin(format!("BeEF stop failed: {}", e))
-        })?;
+        self.manager
+            .stop()
+            .await
+            .map_err(|e| lingshu_core::LsError::Plugin(format!("BeEF stop failed: {}", e)))?;
         tracing::info!(plugin = "beef-plugin", "BeEF stopped");
         Ok(())
     }
@@ -222,11 +219,11 @@ impl Plugin for BeefPlugin {
 // ── Re-exports ──────────────────────────────────────
 
 pub use api::{
-    BeefClient, BeefLogEntry, BeefModule, BeefLogin, HookedBrowser,
-    ModuleExecRequest, ModuleExecResponse,
+    BeefClient, BeefLogEntry, BeefLogin, BeefModule, HookedBrowser, ModuleExecRequest,
+    ModuleExecResponse,
 };
-pub use manager::BeefStatus;
 pub use manager::BeefManager;
+pub use manager::BeefStatus;
 
 /// 创建一个预配置的 BeEF 插件实例（用于动态加载入口）.
 #[no_mangle]
@@ -268,7 +265,10 @@ mod tests {
         let plugin = BeefPlugin::new(PathBuf::from("/tmp/beef"));
         let status = plugin.plugin_status().await;
         assert_eq!(status["name"], "beef-plugin");
-        assert!(status["beef"]["status"].as_str().unwrap().contains("Stopped"));
+        assert!(status["beef"]["status"]
+            .as_str()
+            .unwrap()
+            .contains("Stopped"));
     }
 
     #[tokio::test]
@@ -277,6 +277,9 @@ mod tests {
         // 在没有 BeEF 服务时，is_alive 返回 false
         let client = BeefClient::new("http://127.0.0.1:19999");
         let result = client.is_alive().await;
-        assert!(!result, "Expected health check to fail when no BeEF is running");
+        assert!(
+            !result,
+            "Expected health check to fail when no BeEF is running"
+        );
     }
 }

@@ -94,7 +94,8 @@ impl AgentManager {
             &agent_id,
             &name,
             serde_json::json!({"status": "Idle"}),
-        ).await;
+        )
+        .await;
     }
 
     /// 获取 Agent 状态.
@@ -145,7 +146,8 @@ impl AgentManager {
             agent_id,
             &name,
             serde_json::json!({"status": "cancelled"}),
-        ).await;
+        )
+        .await;
         Ok(())
     }
 
@@ -201,7 +203,8 @@ impl AgentManager {
             agent_id,
             &entry.name,
             serde_json::json!({"status": "removed"}),
-        ).await;
+        )
+        .await;
         Ok(())
     }
 
@@ -241,19 +244,45 @@ mod tests {
 
     #[async_trait]
     impl Agent for TestAgent {
-        fn id(&self) -> LsId { self.id }
+        fn id(&self) -> LsId {
+            self.id
+        }
         async fn run(&mut self, _ctx: LsContext, _input: Value) -> LsResult<AgentOutput> {
             self.status = AgentStatus::Completed;
-            Ok(AgentOutput { agent_id: self.id, status: AgentStatus::Completed, data: Some(Value::Null), error: None })
+            Ok(AgentOutput {
+                agent_id: self.id,
+                status: AgentStatus::Completed,
+                data: Some(Value::Null),
+                error: None,
+            })
         }
-        async fn pause(&mut self, _ctx: LsContext) -> LsResult<()> { self.status = AgentStatus::Paused; Ok(()) }
-        async fn resume(&mut self, _ctx: LsContext) -> LsResult<()> { self.status = AgentStatus::Running; Ok(()) }
-        async fn cancel(&mut self, _ctx: LsContext) -> LsResult<()> { self.status = AgentStatus::Idle; Ok(()) }
+        async fn pause(&mut self, _ctx: LsContext) -> LsResult<()> {
+            self.status = AgentStatus::Paused;
+            Ok(())
+        }
+        async fn resume(&mut self, _ctx: LsContext) -> LsResult<()> {
+            self.status = AgentStatus::Running;
+            Ok(())
+        }
+        async fn cancel(&mut self, _ctx: LsContext) -> LsResult<()> {
+            self.status = AgentStatus::Idle;
+            Ok(())
+        }
         async fn snapshot(&self, _ctx: LsContext) -> LsResult<AgentSnapshot> {
-            Ok(AgentSnapshot { agent_id: self.id, status: self.status.clone(), context: LsContext::with_session(LsId::new()), state: Vec::new(), created_at: chrono::Utc::now() })
+            Ok(AgentSnapshot {
+                agent_id: self.id,
+                status: self.status.clone(),
+                context: LsContext::with_session(LsId::new()),
+                state: Vec::new(),
+                created_at: chrono::Utc::now(),
+            })
         }
-        async fn restore(&mut self, _ctx: LsContext, _snap: AgentSnapshot) -> LsResult<()> { Ok(()) }
-        async fn status(&self, _ctx: LsContext) -> LsResult<AgentStatus> { Ok(self.status.clone()) }
+        async fn restore(&mut self, _ctx: LsContext, _snap: AgentSnapshot) -> LsResult<()> {
+            Ok(())
+        }
+        async fn status(&self, _ctx: LsContext) -> LsResult<AgentStatus> {
+            Ok(self.status.clone())
+        }
     }
 
     #[tokio::test]
@@ -261,7 +290,15 @@ mod tests {
         let mgr = AgentManager::new();
         assert_eq!(mgr.count().await, 0);
         let id = LsId::new();
-        mgr.register(id, "test".into(), Box::new(TestAgent { id, status: AgentStatus::Idle })).await;
+        mgr.register(
+            id,
+            "test".into(),
+            Box::new(TestAgent {
+                id,
+                status: AgentStatus::Idle,
+            }),
+        )
+        .await;
         assert_eq!(mgr.count().await, 1);
         let list = mgr.list().await;
         assert_eq!(list.len(), 1);
@@ -272,7 +309,15 @@ mod tests {
     async fn test_pause_resume() {
         let mgr = AgentManager::new();
         let id = LsId::new();
-        mgr.register(id, "test".into(), Box::new(TestAgent { id, status: AgentStatus::Running })).await;
+        mgr.register(
+            id,
+            "test".into(),
+            Box::new(TestAgent {
+                id,
+                status: AgentStatus::Running,
+            }),
+        )
+        .await;
         let ctx = LsContext::with_session(LsId::new());
         mgr.pause(&id, &ctx).await.unwrap();
         assert_eq!(mgr.status(&id).await.unwrap(), AgentStatus::Paused);
@@ -284,7 +329,15 @@ mod tests {
     async fn test_remove() {
         let mgr = AgentManager::new();
         let id = LsId::new();
-        mgr.register(id, "test".into(), Box::new(TestAgent { id, status: AgentStatus::Idle })).await;
+        mgr.register(
+            id,
+            "test".into(),
+            Box::new(TestAgent {
+                id,
+                status: AgentStatus::Idle,
+            }),
+        )
+        .await;
         mgr.remove(&id).await.unwrap();
         assert_eq!(mgr.count().await, 0);
     }
@@ -301,11 +354,19 @@ mod tests {
 
     #[tokio::test]
     async fn test_with_event_bus() {
-        use lingshu_plugin::event::{EventType, EventBus};
+        use lingshu_plugin::event::{EventBus, EventType};
         let bus = Arc::new(lingshu_plugin::event::EventBus::new());
         let mgr = AgentManager::with_event_bus(bus.clone());
         let id = LsId::new();
-        mgr.register(id, "event-test".into(), Box::new(TestAgent { id, status: AgentStatus::Idle })).await;
+        mgr.register(
+            id,
+            "event-test".into(),
+            Box::new(TestAgent {
+                id,
+                status: AgentStatus::Idle,
+            }),
+        )
+        .await;
         assert_eq!(mgr.count().await, 1);
     }
 }

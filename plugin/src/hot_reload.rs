@@ -23,14 +23,9 @@ pub enum HotReloadEvent {
         version: String,
     },
     /// 插件加载失败 (旧版本保留).
-    Failed {
-        name: String,
-        error: String,
-    },
+    Failed { name: String, error: String },
     /// 插件已移除.
-    Removed {
-        name: String,
-    },
+    Removed { name: String },
 }
 
 /// 插件热重载监控器.
@@ -113,19 +108,12 @@ impl HotReloadWatcher {
                 }
 
                 match event.kind {
-                    EventKind::Create(_)
-                    | EventKind::Modify(_)
-                    | EventKind::Remove(_) => {
+                    EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_) => {
                         for path in &event.paths {
-                            let ext = path
-                                .extension()
-                                .and_then(|e| e.to_str())
-                                .unwrap_or("");
+                            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
 
-                            let should_watch = matches!(
-                                ext,
-                                "so" | "dylib" | "wasm" | "json" | "plugin"
-                            );
+                            let should_watch =
+                                matches!(ext, "so" | "dylib" | "wasm" | "json" | "plugin");
 
                             if !should_watch {
                                 continue;
@@ -133,8 +121,7 @@ impl HotReloadWatcher {
 
                             let now = tokio::time::Instant::now();
                             if let Some(last) = debounce.get(path) {
-                                if now.duration_since(*last) < tokio::time::Duration::from_secs(2)
-                                {
+                                if now.duration_since(*last) < tokio::time::Duration::from_secs(2) {
                                     continue;
                                 }
                             }
@@ -163,8 +150,7 @@ impl HotReloadWatcher {
                                                 .map(|e| path.ends_with(e))
                                                 .unwrap_or(false)
                                         {
-                                            let _ =
-                                                registry.unregister(&p.plugin_id).await;
+                                            let _ = registry.unregister(&p.plugin_id).await;
                                             let event = HotReloadEvent::Removed {
                                                 name: plugin_name.to_string(),
                                             };
@@ -176,12 +162,7 @@ impl HotReloadWatcher {
                                 }
                                 _ => {
                                     if let Err(e) = Self::reload_plugin(
-                                        &registry,
-                                        &loader,
-                                        &ctx,
-                                        path,
-                                        &on_event,
-                                        &event_tx,
+                                        &registry, &loader, &ctx, path, &on_event, &event_tx,
                                     )
                                     .await
                                     {
@@ -280,10 +261,7 @@ impl HotReloadWatcher {
             if let Some(lib_path) = lib_path {
                 let (info, lib) = unsafe { loader.load_dynamic(&lib_path)? };
                 let plugin_id = registry
-                    .register(
-                        create_dynamic_plugin(&lib, &info)?,
-                        Some(lib),
-                    )
+                    .register(create_dynamic_plugin(&lib, &info)?, Some(lib))
                     .await?;
                 registry.init_plugin(&plugin_id, ctx).await?;
                 registry.start_plugin(&plugin_id, ctx).await?;
@@ -298,10 +276,7 @@ impl HotReloadWatcher {
         } else {
             let (info, lib) = unsafe { loader.load_dynamic(path)? };
             let plugin_id = registry
-                .register(
-                    create_dynamic_plugin(&lib, &info)?,
-                    Some(lib),
-                )
+                .register(create_dynamic_plugin(&lib, &info)?, Some(lib))
                 .await?;
             registry.init_plugin(&plugin_id, ctx).await?;
             registry.start_plugin(&plugin_id, ctx).await?;
@@ -358,9 +333,7 @@ fn create_dynamic_plugin(
     unsafe {
         let create: libloading::Symbol<unsafe extern "C" fn() -> Box<dyn Plugin>> = lib
             .get(b"create_plugin")
-            .map_err(|e| {
-                LsError::Plugin(format!("symbol 'create_plugin' not found: {e}"))
-            })?;
+            .map_err(|e| LsError::Plugin(format!("symbol 'create_plugin' not found: {e}")))?;
         Ok(create())
     }
 }
