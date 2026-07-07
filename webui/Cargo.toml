@@ -17,3 +17,4 @@ gloo-net = "0.6"
 chrono = { workspace = true }
 gloo-console = "0.3"
 gloo-timers = "0.3"
+web-sys = { version = "0.3", features = ["HtmlInputElement"] }

@@ -25,11 +25,16 @@ pub fn sidebar(props: &SidebarProps) -> Html {
         let cb = props.on_navigate.clone();
         Callback::from(move |_| cb.emit(Page::Metrics))
     };
+    let on_click_plugins = {
+        let cb = props.on_navigate.clone();
+        Callback::from(move |_| cb.emit(Page::Plugins))
+    };
 
     let dash_class = if matches!(props.active_page, Page::Dashboard) { "active" } else { "" };
     let fed_class = if matches!(props.active_page, Page::Federation) { "active" } else { "" };
     let eval_class = if matches!(props.active_page, Page::EvalReports) { "active" } else { "" };
     let metrics_class = if matches!(props.active_page, Page::Metrics) { "active" } else { "" };
+    let plugins_class = if matches!(props.active_page, Page::Plugins) { "active" } else { "" };
 
     html! {
         <nav class="sidebar">
@@ -60,6 +65,12 @@ pub fn sidebar(props: &SidebarProps) -> Html {
                     <a class={metrics_class} onclick={on_click_metrics}>
                         <span class="nav-icon">{ "📈" }</span>
                         <span>{ " Metrics" }</span>
+                    </a>
+                </li>
+                <li>
+                    <a class={plugins_class} onclick={on_click_plugins}>
+                        <span class="nav-icon">{ "🧩" }</span>
+                        <span>{ " Plugins" }</span>
                     </a>
                 </li>
             </ul>

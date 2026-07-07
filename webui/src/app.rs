@@ -1,7 +1,7 @@
 use yew::prelude::*;
 
 use crate::components::sidebar::Sidebar;
-use crate::pages::{Page, Dashboard, Federation, EvalReports, Metrics};
+use crate::pages::{Page, Dashboard, Federation, EvalReports, Metrics, Plugins};
 
 #[function_component(App)]
 pub fn app() -> Html {
@@ -17,6 +17,7 @@ pub fn app() -> Html {
         Page::Federation => html! { <Federation /> },
         Page::EvalReports => html! { <EvalReports /> },
         Page::Metrics => html! { <Metrics /> },
+        Page::Plugins => html! { <Plugins /> },
     };
 
     html! {

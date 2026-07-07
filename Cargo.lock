@@ -2787,7 +2787,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -2842,7 +2842,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-audit"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -2859,7 +2859,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-backends"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -2886,7 +2886,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-billing"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -2905,7 +2905,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-code-analyzer"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -2927,7 +2927,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-config"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "lingshu-core",
  "serde",
@@ -2940,7 +2940,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-core"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -2955,7 +2955,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-credentials"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "aes-gcm",
  "async-trait",
@@ -2979,7 +2979,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-database"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3001,7 +3001,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-distributed"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3019,7 +3019,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-evaluator"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3037,7 +3037,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-eventbus"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3055,7 +3055,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-federation"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3079,7 +3079,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-knowledge-graph"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3096,7 +3096,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-mcp"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3115,7 +3115,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-memory"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3133,7 +3133,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-multimodal"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -3153,7 +3153,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-observability"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "bytes",
@@ -3180,7 +3180,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-orchestrator"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3201,7 +3201,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-plugin"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3229,7 +3229,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-polyglot"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3245,7 +3245,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-prompt"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3264,7 +3264,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-ratelimit"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3282,7 +3282,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-runtime"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3300,7 +3300,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-security"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -3320,7 +3320,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-storage"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3337,7 +3337,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-tests"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "axum 0.8.9",
@@ -3370,7 +3370,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-traits"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3386,7 +3386,7 @@ dependencies = [
 
 [[package]]
 name = "lingshu-websocket"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3415,6 +3415,7 @@ dependencies = [
  "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "web-sys",
  "yew",
 ]
 
