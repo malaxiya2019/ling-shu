@@ -1,0 +1,75 @@
+name: Build External Dependencies
+
+# 构建 LingShu 所需的外部依赖:
+#   - watch-skill (Python) → aarch64/amd64 wheel bundle for Termux/Linux
+#
+# 触发方式:
+#   - 手动触发 (workflow_dispatch) 选择版本
+#   - 发布新版本时自动触发
+
+on:
+  workflow_dispatch:
+    inputs:
+      watch-skill-ref:
+        description: "watch-skill git ref (branch/tag/commit)"
+        default: "main"
+        required: false
+      python-version:
+        description: "Python version"
+        default: "3.12"
+        type: choice
+        options: ["3.11", "3.12"]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-watch-skill:
+    name: Build watch-skill wheels
+    strategy:
+      matrix:
+        arch: [x86_64, aarch64]
+    runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    steps:
+      - name: Checkout watch-skill
+        uses: actions/checkout@v4
+        with:
+          repository: oxbshw/watch-skill
+          ref: ${{ github.event.inputs.watch-skill-ref || 'main' }}
+          path: watch-skill
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ github.event.inputs.python-version || '3.12' }}
+
+      - name: Build watch-skill wheel
+        run: uv build
+        working-directory: watch-skill
+
+      - name: Download dependency wheels
+        run: |
+          mkdir -p watch-skill/dist/deps
+          uv export --no-hashes --no-dev --extra api -o requirements.txt
+          pip download \
+            -r requirements.txt \
+            --platform ${{ matrix.arch == 'aarch64' && 'manylinux2014_aarch64' || 'manylinux2014_x86_64' }} \
+            --only-binary :all: \
+            --dest dist/deps/ \
+            --python-version ${{ github.event.inputs.python-version || '3.12' }} \
+            --no-deps || true
+        working-directory: watch-skill
+
+      - name: Bundle
+        run: |
+          cd watch-skill/dist
+          cp ../scripts/termux-install.sh . 2>/dev/null || true
+          tar czf ../../watch-skill-${{ matrix.arch }}-py${{ github.event.inputs.python-version || '3.12' }}.tar.gz \
+            *.whl deps/*.whl 2>/dev/null || true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: watch-skill-${{ matrix.arch }}
+          path: watch-skill-${{ matrix.arch }}-*.tar.gz
