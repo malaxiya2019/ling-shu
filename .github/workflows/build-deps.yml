@@ -1,75 +1,118 @@
 name: Build External Dependencies
 
-# 构建 LingShu 所需的外部依赖:
-#   - watch-skill (Python) → aarch64/amd64 wheel bundle for Termux/Linux
-#
-# 触发方式:
-#   - 手动触发 (workflow_dispatch) 选择版本
-#   - 发布新版本时自动触发
+# 构建 LingShu 所需的外部依赖（watch-skill）。
+# 在 CI 上先安装所有依赖，再逐一下载 aarch64 manylinux wheels，
+# 打包供 Termux 离线安装。
 
 on:
   workflow_dispatch:
     inputs:
-      watch-skill-ref:
-        description: "watch-skill git ref (branch/tag/commit)"
-        default: "main"
-        required: false
       python-version:
         description: "Python version"
         default: "3.12"
         type: choice
         options: ["3.11", "3.12"]
+      extras:
+        description: "Feature extras (comma-separated)"
+        default: "api"
 
 permissions:
   contents: write
-  packages: write
 
 jobs:
   build-watch-skill:
-    name: Build watch-skill wheels
+    name: Bundle watch-skill wheels
     strategy:
       matrix:
-        arch: [x86_64, aarch64]
-    runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+        include:
+          - platform: x86_64
+            runner: ubuntu-latest
+            pip_platform: manylinux2014_x86_64
+          - platform: aarch64
+            runner: ubuntu-latest
+            pip_platform: manylinux2014_aarch64
+    runs-on: ${{ matrix.runner }}
     steps:
-      - name: Checkout watch-skill
-        uses: actions/checkout@v4
-        with:
-          repository: oxbshw/watch-skill
-          ref: ${{ github.event.inputs.watch-skill-ref || 'main' }}
-          path: watch-skill
+      - uses: actions/checkout@v4
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
           python-version: ${{ github.event.inputs.python-version || '3.12' }}
 
-      - name: Build watch-skill wheel
-        run: uv build
-        working-directory: watch-skill
-
-      - name: Download dependency wheels
+      - name: Checkout and build watch-skill
         run: |
-          mkdir -p watch-skill/dist/deps
-          uv export --no-hashes --no-dev --extra api -o requirements.txt
-          pip download \
-            -r requirements.txt \
-            --platform ${{ matrix.arch == 'aarch64' && 'manylinux2014_aarch64' || 'manylinux2014_x86_64' }} \
-            --only-binary :all: \
-            --dest dist/deps/ \
-            --python-version ${{ github.event.inputs.python-version || '3.12' }} \
-            --no-deps || true
-        working-directory: watch-skill
+          git clone --depth 1 https://github.com/oxbshw/watch-skill.git /tmp/watch-skill
+          cd /tmp/watch-skill
+          uv build
+
+      - name: Install all deps to get locked dependency list
+        run: |
+          cd /tmp/watch-skill
+          EXTRAS="${{ github.event.inputs.extras || 'api' }}"
+          # 安装所有依赖
+          for extra in $(echo "$EXTRAS" | tr ',' ' '); do
+            uv sync --no-dev --extra "$extra"
+          done
+          # 导出 flat 依赖列表 (排除 watch-skill 自身)
+          uv pip freeze | grep -v "^watch-skill @ " | grep -v "^-e " > /tmp/requirements.txt
+          echo "=== Locked deps ==="
+          cat /tmp/requirements.txt
+
+      - name: Download aarch64 wheels
+        run: |
+          mkdir -p dist/deps
+          PLATFORM="${{ matrix.pip_platform }}"
+          echo "Downloading for platform: $PLATFORM"
+          while IFS= read -r pkg; do
+            [ -z "$pkg" ] && continue
+            echo "  → $pkg"
+            pip download \
+              "$pkg" \
+              --platform "$PLATFORM" \
+              --only-binary :all: \
+              --dest dist/deps/ \
+              --python-version ${{ github.event.inputs.python-version || '3.12' }} \
+              --no-deps \
+              2>&1 || echo "  [SKIP] no $PLATFORM wheel for: $pkg"
+          done < /tmp/requirements.txt
+
+      - name: Rename for Termux compatibility
+        if: matrix.platform == 'aarch64'
+        run: |
+          cd dist/deps
+          for whl in *.whl; do
+            [ -f "$whl" ] || continue
+            newname=$(echo "$whl" | sed 's/manylinux[0-9_]*/linux/g; s/musllinux[0-9_]*/linux/g')
+            [ "$whl" != "$newname" ] && mv -v "$whl" "$newname"
+          done
 
       - name: Bundle
         run: |
-          cd watch-skill/dist
-          cp ../scripts/termux-install.sh . 2>/dev/null || true
-          tar czf ../../watch-skill-${{ matrix.arch }}-py${{ github.event.inputs.python-version || '3.12' }}.tar.gz \
-            *.whl deps/*.whl 2>/dev/null || true
+          cd /tmp/watch-skill
+          mkdir -p dist 2>/dev/null
+          # 收集 wheel
+          cp ${{ github.workspace }}/dist/deps/*.whl dist/ 2>/dev/null || true
+          cp ${{ github.workspace }}/dist/*.whl dist/ 2>/dev/null || true
+          # 安装脚本
+          cat > dist/install-termux.sh << 'SCRIPT'
+          #!/data/data/com.termux/files/usr/bin/bash
+          set -euo pipefail
+          SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          pip install --no-index --find-links "$SCRIPT_DIR" --no-deps watch-skill
+          for whl in "$SCRIPT_DIR"/*.whl; do
+            pip install --no-index --find-links "$SCRIPT_DIR" --no-deps "$whl"
+          done
+          echo "✅ watch-skill installed. Run: watch-skill serve"
+          SCRIPT
+          chmod +x dist/install-termux.sh
+          # 打包
+          tar czf ${{ github.workspace }}/watch-skill-${{ matrix.platform }}-py${{ github.event.inputs.python-version || '3.12' }}.tar.gz \
+            -C dist .
+          ls -lh ${{ github.workspace }}/watch-skill-${{ matrix.platform }}-*.tar.gz
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: watch-skill-${{ matrix.arch }}
-          path: watch-skill-${{ matrix.arch }}-*.tar.gz
+          name: watch-skill-${{ matrix.platform }}
+          path: watch-skill-${{ matrix.platform }}-*.tar.gz
