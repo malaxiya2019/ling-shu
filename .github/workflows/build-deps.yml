@@ -34,17 +34,14 @@ jobs:
         with:
           python-version: ${{ github.event.inputs.python-version || '3.12' }}
 
-      - name: Build wheel & install deps
+      - name: Build & install
         working-directory: watch-skill
         run: |
           uv build
-          EXTRAS="${{ github.event.inputs.extras || 'api' }}"
-          for extra in $(echo "$EXTRAS" | tr ',' ' '); do
-            uv sync --no-dev --extra "$extra"
-          done
-          # freeze 使用与 sync 相同的 venv
-          uv pip freeze | grep -v "^watch-skill @ " > /tmp/requirements.txt
-          echo "=== $(wc -l < /tmp/requirements.txt) deps ==="
+          uv sync --no-dev --extra ${{ github.event.inputs.extras || 'api' }}
+          # 用 pip list 代替 uv pip freeze
+          $VIRTUAL_ENV/bin/pip list --format=freeze --exclude watch-skill > /tmp/requirements.txt
+          echo "DEPS: $(wc -l < /tmp/requirements.txt) packages"
 
       - name: Download ${{ matrix.pip_platform }} wheels
         run: |
@@ -56,30 +53,28 @@ jobs:
               --only-binary :all: \
               --dest /tmp/wheels \
               --python-version ${{ github.event.inputs.python-version || '3.12' }} \
-              --no-deps 2>&1 || echo "[SKIP] $pkg"
+              --no-deps 2>&1 | head -2 || echo "[SKIP] $pkg"
           done < /tmp/requirements.txt
+          echo "DOWNLOADS: $(ls /tmp/wheels/*.whl 2>/dev/null | wc -l) wheels"
 
-      - name: Rename for Termux (aarch64 only)
+      - name: Rename (aarch64)
         if: matrix.platform == 'aarch64'
         run: |
           cd /tmp/wheels
           for whl in *.whl; do
             [ -f "$whl" ] || continue
-            newname=$(echo "$whl" | sed -E 's/(manylinux|musllinux)[^.]*([.][^.]*)?/linux/g')
-            [ "$whl" != "$newname" ] && mv -v "$whl" "$newname" || true
+            nn=$(echo "$whl" | sed -E 's/(manylinux|musllinux)[^.]*([.][^.]*)?/linux/g')
+            [ "$whl" != "$nn" ] && mv -v "$whl" "$nn" || true
           done
 
       - name: Bundle
         run: |
           cp watch-skill/dist/*.whl /tmp/wheels/ 2>/dev/null || true
-          cat > /tmp/wheels/install-termux.sh << 'SCRIPT'
-          #!/data/data/com.termux/files/usr/bin/bash
-          set -euo pipefail
-          DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-          pip install --no-index --find-links "$DIR" watch-skill
-          echo "Done. Try: watch-skill doctor"
+          cat > /tmp/wheels/install.sh << 'SCRIPT'
+          #!/bin/sh
+          pip install --no-index --find-links "$(dirname "$0")" watch-skill
           SCRIPT
-          chmod +x /tmp/wheels/install-termux.sh
+          chmod +x /tmp/wheels/install.sh
           tar czf ${{ github.workspace }}/watch-skill-${{ matrix.platform }}.tar.gz -C /tmp/wheels .
           ls -lh ${{ github.workspace }}/watch-skill-${{ matrix.platform }}.tar.gz
 
