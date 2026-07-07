@@ -64,8 +64,10 @@ impl WasmSandbox {
         wasm_config.wasm_multi_value(true);
         wasm_config.wasm_memory64(true);
 
-        // 设置内存限制
-        wasm_config.max_memory_size(self.config.max_memory);
+        // 使用 memory_config 设置内存限制 (wasmtime 24.x API)
+        let mut mem_config = wasmtime::MemoryConfig::default();
+        mem_config.max_size(self.config.max_memory);
+        wasm_config.memory_config(mem_config);
 
         let engine = wasmtime::Engine::new(&wasm_config)
             .map_err(|e| LsError::Plugin(format!("failed to create WASM engine: {e}")))?;
@@ -98,14 +100,13 @@ impl WasmSandbox {
 
         // 根据配置选择性添加 WASI
         if self.config.enable_filesystem {
-            let wasi_ctx_builder = wasmtime_wasi::WasiCtxBuilder::new()
+            let mut wasi_ctx_builder = wasmtime_wasi::WasiCtxBuilder::new()
                 .inherit_stderr()
                 .inherit_stdout();
 
-            let mut wasi_ctx_builder = wasi_ctx_builder;
             for dir in &self.config.allowed_dirs {
                 wasi_ctx_builder = wasi_ctx_builder
-                    .preopened_dir(dir, dir)
+                    .preopened_dir(dir, dir, wasmtime_wasi::DirPerms::all(), wasmtime_wasi::FilePerms::all())
                     .map_err(|e| {
                         LsError::Plugin(format!("cannot preopen dir '{}': {e}", dir))
                     })?;
@@ -114,7 +115,8 @@ impl WasmSandbox {
             let wasi = wasi_ctx_builder.build();
             *store.data_mut() = Some(wasi);
 
-            wasmtime_wasi::add_to_linker(&mut linker, |state| state.as_mut().unwrap())
+            // wasmtime 24.x: sync::add_to_linker in preview2
+            wasmtime_wasi::sync::add_to_linker(&mut linker, |state| state.as_mut().unwrap())
                 .map_err(|e| LsError::Plugin(format!("failed to add WASI linker: {e}")))?;
         }
 
@@ -148,8 +150,6 @@ impl WasmSandbox {
         _function: &str,
         _args: &[u8],
     ) -> LsResult<Vec<u8>> {
-        // 实际调用 WASM 模块的导出函数
-        // 由于编译器差异，此处为占位实现
         Err(LsError::Plugin(
             "WASM plugin invocation not yet implemented".into(),
         ))
