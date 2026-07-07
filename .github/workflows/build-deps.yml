@@ -40,6 +40,8 @@ jobs:
           set -euo pipefail
           uv build
           uv sync --no-dev --extra "${{ github.event.inputs.extras || 'api' }}"
+          # Unset VIRTUAL_ENV so uv auto-discovers .venv in cwd (watch-skill/)
+          unset VIRTUAL_ENV
           uv pip freeze | grep -v '^watch-skill' > /tmp/requirements.txt
           echo "DEPS: $(wc -l < /tmp/requirements.txt) packages"
           head -5 /tmp/requirements.txt
