@@ -1,5 +1,6 @@
 use crate::api::client::{self, HealthResponse, PluginListResponse, VersionInfo};
 use crate::components::status_card::StatusCard;
+use crate::i18n::use_lang;
 use yew::prelude::*;
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -12,6 +13,8 @@ struct DashboardData {
 
 #[function_component(Dashboard)]
 pub fn dashboard() -> Html {
+    let lang = use_lang();
+    let strings = lang.strings;
     let data = use_state(DashboardData::default);
 
     {
@@ -19,7 +22,6 @@ pub fn dashboard() -> Html {
         use_effect_with((), move |_| {
             wasm_bindgen_futures::spawn_local(async move {
                 let mut d = DashboardData::default();
-                // Fetch health & version
                 match client::get_health().await {
                     Ok(h) => d.health = Some(h),
                     Err(e) => d.error = e,
@@ -35,7 +37,6 @@ pub fn dashboard() -> Html {
                         };
                     }
                 }
-                // Fetch plugins
                 match client::get_plugins().await {
                     Ok(p) => d.plugins = Some(p),
                     Err(e) => {
@@ -53,14 +54,20 @@ pub fn dashboard() -> Html {
         });
     }
 
-    let (status, version_str, uptime) = match (data.health.as_ref(), data.version.as_ref()) {
-        (Some(h), Some(v)) => (
-            if h.status == "ok" { "ok" } else { "warn" },
-            v.version.clone(),
-            h.uptime.clone(),
-        ),
-        _ => ("warn", "—".to_string(), "—".to_string()),
-    };
+    let (status, status_label, version_str, uptime) =
+        match (data.health.as_ref(), data.version.as_ref()) {
+            (Some(h), Some(v)) => (
+                if h.status == "ok" { "ok" } else { "warn" },
+                if h.status == "ok" {
+                    strings.dash_healthy
+                } else {
+                    strings.dash_degraded
+                },
+                v.version.clone(),
+                h.uptime.clone(),
+            ),
+            _ => ("warn", strings.dash_degraded, "—".to_string(), "—".to_string()),
+        };
 
     let plugin_count = data.plugins.as_ref().map(|p| p.total).unwrap_or(0);
     let active_plugins = data
@@ -74,32 +81,63 @@ pub fn dashboard() -> Html {
         })
         .unwrap_or(0);
 
+    let active_label = strings.dash_active_count.replace("{}", &active_plugins.to_string());
+
     html! {
         <div class="page">
-            <h1 class="page-title">{ "📊 Dashboard" }</h1>
+            <h1 class="page-title">{ strings.dash_title }</h1>
             if !data.error.is_empty() {
                 <div class="error-banner">{ data.error.as_str() }</div>
             }
             <div class="cards-row">
-                <StatusCard title="System Status"   value={if status == "ok" { "Healthy" } else { "Degraded" }.to_string()} status={Some(status.to_string())} icon={Some("🟢".to_string())} subtitle={Some(uptime)} />
-                <StatusCard title="Version"         value={version_str}   status={Some("ok".to_string())} icon={Some("🏷️".to_string())} />
-                <StatusCard title="Plugins"         value={plugin_count.to_string()} status={Some("ok".to_string())} icon={Some("🧩".to_string())} subtitle={Some(format!("{} active", active_plugins))} />
-                <StatusCard title="Active Sessions" value={"—".to_string()} status={Some("ok".to_string())} icon={Some("👤".to_string())} />
-                <StatusCard title="Agents"          value={"—".to_string()} status={Some("ok".to_string())} icon={Some("🤖".to_string())} />
+                <StatusCard
+                    title={strings.dash_system_status.to_string()}
+                    value={status_label.to_string()}
+                    status={Some(status.to_string())}
+                    icon={Some(if status == "ok" { "🟢".to_string() } else { "🟡".to_string() })}
+                    subtitle={Some(uptime)}
+                />
+                <StatusCard
+                    title={"Version".to_string()}
+                    value={version_str}
+                    status={Some("ok".to_string())}
+                    icon={Some("🏷️".to_string())}
+                />
+                <StatusCard
+                    title={strings.dash_plugins.to_string()}
+                    value={plugin_count.to_string()}
+                    status={Some("ok".to_string())}
+                    icon={Some("🧩".to_string())}
+                    subtitle={Some(active_label)}
+                />
+                <StatusCard
+                    title={strings.dash_active_sessions.to_string()}
+                    value={"—".to_string()}
+                    status={Some("ok".to_string())}
+                    icon={Some("👤".to_string())}
+                />
+                <StatusCard
+                    title={strings.dash_agents.to_string()}
+                    value={"—".to_string()}
+                    status={Some("ok".to_string())}
+                    icon={Some("🤖".to_string())}
+                />
             </div>
 
             if plugin_count > 0 {
                 <div class="section">
-                    <h2>{ "🧩 Installed Plugins" }</h2>
+                    <h2>{ strings.dash_installed_plugins }</h2>
                     <div class="plugin-mini-list">
                         { for data.plugins.as_ref().map(|p| &p.plugins).into_iter().flatten().map(|pl| {
-                            let status_class = if pl.status == "running" || pl.status == "active" { "p-status-on" } else { "p-status-off" };
+                            let is_on = pl.status == "running" || pl.status == "active";
+                            let status_class = if is_on { "p-status-on" } else { "p-status-off" };
+                            let badge_class = if is_on { "p-badge p-badge-on" } else { "p-badge p-badge-off" };
                             html! {
                                 <div class="plugin-mini-item">
                                     <span class={status_class}></span>
                                     <span class="p-name">{ &pl.name }</span>
                                     <span class="p-version">{ &pl.version }</span>
-                                    <span class={if pl.status == "running" || pl.status == "active" { "p-badge p-badge-on" } else { "p-badge p-badge-off" }}>{ &pl.status }</span>
+                                    <span class={badge_class}>{ &pl.status }</span>
                                 </div>
                             }
                         }) }
@@ -108,27 +146,27 @@ pub fn dashboard() -> Html {
             }
 
             <div class="section">
-                <h2>{ "📈 Quick Links" }</h2>
+                <h2>{ strings.dash_quick_links }</h2>
                 <div class="quick-links">
                     <div class="ql-card">
                         <span class="ql-icon">{"🌐"}</span>
-                        <span class="ql-text">{"Federation"}</span>
-                        <span class="ql-desc">{"View cluster status and peers"}</span>
+                        <span class="ql-text">{ strings.dash_ql_federation }</span>
+                        <span class="ql-desc">{ strings.dash_ql_federation_desc }</span>
                     </div>
                     <div class="ql-card">
                         <span class="ql-icon">{"📋"}</span>
-                        <span class="ql-text">{"Eval Reports"}</span>
-                        <span class="ql-desc">{"Browse evaluation results"}</span>
+                        <span class="ql-text">{ strings.dash_ql_eval }</span>
+                        <span class="ql-desc">{ strings.dash_ql_eval_desc }</span>
                     </div>
                     <div class="ql-card">
                         <span class="ql-icon">{"🧩"}</span>
-                        <span class="ql-text">{"Plugins"}</span>
-                        <span class="ql-desc">{"Manage plugins and hot reload"}</span>
+                        <span class="ql-text">{ strings.dash_ql_plugins }</span>
+                        <span class="ql-desc">{ strings.dash_ql_plugins_desc }</span>
                     </div>
                     <div class="ql-card">
                         <span class="ql-icon">{"📖"}</span>
-                        <span class="ql-text">{"API Docs"}</span>
-                        <span class="ql-desc">{"View API documentation"}</span>
+                        <span class="ql-text">{ strings.dash_ql_api_docs }</span>
+                        <span class="ql-desc">{ strings.dash_ql_api_docs_desc }</span>
                     </div>
                 </div>
             </div>

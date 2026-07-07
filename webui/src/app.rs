@@ -1,10 +1,20 @@
 use yew::prelude::*;
 
 use crate::components::sidebar::Sidebar;
+use crate::i18n::{use_lang, LanguageProvider};
 use crate::pages::{Dashboard, EvalReports, Federation, Metrics, Page, Plugins, Security};
 
 #[function_component(App)]
 pub fn app() -> Html {
+    html! {
+        <LanguageProvider>
+            <AppInner />
+        </LanguageProvider>
+    }
+}
+
+#[function_component(AppInner)]
+fn app_inner() -> Html {
     let page = use_state(|| Page::Dashboard);
 
     let on_navigate = {

@@ -4,6 +4,8 @@ use yew::prelude::*;
 
 #[function_component(EvalReports)]
 pub fn eval_reports() -> Html {
+    let lang = crate::i18n::use_lang();
+    let strings = lang.strings;
     let result = use_state(|| None::<EvalResultSummary>);
     let error = use_state(String::new);
 

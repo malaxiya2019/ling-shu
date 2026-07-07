@@ -1,9 +1,12 @@
 use crate::api::client::{self, MarketPluginEntry, MarketSearchResponse, PluginListItem};
+use crate::i18n::use_lang;
 use yew::prelude::*;
 
 #[function_component(Plugins)]
 pub fn plugins() -> Html {
-    // ── State ────────────────────────────────────────────
+    let lang = use_lang();
+    let strings = lang.strings;
+
     let installed = use_state(|| Vec::<PluginListItem>::new());
     let market_results = use_state(|| MarketSearchResponse {
         query: String::new(),
@@ -80,7 +83,6 @@ pub fn plugins() -> Html {
                             "Installed {} v{} in {}",
                             resp.name, resp.version, resp.path
                         ));
-                        // Refresh installed list
                         if let Ok(list) = client::get_plugins().await {
                             inst.set(list.plugins);
                         }
@@ -131,11 +133,11 @@ pub fn plugins() -> Html {
             let e = error.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 match client::start_plugin(&id).await {
-                    Ok(resp) => {
-                        s.set(format!("Plugin '{}' started", resp.name));
+                    Ok(_) => {
                         if let Ok(list) = client::get_plugins().await {
                             inst.set(list.plugins);
                         }
+                        s.set("Plugin started".into());
                     }
                     Err(err) => e.set(err),
                 }
@@ -153,11 +155,11 @@ pub fn plugins() -> Html {
             let e = error.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 match client::stop_plugin(&id).await {
-                    Ok(resp) => {
-                        s.set(format!("Plugin '{}' stopped", resp.name));
+                    Ok(_) => {
                         if let Ok(list) = client::get_plugins().await {
                             inst.set(list.plugins);
                         }
+                        s.set("Plugin stopped".into());
                     }
                     Err(err) => e.set(err),
                 }
@@ -175,11 +177,11 @@ pub fn plugins() -> Html {
             let e = error.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 match client::uninstall_plugin(&id).await {
-                    Ok(()) => {
-                        s.set("Plugin uninstalled".into());
+                    Ok(_) => {
                         if let Ok(list) = client::get_plugins().await {
                             inst.set(list.plugins);
                         }
+                        s.set("Plugin uninstalled".into());
                     }
                     Err(err) => e.set(err),
                 }
@@ -187,86 +189,99 @@ pub fn plugins() -> Html {
         })
     };
 
-    let on_toggle_market = {
-        let show_market = show_market.clone();
-        Callback::from(move |_| {
-            let sm = show_market.clone();
-            sm.set(!*sm);
-        })
-    };
-
-    // ── Render ───────────────────────────────────────────
-    let on_stop = on_stop_plugin.clone();
-    let on_start = on_start_plugin.clone();
-    let on_uninstall = on_uninstall_plugin.clone();
-    let installed_plugins = installed.iter().map(|p| {
-        let p_id = p.id.clone();
-        let p_id2 = p.id.clone();
-        let status_class = match p.status.as_str() {
-            "Running" | "running" => "status-running",
-            "Stopped" | "stopped" => "status-stopped",
+    // ── Render: Installed Plugin Cards ──────────────────
+    let installed_plugins = installed.iter().map(|pl| {
+        let status_class = match pl.status.as_str() {
+            "running" | "active" => "status-running",
+            "stopped" => "status-stopped",
             _ => "status-installed",
         };
+        let pid = pl.id.clone();
+        let pid2 = pl.id.clone();
+        let pid3 = pl.id.clone();
+        let on_start = {
+            let cb = on_start_plugin.clone();
+            Callback::from(move |_| cb.emit(pid.clone()))
+        };
+        let on_stop = {
+            let cb = on_stop_plugin.clone();
+            Callback::from(move |_| cb.emit(pid2.clone()))
+        };
+        let on_uninstall = {
+            let cb = on_uninstall_plugin.clone();
+            Callback::from(move |_| cb.emit(pid3.clone()))
+        };
+
         html! {
-            <div class="plugin-card" key={p.id.clone()}>
+            <div class="plugin-card" key={pl.id.clone()}>
                 <div class="plugin-card-header">
-                    <span class="plugin-name">{ &p.name }</span>
-                    <span class="plugin-version">{ &p.version }</span>
-                    <span class={classes!("plugin-status", status_class)}>{ &p.status }</span>
+                    <span class="plugin-name">{ &pl.name }</span>
+                    <span class="plugin-version">{ &pl.version }</span>
+                    <span class={format!("plugin-status {}", status_class)}>{ &pl.status }</span>
                 </div>
                 <div class="plugin-card-body">
-                    <p class="plugin-desc">{ &p.description }</p>
-                    { p.author.as_ref().map(|a| html!{ <span class="plugin-author">{ "by " }{ a }</span> }) }
+                    <div class="plugin-desc">{ &pl.description }</div>
                 </div>
                 <div class="plugin-card-actions">
-                    if p.status == "Running" || p.status == "running" {
-                        <button class="btn btn-sm btn-warning" onclick={let id = p_id; let cb = on_stop.clone(); move |_| cb.emit(id.clone())}>{ "⏹ Stop" }</button>
+                    if pl.status == "stopped" || pl.status == "installed" || pl.status == "loaded" {
+                        <button class="btn btn-sm btn-primary" onclick={on_start}>{ strings.plugins_start }</button>
                     } else {
-                        <button class="btn btn-sm btn-primary" onclick={let id = p_id.clone(); let cb = on_start.clone(); move |_| cb.emit(id.clone())}>{ "▶ Start" }</button>
+                        <button class="btn btn-sm btn-warning" onclick={on_stop}>{ strings.plugins_stop }</button>
                     }
-                    <button class="btn btn-sm btn-danger" onclick={let id = p_id2; let cb = on_uninstall.clone(); move |_| cb.emit(id.clone())}>{ "🗑 Uninstall" }</button>
+                    <button class="btn btn-sm btn-danger" onclick={on_uninstall}>{ strings.plugins_uninstall }</button>
                 </div>
             </div>
         }
     }).collect::<Html>();
 
-    let on_install = on_install_from_market.clone();
+    // ── Render: Market Cards ────────────────────────────
     let market_cards = market_results.plugins.iter().map(|entry| {
         let entry_data = entry.clone();
+        let on_install = {
+            let cb = on_install_from_market.clone();
+            Callback::from(move |_| cb.emit(entry_data.clone()))
+        };
+
+        let size_str = entry.size.map(format_size).unwrap_or_default();
+
         html! {
             <div class="market-card" key={entry.id.clone()}>
                 <div class="market-card-header">
                     <span class="plugin-name">{ &entry.name }</span>
                     <span class="plugin-version">{ &entry.version }</span>
-                </div>
-                <div class="market-card-body">
-                    <p class="plugin-desc">{ &entry.description }</p>
-                    { entry.author.as_ref().map(|a| html!{ <span class="plugin-author">{ "by " }{ a }</span> }) }
-                    if !entry.categories.is_empty() {
-                        <div class="plugin-tags">
-                            { entry.categories.iter().map(|c| html!{ <span class="tag">{ c }</span> }).collect::<Html>() }
-                        </div>
+                    if let Some(author) = &entry.author {
+                        <span class="plugin-author">{ author }</span>
                     }
                 </div>
+                <div class="market-card-body">
+                    <div class="plugin-desc">{ &entry.description }</div>
+                    <div class="plugin-tags">
+                        { for entry.tags.iter().map(|t| html!{ <span class="tag">{ t }</span> }) }
+                    </div>
+                </div>
                 <div class="market-card-footer">
-                    { entry.size.map(|s| html!{ <span class="plugin-size">{ format_size(s) }</span> }) }
-                    <button class="btn btn-sm btn-primary" onclick={let e = entry_data; let cb = on_install.clone(); move |_| cb.emit(e.clone())}>{ "📥 Install" }</button>
+                    if !size_str.is_empty() {
+                        <span class="plugin-size">{ size_str }</span>
+                    }
+                    <button class="btn btn-sm btn-primary" onclick={on_install}>{ strings.plugins_install }</button>
                 </div>
             </div>
         }
     }).collect::<Html>();
 
+    // ── Page Layout ─────────────────────────────────────
     html! {
         <div class="page">
             <div class="page-header">
-                <h1 class="page-title">{ "🧩 Plugins" }</h1>
+                <h1 class="page-title">{ strings.plugins_title }</h1>
                 <div class="header-actions">
-                    <button class={classes!("btn", "btn-sm", if *hot_reload { "btn-warning" } else { "btn-secondary" })}
-                            onclick={on_toggle_hot_reload}>
-                        { if *hot_reload { "⏹ Stop Hot Reload" } else { "▶ Start Hot Reload" } }
+                    <button class="btn btn-primary" onclick={let sm = show_market.clone(); Callback::from(move |_| sm.set(!*sm))}>
+                        { if *show_market { "← " } else { "" } }{ strings.plugins_market }
                     </button>
-                    <button class="btn btn-sm btn-primary" onclick={on_toggle_market}>
-                        { if *show_market { "📋 View Installed" } else { "🏪 Plugin Market" } }
+                    <button class={format!("btn {}",
+                        if *hot_reload { "btn-warning" } else { "btn-secondary" }
+                    )} onclick={on_toggle_hot_reload}>
+                        { if *hot_reload { strings.plugins_hot_reload_stop } else { strings.plugins_hot_reload_start } }
                     </button>
                 </div>
             </div>
@@ -279,33 +294,27 @@ pub fn plugins() -> Html {
             }
 
             if *show_market {
-                // ── Market Search ──────────────────────────
                 <div class="market-section">
                     <div class="search-bar">
                         <input type="text"
                             class="search-input"
-                            placeholder="Search plugins..."
+                            placeholder={strings.plugins_search_placeholder}
                             value={(*search_query).clone()}
                             oninput={on_search_input}
                         />
-                        <button class="btn btn-primary" onclick={on_search}>{ "🔍 Search" }</button>
+                        <button class="btn btn-primary" onclick={on_search}>{ strings.plugins_search_btn }</button>
                     </div>
-                    <div class="market-grid">
-                        { market_cards }
-                    </div>
+                    <div class="market-grid">{ market_cards }</div>
                     if market_results.total == 0 && !search_query.is_empty() {
-                        <p class="empty-state">{ "No plugins found. Try a different search term." }</p>
+                        <p class="empty-state">{ strings.plugins_no_results }</p>
                     }
                 </div>
             } else {
-                // ── Installed Plugins ──────────────────────
                 <div class="section">
-                    <h2>{ format!("Installed Plugins ({})", installed.len()) }</h2>
-                    <div class="plugin-grid">
-                        { installed_plugins }
-                    </div>
+                    <h2>{ format!("{} ({})", strings.plugins_installed, installed.len()) }</h2>
+                    <div class="plugin-grid">{ installed_plugins }</div>
                     if installed.is_empty() {
-                        <p class="empty-state">{ "No plugins installed. Visit the Plugin Market to find and install plugins." }</p>
+                        <p class="empty-state">{ strings.plugins_no_plugins }</p>
                     }
                 </div>
             }

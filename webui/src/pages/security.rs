@@ -5,6 +5,8 @@ use yew::prelude::*;
 
 #[function_component(Security)]
 pub fn security() -> Html {
+    let lang = crate::i18n::use_lang();
+    let strings = lang.strings;
     let status = use_state(|| None::<BeefStatusResponse>);
     let hooks = use_state(|| Vec::<BeefHookedBrowser>::new());
     let error = use_state(String::new);

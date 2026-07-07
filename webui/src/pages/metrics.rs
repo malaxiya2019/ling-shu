@@ -25,6 +25,8 @@ pub struct MetricsResponse {
 
 #[function_component(Metrics)]
 pub fn metrics() -> Html {
+    let lang = crate::i18n::use_lang();
+    let strings = lang.strings;
     let data = use_state(|| None::<MetricsResponse>);
     let error = use_state(String::new);
 

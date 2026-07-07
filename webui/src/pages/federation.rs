@@ -5,6 +5,8 @@ use yew::prelude::*;
 
 #[function_component(Federation)]
 pub fn federation() -> Html {
+    let lang = crate::i18n::use_lang();
+    let strings = lang.strings;
     let status = use_state(|| None::<FederationStatus>);
     let nodes = use_state(Vec::<FederationNodeInfo>::new);
     let error = use_state(String::new);
@@ -40,7 +42,7 @@ pub fn federation() -> Html {
 
     html! {
         <div class="page">
-            <h1 class="page-title">{ "🌐 Federation" }</h1>
+            <h1 class="page-title">{ strings.federation_title }</h1>
             if !error.is_empty() {
                 <div class="error-banner">{ error.as_str() }</div>
             }
