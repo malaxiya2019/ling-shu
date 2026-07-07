@@ -115,12 +115,11 @@ impl WasmSandbox {
 
         // 根据配置选择性添加 WASI
         let wasi_state = if self.config.enable_filesystem {
-            let mut wasi_ctx_builder = wasmtime_wasi::WasiCtxBuilder::new()
-                .inherit_stderr()
-                .inherit_stdout();
+            let mut wasi_ctx_builder = wasmtime_wasi::WasiCtxBuilder::new();
+            wasi_ctx_builder.inherit_stderr().inherit_stdout();
 
             for dir in &self.config.allowed_dirs {
-                wasi_ctx_builder = wasi_ctx_builder
+                wasi_ctx_builder
                     .preopened_dir(
                         dir,
                         dir,

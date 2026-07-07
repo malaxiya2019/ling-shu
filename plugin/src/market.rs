@@ -436,7 +436,7 @@ mod tests {
 
     #[test]
     fn test_market_plugin_entry_serialization() {
-        let entry = MarketPluginEntry {
+        let _entry = MarketPluginEntry {
             id: "test@1.0.0".into(),
             name: "test".into(),
             version: "1.0.0".into(),
@@ -542,7 +542,7 @@ mod tests {
         let download_path = tmp.path().join("test-plugin.plugin");
         std::fs::write(&download_path, plugin_content).unwrap();
 
-        let entry = MarketPluginEntry {
+        let _entry = MarketPluginEntry {
             id: "test-plugin@1.0.0".into(),
             name: "test-plugin".into(),
             version: "1.0.0".into(),
@@ -556,7 +556,7 @@ mod tests {
         };
 
         // For local file:// URL, use a mock download approach
-        let install_options = InstallOptions {
+        let _install_options = InstallOptions {
             target_dir: install_dir.clone(),
             skip_verify: true,
             force: true,
