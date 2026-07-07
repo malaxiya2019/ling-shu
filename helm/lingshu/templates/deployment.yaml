@@ -50,6 +50,16 @@ spec:
           volumeMounts:
             - name: plugins
               mountPath: {{ .Values.pluginMarket.installDir }}
+            {{- if .Values.beef.enabled }}
+            - name: LS_BEEF_ENABLED
+              value: "true"
+            - name: LS_BEEF_PORT
+              value: {{ .Values.beef.port | quote }}
+            - name: LS_BEEF_RUBY_BIN
+              value: {{ .Values.beef.rubyBin | quote }}
+            - name: LS_BEEF_INSTALL_DIR
+              value: {{ .Values.beef.installDir | quote }}
+            {{- end }}
           resources:
             limits:
               cpu: 200m
@@ -70,6 +80,11 @@ spec:
             {{- if .Values.federation.enabled }}
             - containerPort: {{ .Values.federation.port }}
               name: federation
+              protocol: TCP
+            {{- end }}
+            {{- if .Values.beef.enabled }}
+            - containerPort: {{ .Values.beef.port }}
+              name: beef
               protocol: TCP
             {{- end }}
           env:

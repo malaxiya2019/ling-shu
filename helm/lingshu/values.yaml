@@ -109,3 +109,21 @@ pluginMarket:
     enabled: true
     size: 2Gi
     storageClass: ""
+
+# ── BeEF Security Testing Plugin ──
+beef:
+  enabled: true
+  port: 3000
+  rubyBin: /usr/bin/ruby
+  installDir: /opt/beef
+  healthCheck:
+    enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 15
+  resources:
+    limits:
+      cpu: "1"
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 128Mi

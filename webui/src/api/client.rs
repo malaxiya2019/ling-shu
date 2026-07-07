@@ -353,3 +353,89 @@ pub async fn hot_reload_stop() -> Result<(), String> {
     if !resp.ok() { return Err(format!("HTTP {}", resp.status())); }
     Ok(())
 }
+
+// ── BeEF Security Testing API types ──────────────────
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct BeefStatusResponse {
+    pub status: String,
+    #[serde(default)]
+    pub pid: Option<u32>,
+    #[serde(default)]
+    pub port: Option<u16>,
+    #[serde(default)]
+    pub uptime_secs: Option<u64>,
+    #[serde(default)]
+    pub hooked_browsers: Option<usize>,
+    #[serde(default)]
+    pub modules_count: Option<usize>,
+    #[serde(default)]
+    pub error: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct BeefActionResponse {
+    pub success: bool,
+    pub message: String,
+    #[serde(default)]
+    pub status: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct BeefHookedBrowser {
+    pub id: String,
+    pub ip: String,
+    pub browser: String,
+    pub os: String,
+    pub hooked_at: String,
+    #[serde(default)]
+    pub domain: Option<String>,
+    #[serde(default)]
+    pub page_uri: Option<String>,
+    #[serde(default)]
+    pub status: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct BeefHooksResponse {
+    pub browsers: Vec<BeefHookedBrowser>,
+    pub total: usize,
+}
+
+pub async fn beef_status() -> Result<BeefStatusResponse, String> {
+    get_json::<BeefStatusResponse>("/v1/security/beef/status").await
+}
+
+pub async fn beef_start() -> Result<BeefActionResponse, String> {
+    let resp = Request::post("/v1/security/beef/start")
+        .send()
+        .await
+        .map_err(|e| format!("request failed: {e}"))?;
+    if !resp.ok() { return Err(format!("HTTP {}", resp.status())); }
+    resp.json::<BeefActionResponse>().await
+        .map_err(|e| format!("deserialize: {e}"))
+}
+
+pub async fn beef_stop() -> Result<BeefActionResponse, String> {
+    let resp = Request::post("/v1/security/beef/stop")
+        .send()
+        .await
+        .map_err(|e| format!("request failed: {e}"))?;
+    if !resp.ok() { return Err(format!("HTTP {}", resp.status())); }
+    resp.json::<BeefActionResponse>().await
+        .map_err(|e| format!("deserialize: {e}"))
+}
+
+pub async fn beef_restart() -> Result<BeefActionResponse, String> {
+    let resp = Request::post("/v1/security/beef/restart")
+        .send()
+        .await
+        .map_err(|e| format!("request failed: {e}"))?;
+    if !resp.ok() { return Err(format!("HTTP {}", resp.status())); }
+    resp.json::<BeefActionResponse>().await
+        .map_err(|e| format!("deserialize: {e}"))
+}
+
+pub async fn beef_hooks() -> Result<BeefHooksResponse, String> {
+    get_json::<BeefHooksResponse>("/v1/security/beef/hooks").await
+}

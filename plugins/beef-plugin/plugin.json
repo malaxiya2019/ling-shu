@@ -1,0 +1,34 @@
+{
+    "name": "beef-plugin",
+    "version": "1.0.0",
+    "description": "BeEF Browser Exploitation Framework — 浏览器安全测试与利用框架插件",
+    "author": "Lingshu Team",
+    "homepage": "https://beefproject.com",
+    "license": "Apache-2.0",
+    "plugin_type": "static",
+    "entry_point": null,
+    "permissions": [
+        {"resource": "process", "actions": ["spawn", "kill"]},
+        {"resource": "network", "actions": ["http"]},
+        {"resource": "file", "actions": ["read"]}
+    ],
+    "min_api_version": "1.0.0",
+    "categories": ["security", "testing", "browser-exploitation"],
+    "tags": ["beef", "security", "xss-testing", "phishing", "browser"],
+    "repository": "https://github.com/beefproject/beef",
+    "readme": "BeEF (Browser Exploitation Framework) plugin for Lingshu Agent System.\nProvides browser-based security testing capabilities through BeEF's REST API.",
+    "dependencies": [
+        {"name": "ruby", "version": ">= 3.0", "type": "system"},
+        {"name": "bundler", "type": "gem"}
+    ],
+    "setup": {
+        "instructions": "cd beef && gem install bundler && bundle install && ./install",
+        "required_system_packages": ["ruby", "ruby-dev", "libsqlite3-dev"]
+    },
+    "beef": {
+        "default_port": 3000,
+        "default_user": "beef",
+        "default_password": "beef",
+        "config_file": "config.yaml"
+    }
+}

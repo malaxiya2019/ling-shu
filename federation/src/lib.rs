@@ -18,21 +18,8 @@
 //! └──────────────────────────────────────────────────┘
 //! ```
 //!
-//! ## 快速开始
-//!
-//! ```ignore
-//! use lingshu_federation::*;
-//! use lingshu_core::LsId;
-//!
-//! let mut config = FederationConfig::default();
-//! config.cluster_name = "cluster-east".into();
-//! config.seed_nodes = vec!["10.0.0.1:9550".parse().unwrap()];
-//!
-//! let fed = Federation::new(LsId::new(), config).await;
-//! fed.start().await;
-//! fed.discover().await;
-//! let result = fed.execute("cluster-west", "code-analyzer", payload, 30).await;
-//! ```
+//! 通过可选的 Plugin EventBus 发布联邦事件（FederationNodeJoined/FederationNodeLeft/
+//! FederationSyncComplete）。
 
 pub mod discovery;
 pub mod executor;
@@ -73,6 +60,8 @@ pub struct Federation {
     stats: Arc<RwLock<FederationStats>>,
     /// 启动时间.
     started_at: chrono::DateTime<chrono::Utc>,
+    /// 可选的 Plugin EventBus（RwLock 支持 &self 方法）.
+    plugin_event_bus: RwLock<Option<Arc<lingshu_plugin::event::EventBus>>>,
 }
 
 impl Federation {
@@ -116,6 +105,25 @@ impl Federation {
             replicator,
             stats,
             started_at: chrono::Utc::now(),
+            plugin_event_bus: RwLock::new(None),
+        }
+    }
+
+    /// 设置 Plugin EventBus（运行时注入）.
+    pub async fn set_event_bus(&self, event_bus: Arc<lingshu_plugin::event::EventBus>) {
+        *self.plugin_event_bus.write().await = Some(event_bus);
+    }
+
+    /// 发布联邦事件到 Plugin EventBus.
+    async fn emit_event(
+        &self,
+        event_type: lingshu_plugin::event::EventType,
+        payload: serde_json::Value,
+    ) {
+        if let Some(ref bus) = *self.plugin_event_bus.read().await {
+            let source = format!("federation:{}", self.cluster_id);
+            let event = lingshu_plugin::event::Event::new(event_type, source, payload);
+            bus.publish(&event).await;
         }
     }
 
@@ -165,13 +173,33 @@ impl Federation {
 
         self.link_mgr.connect_all().await;
 
+        // 发布联邦启动事件
+        self.emit_event(
+            lingshu_plugin::event::EventType::FederationNodeJoined,
+            serde_json::json!({
+                "cluster_id": self.cluster_id.to_string(),
+                "cluster_name": self.config.cluster_name,
+                "action": "started",
+            }),
+        ).await;
+
         info!("federation started");
         Ok(())
     }
 
     /// 执行一次发现.
     pub async fn discover(&self) -> LsResult<Vec<FederationNode>> {
-        self.discovery_mgr.discover().await
+        let nodes = self.discovery_mgr.discover().await?;
+        if !nodes.is_empty() {
+            self.emit_event(
+                lingshu_plugin::event::EventType::FederationNodeJoined,
+                serde_json::json!({
+                    "nodes_discovered": nodes.len(),
+                    "cluster_id": self.cluster_id.to_string(),
+                }),
+            ).await;
+        }
+        Ok(nodes)
     }
 
     /// 在远端集群上执行.
@@ -207,6 +235,17 @@ impl Federation {
     /// 停止联邦所有后台任务（监听、心跳、发现）.
     pub async fn stop(&self) {
         info!("federation stopping");
+
+        // 发布联邦停止事件
+        self.emit_event(
+            lingshu_plugin::event::EventType::FederationNodeLeft,
+            serde_json::json!({
+                "cluster_id": self.cluster_id.to_string(),
+                "cluster_name": self.config.cluster_name,
+                "action": "stopped",
+            }),
+        ).await;
+
         self.link_mgr.stop().await;
         info!("federation stopped");
     }
@@ -232,5 +271,16 @@ mod tests {
         let fed = Federation::new(LsId::new(), config).await;
         let nodes = fed.online_nodes().await;
         assert!(nodes.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_with_event_bus() {
+        use lingshu_plugin::event::EventBus;
+        let bus = Arc::new(lingshu_plugin::event::EventBus::new());
+        let config = FederationConfig::default();
+        let fed = Federation::new(LsId::new(), config).await;
+        fed.set_event_bus(bus).await;
+        let stats = fed.stats().await;
+        assert_eq!(stats.connected_nodes, 0);
     }
 }

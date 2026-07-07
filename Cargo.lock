@@ -2803,6 +2803,7 @@ dependencies = [
  "hyper-util",
  "lingshu-audit",
  "lingshu-backends",
+ "lingshu-beef-plugin",
  "lingshu-billing",
  "lingshu-code-analyzer",
  "lingshu-config",
@@ -2825,6 +2826,7 @@ dependencies = [
  "lingshu-security",
  "lingshu-storage",
  "lingshu-traits",
+ "lingshu-watch-plugin",
  "lingshu-websocket",
  "mime_guess",
  "serde",
@@ -2881,6 +2883,23 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "lingshu-beef-plugin"
+version = "1.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "lingshu-core",
+ "lingshu-traits",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
  "uuid",
 ]
 
@@ -3064,6 +3083,7 @@ dependencies = [
  "lingshu-distributed",
  "lingshu-mcp",
  "lingshu-observability",
+ "lingshu-plugin",
  "lingshu-security",
  "lingshu-traits",
  "lingshu-websocket",
@@ -3206,6 +3226,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "flate2",
+ "futures",
  "hex",
  "libloading",
  "lingshu-core",
@@ -3289,6 +3310,7 @@ dependencies = [
  "lingshu-core",
  "lingshu-eventbus",
  "lingshu-observability",
+ "lingshu-plugin",
  "lingshu-security",
  "lingshu-traits",
  "serde",
@@ -3381,6 +3403,23 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "lingshu-watch-plugin"
+version = "1.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "lingshu-core",
+ "lingshu-traits",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
  "uuid",
 ]
 

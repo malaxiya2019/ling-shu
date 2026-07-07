@@ -27,6 +27,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use lingshu_watch_plugin;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing::info;
@@ -55,10 +56,15 @@ use crate::LingshuRuntime;
 
 pub struct AppState {
     pub runtime: Arc<LingshuRuntime>,
+    pub plugin_event_bus: Arc<lingshu_plugin::event::EventBus>,
     pub plugin_registry: Arc<PluginRegistry>,
     pub plugin_market: tokio::sync::RwLock<PluginMarket>,
     pub hot_reload_watcher: HotReloadWatcher,
+    /// BeEF 安全测试插件管理器.
+    pub beef_manager: Arc<tokio::sync::RwLock<Option<Arc<lingshu_beef_plugin::BeefManager>>>>,
     pub health_registry: Arc<HealthRegistry>,
+    /// Watch Skill 视频分析插件管理器.
+    pub watch_manager: Arc<tokio::sync::RwLock<Option<Arc<lingshu_watch_plugin::WatchManager>>>>,
     pub ws_manager: Arc<ConnectionManager>,
     pub sse_broadcaster: Arc<SseBroadcaster>,
     /// 文件存储 (多模态上传)
@@ -575,6 +581,125 @@ async fn openapi_json_handler() -> Json<serde_json::Value> {
                     "tags": ["Federation"],
                     "responses": { "200": { "description": "Execution result" } }
                 }
+            },
+            "/v1/plugins": {
+                "get": {
+                    "summary": "List installed plugins",
+                    "tags": ["Plugins"],
+                    "responses": { "200": { "description": "Plugin list" } }
+                },
+                "post": {
+                    "summary": "Install a static plugin",
+                    "tags": ["Plugins"],
+                    "responses": { "200": { "description": "Plugin installed" } }
+                }
+            },
+            "/v1/plugins/{id}": {
+                "get": {
+                    "summary": "Get plugin details",
+                    "tags": ["Plugins"],
+                    "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+                    "responses": { "200": { "description": "Plugin details" } }
+                },
+                "delete": {
+                    "summary": "Uninstall plugin",
+                    "tags": ["Plugins"],
+                    "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+                    "responses": { "200": { "description": "Plugin uninstalled" } }
+                }
+            },
+            "/v1/plugins/{id}/start": {
+                "post": {
+                    "summary": "Start a plugin",
+                    "tags": ["Plugins"],
+                    "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+                    "responses": { "200": { "description": "Plugin started" } }
+                }
+            },
+            "/v1/plugins/{id}/stop": {
+                "post": {
+                    "summary": "Stop a plugin",
+                    "tags": ["Plugins"],
+                    "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+                    "responses": { "200": { "description": "Plugin stopped" } }
+                }
+            },
+            "/v1/plugins/market/search": {
+                "get": {
+                    "summary": "Search plugin marketplace",
+                    "tags": ["Plugins"],
+                    "responses": { "200": { "description": "Market search results" } }
+                }
+            },
+            "/v1/plugins/market/install": {
+                "post": {
+                    "summary": "Install plugin from marketplace",
+                    "tags": ["Plugins"],
+                    "responses": { "200": { "description": "Market plugin installed" } }
+                }
+            },
+            "/v1/plugins/market/sources": {
+                "get": {
+                    "summary": "List market sources",
+                    "tags": ["Plugins"],
+                    "responses": { "200": { "description": "Market sources list" } }
+                }
+            },
+            "/v1/plugins/hotreload/start": {
+                "post": {
+                    "summary": "Start hot-reload watcher",
+                    "tags": ["Plugins"],
+                    "responses": { "200": { "description": "Hot-reload started" } }
+                }
+            },
+            "/v1/plugins/hotreload/stop": {
+                "post": {
+                    "summary": "Stop hot-reload watcher",
+                    "tags": ["Plugins"],
+                    "responses": { "200": { "description": "Hot-reload stopped" } }
+                }
+            },
+            "/v1/plugins/events": {
+                "get": {
+                    "summary": "SSE plugin lifecycle event stream",
+                    "tags": ["Plugins"],
+                    "responses": { "200": { "description": "SSE event stream" } }
+                }
+            },
+            "/v1/security/beef/status": {
+                "get": {
+                    "summary": "BeEF plugin status",
+                    "tags": ["Security"],
+                    "responses": { "200": { "description": "BeEF status" } }
+                }
+            },
+            "/v1/security/beef/start": {
+                "post": {
+                    "summary": "Start BeEF",
+                    "tags": ["Security"],
+                    "responses": { "200": { "description": "BeEF started" } }
+                }
+            },
+            "/v1/security/beef/stop": {
+                "post": {
+                    "summary": "Stop BeEF",
+                    "tags": ["Security"],
+                    "responses": { "200": { "description": "BeEF stopped" } }
+                }
+            },
+            "/v1/security/beef/restart": {
+                "post": {
+                    "summary": "Restart BeEF",
+                    "tags": ["Security"],
+                    "responses": { "200": { "description": "BeEF restarted" } }
+                }
+            },
+            "/v1/security/beef/hooks": {
+                "get": {
+                    "summary": "List BeEF hooked browsers",
+                    "tags": ["Security"],
+                    "responses": { "200": { "description": "Hooked browsers list" } }
+                }
             }
         }
     }))
@@ -834,6 +959,21 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         )
         .route("/v1/plugins/hotreload/start", post(hot_reload_start_handler))
         .route("/v1/plugins/hotreload/stop", post(hot_reload_stop_handler))
+        .route("/v1/plugins/events", get(plugin_events_handler))
+        // BeEF Security Testing API
+        .route("/v1/security/beef/status", get(beef_status_handler))
+        .route("/v1/security/beef/start", post(beef_start_handler))
+        .route("/v1/security/beef/stop", post(beef_stop_handler))
+        .route("/v1/security/beef/hooks", get(beef_hooks_handler))
+        .route("/v1/security/beef/restart", post(beef_restart_handler))
+        // Watch Skill Video Analysis API
+        .route("/v1/watch/status", get(watch_status_handler))
+        .route("/v1/watch/start", post(watch_start_handler))
+        .route("/v1/watch/stop", post(watch_stop_handler))
+        .route("/v1/watch/video", post(watch_video_handler))
+        .route("/v1/watch/ask", post(watch_ask_handler))
+        .route("/v1/watch/search", get(watch_search_handler))
+        .route("/v1/watch/videos", get(watch_list_videos_handler))
 
         // Knowledge Graph API
         .route(
@@ -1946,7 +2086,15 @@ async fn agent_run_handler(
         )
         .await;
 
+    let model_name = config.model.clone();
     let mut agent = lingshu_backends::DefaultAgent::new(config, llm.clone(), tools, None);
+
+    // 发布 Agent 启动事件到 Plugin EventBus
+    state.plugin_event_bus.publish(&lingshu_plugin::event::Event::new(
+        lingshu_plugin::event::EventType::AgentStarted,
+        format!("agent:{}", session_id_str),
+        serde_json::json!({"session_id": session_id_str, "model": model_name}),
+    )).await;
 
     match agent.run(ctx.clone(), req.input).await {
         Ok(output) => {
@@ -1984,6 +2132,13 @@ async fn agent_run_handler(
                     "status": format!("{:?}", output.status),
                 }),
             ));
+
+            // 发布 Agent 完成事件到 Plugin EventBus
+            state.plugin_event_bus.publish(&lingshu_plugin::event::Event::new(
+                lingshu_plugin::event::EventType::AgentCompleted,
+                format!("agent:{}", output.agent_id),
+                serde_json::json!({"agent_id": output.agent_id.to_string(), "status": format!("{:?}", output.status)}),
+            )).await;
             let status = match output.status {
                 lingshu_traits::agent::AgentStatus::Completed => "completed",
                 lingshu_traits::agent::AgentStatus::Failed => "failed",
@@ -2012,6 +2167,13 @@ async fn agent_run_handler(
                 )
                 .await;
 
+
+            // 发布 Agent 失败事件到 Plugin EventBus
+            state.plugin_event_bus.publish(&lingshu_plugin::event::Event::new(
+                lingshu_plugin::event::EventType::AgentFailed(format!("{}", e)),
+                format!("agent:{}", session_id_str),
+                serde_json::json!({"session_id": session_id_str, "error": format!("{}", e)}),
+            )).await;
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(json!({"error": format!("{e}")})),
@@ -2504,6 +2666,43 @@ async fn v2_events_handler(State(state): State<Arc<AppState>>) -> impl IntoRespo
                         yield Ok::<_, Infallible>(sse.id(id));
                     } else {
                         yield Ok::<_, Infallible>(sse);
+                    }
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                    yield Ok::<_, Infallible>(
+                        Event::default().event("lagged").data(json!({"skipped": n}).to_string())
+                    );
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+            }
+        }
+    };
+
+    Sse::new(stream).keep_alive(
+        axum::response::sse::KeepAlive::new()
+            .interval(std::time::Duration::from_secs(15))
+            .text("keep-alive"),
+    )
+}
+
+/// GET /v1/plugins/events — SSE plugin lifecycle event stream
+async fn plugin_events_handler(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let mut rx = state.sse_broadcaster.subscribe();
+
+    let stream = async_stream::stream! {
+        loop {
+            match rx.recv().await {
+                Ok(event) => {
+                    // Only forward plugin:event type events
+                    if event.event == "plugin:event" {
+                        let sse = Event::default()
+                            .event("plugin:event")
+                            .data(event.data.to_string());
+                        if let Some(id) = &event.id {
+                            yield Ok::<_, Infallible>(sse.id(id));
+                        } else {
+                            yield Ok::<_, Infallible>(sse);
+                        }
                     }
                 }
                 Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
@@ -3115,6 +3314,139 @@ async fn hot_reload_stop_handler(
     }
 }
 
+// ── BeEF Security Testing API ───────────────────────
+
+/// GET /v1/security/beef/status — 获取 BeEF 插件状态
+async fn beef_status_handler(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let manager_lock = state.beef_manager.read().await;
+    match &*manager_lock {
+        Some(manager) => {
+            let beef_status = manager.status().await;
+            Ok(Json(json!({
+                "plugin": "beef-plugin",
+                "version": "1.0.0",
+                "status": format!("{:?}", beef_status),
+                "online": matches!(beef_status, lingshu_beef_plugin::BeefStatus::Running { .. }),
+            })))
+        }
+        None => Ok(Json(json!({
+            "plugin": "beef-plugin",
+            "status": "NotRegistered",
+            "online": false,
+        }))),
+    }
+}
+
+/// POST /v1/security/beef/start — 启动 BeEF
+async fn beef_start_handler(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let manager_lock = state.beef_manager.read().await;
+    match &*manager_lock {
+        Some(manager) => {
+            manager.start().await.map_err(|e| {
+                (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e})))
+            })?;
+            let beef_status = manager.status().await;
+            Ok(Json(json!({
+                "status": "started",
+                "beef": format!("{:?}", beef_status),
+            })))
+        }
+        None => Err((
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "BeEF plugin not registered"})),
+        )),
+    }
+}
+
+/// POST /v1/security/beef/stop — 停止 BeEF
+async fn beef_stop_handler(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let manager_lock = state.beef_manager.read().await;
+    match &*manager_lock {
+        Some(manager) => {
+            manager.stop().await.map_err(|e| {
+                (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e})))
+            })?;
+            Ok(Json(json!({"status": "stopped"})))
+        }
+        None => Err((
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "BeEF plugin not registered"})),
+        )),
+    }
+}
+
+/// POST /v1/security/beef/restart — 重启 BeEF
+async fn beef_restart_handler(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let manager_lock = state.beef_manager.read().await;
+    match &*manager_lock {
+        Some(manager) => {
+            let _ = manager.stop().await;
+            manager.start().await.map_err(|e| {
+                (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e})))
+            })?;
+            Ok(Json(json!({"status": "restarted"})))
+        }
+        None => Err((
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "BeEF plugin not registered"})),
+        )),
+    }
+}
+
+/// GET /v1/security/beef/hooks — 获取被钩住的浏览器列表
+async fn beef_hooks_handler(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let manager_lock = state.beef_manager.read().await;
+    match &*manager_lock {
+        Some(manager) => {
+            let beef_status = manager.status().await;
+            match beef_status {
+                lingshu_beef_plugin::BeefStatus::Running { port, .. } => {
+                    let base_url = format!("http://127.0.0.1:{}", port);
+                    let mut client = lingshu_beef_plugin::BeefClient::new(&base_url);
+                    match client.login("beef", "beef").await {
+                        Ok(()) => {
+                            match client.list_hooks().await {
+                                Ok(browsers) => Ok(Json(json!({
+                                    "online": true,
+                                    "count": browsers.len(),
+                                    "hooks": browsers,
+                                }))),
+                                Err(e) => Err((
+                                    StatusCode::BAD_GATEWAY,
+                                    Json(json!({"error": format!("BeEF API error: {e}")})),
+                                )),
+                            }
+                        }
+                        Err(e) => Err((
+                            StatusCode::UNAUTHORIZED,
+                            Json(json!({"error": format!("BeEF auth failed: {e}")})),
+                        )),
+                    }
+                }
+                _ => Ok(Json(json!({
+                    "online": false,
+                    "count": 0,
+                    "hooks": [],
+                    "beef_status": format!("{:?}", beef_status),
+                }))),
+            }
+        }
+        None => Err((
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "BeEF plugin not registered"})),
+        )),
+    }
+}
 
 // ── File Upload & Analysis (多模态) ────────────────────
 
@@ -4412,6 +4744,7 @@ mod tests {
             credential_store,
         ));
 
+        let plugin_event_bus = Arc::new(lingshu_plugin::event::EventBus::new());
         let runtime = Arc::new(crate::LingshuRuntime {
             lifecycle,
             scheduler: InternalScheduler::new(16),
@@ -4474,13 +4807,16 @@ mod tests {
         );
         Arc::new(AppState {
             runtime,
-            plugin_registry: Arc::new(lingshu_plugin::PluginRegistry::new()),
+            plugin_event_bus: plugin_event_bus.clone(),
+            plugin_registry: Arc::new(lingshu_plugin::PluginRegistry::with_event_bus(plugin_event_bus)),
             plugin_market: tokio::sync::RwLock::new(
                 lingshu_plugin::market::PluginMarket::new(vec![], std::path::PathBuf::from("/tmp/test-plugins"))
             ),
             hot_reload_watcher: lingshu_plugin::hot_reload::HotReloadWatcher::new(
                 std::path::PathBuf::from("/tmp/test-plugins")
             ),
+            beef_manager: Arc::new(tokio::sync::RwLock::new(None)),
+            watch_manager: Arc::new(tokio::sync::RwLock::new(None)),
             health_registry,
             ws_manager: Arc::new(ConnectionManager::new(300)),
             sse_broadcaster: Arc::new(SseBroadcaster::new(1024)),
@@ -4697,5 +5033,192 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// Watch Skill API Handlers
+// ════════════════════════════════════════════════════════════════════════
+
+/// GET /v1/watch/status — 获取 Watch Skill 插件状态
+async fn watch_status_handler(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let manager_lock = state.watch_manager.read().await;
+    match &*manager_lock {
+        Some(manager) => {
+            let ws_status = manager.status().await;
+            Ok(Json(json!({
+                "plugin": "watch-plugin",
+                "version": "1.0.0",
+                "status": format!("{:?}", ws_status),
+                "online": matches!(ws_status, lingshu_watch_plugin::WatchStatus::Running { .. }),
+            })))
+        }
+        None => Ok(Json(json!({
+            "plugin": "watch-plugin",
+            "status": "NotRegistered",
+            "online": false,
+        }))),
+    }
+}
+
+/// POST /v1/watch/start — 启动 Watch Skill API 服务
+async fn watch_start_handler(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let manager_lock = state.watch_manager.read().await;
+    match &*manager_lock {
+        Some(manager) => {
+            manager.start().await.map_err(|e| {
+                (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e})))
+            })?;
+            let status = manager.status().await;
+            Ok(Json(json!({
+                "status": "started",
+                "watch_skill": format!("{:?}", status),
+            })))
+        }
+        None => Err((
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Watch plugin not registered"})),
+        )),
+    }
+}
+
+/// POST /v1/watch/stop — 停止 Watch Skill API 服务
+async fn watch_stop_handler(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let manager_lock = state.watch_manager.read().await;
+    match &*manager_lock {
+        Some(manager) => {
+            manager.stop().await.map_err(|e| {
+                (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e})))
+            })?;
+            Ok(Json(json!({"status": "stopped"})))
+        }
+        None => Err((
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Watch plugin not registered"})),
+        )),
+    }
+}
+
+/// POST /v1/watch/video — 观看视频
+#[derive(Debug, Deserialize)]
+struct WatchVideoRequest {
+    source: String,
+    question: Option<String>,
+    start: Option<String>,
+    end: Option<String>,
+}
+
+async fn watch_video_handler(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<WatchVideoRequest>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let manager_lock = state.watch_manager.read().await;
+    match &*manager_lock {
+        Some(manager) => {
+            let client = lingshu_watch_plugin::WatchClient::new(manager.api_base_url());
+            let watch_req = lingshu_watch_plugin::WatchRequest {
+                source: req.source,
+                question: req.question,
+                start: req.start,
+                end: req.end,
+                budget: None,
+                inline_frames: 2,
+            };
+            let resp = client.watch(&watch_req).await.map_err(|e| {
+                (StatusCode::BAD_GATEWAY, Json(json!({"error": e})))
+            })?;
+            Ok(Json(json!(resp)))
+        }
+        None => Err((
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Watch plugin not registered or not started"})),
+        )),
+    }
+}
+
+/// POST /v1/watch/ask — 询问视频内容
+#[derive(Debug, Deserialize)]
+struct WatchAskRequest {
+    video: String,
+    question: String,
+}
+
+async fn watch_ask_handler(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<WatchAskRequest>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let manager_lock = state.watch_manager.read().await;
+    match &*manager_lock {
+        Some(manager) => {
+            let client = lingshu_watch_plugin::WatchClient::new(manager.api_base_url());
+            let ask_req = lingshu_watch_plugin::AskRequest {
+                video: req.video,
+                question: req.question,
+                max_frames: 6,
+                inline_frames: 2,
+            };
+            let resp = client.ask(&ask_req).await.map_err(|e| {
+                (StatusCode::BAD_GATEWAY, Json(json!({"error": e})))
+            })?;
+            Ok(Json(json!(resp)))
+        }
+        None => Err((
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Watch plugin not registered or not started"})),
+        )),
+    }
+}
+
+/// GET /v1/watch/search — 跨视频搜索
+async fn watch_search_handler(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let query = params.get("q").map(|s| s.as_str()).unwrap_or("");
+    if query.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "query parameter 'q' is required"})),
+        ));
+    }
+    let manager_lock = state.watch_manager.read().await;
+    match &*manager_lock {
+        Some(manager) => {
+            let client = lingshu_watch_plugin::WatchClient::new(manager.api_base_url());
+            let results = client.search(query).await.map_err(|e| {
+                (StatusCode::BAD_GATEWAY, Json(json!({"error": e})))
+            })?;
+            Ok(Json(json!(results)))
+        }
+        None => Err((
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Watch plugin not registered or not started"})),
+        )),
+    }
+}
+
+/// GET /v1/watch/videos — 列出已索引视频
+async fn watch_list_videos_handler(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let manager_lock = state.watch_manager.read().await;
+    match &*manager_lock {
+        Some(manager) => {
+            let client = lingshu_watch_plugin::WatchClient::new(manager.api_base_url());
+            let videos = client.list_videos().await.map_err(|e| {
+                (StatusCode::BAD_GATEWAY, Json(json!({"error": e})))
+            })?;
+            Ok(Json(json!(videos)))
+        }
+        None => Err((
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Watch plugin not registered or not started"})),
+        )),
     }
 }

@@ -7,6 +7,7 @@ description = "LSRuntime — Runtime implementation: lifecycle, scheduler, sessi
 [dependencies]
 lingshu-core = { path = "../core" }
 lingshu-traits = { path = "../traits" }
+lingshu-plugin = { path = "../plugin" }
 lingshu-eventbus = { path = "../eventbus" }
 lingshu-security = { path = "../security" }
 lingshu-observability = { path = "../observability" }

@@ -1,3 +1,4 @@
+#![recursion_limit = "512"]
 //! 🚀 Lingshu Agent System — 主二进制入口
 //!
 //! 用法:
@@ -546,9 +547,14 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
         }
     }
 
+
+    let plugin_event_bus = Arc::new(lingshu_plugin::event::EventBus::new());
+    runtime.agent_manager.set_event_bus(plugin_event_bus.clone()).await;
+    runtime.federation.set_event_bus(plugin_event_bus.clone()).await;
     let state = Arc::new(AppState {
         runtime: runtime.clone(),
-        plugin_registry: Arc::new(lingshu_plugin::PluginRegistry::new()),
+        plugin_event_bus: plugin_event_bus.clone(),
+        plugin_registry: Arc::new(lingshu_plugin::PluginRegistry::with_event_bus(plugin_event_bus.clone())),
         plugin_market: tokio::sync::RwLock::new(
             lingshu_plugin::market::PluginMarket::new(
                 vec![
@@ -562,6 +568,8 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
         hot_reload_watcher: lingshu_plugin::hot_reload::HotReloadWatcher::new(
             std::path::PathBuf::from("plugins"),
         ),
+        beef_manager: Arc::new(tokio::sync::RwLock::new(None)),
+        watch_manager: Arc::new(tokio::sync::RwLock::new(None)),
         health_registry,
         ws_manager: Arc::new(ConnectionManager::new(300)),
         sse_broadcaster: Arc::new(SseBroadcaster::new(1024)),
@@ -572,6 +580,88 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
     // 桥接 MCP 进度通知到 SSE
     runtime.mcp_server.bridge_sse(state.sse_broadcaster.clone());
 
+    // 桥接 Plugin EventBus 到 SSE — 所有插件生命周期事件自动推送到 WebUI
+    {
+        let sse = state.sse_broadcaster.clone();
+        let eb = state.plugin_event_bus.clone();
+        tokio::spawn(async move {
+            use lingshu_plugin::event::{Event, EventType, EventCallback};
+            use lingshu_websocket::types::SseEvent;
+            let cb: EventCallback = Arc::new(move |event: Event| {
+                let data = serde_json::json!({
+                    "type": format!("{:?}", event.event_type),
+                    "source": event.source,
+                    "payload": event.payload,
+                    "timestamp": event.timestamp.to_rfc3339(),
+                });
+                let sse_event = SseEvent::new("plugin:event", data);
+                sse.publish(sse_event);
+            });
+            eb.registrar().register(
+                EventType::PluginInstalled,
+                cb.clone(),
+                "sse-bridge",
+            ).await;
+            eb.registrar().register(
+                EventType::PluginLoaded,
+                cb.clone(),
+                "sse-bridge",
+            ).await;
+            eb.registrar().register(
+                EventType::PluginStarted,
+                cb.clone(),
+                "sse-bridge",
+            ).await;
+            eb.registrar().register(
+                EventType::PluginStopped,
+                cb.clone(),
+                "sse-bridge",
+            ).await;
+            eb.registrar().register(
+                EventType::PluginUninstalled,
+                cb,
+                "sse-bridge",
+            ).await;
+        });
+    }
+
+    // 自动注册 BeEF 安全测试插件
+    {
+        let beef_manager = state.beef_manager.clone();
+        let plugin_registry = state.plugin_registry.clone();
+        let _plugin_event_bus = state.plugin_event_bus.clone();
+        tokio::spawn(async move {
+            match plugin_registry.register(Box::new(lingshu_beef_plugin::BeefPlugin::new(std::path::PathBuf::from("beef"))), None).await {
+                Ok(id) => {
+                    *beef_manager.write().await = Some(Arc::new(lingshu_beef_plugin::BeefManager::new(std::path::PathBuf::from("beef"), "ruby", 3000)));
+                    tracing::info!(plugin_id = %id, "BeEF security testing plugin registered");
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "Failed to register BeEF plugin (non-fatal)");
+                }
+            }
+        });
+    }
+
+    // 自动注册 Watch Skill 视频分析插件
+    {
+        let watch_manager = state.watch_manager.clone();
+        let plugin_registry = state.plugin_registry.clone();
+        let _plugin_event_bus = state.plugin_event_bus.clone();
+        tokio::spawn(async move {
+            let plugin = lingshu_watch_plugin::WatchPlugin::new("python3");
+            let manager = plugin.manager().clone();
+            match plugin_registry.register(Box::new(plugin), None).await {
+                Ok(id) => {
+                    *watch_manager.write().await = Some(manager);
+                    tracing::info!(plugin_id = %id, "Watch Skill video analysis plugin registered");
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "Failed to register Watch plugin (non-fatal)");
+                }
+            }
+        });
+    }
     let app = api::build_router(state);
 
     let listener = tokio::net::TcpListener::bind(addr)

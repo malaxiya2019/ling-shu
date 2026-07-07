@@ -16,6 +16,7 @@ chrono.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
+futures.workspace = true
 libloading = "0.8"
 semver = "1"
 reqwest = { version = "0.12", features = ["json"] }

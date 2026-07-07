@@ -1,0 +1,22 @@
+[package]
+name = "lingshu-beef-plugin"
+version = "1.0.0"
+edition.workspace = true
+description = "BeEF Browser Exploitation Framework — Lingshu security testing plugin"
+
+[lib]
+crate-type = ["lib", "cdylib"]
+
+[dependencies]
+lingshu-core = { path = "../../core" }
+lingshu-traits = { path = "../../traits" }
+
+async-trait.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tokio = { workspace = true, features = ["process", "signal", "sync"] }
+tracing.workspace = true
+thiserror.workspace = true
+reqwest = { version = "0.12", features = ["json"] }

@@ -13,6 +13,7 @@ pub mod sandbox;
 pub mod manifest;
 pub mod market;
 pub mod hot_reload;
+pub mod event;
 
 #[cfg(feature = "wasm")]
 pub mod wasm;
@@ -23,6 +24,7 @@ pub use manifest::{
 };
 pub use market::{InstallOptions, MarketPluginEntry, MarketSearchResult, PluginMarket, RegistrySource};
 pub use hot_reload::{HotReloadEvent, HotReloadWatcher};
+pub use event::{EventBus, EventType, Event, EventCallback, Registrar};
 
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -37,6 +39,7 @@ use tracing::info;
 /// 插件注册中心 — 线程安全的插件存储与生命周期管理.
 pub struct PluginRegistry {
     plugins: Arc<RwLock<HashMap<LsId, RegistryEntry>>>,
+    event_bus: Arc<event::EventBus>,
 }
 
 /// 注册中心中的插件条目.
@@ -51,7 +54,21 @@ impl PluginRegistry {
     pub fn new() -> Self {
         Self {
             plugins: Arc::new(RwLock::new(HashMap::new())),
+            event_bus: Arc::new(event::EventBus::new()),
         }
+    }
+
+    /// 使用指定 EventBus 创建插件注册中心.
+    pub fn with_event_bus(event_bus: Arc<event::EventBus>) -> Self {
+        Self {
+            plugins: Arc::new(RwLock::new(HashMap::new())),
+            event_bus,
+        }
+    }
+
+    /// 获取 EventBus 引用.
+    pub fn event_bus(&self) -> &Arc<event::EventBus> {
+        &self.event_bus
     }
 
     /// 注册一个插件 (静态或动态).
@@ -73,6 +90,7 @@ impl PluginRegistry {
 
         info.status = PluginStatus::Installed;
         info.loaded_at = Some(Utc::now());
+        let plugin_name = info.manifest.name.clone();
 
         map.insert(
             plugin_id,
@@ -84,6 +102,13 @@ impl PluginRegistry {
         );
 
         info!(plugin_id = %plugin_id, "plugin registered");
+        self.event_bus.publish(
+            &event::Event::new(
+                event::EventType::PluginInstalled,
+                format!("plugin:{}", plugin_name),
+                serde_json::json!({"plugin_id": plugin_id.to_string(), "name": &plugin_name}),
+            ),
+        ).await;
         Ok(plugin_id)
     }
 
@@ -141,6 +166,13 @@ impl PluginRegistry {
         entry.plugin.init(ctx.clone()).await?;
         entry.info.status = PluginStatus::Loaded;
         info!(plugin_id = %plugin_id, "plugin initialized");
+        self.event_bus.publish(
+            &event::Event::new(
+                event::EventType::PluginLoaded,
+                format!("plugin:{}", entry.info.manifest.name),
+                serde_json::json!({"plugin_id": plugin_id.to_string(), "name": entry.info.manifest.name}),
+            ),
+        ).await;
         Ok(())
     }
 
@@ -161,6 +193,13 @@ impl PluginRegistry {
         entry.plugin.start(ctx.clone()).await?;
         entry.info.status = PluginStatus::Running;
         info!(plugin_id = %plugin_id, "plugin started");
+        self.event_bus.publish(
+            &event::Event::new(
+                event::EventType::PluginStarted,
+                format!("plugin:{}", entry.info.manifest.name),
+                serde_json::json!({"plugin_id": plugin_id.to_string(), "name": entry.info.manifest.name}),
+            ),
+        ).await;
         Ok(())
     }
 
@@ -181,15 +220,29 @@ impl PluginRegistry {
         entry.plugin.stop(ctx.clone()).await?;
         entry.info.status = PluginStatus::Stopped;
         info!(plugin_id = %plugin_id, "plugin stopped");
+        self.event_bus.publish(
+            &event::Event::new(
+                event::EventType::PluginStopped,
+                format!("plugin:{}", entry.info.manifest.name),
+                serde_json::json!({"plugin_id": plugin_id.to_string(), "name": entry.info.manifest.name}),
+            ),
+        ).await;
         Ok(())
     }
 
     /// 卸载插件.
     pub async fn unregister(&self, plugin_id: &LsId) -> LsResult<()> {
         let mut map = self.plugins.write().await;
-        map.remove(plugin_id)
+        let removed = map.remove(plugin_id)
             .ok_or_else(|| LsError::PluginNotFound(plugin_id.to_string()))?;
         info!(plugin_id = %plugin_id, "plugin unregistered");
+        self.event_bus.publish(
+            &event::Event::new(
+                event::EventType::PluginUninstalled,
+                format!("plugin:{}", removed.info.manifest.name),
+                serde_json::json!({"plugin_id": plugin_id.to_string(), "name": removed.info.manifest.name}),
+            ),
+        ).await;
         Ok(())
     }
 

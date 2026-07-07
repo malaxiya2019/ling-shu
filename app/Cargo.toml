@@ -16,6 +16,8 @@ lingshu-database = { path = "../database" }
 lingshu-observability = { path = "../observability" }
 lingshu-backends = { path = "../backends" }
 lingshu-plugin = { path = "../plugin" }
+lingshu-beef-plugin = { path = "../plugins/beef-plugin" }
+lingshu-watch-plugin = { path = "../plugins/watch-plugin" }
 lingshu-memory = { path = "../memory" }
 lingshu-multimodal = { path = "../multimodal" }
 lingshu-ratelimit = { path = "../ratelimit" }

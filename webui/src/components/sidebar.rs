@@ -29,12 +29,17 @@ pub fn sidebar(props: &SidebarProps) -> Html {
         let cb = props.on_navigate.clone();
         Callback::from(move |_| cb.emit(Page::Plugins))
     };
+    let on_click_security = {
+        let cb = props.on_navigate.clone();
+        Callback::from(move |_| cb.emit(Page::Security))
+    };
 
     let dash_class = if matches!(props.active_page, Page::Dashboard) { "active" } else { "" };
     let fed_class = if matches!(props.active_page, Page::Federation) { "active" } else { "" };
     let eval_class = if matches!(props.active_page, Page::EvalReports) { "active" } else { "" };
     let metrics_class = if matches!(props.active_page, Page::Metrics) { "active" } else { "" };
     let plugins_class = if matches!(props.active_page, Page::Plugins) { "active" } else { "" };
+    let security_class = if matches!(props.active_page, Page::Security) { "active" } else { "" };
 
     html! {
         <nav class="sidebar">
@@ -71,6 +76,12 @@ pub fn sidebar(props: &SidebarProps) -> Html {
                     <a class={plugins_class} onclick={on_click_plugins}>
                         <span class="nav-icon">{ "🧩" }</span>
                         <span>{ " Plugins" }</span>
+                    </a>
+                </li>
+                <li>
+                    <a class={security_class} onclick={on_click_security}>
+                        <span class="nav-icon">{ "🕷️" }</span>
+                        <span>{ " Security" }</span>
                     </a>
                 </li>
             </ul>
