@@ -37,9 +37,10 @@ jobs:
       - name: Build & export deps
         working-directory: watch-skill
         run: |
+          set -euo pipefail
           uv build
-          uv sync --no-dev --extra ${{ github.event.inputs.extras || 'api' }}
-          uv pip freeze | grep -v "^watch-skill @ " > /tmp/requirements.txt
+          uv sync --no-dev --extra "${{ github.event.inputs.extras || 'api' }}"
+          uv pip freeze | grep -v '^watch-skill' > /tmp/requirements.txt
           echo "DEPS: $(wc -l < /tmp/requirements.txt) packages"
           head -5 /tmp/requirements.txt
 
