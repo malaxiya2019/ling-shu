@@ -26,25 +26,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          repository: oxbshw/watch-skill
+          path: watch-skill
+
       - uses: astral-sh/setup-uv@v5
         with:
           python-version: ${{ github.event.inputs.python-version || '3.12' }}
 
-      - name: Clone & build watch-skill
+      - name: Build wheel & install deps
+        working-directory: watch-skill
         run: |
-          git clone --depth 1 https://github.com/oxbshw/watch-skill.git /tmp/watch-skill
-          cd /tmp/watch-skill
           uv build
           EXTRAS="${{ github.event.inputs.extras || 'api' }}"
           for extra in $(echo "$EXTRAS" | tr ',' ' '); do
             uv sync --no-dev --extra "$extra"
           done
-
-      - name: Export locked deps (direct pip)
-        run: |
-          $VIRTUAL_ENV/bin/pip freeze | grep -v "^watch-skill @ " > /tmp/requirements.txt || true
+          # freeze 使用与 sync 相同的 venv
+          uv pip freeze | grep -v "^watch-skill @ " > /tmp/requirements.txt
           echo "=== $(wc -l < /tmp/requirements.txt) deps ==="
-          cat /tmp/requirements.txt
 
       - name: Download ${{ matrix.pip_platform }} wheels
         run: |
@@ -71,7 +71,7 @@ jobs:
 
       - name: Bundle
         run: |
-          cp /tmp/watch-skill/dist/*.whl /tmp/wheels/ 2>/dev/null || true
+          cp watch-skill/dist/*.whl /tmp/wheels/ 2>/dev/null || true
           cat > /tmp/wheels/install-termux.sh << 'SCRIPT'
           #!/data/data/com.termux/files/usr/bin/bash
           set -euo pipefail
