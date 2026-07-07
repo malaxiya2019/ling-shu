@@ -45,3 +45,4 @@ docs/output/
 # ── Temporary files ──
 tmp/
 *.tmp
+AGENTS.md
