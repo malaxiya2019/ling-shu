@@ -32,16 +32,19 @@ jobs:
 
       - name: Clone & build watch-skill
         run: |
-          mkdir -p /tmp/watch-skill
+          git clone --depth 1 https://github.com/oxbshw/watch-skill.git /tmp/watch-skill
           cd /tmp/watch-skill
-          git clone --depth 1 https://github.com/oxbshw/watch-skill.git .
           uv build
           EXTRAS="${{ github.event.inputs.extras || 'api' }}"
           for extra in $(echo "$EXTRAS" | tr ',' ' '); do
             uv sync --no-dev --extra "$extra"
           done
-          uv pip freeze | grep -v "^watch-skill @ " > /tmp/requirements.txt
-          echo "=== $(wc -l < /tmp/requirements.txt) locked deps ==="
+
+      - name: Export locked deps (direct pip)
+        run: |
+          $VIRTUAL_ENV/bin/pip freeze | grep -v "^watch-skill @ " > /tmp/requirements.txt || true
+          echo "=== $(wc -l < /tmp/requirements.txt) deps ==="
+          cat /tmp/requirements.txt
 
       - name: Download ${{ matrix.pip_platform }} wheels
         run: |
