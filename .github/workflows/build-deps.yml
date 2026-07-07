@@ -38,9 +38,11 @@ jobs:
         working-directory: watch-skill
         run: |
           uv build
-          # uv export 从 uv.lock 生成 requirements.txt，无需 install
-          uv export --no-dev --extra ${{ github.event.inputs.extras || 'api' }} -o /tmp/requirements.txt
+          uv export --no-dev --extra ${{ github.event.inputs.extras || 'api' }} -o /tmp/requirements_raw.txt
+          # 清理 uv export 输出: 去掉注释(#)、hash行(--hash)、空行、行尾反斜杠
+          sed -e '/^#/d' -e '/^--hash=/d' -e '/^$/d' -e 's/ \\$//' /tmp/requirements_raw.txt > /tmp/requirements.txt
           echo "DEPS: $(wc -l < /tmp/requirements.txt) packages"
+          head -10 /tmp/requirements.txt
 
       - name: Download ${{ matrix.pip_platform }} wheels
         run: |
