@@ -34,17 +34,13 @@ jobs:
         with:
           python-version: ${{ github.event.inputs.python-version || '3.12' }}
 
-      - name: Build & install
+      - name: Build & export deps
         working-directory: watch-skill
         run: |
           uv build
-          uv sync --no-dev --extra ${{ github.event.inputs.extras || 'api' }}
-          # uv 不使用标准 venv/bin/pip，用 uv tool 或 uv run
-          uv run --frozen pip list --format=freeze 2>/dev/null | grep -v "^watch-skill @ " > /tmp/requirements.txt || \
-            uv pip freeze 2>/dev/null | grep -v "^watch-skill @ " > /tmp/requirements.txt || \
-            true
+          # uv export 从 uv.lock 生成 requirements.txt，无需 install
+          uv export --no-dev --extra ${{ github.event.inputs.extras || 'api' }} -o /tmp/requirements.txt
           echo "DEPS: $(wc -l < /tmp/requirements.txt) packages"
-          head -5 /tmp/requirements.txt
 
       - name: Download ${{ matrix.pip_platform }} wheels
         run: |
