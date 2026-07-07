@@ -1,0 +1,27 @@
+[package]
+name = "lingshu-federation"
+version.workspace = true
+edition.workspace = true
+description = "LSFed — 跨集群联邦通信: 发现、连接、远程 Agent 执行、状态复制"
+
+[dependencies]
+lingshu-core = { path = "../core" }
+lingshu-traits = { path = "../traits" }
+lingshu-distributed = { path = "../distributed" }
+lingshu-mcp = { path = "../mcp" }
+lingshu-websocket = { path = "../websocket" }
+lingshu-security = { path = "../security" }
+lingshu-observability = { path = "../observability" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tokio = { workspace = true, features = ["sync", "time", "net", "io-util"] }
+tokio-util = { workspace = true }
+tracing.workspace = true
+thiserror.workspace = true
+dashmap = "6"
+
+[dev-dependencies]
+tracing-subscriber.workspace = true

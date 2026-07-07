@@ -1,0 +1,19 @@
+[package]
+name = "lingshu-webui"
+version = "1.0.0"
+edition = "2021"
+description = "Lingshu WebUI — 内置管理面板"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+yew = { version = "0.21", features = ["csr"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+gloo-net = "0.6"
+chrono = { workspace = true }
+gloo-console = "0.3"
+gloo-timers = "0.3"

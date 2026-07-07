@@ -71,7 +71,8 @@ fn build_openai(config: &LlmConfig) -> Box<dyn Llm> {
                 "llm: using OpenAI provider (model: {})",
                 config.default_model
             );
-            Box::new(crate::OpenAiLlm::new(key, &config.default_model, None))
+            let base_url = std::env::var("OPENAI_BASE_URL").ok();
+            Box::new(crate::OpenAiLlm::new(key, &config.default_model, base_url))
         }
         None => {
             tracing::warn!("OPENAI_API_KEY not set for 'openai' provider, falling back to Mock");

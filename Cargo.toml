@@ -22,6 +22,9 @@ members = [
     "memory", "mcp", "multimodal",
     "ratelimit", "billing", "audit", "prompt",
     "knowledge-graph", "code-analyzer", "credentials",
+    "evaluator",
+    "federation",
+    "webui",
 ]
 
 [workspace.package]
@@ -43,6 +46,9 @@ tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
 thiserror = "2"
+tokio-util = { version = "0.7", features = ["rt"] }
+tonic = "0.12"
+prost = "0.13"
 
 [profile.release]
 opt-level = 3

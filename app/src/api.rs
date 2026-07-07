@@ -15,8 +15,11 @@
 use lingshu_traits::EventBus;
 use std::sync::Arc;
 
+use lingshu_evaluator;
+use lingshu_federation;
 use axum::{
     extract::{ws, Path, State, WebSocketUpgrade},
+    response::Redirect,
     http::{header, Method, StatusCode},
     response::{Html, Json},
     routing::{get, post},
@@ -35,7 +38,7 @@ use axum::response::{
 use futures::stream::Stream;
 use futures::stream::StreamExt;
 use lingshu_audit::{AuditEntry, AuditEventType, AuditLogStore};
-use lingshu_core::{LsContext, LsId};
+use lingshu_core::{LsContext, LsError, LsId, LsResult};
 use lingshu_observability::health::HealthRegistry;
 use lingshu_plugin::PluginRegistry;
 use lingshu_traits::llm::{LlmMessage, LlmRequest, LlmRole};
@@ -60,6 +63,8 @@ pub struct AppState {
     pub file_store: Arc<tokio::sync::RwLock<Vec<FileRecord>>>,
     /// 凭证管理 (多 Git 提供商)
     pub credential_manager: std::sync::Arc<lingshu_credentials::CredentialManager>,
+    /// JWT 认证服务 (用于 Admin / WebUI 面板)
+    pub jwt_service: lingshu_security::auth::JwtService,
 }
 
 // ── Response Types ──────────────────────────────────
@@ -251,6 +256,517 @@ struct EmbedOutput {
 
 // ── Router ──────────────────────────────────────────
 
+
+// ── API Documentation ─────────────────────────────────
+
+/// Render HTML API documentation page.
+async fn docs_handler() -> Html<&'static str> {
+    Html(r#"<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lingshu API Documentation</title>
+  <style>
+    body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; max-width: 900px; margin: 0 auto; padding: 2rem; background: #0d1117; color: #c9d1d9; }
+    h1 { color: #58a6ff; border-bottom: 1px solid #30363d; padding-bottom: 0.5rem; }
+    h2 { color: #79c0ff; margin-top: 2rem; }
+    h3 { color: #c9d1d9; }
+    code { background: #161b22; padding: 0.2em 0.4em; border-radius: 4px; font-size: 0.9em; }
+    pre { background: #161b22; padding: 1rem; border-radius: 6px; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #30363d; }
+    th { color: #58a6ff; }
+    .method { display: inline-block; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.8em; }
+    .get { background: #1f6feb33; color: #58a6ff; }
+    .post { background: #23863633; color: #3fb950; }
+    .tag { background: #30363d; color: #8b949e; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; }
+    a { color: #58a6ff; }
+  </style>
+</head>
+<body>
+  <h1>📖 Lingshu API Reference</h1>
+  <p>Base URL: <code>http://&lt;host&gt;:8080</code></p>
+  <p>See <a href="/docs/openapi.json">OpenAPI JSON</a> for machine-readable spec.</p>
+
+  <h2>Core</h2>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/health</code></td><td>Health check</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/metrics</code></td><td>Prometheus metrics</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/version</code></td><td>Version info</td></tr>
+  </table>
+
+  <h2>Chat</h2>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/models</code></td><td>List available models</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/chat/completions</code></td><td>OpenAI-compatible chat completion</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/chat</code></td><td>Internal chat</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v2/chat/stream</code></td><td>Streaming chat</td></tr>
+  </table>
+
+  <h2>Agent</h2>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/agent/run</code></td><td>Run an agent</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/agents</code></td><td>List agents</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/agents/{id}</code></td><td>Get agent status</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/agents/{id}/pause</code></td><td>Pause agent</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/agents/{id}/resume</code></td><td>Resume agent</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/agents/{id}/cancel</code></td><td>Cancel agent</td></tr>
+  </table>
+
+  <h2>Embeddings</h2>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/embeddings</code></td><td>OpenAI-compatible embeddings</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/embed</code></td><td>Internal embed</td></tr>
+  </table>
+
+  <h2>WebSocket & SSE</h2>
+  <table>
+    <tr><th>Path</th><th>Description</th></tr>
+    <tr><td><code>/ws</code></td><td>WebSocket connection</td></tr>
+    <tr><td><code>/v2/ws</code></td><td>V2 WebSocket</td></tr>
+    <tr><td><code>/v2/events</code></td><td>SSE events</td></tr>
+  </table>
+
+  <h2>MCP</h2>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/mcp</code></td><td>MCP protocol endpoint</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/mcp/tools</code></td><td>List MCP tools</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/mcp/ui</code></td><td>MCP admin UI</td></tr>
+  </table>
+
+  <h2>Files (多模态)</h2>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/files/upload</code></td><td>Upload file</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/files/analyze</code></td><td>Analyze file</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/files</code></td><td>List files</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/files/{id}</code></td><td>Get file</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/chat/multimodal</code></td><td>Multimodal chat</td></tr>
+  </table>
+
+  <h2>Plugins</h2>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/plugins</code></td><td>List plugins</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/plugins</code></td><td>Install plugin</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/plugins/{id}</code></td><td>Get plugin</td></tr>
+    <tr><td><span class="method delete">DELETE</span></td><td><code>/v1/plugins/{id}</code></td><td>Uninstall plugin</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/plugins/{id}/start</code></td><td>Start plugin</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/plugins/{id}/stop</code></td><td>Stop plugin</td></tr>
+  </table>
+
+  <h2>Knowledge Graph</h2>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/graph/{project}</code></td><td>Query graph</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/graph/{project}</code></td><td>Analyze graph</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/graph/{project}/view</code></td><td>View graph</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/projects</code></td><td>List projects</td></tr>
+  </table>
+
+  <h2>Credentials</h2>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/credentials</code></td><td>List credentials</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/credentials</code></td><td>Create credential</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/credentials/{id}</code></td><td>Get credential</td></tr>
+    <tr><td><span class="method put">PUT</span></td><td><code>/v1/credentials/{id}</code></td><td>Update credential</td></tr>
+    <tr><td><span class="method delete">DELETE</span></td><td><code>/v1/credentials/{id}</code></td><td>Delete credential</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/credentials/{id}/token</code></td><td>Get credential token</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/credentials/{id}/validate</code></td><td>Validate credential</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/credentials/providers</code></td><td>List providers</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/credentials/ui</code></td><td>Credentials UI</td></tr>
+  </table>
+
+  <h2>Evaluator (ES)</h2>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/eval/run</code></td><td>Run evaluation</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/eval/result</code></td><td>Get evaluation result</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/eval/regression</code></td><td>Regression analysis</td></tr>
+  </table>
+
+  <h2>Federation (Fed)</h2>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/federation/status</code></td><td>Federation status</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/federation/nodes</code></td><td>List federated nodes</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/federation/execute</code></td><td>Remote execution</td></tr>
+  </table>
+</body>
+</html>"#)
+}
+
+/// Return OpenAPI 3.0 JSON spec.
+async fn openapi_json_handler() -> Json<serde_json::Value> {
+    Json(serde_json::json!({
+        "openapi": "3.0.3",
+        "info": {
+            "title": "Lingshu API",
+            "version": "1.0.0",
+            "description": "Lingshu Agent System — 多协议端点 API"
+        },
+        "servers": [{"url": "http://localhost:8080", "description": "Local dev"}],
+        "paths": {
+            "/health": {
+                "get": {
+                    "summary": "Health check",
+                    "tags": ["Core"],
+                    "responses": { "200": { "description": "OK" } }
+                }
+            },
+            "/metrics": {
+                "get": {
+                    "summary": "Prometheus metrics",
+                    "tags": ["Core"],
+                    "responses": { "200": { "description": "Metrics text" } }
+                }
+            },
+            "/version": {
+                "get": {
+                    "summary": "Version info",
+                    "tags": ["Core"],
+                    "responses": { "200": { "description": "Version JSON" } }
+                }
+            },
+            "/v1/models": {
+                "get": {
+                    "summary": "List models",
+                    "tags": ["Chat"],
+                    "responses": { "200": { "description": "Model list" } }
+                }
+            },
+            "/v1/chat/completions": {
+                "post": {
+                    "summary": "Chat completion (OpenAI compatible)",
+                    "tags": ["Chat"],
+                    "responses": { "200": { "description": "Chat response" } }
+                }
+            },
+            "/v1/chat": {
+                "post": {
+                    "summary": "Internal chat",
+                    "tags": ["Chat"],
+                    "responses": { "200": { "description": "Chat response" } }
+                }
+            },
+            "/v1/embeddings": {
+                "post": {
+                    "summary": "Create embeddings (OpenAI compatible)",
+                    "tags": ["Embeddings"],
+                    "responses": { "200": { "description": "Embedding response" } }
+                }
+            },
+            "/v1/embed": {
+                "post": {
+                    "summary": "Internal embed",
+                    "tags": ["Embeddings"],
+                    "responses": { "200": { "description": "Embed response" } }
+                }
+            },
+            "/v1/agent/run": {
+                "post": {
+                    "summary": "Run agent",
+                    "tags": ["Agent"],
+                    "responses": { "200": { "description": "Agent run result" } }
+                }
+            },
+            "/v1/agents": {
+                "get": {
+                    "summary": "List agents",
+                    "tags": ["Agent"],
+                    "responses": { "200": { "description": "Agent list" } }
+                }
+            },
+            "/v1/agents/{id}": {
+                "get": {
+                    "summary": "Get agent status",
+                    "tags": ["Agent"],
+                    "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+                    "responses": { "200": { "description": "Agent status" } }
+                },
+                "post": {
+                    "summary": "Pause/resume/cancel agent",
+                    "tags": ["Agent"],
+                    "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+                    "responses": { "200": { "description": "Action result" } }
+                }
+            },
+            "/ws": {
+                "get": {
+                    "summary": "WebSocket connection",
+                    "tags": ["WebSocket"],
+                    "responses": { "101": { "description": "Upgraded" } }
+                }
+            },
+            "/v1/mcp": {
+                "post": {
+                    "summary": "MCP protocol endpoint",
+                    "tags": ["MCP"],
+                    "responses": { "200": { "description": "MCP response" } }
+                }
+            },
+            "/v1/mcp/tools": {
+                "get": {
+                    "summary": "List MCP tools",
+                    "tags": ["MCP"],
+                    "responses": { "200": { "description": "Tool list" } }
+                }
+            },
+            "/v1/files": {
+                "get": {
+                    "summary": "List files",
+                    "tags": ["Files"],
+                    "responses": { "200": { "description": "File list" } }
+                },
+                "post": {
+                    "summary": "Upload file",
+                    "tags": ["Files"],
+                    "responses": { "200": { "description": "Upload result" } }
+                }
+            },
+            "/v1/files/{id}": {
+                "get": {
+                    "summary": "Get file by ID",
+                    "tags": ["Files"],
+                    "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+                    "responses": { "200": { "description": "File data" } }
+                }
+            },
+            "/v1/eval/run": {
+                "post": {
+                    "summary": "Run evaluation",
+                    "tags": ["Evaluator"],
+                    "responses": { "200": { "description": "Eval result" } }
+                }
+            },
+            "/v1/eval/result": {
+                "get": {
+                    "summary": "Get evaluation result",
+                    "tags": ["Evaluator"],
+                    "responses": { "200": { "description": "Eval result" } }
+                }
+            },
+            "/v1/federation/status": {
+                "get": {
+                    "summary": "Federation status",
+                    "tags": ["Federation"],
+                    "responses": { "200": { "description": "Status info" } }
+                }
+            },
+            "/v1/federation/nodes": {
+                "get": {
+                    "summary": "List federated nodes",
+                    "tags": ["Federation"],
+                    "responses": { "200": { "description": "Node list" } }
+                }
+            },
+            "/v1/federation/execute": {
+                "post": {
+                    "summary": "Execute on remote cluster",
+                    "tags": ["Federation"],
+                    "responses": { "200": { "description": "Execution result" } }
+                }
+            }
+        }
+    }))
+}
+/// Server-rendered admin dashboard page.
+/// Fetches live data from REST API via JavaScript.
+async fn admin_handler() -> Html<String> {
+    Html(format!(r##"<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lingshu Admin Dashboard</title>
+  <style>
+    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+    body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0d1117; color: #c9d1d9; font-size: 14px; }}
+    #app {{ display: flex; min-height: 100vh; }}
+    .sidebar {{ width: 240px; background: #161b22; border-right: 1px solid #30363d; padding: 1.2rem 0; flex-shrink: 0; }}
+    .sidebar .logo {{ padding: 0 1.5rem 1rem; border-bottom: 1px solid #30363d; margin-bottom: 0.5rem; font-size: 1.1rem; font-weight: 700; color: #58a6ff; }}
+    .sidebar nav a {{ display: block; padding: 0.6rem 1.5rem; color: #8b949e; text-decoration: none; transition: background 0.15s; }}
+    .sidebar nav a:hover, .sidebar nav a.active {{ background: #1f2937; color: #c9d1d9; }}
+    .main {{ flex: 1; padding: 2rem; }}
+    h1 {{ font-size: 1.5rem; margin-bottom: 1.5rem; color: #c9d1d9; }}
+    .cards {{ display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }}
+    .card {{ background: #161b22; border-radius: 8px; padding: 1rem 1.2rem; min-width: 160px; border-left: 3px solid #58a6ff; }}
+    .card.ok {{ border-left-color: #3fb950; }}
+    .card.warn {{ border-left-color: #d29922; }}
+    .card.err {{ border-left-color: #f85149; }}
+    .card .lbl {{ font-size: 0.75rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.04em; }}
+    .card .val {{ font-size: 1.5rem; font-weight: 700; margin-top: 0.3rem; }}
+    .card .sub {{ font-size: 0.8rem; color: #6e7681; margin-top: 0.2rem; }}
+    .section {{ margin: 2rem 0; }}
+    .section h2 {{ font-size: 1.1rem; color: #c9d1d9; margin-bottom: 0.8rem; }}
+    table {{ width: 100%; border-collapse: collapse; }}
+    th, td {{ text-align: left; padding: 0.5rem; border-bottom: 1px solid #21262d; }}
+    th {{ color: #58a6ff; font-size: 0.8rem; text-transform: uppercase; }}
+    td {{ color: #c9d1d9; }}
+    code {{ background: #161b22; padding: 0.15em 0.4em; border-radius: 3px; font-size: 0.85em; }}
+    .badge {{ display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; }}
+    .badge.online {{ background: #23863633; color: #3fb950; }}
+    .badge.offline {{ background: #f8514933; color: #f85149; }}
+    .badge.degraded {{ background: #d2992233; color: #d29922; }}
+    .error-box {{ background: #f8514933; color: #f85149; padding: 0.5rem 1rem; border-radius: 6px; margin-bottom: 1rem; }}
+    .topo-svg {{ display: block; margin: 1rem auto; max-width: 400px; }}
+    .legend {{ display: flex; justify-content: center; gap: 1rem; margin-top: 0.5rem; font-size: 0.8rem; color: #8b949e; }}
+    .legend .dot {{ display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }}
+    #loading {{ text-align: center; padding: 3rem; color: #6e7681; }}
+    .error-detail {{ margin-top: 1rem; padding: 0.5rem; background: #161b22; border-radius: 6px; color: #8b949e; font-family: monospace; }}
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="sidebar">
+      <div class="logo">⚡ Lingshu</div>
+      <nav>
+        <a href='#' class="active" data-page="dashboard">📊 Dashboard</a>
+        <a href='#' data-page="federation">🌐 Federation</a>
+        <a href='#' data-page="eval">📋 Eval Reports</a>
+        <a href="/docs">📖 API Docs</a>
+      </nav>
+    </div>
+    <div class="main" id="main-content">
+      <div id="loading"><p>Loading...</p></div>
+    </div>
+  </div>
+
+  <script>
+    (function() {{
+      const main = document.getElementById('main-content');
+      const navLinks = document.querySelectorAll('.sidebar nav a');
+
+      async function loadPage(page) {{
+        navLinks.forEach(a => a.classList.remove('active'));
+        navLinks.forEach(a => {{ if (a.dataset.page === page) a.classList.add('active'); }});
+        main.innerHTML = '<div id="loading"><p>Loading...</p></div>';
+        try {{
+          if (page === 'dashboard') await renderDashboard();
+          else if (page === 'federation') await renderFederation();
+          else if (page === 'eval') await renderEval();
+        }} catch(e) {{
+          main.innerHTML = '<div class="error-box">⚠ Error: ' + e.message + '</div>';
+        }}
+      }}
+
+      async function api(path) {{
+        const r = await fetch(path);
+        if (!r.ok) throw new Error(path + ' returned ' + r.status);
+        return r.json();
+      }}
+
+      function card(label, value, status, subtitle) {{
+        return '<div class="card ' + (status||'ok') + '"><div class="lbl">' + label + '</div><div class="val">' + value + '</div>' +
+          (subtitle ? '<div class="sub">' + subtitle + '</div>' : '') + '</div>';
+      }}
+
+      async function renderDashboard() {{
+        let [health, version] = await Promise.all([
+          api('/health').catch(() => null),
+          api('/version').catch(() => null)
+        ]);
+        let status = health && health.status === 'ok' ? 'ok' : 'warn';
+        main.innerHTML =
+          '<h1>📊 Dashboard</h1>' +
+          '<div class="cards">' +
+            card('System Status', status === 'ok' ? 'Healthy' : 'Degraded', status, health ? health.uptime : '—') +
+            card('Version', version ? version.version : '—', 'ok') +
+          '</div>';
+      }}
+
+      async function renderFederation() {{
+        let [status, nodes] = await Promise.all([
+          api('/v1/federation/status').catch(() => null),
+          api('/v1/federation/nodes').catch(() => []),
+        ]);
+        let html = '<h1>🌐 Federation</h1><div class="cards">';
+        if (status) {{
+          html += card('Status', status.enabled ? 'Enabled' : 'Disabled', status.enabled ? 'ok' : 'warn');
+          html += card('Nodes', status.node_count, 'ok');
+          html += card('Uptime', status.uptime_secs + 's', 'ok');
+        }} else {{
+          html += card('Status', 'Unavailable', 'err');
+        }}
+        html += '</div>';
+
+        if (nodes.length > 0) {{
+          const cx = 200, cy = 200, r = 130;
+          let svg = '<svg viewBox="0 0 400 400" class="topo-svg">';
+          nodes.forEach((n, i) => {{
+            const angle = 2 * Math.PI * i / nodes.length;
+            const x = cx + r * Math.cos(angle);
+            const y = cy + r * Math.sin(angle);
+            svg += '<line x1="' + cx + '" y1="' + cy + '" x2="' + x + '" y2="' + y + '" stroke="#30363d" stroke-width="2"/>';
+          }});
+          svg += '<circle cx="' + cx + '" cy="' + cy + '" r="18" fill="#1f6feb"/>';
+          svg += '<text x="' + cx + '" y="' + cy + '" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="10" font-weight="bold">hub</text>';
+          nodes.forEach((n, i) => {{
+            const angle = 2 * Math.PI * i / nodes.length;
+            const x = cx + r * Math.cos(angle);
+            const y = cy + r * Math.sin(angle);
+            const fill = n.status === 'online' ? '#238636' : n.status === 'offline' ? '#f85149' : '#d29922';
+            svg += '<circle cx="' + x + '" cy="' + y + '" r="16" fill="' + fill + '"/>';
+            svg += '<text x="' + x + '" y="' + y + '" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="8" font-weight="bold">' +
+              n.name.substring(0, 4) + '</text>';
+          }});
+          svg += '</svg>';
+          svg += '<div class="legend"><span><span class="dot" style="background:#238636"></span> Online</span>' +
+            '<span><span class="dot" style="background:#d29922"></span> Degraded</span>' +
+            '<span><span class="dot" style="background:#f85149"></span> Offline</span></div>';
+          html += '<div class="section"><h2>📋 Peer Nodes</h2>' + svg + '</div>';
+
+          html += '<table><thead><tr><th>Name</th><th>Address</th><th>Status</th><th>Capabilities</th></tr></thead><tbody>';
+          nodes.forEach(n => {{
+            html += '<tr><td>' + n.name + '</td><td><code>' + n.addr + '</code></td>' +
+              '<td><span class="badge ' + n.status + '">' + n.status + '</span></td>' +
+              '<td>' + (n.capabilities || []).join(', ') + '</td></tr>';
+          }});
+          html += '</tbody></table>';
+        }}
+        main.innerHTML = html;
+      }}
+
+      async function renderEval() {{
+        let result = await api('/v1/eval/result').catch(() => null);
+        let html = '<h1>📋 Evaluation Reports</h1>';
+        if (result) {{
+          const st = (result.status === 'passed' || result.status === 'success') ? 'ok' : result.status === 'failed' ? 'err' : 'warn';
+          html += '<div class="cards">' +
+            card('Score', result.score.toFixed(2), st) +
+            card('Status', result.status, st) +
+            card('Eval ID', result.id, 'ok') +
+            card('Timestamp', result.timestamp, 'ok') +
+          '</div>';
+          if (result.metrics && Object.keys(result.metrics).length > 0) {{
+            html += '<div class="section"><h2>📈 Metrics</h2><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>';
+            for (const [k, v] of Object.entries(result.metrics)) {{
+              html += '<tr><td>' + k + '</td><td style="font-family:monospace;color:#3fb950">' + v.toFixed(4) + '</td></tr>';
+            }}
+            html += '</tbody></table></div>';
+          }}
+        }} else {{
+          html += '<p style="color:#8b949e;">No evaluation results available yet.</p>';
+        }}
+        main.innerHTML = html;
+      }}
+
+      navLinks.forEach(a => {{
+        a.addEventListener('click', function(e) {{ e.preventDefault(); loadPage(this.dataset.page); }});
+      }});
+      loadPage('dashboard');
+    }})();
+  </script>
+</body>
+</html>"##))
+}
 pub fn build_router(state: Arc<AppState>) -> Router {
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -259,6 +775,10 @@ pub fn build_router(state: Arc<AppState>) -> Router {
 
     Router::new()
         .route("/health", get(health_handler))
+        // Login / Logout (无需认证)
+        .route("/login", get(login_page_handler).post(login_handler))
+        .route("/logout", get(logout_handler))
+        .route("/api/auth/me", get(auth_me_handler))
         .route("/metrics", get(metrics_handler))
         .route("/version", get(version_handler))
         .route("/v1/models", get(models_handler))
@@ -325,6 +845,30 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             "/v1/credentials/providers",
             get(credential_providers_handler),
         )
+        // Evaluator API (ES)
+        .route("/v1/eval/run", post(eval_run_handler))
+        .route("/v1/eval/result", get(eval_result_handler))
+        .route("/v1/eval/regression", post(eval_regression_handler))
+        // Federation API (Fed)
+        .route("/v1/federation/status", get(federation_status_handler))
+        .route("/v1/federation/nodes", get(federation_nodes_handler))
+        .route("/v1/federation/execute", post(federation_execute_handler))
+        // API Documentation
+        .route("/docs", get(docs_handler))
+        .route("/docs/openapi.json", get(openapi_json_handler))
+        // Admin Dashboard + WebUI (需认证)
+        .merge(
+            Router::new()
+                .route("/admin", get(admin_handler))
+                .nest_service(
+                    "/webui",
+                    tower_http::services::fs::ServeDir::new("webui/dist"),
+                )
+                .route_layer(axum::middleware::from_fn_with_state(
+                    state.clone(),
+                    admin_auth_middleware,
+                )),
+        )
         .layer(TraceLayer::new_for_http())
         .layer(cors)
         // Rate limiting middleware — wrap each request with a check
@@ -333,6 +877,258 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             rate_limit_middleware,
         ))
         .with_state(state)
+}
+
+// ── Admin Auth Middleware ────────────────────────────
+
+/// Admin/WebUI 认证中间件。
+/// 从  或  Cookie 中提取 JWT，验证后放行。
+async fn admin_auth_middleware(
+    State(state): State<Arc<AppState>>,
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> Result<axum::response::Response, Redirect> {
+    let token = extract_token_from_request(&req);
+
+    match token {
+        Some(token) => match state.jwt_service.authenticate(&token) {
+            Ok(auth) => {
+                let mut req = req;
+                req.extensions_mut().insert(auth);
+                Ok(next.run(req).await)
+            }
+            Err(_) => Err(Redirect::to("/login")),
+        },
+        None => Err(Redirect::to("/login")),
+    }
+}
+
+/// 从请求中提取 JWT token。
+fn extract_token_from_request(req: &axum::extract::Request) -> Option<String> {
+    // 1. 检查 Authorization header
+    if let Some(auth_val) = req.headers().get(header::AUTHORIZATION) {
+        if let Ok(auth_str) = auth_val.to_str() {
+            if let Some(token) = auth_str.strip_prefix("Bearer ") {
+                return Some(token.to_string());
+            }
+        }
+    }
+
+    // 2. 检查 Cookie
+    if let Some(cookie_val) = req.headers().get(header::COOKIE) {
+        if let Ok(cookie_str) = cookie_val.to_str() {
+            for pair in cookie_str.split(';') {
+                let pair = pair.trim();
+                if let Some(val) = pair.strip_prefix("lingshu_session=") {
+                    return Some(val.to_string());
+                }
+            }
+        }
+    }
+
+    None
+}
+
+// ── Admin Password Verification ──────────────────────
+
+fn verify_admin_password(username: &str, password: &str) -> bool {
+    let expected_user = std::env::var("LS_ADMIN_USER")
+        .unwrap_or_else(|_| "admin".to_string());
+    let expected_pass = std::env::var("LS_ADMIN_PASSWORD")
+        .unwrap_or_else(|_| "admin".to_string());
+
+    let user_match = constant_time_eq(username.as_bytes(), expected_user.as_bytes());
+    let pass_match = constant_time_eq(password.as_bytes(), expected_pass.as_bytes());
+    user_match && pass_match
+}
+
+fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut result = 0u8;
+    for (x, y) in a.iter().zip(b.iter()) {
+        result |= x ^ y;
+    }
+    result == 0
+}
+
+// ── Login / Logout Handlers ─────────────────────────
+
+/// 登录页面 (GET).
+async fn login_page_handler() -> Html<String> {
+    Html(format!(r##"<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lingshu Login</title>
+  <style>
+    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+    body {{
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0d1117; color: #c9d1d9; display: flex;
+      align-items: center; justify-content: center; min-height: 100vh;
+    }}
+    .login-box {{
+      background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+      padding: 2.5rem 2rem; width: 360px;
+    }}
+    .login-box h1 {{ font-size: 1.3rem; margin-bottom: 0.3rem; color: #58a6ff; }}
+    .login-box p {{ font-size: 0.85rem; color: #8b949e; margin-bottom: 1.5rem; }}
+    .login-box label {{ display: block; font-size: 0.8rem; color: #8b949e; margin-bottom: 0.3rem; }}
+    .login-box input {{
+      width: 100%; padding: 0.6rem 0.8rem; margin-bottom: 1rem;
+      background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
+      color: #c9d1d9; font-size: 0.9rem; outline: none;
+    }}
+    .login-box input:focus {{ border-color: #58a6ff; }}
+    .login-box button {{
+      width: 100%; padding: 0.6rem; background: #238636; color: #fff;
+      border: none; border-radius: 6px; font-size: 0.9rem; cursor: pointer;
+    }}
+    .login-box button:hover {{ background: #2ea043; }}
+    .error {{ color: #f85149; font-size: 0.85rem; margin-bottom: 0.8rem; display: none; }}
+    .login-box .hint {{ font-size: 0.75rem; color: #6e7681; margin-top: 1rem; text-align: center; }}
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <h1>⚡ Lingshu</h1>
+    <p>Admin Panel — 请输入管理员凭证</p>
+    <div class="error" id="error-msg"></div>
+    <form id="login-form">
+      <label for="username">用户名</label>
+      <input type="text" id="username" name="username" placeholder="admin" required autofocus>
+      <label for="password">密码</label>
+      <input type="password" id="password" name="password" placeholder="••••••••" required>
+      <button type="submit">登录</button>
+    </form>
+    <div class="hint">默认凭证: admin / admin</div>
+  </div>
+  <script>
+    document.getElementById('login-form').addEventListener('submit', async function(e) {{
+      e.preventDefault();
+      const errEl = document.getElementById('error-msg');
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      try {{
+        const res = await fetch('/login', {{
+          method: 'POST',
+          headers: {{ 'Content-Type': 'application/json' }},
+          body: JSON.stringify({{ username, password }})
+        }});
+        if (res.ok) {{
+          window.location.href = '/admin';
+        }} else {{
+          const data = await res.json();
+          errEl.textContent = data.message || '登录失败';
+          errEl.style.display = 'block';
+        }}
+      }} catch(e) {{
+        errEl.textContent = '网络错误: ' + e.message;
+        errEl.style.display = 'block';
+      }}
+    }});
+  </script>
+</body>
+</html>"##))
+}
+
+#[derive(Deserialize)]
+struct LoginRequest {
+    username: String,
+    password: String,
+}
+
+#[derive(Serialize)]
+struct LoginResponse {
+    token: String,
+    user_id: String,
+    roles: Vec<String>,
+}
+
+/// 处理登录 (POST) — 验证凭证并签发 JWT。
+async fn login_handler(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<LoginRequest>,
+) -> Result<(StatusCode, [(&'static str, String); 2], Json<LoginResponse>), (StatusCode, Json<serde_json::Value>)> {
+    if !verify_admin_password(&req.username, &req.password) {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"message": "用户名或密码错误"})),
+        ));
+    }
+
+    let session_id = uuid::Uuid::new_v4().to_string();
+    let token = state
+        .jwt_service
+        .issue(&req.username, &session_id, None, vec!["admin".to_string()])
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"message": format!("token issue failed: {e}")})),
+            )
+        })?;
+
+    let body = LoginResponse {
+        token: token.clone(),
+        user_id: req.username,
+        roles: vec!["admin".to_string()],
+    };
+
+    Ok((
+        StatusCode::OK,
+        [
+            ("content-type", "application/json".to_string()),
+            ("set-cookie", format!("lingshu_session={token}; Path=/; HttpOnly; SameSite=Lax")),
+        ],
+        Json(body),
+    ))
+}
+
+/// 登出 (GET) — 清除 session cookie 并重定向到 /login。
+async fn logout_handler() -> (StatusCode, [(&'static str, &'static str); 2], &'static str) {
+    (
+        StatusCode::FOUND,
+        [
+            ("location", "/login"),
+            ("set-cookie", "lingshu_session=; Path=/; HttpOnly; Max-Age=0"),
+        ],
+        "Redirecting to login...",
+    )
+}
+
+/// 返回当前认证用户信息。
+async fn auth_me_handler(
+    State(state): State<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+) -> Json<serde_json::Value> {
+    // 尝试从 Authorization header 或 Cookie 中提取 token
+    let token: Option<String> = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .map(|s| s.to_string())
+        .or_else(|| {
+            headers.get(header::COOKIE).and_then(|v| v.to_str().ok()).and_then(|cookie_str| {
+                for pair in cookie_str.split(';') {
+                    let pair = pair.trim();
+                    if let Some(val) = pair.strip_prefix("lingshu_session=") {
+                        return Some(val.to_string());
+                    }
+                }
+                None
+            })
+        });
+
+    match token {
+        Some(t) => match state.jwt_service.authenticate(&t) {
+            Ok(auth) => Json(serde_json::json!({"authenticated": true, "user_id": auth.user_id, "roles": auth.roles})),
+            Err(_) => Json(serde_json::json!({"authenticated": false})),
+        },
+        None => Json(serde_json::json!({"authenticated": false})),
+    }
 }
 
 // ── Rate Limiting Middleware ─────────────────────────
@@ -3160,6 +3956,225 @@ async fn credential_providers_handler() -> Json<Vec<&'static str>> {
     Json(vec!["gitee", "codeup", "coding", "gitcode", "cnb"])
 }
 
+
+// ── Evaluator API ───────────────────────────────────
+
+/// LLM-backed evaluable target for running test suites.
+struct LlmEvaluable {
+    llm: std::sync::Arc<dyn lingshu_traits::llm::Llm>,
+    model: String,
+}
+
+#[async_trait::async_trait]
+impl lingshu_evaluator::Evaluable for LlmEvaluable {
+    async fn execute(
+        &self,
+        ctx: &LsContext,
+        case: &lingshu_evaluator::TestCase,
+    ) -> LsResult<lingshu_evaluator::ExecutedOutput> {
+        let req = lingshu_traits::llm::LlmRequest {
+            model: self.model.clone(),
+            messages: vec![
+                lingshu_traits::llm::LlmMessage {
+                    role: lingshu_traits::llm::LlmRole::User,
+                    content: case.input.to_string(),
+                    name: None,
+                    content_parts: None,
+                    tool_calls: None,
+                },
+            ],
+            temperature: None,
+            max_tokens: Some(4096),
+            stream: false,
+            tools: None,
+        };
+        let start = std::time::Instant::now();
+        let resp = self.llm.invoke(ctx.clone(), req).await
+            .map_err(|e| LsError::Internal(format!("LLM invoke error: {e}")))?;
+        let latency = start.elapsed();
+        Ok(lingshu_evaluator::ExecutedOutput {
+            output: serde_json::json!(resp.message.content),
+            latency,
+            input_tokens: resp.usage.prompt_tokens,
+            output_tokens: resp.usage.completion_tokens,
+            cost: 0.0,
+        })
+    }
+
+    fn target_name(&self) -> &str {
+        &self.model
+    }
+
+    fn target_version(&self) -> &str {
+        "1.0.0"
+    }
+}
+
+/// 运行评测套件.
+async fn eval_run_handler(
+    State(state): State<Arc<AppState>>,
+    Json(suite): Json<lingshu_evaluator::TestSuite>,
+) -> Json<lingshu_evaluator::EvaluationResult> {
+    let ctx = state.runtime.root_ctx.clone();
+    match &state.runtime.llm {
+        Some(llm) => {
+            let target = std::sync::Arc::new(LlmEvaluable {
+                llm: llm.clone(),
+                model: state.runtime.config.llm.default_model.clone(),
+            });
+            let runner = lingshu_evaluator::EvalRunner::new(
+                target,
+                lingshu_evaluator::EvalConfig::default(),
+            );
+            let result = runner.run_suite(&suite, &ctx).await;
+            *state.runtime.eval_store.write().await = Some(result.clone());
+            result
+        }
+        None => lingshu_evaluator::EvaluationResult {
+            id: LsId::new(),
+            suite_name: suite.name,
+            target_name: "none".into(),
+            target_version: String::new(),
+            started_at: chrono::Utc::now(),
+            completed_at: chrono::Utc::now(),
+            total_duration: std::time::Duration::ZERO,
+            total_cases: 0,
+            passed_cases: 0,
+            failed_cases: 0,
+            overall_score: 0.0,
+            weighted_score: 0.0,
+            metrics: lingshu_evaluator::MetricsSummary::default(),
+            case_results: vec![],
+            metadata: std::collections::HashMap::new(),
+        },
+    }
+    .into()
+}
+
+/// 获取最新评测结果.
+async fn eval_result_handler(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<lingshu_evaluator::EvaluationResult>, (StatusCode, String)> {
+    let store = state.runtime.eval_store.read().await;
+    store.clone().ok_or_else(|| {
+        (StatusCode::NOT_FOUND, "No evaluation results available".to_string())
+    })
+    .map(Json)
+}
+
+/// 回归检测 — 对比当前与基线结果.
+async fn eval_regression_handler(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<RegressionRequest>,
+) -> Json<lingshu_evaluator::RegressionResult> {
+    let current = state.runtime.eval_store.read().await.clone().unwrap_or_else(|| {
+        lingshu_evaluator::EvaluationResult {
+            id: LsId::new(),
+            suite_name: String::new(),
+            target_name: String::new(),
+            target_version: String::new(),
+            started_at: chrono::Utc::now(),
+            completed_at: chrono::Utc::now(),
+            total_duration: std::time::Duration::ZERO,
+            total_cases: 0,
+            passed_cases: 0,
+            failed_cases: 0,
+            overall_score: 0.0,
+            weighted_score: 0.0,
+            metrics: lingshu_evaluator::MetricsSummary::default(),
+            case_results: vec![],
+            metadata: std::collections::HashMap::new(),
+        }
+    });
+    let baseline = req.baseline.unwrap_or(current.clone());
+    let thresholds = lingshu_evaluator::RegressionThresholds::default();
+    Json(lingshu_evaluator::RegressionDetector::detect(&current, &baseline, &thresholds))
+}
+
+/// 回归检测请求体.
+#[derive(serde::Deserialize)]
+struct RegressionRequest {
+    baseline: Option<lingshu_evaluator::EvaluationResult>,
+}
+
+// ── Federation API ─────────────────────────────────
+
+/// 获取联邦状态.
+async fn federation_status_handler(
+    State(state): State<Arc<AppState>>,
+) -> Json<serde_json::Value> {
+    let stats = state.runtime.federation.stats().await;
+    let nodes = state.runtime.federation.online_nodes().await;
+    Json(serde_json::json!({
+        "enabled": state.runtime.federation.config.enabled,
+        "cluster_name": state.runtime.federation.config.cluster_name,
+        "listen_addr": state.runtime.federation.config.listen_addr.to_string(),
+        "topology": state.runtime.federation.config.topology.as_str(),
+        "stats": {
+            "connected_nodes": stats.connected_nodes,
+            "total_nodes": stats.total_nodes,
+            "active_links": stats.active_links,
+            "total_messages": stats.total_messages,
+            "total_errors": stats.total_errors,
+            "uptime_seconds": stats.uptime_seconds,
+        },
+        "online_nodes": nodes.iter().map(|n| serde_json::json!({
+            "cluster_id": n.cluster_id.to_string(),
+            "name": n.name,
+            "version": n.version,
+            "addrs": n.addrs.iter().map(|a| a.to_string()).collect::<Vec<_>>(),
+            "status": format!("{:?}", n.status),
+            "capabilities": n.capabilities.iter().map(|c| c.name.clone()).collect::<Vec<_>>(),
+        })).collect::<Vec<_>>(),
+    }))
+}
+
+/// 在线节点列表.
+async fn federation_nodes_handler(
+    State(state): State<Arc<AppState>>,
+) -> Json<Vec<serde_json::Value>> {
+    let nodes = state.runtime.federation.online_nodes().await;
+    Json(nodes.into_iter().map(|n| serde_json::json!({
+        "cluster_id": n.cluster_id.to_string(),
+        "name": n.name,
+        "version": n.version,
+        "addrs": n.addrs.iter().map(|a| a.to_string()).collect::<Vec<_>>(),
+        "status": format!("{:?}", n.status),
+        "capabilities": n.capabilities.into_iter().map(|c| serde_json::json!({
+            "id": c.id,
+            "name": c.name,
+            "version": c.version,
+            "description": c.description,
+        })).collect::<Vec<_>>(),
+    })).collect())
+}
+
+/// 远程执行请求.
+#[derive(serde::Deserialize)]
+struct FederationExecRequest {
+    target_cluster: String,
+    target: String,
+    payload: serde_json::Value,
+    timeout_secs: Option<u64>,
+}
+
+/// 远程执行.
+async fn federation_execute_handler(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<FederationExecRequest>,
+) -> Result<Json<lingshu_federation::RemoteExecResponse>, (StatusCode, String)> {
+    if !state.runtime.federation.config.enabled {
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            "Federation is not enabled".to_string(),
+        ));
+    }
+    let result = state.runtime.federation
+        .execute(&req.target_cluster, &req.target, req.payload, req.timeout_secs.unwrap_or(30))
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(Json(result))
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3167,7 +4182,7 @@ mod tests {
     use axum::http::{Request, StatusCode};
     use tower::ServiceExt;
 
-    fn test_state() -> Arc<AppState> {
+    async fn test_state() -> Arc<AppState> {
         use lingshu_config::settings::{LlmProvider, LsConfig};
         use lingshu_eventbus::bus::InMemoryEventBus;
         use lingshu_runtime::lifecycle::{LifecycleManager, LifecycleState};
@@ -3234,6 +4249,15 @@ mod tests {
                 }),
             ),
             credential_manager,
+            eval_store: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
+            federation: std::sync::Arc::new(lingshu_federation::Federation::new(
+                lingshu_core::LsId::new(),
+                lingshu_federation::FederationConfig::default(),
+            ).await),
+            config_rx: {
+                let (_, rx) = tokio::sync::broadcast::channel(16);
+                rx
+            },
         });
         let health_registry = Arc::new(lingshu_observability::health::HealthRegistry::new(
             "lingshu-test",
@@ -3257,12 +4281,13 @@ mod tests {
             credential_manager: std::sync::Arc::new(lingshu_credentials::CredentialManager::new(
                 test_cred_store,
             )),
+            jwt_service: lingshu_security::auth::JwtService::new("test-jwt-secret-for-unit-tests", 3600),
         })
     }
 
     #[tokio::test]
     async fn test_health_endpoint() {
-        let state = test_state();
+        let state = test_state().await;
         let app = build_router(state);
 
         let response = app
@@ -3289,7 +4314,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_version_endpoint() {
-        let state = test_state();
+        let state = test_state().await;
         let app = build_router(state);
 
         let response = app
@@ -3314,7 +4339,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_models_endpoint() {
-        let state = test_state();
+        let state = test_state().await;
         let app = build_router(state);
 
         let response = app
@@ -3340,7 +4365,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_chat_completions_handler() {
-        let state = test_state();
+        let state = test_state().await;
         let app = build_router(state);
 
         let req_body = json!({
@@ -3373,7 +4398,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_embeddings_handler() {
-        let state = test_state();
+        let state = test_state().await;
         let app = build_router(state);
 
         let req_body = json!({
@@ -3396,7 +4421,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_agent_run_handler() {
-        let state = test_state();
+        let state = test_state().await;
         let app = build_router(state);
 
         let req_body = json!({
@@ -3425,7 +4450,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_metrics_endpoint() {
-        let state = test_state();
+        let state = test_state().await;
         let app = build_router(state);
 
         let response = app
@@ -3452,7 +4477,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_plugin_list_empty() {
-        let state = test_state();
+        let state = test_state().await;
         let app = build_router(state);
 
         let response = app

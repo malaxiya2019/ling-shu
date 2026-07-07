@@ -55,10 +55,51 @@ impl SqliteDatabase {
     }
 
     fn run_migrations(conn: &rusqlite::Connection) -> LsResult<()> {
-        let sql = include_str!("migrations/001_init.sql");
-        conn.execute_batch(sql)
-            .map_err(|e| LsError::Internal(format!("migration failed: {e}")))?;
-        tracing::info!("database: SQLite migrations applied successfully");
+        // 创建迁移追踪表
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS _migrations (
+                version TEXT PRIMARY KEY NOT NULL,
+                name    TEXT NOT NULL,
+                applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );",
+        )
+        .map_err(|e| LsError::Internal(format!("migrations tracking table creation failed: {e}")))?;
+
+        // 按顺序执行所有迁移
+        let migrations: &[(&str, &str)] = &[
+            ("001", include_str!("migrations/001_init.sql")),
+            ("002", include_str!("migrations/002_graph_cache.sql")),
+            ("003", include_str!("migrations/003_audit.sql")),
+            ("004", include_str!("migrations/004_billing.sql")),
+        ];
+
+        for (version, sql) in migrations {
+            let already_applied: bool = conn
+                .query_row(
+                    "SELECT COUNT(*) > 0 FROM _migrations WHERE version = ?1",
+                    rusqlite::params![version],
+                    |row| row.get(0),
+                )
+                .unwrap_or(false);
+
+            if already_applied {
+                tracing::debug!("migration {} already applied, skipping", version);
+                continue;
+            }
+
+            conn.execute_batch(sql)
+                .map_err(|e| LsError::Internal(format!("migration {version} failed: {e}")))?;
+
+            conn.execute(
+                "INSERT INTO _migrations (version, name) VALUES (?1, ?2)",
+                rusqlite::params![version, format!("{:03}_init.sql", version)],
+            )
+            .map_err(|e| LsError::Internal(format!("migration {version} tracking failed: {e}")))?;
+
+            tracing::info!("migration {} applied", version);
+        }
+
+        tracing::info!("database: all SQLite migrations applied successfully");
         Ok(())
     }
 }

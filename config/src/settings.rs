@@ -1,6 +1,7 @@
 use lingshu_core::LsResult;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::path::{Path, PathBuf};
 
 use crate::env::{current_environment, Environment};
@@ -71,6 +72,9 @@ pub struct RuntimeConfig {
     pub max_concurrent_tasks: usize,
     pub session_ttl_seconds: u64,
     pub enable_snapshot: bool,
+    pub federation_enabled: bool,
+    pub federation_port: u16,
+    pub cluster_name: String,
 }
 
 impl Default for RuntimeConfig {
@@ -79,6 +83,9 @@ impl Default for RuntimeConfig {
             max_concurrent_tasks: 64,
             session_ttl_seconds: 3600,
             enable_snapshot: true,
+            federation_enabled: false,
+            federation_port: 9550,
+            cluster_name: "lingshu-default".into(),
         }
     }
 }
@@ -508,5 +515,76 @@ storage:
             assert_eq!(cfg.runtime.max_concurrent_tasks, 64);
             assert_eq!(cfg.llm.default_model, "gpt-4o");
         });
+    }
+}
+
+
+
+
+// ── Config Hot Reload ────────────────────────────────
+
+/// 配置变更通知.
+#[derive(Debug, Clone)]
+pub enum ConfigEvent {
+    /// 配置已重新加载.
+    Reloaded(LsConfig),
+    /// 配置加载失败.
+    Error(String),
+}
+
+/// 配置文件热重载监视器 (轮询模式).
+///
+/// 使用 `std::thread` 轮询配置文件修改时间，变更时通过 `std::sync::mpsc` 通知。
+pub struct ConfigWatcher {
+    #[allow(dead_code)]
+    stop_flag: Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl ConfigWatcher {
+    /// 启动配置监听 (后台 std::thread)。
+    ///
+    /// 当配置文件变化时，通过 `tx` 发送 `ConfigEvent`。
+    pub fn spawn(
+        env: &str,
+        tx: std::sync::mpsc::Sender<ConfigEvent>,
+    ) -> Self {
+        let env_owned = env.to_string();
+        let stop_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let flag = stop_flag.clone();
+
+        std::thread::spawn(move || {
+            // 初始加载
+            match LsConfig::load_for_env(&env_owned) {
+                Ok(cfg) => { let _ = tx.send(ConfigEvent::Reloaded(cfg)); }
+                Err(e) => { let _ = tx.send(ConfigEvent::Error(e.to_string())); }
+            }
+
+            let mut last_mtime: Option<std::time::SystemTime> = None;
+            let config_path = std::path::Path::new("config").join(format!("{}.yaml", env_owned));
+
+            while !flag.load(std::sync::atomic::Ordering::Relaxed) {
+                std::thread::sleep(std::time::Duration::from_secs(10));
+
+                if let Ok(meta) = std::fs::metadata(&config_path) {
+                    if let Ok(mtime) = meta.modified() {
+                        if last_mtime.map(|t| mtime > t).unwrap_or(true) {
+                            last_mtime = Some(mtime);
+                            match LsConfig::load_for_env(&env_owned) {
+                                Ok(cfg) => { let _ = tx.send(ConfigEvent::Reloaded(cfg)); }
+                                Err(e) => { let _ = tx.send(ConfigEvent::Error(e.to_string())); }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        Self { stop_flag }
+    }
+}
+
+impl std::fmt::Debug for ConfigWatcher {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ConfigWatcher").finish()
     }
 }

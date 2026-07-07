@@ -33,10 +33,15 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - containerPort: 8080
+            - containerPort: {{ .Values.service.httpPort }}
               name: http
-            - containerPort: 9090
+            - containerPort: {{ .Values.service.clusterPort }}
               name: cluster
+            {{- if .Values.federation.enabled }}
+            - containerPort: {{ .Values.federation.port }}
+              name: federation
+              protocol: TCP
+            {{- end }}
           env:
             - name: LS_ENV
               value: {{ .Values.env.LS_ENV }}
@@ -44,17 +49,43 @@ spec:
               value: {{ .Values.env.LS_LOG_LEVEL }}
             - name: LS_CLUSTER_ADDR
               value: {{ .Values.env.LS_CLUSTER_ADDR }}
+            {{- if .Values.federation.enabled }}
+            - name: LS_FEDERATION_PORT
+              value: {{ .Values.federation.port | quote }}
+            - name: LS_FEDERATION_ENABLED
+              value: "true"
+            - name: LS_CLUSTER_NAME
+              value: {{ .Values.federation.clusterName | quote }}
+            - name: LS_CLUSTER_SEED
+              value: {{ .Values.federation.seedService | quote }}
+            {{- end }}
             {{- if .Values.secrets.openai_api_key }}
             - name: OPENAI_API_KEY
-              value: {{ .Values.secrets.openai_api_key | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "lingshu.fullname" . }}-secrets
+                  key: openai_api_key
             {{- end }}
             {{- if .Values.secrets.anthropic_api_key }}
             - name: ANTHROPIC_API_KEY
-              value: {{ .Values.secrets.anthropic_api_key | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "lingshu.fullname" . }}-secrets
+                  key: anthropic_api_key
             {{- end }}
             {{- if .Values.secrets.groq_api_key }}
             - name: GROQ_API_KEY
-              value: {{ .Values.secrets.groq_api_key | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "lingshu.fullname" . }}-secrets
+                  key: groq_api_key
+            {{- end }}
+            {{- if .Values.secrets.credential_master_key }}
+            - name: LINGSHU_CREDENTIAL_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "lingshu.fullname" . }}-secrets
+                  key: credential_master_key
             {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

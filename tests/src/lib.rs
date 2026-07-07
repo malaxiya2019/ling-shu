@@ -2,6 +2,7 @@
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
     // ── 1. Core 基础类型 ────────────────────────────
     #[test]
     fn test_core_id_serialization() {
@@ -301,8 +302,7 @@ mod tests {
         use lingshu_traits::database::Pagination;
         use lingshu_traits::repository::Repository;
         use serde::{Deserialize, Serialize};
-        use std::sync::Arc;
-
+        
         #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
         struct Product {
             id: Option<String>,
@@ -487,4 +487,101 @@ async fn test_prompt_ab_test() {
     let result = manager.get_result("test-ab").unwrap();
     assert_eq!(result.a_count, 1);
     assert_eq!(result.b_count, 1);
+}
+
+// ── 15. HTTP Integration Tests ────────────────────
+
+
+/// 启动一个最小的测试 HTTP 服务器，返回 base URL。
+#[cfg(test)]
+pub(crate) async fn spawn_test_server() -> String {
+    use axum::{routing::get, Router, Json};
+    use std::net::TcpListener as StdListener;
+
+    let app = Router::new()
+        .route("/health", get(|| async {
+            Json(serde_json::json!({
+                "status": "ok",
+                "version": "1.0.0", 
+                "uptime": "integration-test",
+                "checks": []
+            }))
+        }))
+        .route("/version", get(|| async {
+            Json(serde_json::json!({
+                "version": "1.0.0",
+                "build": "integration-test",
+                "rustc": "stable"
+            }))
+        }))
+        .route("/v1/models", get(|| async {
+            Json(serde_json::json!([
+                {"id": "gpt-4o", "object": "model", "created": 1700000000, "owned_by": "openai"},
+                {"id": "claude-3-opus", "object": "model", "created": 1700000000, "owned_by": "anthropic"},
+                {"id": "mock-model", "object": "model", "created": 1700000000, "owned_by": "lingshu"}
+            ]))
+        }));
+
+    let listener = StdListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    drop(listener);
+
+    let tcp_listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound_addr = tcp_listener.local_addr().unwrap();
+
+    tokio::spawn(async move {
+        axum::serve(tcp_listener, app).await.unwrap();
+    });
+
+    format!("http://{}", bound_addr)
+}
+
+#[tokio::test]
+async fn int_test_health_endpoint() {
+    let base_url = spawn_test_server().await;
+    let client = reqwest::Client::new();
+
+    let resp = client
+        .get(format!("{}/health", base_url))
+        .send()
+        .await
+        .expect("health request failed");
+
+    assert_eq!(resp.status(), reqwest::StatusCode::OK);
+    let body: serde_json::Value = resp.json().await.unwrap();
+    assert_eq!(body["status"], "ok");
+    assert_eq!(body["version"], "1.0.0");
+}
+
+#[tokio::test]
+async fn int_test_version_endpoint() {
+    let base_url = spawn_test_server().await;
+    let client = reqwest::Client::new();
+
+    let resp = client
+        .get(format!("{}/version", base_url))
+        .send()
+        .await
+        .expect("version request failed");
+
+    assert_eq!(resp.status(), reqwest::StatusCode::OK);
+    let body: serde_json::Value = resp.json().await.unwrap();
+    assert_eq!(body["version"], "1.0.0");
+}
+
+#[tokio::test]
+async fn int_test_models_endpoint() {
+    let base_url = spawn_test_server().await;
+    let client = reqwest::Client::new();
+
+    let resp = client
+        .get(format!("{}/v1/models", base_url))
+        .send()
+        .await
+        .expect("models request failed");
+
+    assert_eq!(resp.status(), reqwest::StatusCode::OK);
+    let models: Vec<serde_json::Value> = resp.json().await.unwrap();
+    assert!(models.len() >= 3);
+    assert!(models.iter().any(|m| m["id"] == "gpt-4o"));
 }

@@ -9,6 +9,7 @@ resources:
   - pvc.yaml
   - deployment.yaml
   - service.yaml
+  - federation-service.yaml
   - ingress.yaml
   - hpa.yaml
 

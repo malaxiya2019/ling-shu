@@ -1,0 +1,117 @@
+syntax = "proto3";
+
+package lingshu.v1;
+
+// ── Agent Service ───────────────────────────────────
+
+service AgentService {
+    rpc Run(RunRequest) returns (RunResponse);
+    rpc GetStatus(AgentId) returns (AgentStatus);
+    rpc Cancel(AgentId) returns (CancelResponse);
+    rpc List(ListRequest) returns (ListResponse);
+}
+
+message AgentId {
+    string id = 1;
+}
+
+message RunRequest {
+    string agent_id = 1;
+    string input = 2;
+    map<string, string> config = 3;
+    int32 timeout_secs = 4;
+}
+
+message RunResponse {
+    string agent_id = 1;
+    string status = 2;
+    string output = 3;
+    int64 duration_ms = 4;
+}
+
+message AgentStatus {
+    string agent_id = 1;
+    string status = 2;
+    int64 started_at = 3;
+    int64 duration_ms = 4;
+    string error = 5;
+}
+
+message CancelResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message ListRequest {
+    int32 page_size = 1;
+    string page_token = 2;
+}
+
+message ListResponse {
+    repeated AgentStatus agents = 1;
+    string next_page_token = 2;
+}
+
+// ── LLM Service ─────────────────────────────────────
+
+service LLMService {
+    rpc Chat(ChatRequest) returns (ChatResponse);
+    rpc ChatStream(ChatRequest) returns (stream ChatChunk);
+    rpc Embed(EmbedRequest) returns (EmbedResponse);
+}
+
+message ChatRequest {
+    string model = 1;
+    repeated Message messages = 2;
+    double temperature = 3;
+    int32 max_tokens = 4;
+    bool stream = 5;
+}
+
+message Message {
+    string role = 1;
+    string content = 2;
+}
+
+message ChatResponse {
+    string id = 1;
+    string model = 2;
+    repeated Choice choices = 3;
+    Usage usage = 4;
+}
+
+message Choice {
+    int32 index = 1;
+    Message message = 2;
+    string finish_reason = 3;
+}
+
+message ChatChunk {
+    string id = 1;
+    string model = 2;
+    int32 index = 3;
+    string delta = 4;
+    string finish_reason = 5;
+}
+
+message EmbedRequest {
+    string model = 1;
+    repeated string input = 2;
+}
+
+message EmbedResponse {
+    string model = 1;
+    repeated Embedding embeddings = 2;
+    Usage usage = 3;
+}
+
+message Embedding {
+    int32 index = 1;
+    repeated double vector = 2;
+}
+
+message Usage {
+    int32 prompt_tokens = 1;
+    int32 completion_tokens = 2;
+    int32 total_tokens = 3;
+}

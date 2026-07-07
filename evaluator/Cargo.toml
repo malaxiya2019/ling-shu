@@ -1,0 +1,25 @@
+[package]
+name = "lingshu-evaluator"
+version.workspace = true
+edition.workspace = true
+description = "LSEvaluator — Agent 评测框架: 测试套件、指标计算、回归检测、报告生成"
+
+[dependencies]
+lingshu-core = { path = "../core" }
+lingshu-traits = { path = "../traits" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tokio = { workspace = true, features = ["sync", "time"] }
+tracing.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["async_futures", "async_tokio"] }
+tracing-subscriber.workspace = true
+
+[[bench]]
+name = "evaluator_bench"
+harness = false

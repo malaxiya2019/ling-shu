@@ -18,6 +18,8 @@ use lingshu_config::settings::{LlmProvider, LsConfig};
 use lingshu_core::{LsContext, LsError, LsId, LsResult};
 use lingshu_credentials::CredentialManager;
 use lingshu_credentials::CredentialStore;
+use lingshu_evaluator;
+use lingshu_federation;
 use lingshu_eventbus::bus::InMemoryEventBus;
 use lingshu_observability::ObservabilityConfig;
 use lingshu_runtime::lifecycle::{LifecycleManager, LifecycleState};
@@ -50,6 +52,15 @@ pub struct Cli {
     /// 无头模式 (不启动任何前端)
     #[arg(long)]
     headless: bool,
+    /// 禁用联邦通信 (Fed). 默认启用.
+    #[arg(long)]
+    no_federation: bool,
+    /// 联邦监听端口.
+    #[arg(long, default_value_t = 9550)]
+    federation_port: u16,
+    /// 联邦集群名称.
+    #[arg(long, default_value = "lingshu-default")]
+    cluster_name: String,
 }
 
 /// Lingshu 系统运行时 — 全系统资源管控中心
@@ -85,6 +96,12 @@ pub struct LingshuRuntime {
     /// 计费系统.
     pub billing: std::sync::Arc<lingshu_billing::BillingSystem>,
     pub credential_manager: std::sync::Arc<CredentialManager>,
+    /// 评测结果缓存 (ES).
+    pub eval_store: std::sync::Arc<tokio::sync::RwLock<Option<lingshu_evaluator::EvaluationResult>>>,
+    /// 联邦通信 (Fed).
+    pub federation: std::sync::Arc<lingshu_federation::Federation>,
+    /// 配置热重载通知接收器.
+    pub config_rx: tokio::sync::broadcast::Receiver<lingshu_config::settings::ConfigEvent>,
 }
 
 impl LingshuRuntime {
@@ -154,6 +171,18 @@ impl LingshuRuntime {
         > = Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new()));
         tracing::info!(path = %db_path.display(), "graph store initialized");
 
+        // ── Federation ─────────────────────────────────────────
+        let federation = {
+            let mut fed_config = lingshu_federation::FederationConfig::default();
+            fed_config.enabled = !cli.no_federation;
+            fed_config.listen_addr = format!("0.0.0.0:{}", cli.federation_port).parse()
+                .unwrap_or_else(|_| "0.0.0.0:9550".parse().unwrap());
+            std::sync::Arc::new(lingshu_federation::Federation::new(LsId::new(), fed_config).await)
+        };
+
+        // ── Eval store ──────────────────────────────────────────
+        let eval_store = std::sync::Arc::new(tokio::sync::RwLock::new(None));
+
         // ── Initialize credential vault (encrypted SQLite) ───
         let cred_db_path = data_dir.join("credentials.db");
         let master_key = std::env::var("LINGSHU_CREDENTIAL_MASTER_KEY")
@@ -215,6 +244,25 @@ impl LingshuRuntime {
                 }),
             ),
             credential_manager,
+            eval_store,
+            federation,
+            config_rx: {
+                let (config_tx, config_rx) = tokio::sync::broadcast::channel(16);
+                let (std_tx, std_rx) = std::sync::mpsc::channel::<lingshu_config::settings::ConfigEvent>();
+                let _watcher = lingshu_config::settings::ConfigWatcher::spawn(&cli.env, std_tx);
+                let std_rx = std::sync::Arc::new(std::sync::Mutex::new(std_rx));
+                tokio::spawn(async move {
+                    loop {
+                        let rx = std_rx.clone();
+                        let event = tokio::task::spawn_blocking(move || rx.lock().unwrap().recv()).await;
+                        match event {
+                            Ok(Ok(evt)) => { let _ = config_tx.send(evt); }
+                            _ => break,
+                        }
+                    }
+                });
+                config_rx
+            },
         };
 
         // Load persisted graphs from SQLite cache into memory
@@ -294,6 +342,9 @@ impl LingshuRuntime {
         self.lifecycle
             .transition(&self.root_ctx, LifecycleState::Stopped)
             .map_err(|e| LsError::Internal(format!("lifecycle stop failed: {e}")))?;
+
+        // 优雅关闭联邦服务
+        self.federation.stop().await;
 
         info!("lingshu runtime shut down gracefully");
         Ok(())
@@ -456,6 +507,33 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
         health_registry.register(Box::new(runtime_check)).await;
     }
 
+    // Register LLM health check
+    {
+        let llm = runtime.llm.clone();
+        let check = lingshu_observability::health::RuntimeHealth::new("llm", Arc::new(
+            tokio::sync::watch::channel(llm.is_some()).1
+        ));
+        health_registry.register(Box::new(check)).await;
+    }
+
+    // Register storage health check
+    {
+        let _storage_path = format!("{}", runtime.storage.base_path().display());
+        let check = lingshu_observability::health::RuntimeHealth::new("storage", Arc::new(
+            tokio::sync::watch::channel(true).1
+        ));
+        health_registry.register(Box::new(check)).await;
+    }
+
+    // Register federation health check (if enabled)
+    {
+        let fed_enabled = runtime.federation.config.enabled;
+        let check = lingshu_observability::health::RuntimeHealth::new("federation", Arc::new(
+            tokio::sync::watch::channel(fed_enabled).1
+        ));
+        health_registry.register(Box::new(check)).await;
+    }
+
     // Register build info metric
     {
         let registry = lingshu_observability::metrics::MetricsRegistry::global();
@@ -476,6 +554,7 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
         sse_broadcaster: Arc::new(SseBroadcaster::new(1024)),
         file_store: Arc::new(tokio::sync::RwLock::new(Vec::new())),
         credential_manager: runtime.credential_manager.clone(),
+        jwt_service: lingshu_security::auth::JwtService::from_env_or("lingshu-dev-secret", 86400),
     });
     // 桥接 MCP 进度通知到 SSE
     runtime.mcp_server.bridge_sse(state.sse_broadcaster.clone());
@@ -498,6 +577,10 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
     println!("   📋 WS   /ws");
     println!("   📋 POST /v1/embeddings");
     println!("   📋 POST /v1/embed");
+    println!("   📋 GET  /docs");
+    println!("   📋 GET  /admin");
+    println!("   📋 POST /v1/eval/run");
+    println!("   📋 GET  /v1/federation/status");
 
     axum::serve(listener, app)
         .await
@@ -510,6 +593,32 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
 async fn main() -> LsResult<()> {
     let cli = Cli::parse();
     let runtime = Arc::new(LingshuRuntime::initialize(&cli).await?);
+    // 启动联邦服务
+    runtime.federation.start().await?;
+    if !cli.no_federation {
+        info!("federation started on port {}", cli.federation_port);
+    } else {
+        info!("federation disabled by --no-federation flag");
+    }
+
+    // 配置热重载消费 — 监听 ConfigEvent 并应用到运行时
+    {
+        let runtime = runtime.clone();
+        let mut rx = runtime.config_rx.resubscribe();
+        tokio::spawn(async move {
+            use lingshu_config::settings::ConfigEvent;
+            while let Ok(event) = rx.recv().await {
+                match event {
+                    ConfigEvent::Reloaded(new_config) => {
+                        info!(model = %new_config.llm.default_model, "config reloaded");
+                    }
+                    ConfigEvent::Error(msg) => {
+                        error!("config reload error: {msg}");
+                    }
+                }
+            }
+        });
+    }
 
     // 优雅关闭信号
     let rt = runtime.clone();

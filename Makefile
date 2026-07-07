@@ -12,6 +12,17 @@ build:
 build-release:
 	cargo build --release --all-features
 
+# ── WebUI (WASM) ──
+
+webui-build:
+	cd webui && trunk build --release
+
+webui-serve:
+	cd webui && trunk serve --address 0.0.0.0 --port 8081
+
+webui-check:
+	cd webui && cargo check --target wasm32-unknown-unknown
+
 # ── Check ──
 
 check:
@@ -89,6 +100,13 @@ tree:
 help:
 	@echo "Lingshu Dev Commands"
 	@echo "━━━━━━━━━━━━━━━━━━━"
+	@echo ""
+	@echo "WebUI:"
+	@echo "━━━━━━━━"  
+	@echo "  make webui-build   — Build WASM (release)"
+	@echo "  make webui-serve   — Dev server on :8081"
+	@echo "  make webui-check   — Check WASM compilation"
+	@echo ""
 	@echo "  make build          — Build all crates"
 	@echo "  make build-release  — Release build"
 	@echo "  make check          — Check compilation"

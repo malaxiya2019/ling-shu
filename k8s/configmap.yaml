@@ -9,3 +9,7 @@ data:
   LS_ENV: "prod"
   LS_CLUSTER_ADDR: "0.0.0.0:9090"
   LS_LOG_LEVEL: "info"
+  LS_FEDERATION_PORT: "9550"
+  LS_FEDERATION_ENABLED: "true"
+  LS_CLUSTER_NAME: "lingshu-cluster"
+  LS_CLUSTER_SEED: "lingshu-federation"

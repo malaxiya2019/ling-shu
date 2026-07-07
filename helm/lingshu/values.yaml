@@ -45,6 +45,12 @@ ingress:
       hosts:
         - api.lingshu.local
 
+federation:
+  enabled: true
+  port: 9550
+  clusterName: lingshu-cluster
+  seedService: lingshu-federation
+
 resources:
   limits:
     cpu: "2"
@@ -69,6 +75,7 @@ secrets:
   openai_api_key: ""
   anthropic_api_key: ""
   groq_api_key: ""
+  credential_master_key: "change-me-in-production"
 
 persistence:
   enabled: true
