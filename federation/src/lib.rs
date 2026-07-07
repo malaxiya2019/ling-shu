@@ -276,6 +276,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_with_event_bus() {
+        #[allow(unused_imports)]
         use lingshu_plugin::event::EventBus;
         let bus = Arc::new(lingshu_plugin::event::EventBus::new());
         let config = FederationConfig::default();

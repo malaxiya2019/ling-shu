@@ -183,7 +183,7 @@ mod tests {
     async fn test_remote_executor_create() {
         let config = FederationConfig::default();
         let link_mgr = Arc::new(LinkManager::new(LsId::new(), "test", config));
-        let executor = RemoteExecutor::new(link_mgr.clone());
+        let _executor = RemoteExecutor::new(link_mgr.clone());
         let discovery = RemoteDiscovery::new(link_mgr);
 
         assert!(discovery.find_provider("gpt-4").await.is_empty());
@@ -195,7 +195,7 @@ mod tests {
     async fn test_handle_incoming() {
         let config = FederationConfig::default();
         let link_mgr = Arc::new(LinkManager::new(LsId::new(), "test", config));
-        let executor = RemoteExecutor::new(link_mgr);
+        let _executor = RemoteExecutor::new(link_mgr);
         let ctx = LsContext::with_session(LsId::new());
 
         let req = RemoteExecRequest {
