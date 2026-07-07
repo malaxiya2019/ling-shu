@@ -74,13 +74,17 @@ pub fn sidebar(props: &SidebarProps) -> Html {
     let toggle_zh = {
         let cb = lang.on_toggle.clone();
         Callback::from(move |_| {
-            if !is_zh { cb.emit(()) }
+            if !is_zh {
+                cb.emit(())
+            }
         })
     };
     let toggle_en = {
         let cb = lang.on_toggle.clone();
         Callback::from(move |_| {
-            if is_zh { cb.emit(()) }
+            if is_zh {
+                cb.emit(())
+            }
         })
     };
 

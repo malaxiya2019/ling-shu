@@ -111,7 +111,8 @@ const EN: Translations = Translations {
     plugins_search_placeholder: "Search plugins...",
     plugins_search_btn: "🔍 Search",
     plugins_no_results: "No plugins found. Try a different search term.",
-    plugins_no_plugins: "No plugins installed. Visit the Plugin Market to find and install plugins.",
+    plugins_no_plugins:
+        "No plugins installed. Visit the Plugin Market to find and install plugins.",
     plugins_start: "▶ Start",
     plugins_stop: "⏹ Stop",
     plugins_uninstall: "🗑 Uninstall",
