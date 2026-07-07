@@ -195,7 +195,7 @@ mod tests {
     async fn test_handle_incoming() {
         let config = FederationConfig::default();
         let link_mgr = Arc::new(LinkManager::new(LsId::new(), "test", config));
-        let _executor = RemoteExecutor::new(link_mgr);
+        let executor = RemoteExecutor::new(link_mgr);
         let ctx = LsContext::with_session(LsId::new());
 
         let req = RemoteExecRequest {
