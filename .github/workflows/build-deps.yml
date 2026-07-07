@@ -36,16 +36,12 @@ jobs:
           cd /tmp/watch-skill
           git clone --depth 1 https://github.com/oxbshw/watch-skill.git .
           uv build
-
-      - name: Install deps
-        run: |
           EXTRAS="${{ github.event.inputs.extras || 'api' }}"
           for extra in $(echo "$EXTRAS" | tr ',' ' '); do
-            uv sync --no-dev --extra "$extra" --directory /tmp/watch-skill
+            uv sync --no-dev --extra "$extra"
           done
-
-      - name: Export locked deps
-        run: uv pip freeze --directory /tmp/watch-skill | grep -v "^watch-skill @ " > /tmp/requirements.txt
+          uv pip freeze | grep -v "^watch-skill @ " > /tmp/requirements.txt
+          echo "=== $(wc -l < /tmp/requirements.txt) locked deps ==="
 
       - name: Download ${{ matrix.pip_platform }} wheels
         run: |
@@ -77,12 +73,7 @@ jobs:
           #!/data/data/com.termux/files/usr/bin/bash
           set -euo pipefail
           DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-          echo "Installing watch-skill..."
-          pip install --no-index --find-links "$DIR" --no-deps "$DIR"/watch_skill-*.whl
-          for whl in "$DIR"/*.whl; do
-            [ "$(basename "$whl")" = "watch_skill"* ] && continue
-            pip install --no-index --find-links "$DIR" --no-deps "$whl" 2>/dev/null || true
-          done
+          pip install --no-index --find-links "$DIR" watch-skill
           echo "Done. Try: watch-skill doctor"
           SCRIPT
           chmod +x /tmp/wheels/install-termux.sh
