@@ -436,7 +436,7 @@ mod tests {
 
     #[test]
     fn test_market_plugin_entry_serialization() {
-        let _entry = MarketPluginEntry {
+        let entry = MarketPluginEntry {
             id: "test@1.0.0".into(),
             name: "test".into(),
             version: "1.0.0".into(),
