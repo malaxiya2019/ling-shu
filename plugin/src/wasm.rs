@@ -109,9 +109,9 @@ impl WasmSandbox {
             LsError::Plugin(format!("cannot read WASM file '{}': {e}", path.display()))
         })?;
 
-        // 创建模块
-        let module = wasmtime::Module::new(engine, &wasm_bytes)
-            .map_err(|e| LsError::Plugin(format!("invalid WASM module: {e}")))?;
+        // 使用 component::Component (component model) 而非 Module
+        let component = wasmtime::component::Component::new(engine, &wasm_bytes)
+            .map_err(|e| LsError::Plugin(format!("invalid WASM component: {e}")))?;
 
         // 根据配置选择性添加 WASI
         let wasi_state = if self.config.enable_filesystem {
@@ -147,10 +147,10 @@ impl WasmSandbox {
                 .map_err(|e| LsError::Plugin(format!("failed to add WASI linker: {e}")))?;
         }
 
-        // 实例化模块
+        // 实例化组件 (component model API)
         let _instance = linker
-            .instantiate(&mut store, &module)
-            .map_err(|e| LsError::Plugin(format!("failed to instantiate WASM module: {e}")))?;
+            .instantiate(&mut store, &component)
+            .map_err(|e| LsError::Plugin(format!("failed to instantiate WASM component: {e}")))?;
 
         let plugin_id = lingshu_core::LsId::new();
         let info = PluginInfo {
