@@ -459,7 +459,17 @@ async fn openapi_json_handler() -> Json<serde_json::Value> {
                 "post": {
                     "summary": "Chat completion (OpenAI compatible)",
                     "tags": ["Chat"],
-                    "responses": { "200": { "description": "Chat response" } }
+                    "requestBody": {
+                        "required": true,
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/ChatCompletionRequest" }
+                            }
+                        }
+                    },
+                    "responses": {
+                        "200": { "description": "Chat response", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ChatCompletionResponse" } } } }
+                    }
                 }
             },
             "/v1/chat": {
@@ -473,6 +483,14 @@ async fn openapi_json_handler() -> Json<serde_json::Value> {
                 "post": {
                     "summary": "Create embeddings (OpenAI compatible)",
                     "tags": ["Embeddings"],
+                    "requestBody": {
+                        "required": true,
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/EmbeddingRequest" }
+                            }
+                        }
+                    },
                     "responses": { "200": { "description": "Embedding response" } }
                 }
             },
@@ -487,7 +505,17 @@ async fn openapi_json_handler() -> Json<serde_json::Value> {
                 "post": {
                     "summary": "Run agent",
                     "tags": ["Agent"],
-                    "responses": { "200": { "description": "Agent run result" } }
+                    "requestBody": {
+                        "required": true,
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/AgentRunRequest" }
+                            }
+                        }
+                    },
+                    "responses": {
+                        "200": { "description": "Agent run result", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AgentRunResponse" } } } }
+                    }
                 }
             },
             "/v1/agents": {
@@ -706,8 +734,235 @@ async fn openapi_json_handler() -> Json<serde_json::Value> {
                     "responses": { "200": { "description": "Hooked browsers list" } }
                 }
             }
+        },
+        "components": {
+            "schemas": {
+                "HealthResponse": {
+                    "type": "object",
+                    "properties": {
+                        "status": { "type": "string" },
+                        "version": { "type": "string" },
+                        "uptime": { "type": "string" },
+                        "checks": {
+                            "type": "array",
+                            "items": { "$ref": "#/components/schemas/HealthCheckItem" }
+                        }
+                    }
+                },
+                "HealthCheckItem": {
+                    "type": "object",
+                    "properties": {
+                        "name": { "type": "string" },
+                        "healthy": { "type": "boolean" },
+                        "detail": { "type": "string" }
+                    }
+                },
+                "ChatCompletionRequest": {
+                    "type": "object",
+                    "required": ["model", "messages"],
+                    "properties": {
+                        "model": { "type": "string", "description": "Model ID" },
+                        "messages": {
+                            "type": "array",
+                            "items": { "$ref": "#/components/schemas/ChatMessage" }
+                        },
+                        "stream": { "type": "boolean", "default": false },
+                        "temperature": { "type": "number", "format": "float" },
+                        "max_tokens": { "type": "integer" },
+                        "session_id": { "type": "string" }
+                    }
+                },
+                "ChatMessage": {
+                    "type": "object",
+                    "required": ["role", "content"],
+                    "properties": {
+                        "role": { "type": "string", "enum": ["system", "user", "assistant"] },
+                        "content": { "type": "string" },
+                        "name": { "type": "string" }
+                    }
+                },
+                "ChatCompletionResponse": {
+                    "type": "object",
+                    "properties": {
+                        "id": { "type": "string" },
+                        "object": { "type": "string" },
+                        "created": { "type": "integer" },
+                        "model": { "type": "string" },
+                        "choices": {
+                            "type": "array",
+                            "items": { "$ref": "#/components/schemas/Choice" }
+                        },
+                        "usage": { "$ref": "#/components/schemas/UsageInfo" }
+                    }
+                },
+                "Choice": {
+                    "type": "object",
+                    "properties": {
+                        "index": { "type": "integer" },
+                        "message": {
+                            "type": "object",
+                            "properties": {
+                                "role": { "type": "string" },
+                                "content": { "type": "string" }
+                            }
+                        },
+                        "finish_reason": { "type": "string" }
+                    }
+                },
+                "UsageInfo": {
+                    "type": "object",
+                    "properties": {
+                        "prompt_tokens": { "type": "integer" },
+                        "completion_tokens": { "type": "integer" },
+                        "total_tokens": { "type": "integer" }
+                    }
+                },
+                "AgentRunRequest": {
+                    "type": "object",
+                    "required": ["input"],
+                    "properties": {
+                        "agent_id": { "type": "string" },
+                        "input": { "type": "string" },
+                        "config": {
+                            "type": "object",
+                            "additionalProperties": { "type": "string" }
+                        },
+                        "timeout_secs": { "type": "integer" }
+                    }
+                },
+                "AgentRunResponse": {
+                    "type": "object",
+                    "properties": {
+                        "agent_id": { "type": "string" },
+                        "status": { "type": "string" },
+                        "output": { "type": "string" },
+                        "duration_ms": { "type": "integer" }
+                    }
+                },
+                "EmbeddingRequest": {
+                    "type": "object",
+                    "required": ["model", "input"],
+                    "properties": {
+                        "model": { "type": "string" },
+                        "input": {
+                            "type": "array",
+                            "items": { "type": "string" }
+                        }
+                    }
+                },
+                "EvalRunRequest": {
+                    "type": "object",
+                    "properties": {
+                        "suite_name": { "type": "string" },
+                        "suite_id": { "type": "string" },
+                        "tags": {
+                            "type": "array",
+                            "items": { "type": "string" }
+                        }
+                    }
+                },
+                "EvalResult": {
+                    "type": "object",
+                    "properties": {
+                        "suite_name": { "type": "string" },
+                        "total": { "type": "integer" },
+                        "passed": { "type": "integer" },
+                        "failed": { "type": "integer" },
+                        "metrics": {
+                            "type": "object",
+                            "properties": {
+                                "accuracy": { "type": "number", "format": "float" },
+                                "precision": { "type": "number", "format": "float" },
+                                "recall": { "type": "number", "format": "float" },
+                                "f1_score": { "type": "number", "format": "float" },
+                                "latency_p50_ms": { "type": "number" },
+                                "latency_p95_ms": { "type": "number" },
+                                "latency_p99_ms": { "type": "number" }
+                            }
+                        }
+                    }
+                },
+                "FederationStatus": {
+                    "type": "object",
+                    "properties": {
+                        "cluster_name": { "type": "string" },
+                        "node_count": { "type": "integer" },
+                        "topology": { "type": "string" },
+                        "nodes": {
+                            "type": "array",
+                            "items": { "$ref": "#/components/schemas/FederationNode" }
+                        }
+                    }
+                },
+                "FederationNode": {
+                    "type": "object",
+                    "properties": {
+                        "id": { "type": "string" },
+                        "addr": { "type": "string" },
+                        "status": { "type": "string" },
+                        "capabilities": {
+                            "type": "array",
+                            "items": { "type": "string" }
+                        },
+                        "connected_at": { "type": "string", "format": "date-time" }
+                    }
+                },
+                "PluginInfo": {
+                    "type": "object",
+                    "properties": {
+                        "id": { "type": "string" },
+                        "name": { "type": "string" },
+                        "version": { "type": "string" },
+                        "status": { "type": "string", "enum": ["stopped", "running", "error"] },
+                        "description": { "type": "string" }
+                    }
+                },
+                "CredentialEntry": {
+                    "type": "object",
+                    "required": ["provider", "credential"],
+                    "properties": {
+                        "id": { "type": "string" },
+                        "provider": { "type": "string" },
+                        "credential": { "type": "string" },
+                        "description": { "type": "string" },
+                        "created_at": { "type": "string", "format": "date-time" }
+                    }
+                },
+                "ErrorResponse": {
+                    "type": "object",
+                    "properties": {
+                        "error": { "type": "string" },
+                        "code": { "type": "string" },
+                        "detail": { "type": "string" }
+                    }
+                }
+            }
         }
     }))
+}
+/// Swagger UI — interactive API documentation
+async fn swagger_ui_handler() -> Html<&'static str> {
+    Html(r##"<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Lingshu API — Swagger UI</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
+  <style>body { margin: 0; background: #0d1117; }</style>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script>
+    SwaggerUIBundle({
+      url: "/docs/openapi.json",
+      dom_id: "#swagger-ui",
+      deepLinking: true,
+      presets: [SwaggerUIBundle.presets.apis],
+    });
+  </script>
+</body>
+</html>"##)
 }
 /// Server-rendered admin dashboard page.
 /// Fetches live data from REST API via JavaScript.
@@ -1017,6 +1272,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         // API Documentation
         .route("/docs", get(docs_handler))
         .route("/docs/openapi.json", get(openapi_json_handler))
+        .route("/docs/swagger", get(swagger_ui_handler))
         // Admin Dashboard + WebUI (需认证)
         .merge(
             Router::new()
