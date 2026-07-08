@@ -15,7 +15,7 @@ pub mod manifest;
 pub mod market;
 pub mod sandbox;
 
-#[cfg(feature = "wasm")]
+#[cfg(all(feature = "wasm", not(target_os = "android")))]
 pub mod wasm;
 
 pub use event::{Event, EventBus, EventCallback, EventType, Registrar};

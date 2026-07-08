@@ -1,0 +1,1 @@
+Fix: restore mut for variables used with register_static_discovery

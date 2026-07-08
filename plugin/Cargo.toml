@@ -27,9 +27,11 @@ flate2 = "1"
 tar = "0.4"
 tempfile = "3"
 url = "2"
-wasmtime = { version = "24", optional = true, features = ["component-model"] }
-wasmtime-wasi = { version = "24", optional = true }
 
 [features]
 default = []
 wasm = ["dep:wasmtime", "dep:wasmtime-wasi"]
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+wasmtime = { version = "24", optional = true, features = ["component-model"] }
+wasmtime-wasi = { version = "24", optional = true }

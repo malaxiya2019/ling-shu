@@ -214,3 +214,32 @@ tolerations: []
 
 # ── Affinity ──────────────────────────────────────────────────────
 affinity: {}
+
+
+# ── Pod Anti-Affinity ──────────────────────────────────────────────
+# Ensures pods are spread across different nodes for high availability.
+# Recommended for federation multi-replica deployments.
+podAntiAffinity:
+  enabled: true
+
+# ── Topology Spread Constraints ────────────────────────────────────
+# Controls how pods are spread across your cluster among failure-domains
+# such as regions, zones, nodes, and other user-defined topology domains.
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: lingshu
+  - maxSkew: 2
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: lingshu
+
+# ── Extra Environment Variables ────────────────────────────────────
+# Additional key-value pairs injected into the ConfigMap and pods.
+extraEnv: {}
+  # LS_CUSTOM_VAR: "value"

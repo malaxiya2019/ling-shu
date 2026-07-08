@@ -30,6 +30,22 @@ spec:
       {{- end }}
       serviceAccountName: {{ include "lingshu.serviceAccountName" . }}
       terminationGracePeriodSeconds: 60
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.podAntiAffinity.enabled }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    {{- include "lingshu.selectorLabels" . | nindent 20 }}
+      {{- end }}
+
       {{- if .Values.pluginMarket.enabled }}
       initContainers:
         - name: plugin-init
@@ -73,6 +89,10 @@ spec:
               name: beef
               protocol: TCP
             {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ $fullname }}-config
+          
           env:
             - name: LS_ENV
               value: {{ .Values.env.LS_ENV }}

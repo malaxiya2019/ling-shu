@@ -1,3 +1,5 @@
+#![cfg(not(target_os = "android"))]
+
 //! 🏖️ WASM Sandbox — 基于 WebAssembly 的插件沙箱隔离.
 //!
 //! 使用 `wasmtime` 运行时在沙箱中执行 WASM 插件，提供更强的安全隔离。

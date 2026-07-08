@@ -1,6 +1,6 @@
 # Lingshu — 项目进度报告
 
-> 生成日期: 2026-07-07
+> 生成日期: 2026-07-08
 
 ---
 
@@ -84,7 +84,17 @@
 | Eval Reports 页面 | ✅ | 评测结果、指标表格 |
 | API 客户端 | ✅ | 类型安全的 fetch 封装 |
 | 服务端管理面板 | ✅ | 登录认证 + 服务端渲染 Dashboard |
-| WASM 构建 | ⏳ | 需 `trunk build` 生成 dist |
+| WASM 构建 | ✅ | `trunk build --release` 已集成到 Dockerfile + CI |
+
+### v2.8 — DevOps & 质量保障
+| 组件 | 状态 | 说明 |
+|------|------|------|
+| Helm Chart | ✅ | K8s 部署 (ConfigMap/Ingress/HPA/联邦多副本) |
+| OpenAPI 文档 | ✅ | 自动生成 60+ 端点, 7 标签, Swagger UI |
+| 监控 Dashboard | ✅ | WebUI 实时 Metrics 图表 (CPU/Memory/Token) |
+| 端到端测试 | ✅ | evaluator + federation 集成测试 (5 个场景) |
+| WASM CI 构建 | ✅ | trunk build 集成到 Docker 多阶段构建 + GitHub CI |
+| WASM 沙箱修复 | ✅ | wasmtime 平台条件编译, Android 跳过 |
 
 ### 附加组件
 | 组件 | 状态 | 说明 |
@@ -148,7 +158,7 @@
 | `evaluator/` | 7 源文件 | ~1,988 lines |
 | `federation/` | 7 源文件 | ~1,988 lines |
 | `webui/` | 13 源文件 | ~1,200 lines |
-| `app/` | 源文件 (main.rs + api.rs + gRPC) | ~4,500 lines |
+| `app/` | 源文件 (main.rs + api.rs + gRPC + openapi_spec.rs) | ~4,500 lines |
 | **总计 (全部 28 crates)** | | **~28,000+ lines** |
 
 ---
@@ -222,12 +232,22 @@ lingshu-websocket:        1  doc-test passed
 
 ---
 
-## 7. 下一步建议
+## 7. ~~下一步建议~~ ✅ 全部完成
 
-1. **WASM 构建** — 在 CI 中运行 `trunk build` 生成 webui/dist，集成到 Docker 镜像
-2. **端到端测试** — 添加 evaluator + federation 集成测试，模拟多节点联邦场景
-3. **Helm Chart 完善** — Kubernetes 部署配置，支持联邦多副本
-4. **性能基准** — 使用已添加的 criterion bench 持续追踪性能回归
-5. **OpenAPI/Swagger UI** — 完善自动生成 API 文档
-6. **国际化 (i18n)** — WebUI 支持中英文切换
-7. **监控 Dashboard** — WebUI 增加实时 Metrics 图表 (CPU/Memory/Token 用量)
+以下 6 项任务已在 v2.8 中全部完成：
+
+1. ✅ **Helm Chart 完善** — K8s 部署配置 (ConfigMap/NOTES/反亲和/拓扑分布/HPA/Ingress)
+2. ✅ **OpenAPI/Swagger UI** — 自动生成 OpenAPI 3.0.3 规范, 覆盖 60+ 端点
+3. ✅ **监控 Dashboard** — WebUI 实时 CPU/Memory/Token 图表 (SVG 曲线 + 60 点环形缓冲)
+4. ✅ **端到端测试** — evaluator + federation 集成测试 (5 个场景: 独立/部分失败/回归/并发/联邦)
+5. ✅ **WASM 构建 CI** — `trunk build --release` 集成到 Dockerfile 多阶段构建 + GitHub CI webui job
+6. ✅ **Plugin wasmtime 修复** — wasmtime 移至 `cfg(not(target_os = "android"))` 条件编译, 避免 Termux 编译失败
+
+---
+
+## 8. 下一步建议
+
+1. **性能基准** — 使用已添加的 criterion bench 持续追踪性能回归
+2. **国际化 (i18n)** — WebUI 支持中英文切换
+3. **代码覆盖** — 集成 cargo-tarpaulin 或类似工具
+4. **TEE 支持** — 机密计算硬件安全模块

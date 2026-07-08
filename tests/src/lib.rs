@@ -1,8 +1,19 @@
 //! Lingshu 集成测试 — 跨 crate 端到端验证.
 
+// 端到端测试模块（evaluator + federation）
+#[cfg(test)]
+pub(crate) mod evaluator_tests;
+
+#[cfg(test)]
+pub(crate) mod federation_tests;
+
+#[cfg(test)]
+pub(crate) mod evaluator_federation_e2e;
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
+
     // ── 1. Core 基础类型 ────────────────────────────
     #[test]
     fn test_core_id_serialization() {
@@ -72,7 +83,6 @@ mod tests {
         let store = InMemoryVectorStore::new();
         let ctx = LsContext::with_session(LsId::new());
 
-        // Create collection
         let coll_id = store
             .create_collection(ctx.child(), "test", 3)
             .await
@@ -109,8 +119,8 @@ mod tests {
         let bus = InMemoryEventBus::new();
         let ctx = LsContext::with_session(LsId::new());
 
-        let received: std::sync::Arc<StdMutex<Vec<String>>> =
-            std::sync::Arc::new(StdMutex::new(Vec::new()));
+        let received: Arc<StdMutex<Vec<String>>> =
+            Arc::new(StdMutex::new(Vec::new()));
         let rx = received.clone();
 
         bus.subscribe(
@@ -140,447 +150,266 @@ mod tests {
         assert_eq!(data[0], "test.event");
     }
 
-    // ── 5. Storage 文件操作 ─────────────────────────
+    // ── 5. Plugin EventBus ─────────────────────────
     #[tokio::test]
-    async fn test_storage_file_ops() {
-        use lingshu_core::{LsContext, LsId};
-        use lingshu_storage::LocalStorage;
-        use lingshu_traits::storage::Storage;
+    async fn test_plugin_event_bus() {
+        use lingshu_plugin::event::{Event, EventBus, EventType};
+        use std::sync::atomic::{AtomicUsize, Ordering};
 
-        let tmp = tempfile::tempdir().unwrap();
-        let storage = LocalStorage::new(tmp.path().join("test_store"));
-        let ctx = LsContext::with_session(LsId::new());
+        let bus = Arc::new(EventBus::new());
+        let counter = Arc::new(AtomicUsize::new(0));
+        let c = counter.clone();
 
-        // Upload
-        let content = b"Hello, Lingshu!".to_vec();
-        let info = storage
-            .upload(ctx.child(), "test.txt", "text/plain", content.clone())
-            .await
-            .unwrap();
-        assert_eq!(info.filename, "test.txt");
-
-        // Download
-        let (_, downloaded) = storage.download(ctx.child(), info.file_id).await.unwrap();
-        assert_eq!(downloaded, content);
-
-        // Info
-        let file_info = storage.info(ctx.child(), info.file_id).await.unwrap();
-        assert_eq!(file_info.filename, "test.txt");
-
-        // Delete
-        storage.delete(ctx.child(), info.file_id).await.unwrap();
-        let result = storage.info(ctx.child(), info.file_id).await;
-        assert!(result.is_err());
-    }
-
-    // ── 6. Security JWT + 权限 ─────────────────────
-    #[tokio::test]
-    async fn test_security_auth() {
-        use lingshu_core::LsId;
-        use lingshu_security::auth::JwtService;
-        use lingshu_security::permission::{Permission, PermissionChecker};
-
-        let jwt = JwtService::new("test-secret", 3600);
-        let session_id = LsId::new().to_string();
-        let token = jwt
-            .issue("admin", &session_id, None, vec!["admin".into()])
-            .unwrap();
-        assert!(!token.is_empty());
-
-        let verified = jwt.verify(&token).unwrap();
-        assert_eq!(verified.sub, "admin");
-
-        // Permission check
-        let checker = PermissionChecker::new();
-        let perm = Permission::new("system", "*", "manage");
-        let result = checker.check(std::slice::from_ref(&perm), &perm);
-        assert!(result.is_ok());
-    }
-
-    // ── 7. Runtime ToolRegistry 全链路 ──────────────
-    #[tokio::test]
-    async fn test_runtime_tool_registry() {
-        use async_trait::async_trait;
-        use lingshu_core::{LsContext, LsId, LsResult};
-        use lingshu_runtime::ToolRegistry;
-        use lingshu_traits::tool::{Tool, ToolInfo, ToolParam};
-        use serde_json::Value;
-
-        struct GreetTool;
-
-        #[async_trait]
-        impl Tool for GreetTool {
-            fn info(&self) -> ToolInfo {
-                ToolInfo {
-                    tool_id: LsId::new(),
-                    name: "greet".into(),
-                    description: "Greets a person".into(),
-                    parameters: vec![ToolParam {
-                        name: "name".into(),
-                        description: "Person's name".into(),
-                        required: true,
-                        param_type: "string".into(),
-                    }],
-                }
-            }
-
-            fn validate(&self, input: &Value) -> LsResult<()> {
-                if input.get("name").and_then(|v| v.as_str()).is_none() {
-                    return Err(lingshu_core::LsError::Validation(
-                        "missing name field".into(),
-                    ));
-                }
-                Ok(())
-            }
-
-            async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> {
-                let name = input["name"].as_str().unwrap_or("world");
-                Ok(serde_json::json!({"greeting": format!("Hello, {name}!")}))
-            }
-        }
-
-        let registry = ToolRegistry::new();
-        registry.register(Box::new(GreetTool)).await;
-
-        let ctx = LsContext::with_session(LsId::new());
-        let result = registry
-            .execute(&ctx, "greet", serde_json::json!({"name": "Lingshu"}))
-            .await
-            .unwrap();
-        assert_eq!(result["greeting"], "Hello, Lingshu!");
-    }
-
-    // ── 8. InMemoryKnowledge 全链路 ─────────────────
-    #[tokio::test]
-    async fn test_knowledge_in_memory() {
-        use lingshu_backends::InMemoryKnowledge;
-        use lingshu_core::{LsContext, LsId};
-        use lingshu_traits::knowledge::{DataSource, Knowledge, KnowledgeEntry};
-
-        let kb = InMemoryKnowledge::new();
-        let ctx = LsContext::with_session(LsId::new());
-
-        let source = DataSource {
-            source_id: LsId::new(),
-            name: "docs".into(),
-            source_type: "markdown".into(),
-            config: serde_json::Value::Null,
-        };
-        let source_id = kb.register_source(ctx.child(), source).await.unwrap();
-
-        let entry = KnowledgeEntry {
-            entry_id: LsId::new(),
-            source: source_id.to_string(),
-            content: serde_json::json!("Rust is safe and fast"),
-            version: 1,
-            metadata: std::collections::HashMap::new(),
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
-        };
-        kb.insert_entry(entry).await.unwrap();
-
-        let result = kb.search(ctx.child(), "Rust", 10).await.unwrap();
-        assert_eq!(result.total, 1);
-        assert_eq!(result.entries[0].content, "Rust is safe and fast");
-    }
-
-    // ── 9. Config 层级加载 ─────────────────────────
-    #[test]
-    fn test_config_defaults() {
-        use lingshu_config::settings::LsConfig;
-        let config = LsConfig::default();
-        assert!(config.runtime.max_concurrent_tasks > 0);
-        assert!(config.llm.max_tokens > 0);
-        assert!(!config.llm.default_model.is_empty());
-    }
-
-    // ── 10. DatabaseRepository 全链路 ───────────────
-    #[tokio::test]
-    async fn test_database_repository_integration() {
-        use lingshu_core::{LsContext, LsId};
-        use lingshu_database::{DatabaseRepository, SqliteDatabase};
-        use lingshu_traits::database::Pagination;
-        use lingshu_traits::repository::Repository;
-        use serde::{Deserialize, Serialize};
-
-        #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-        struct Product {
-            id: Option<String>,
-            name: String,
-            price: f64,
-        }
-
-        let db = Arc::new(SqliteDatabase::in_memory().unwrap());
-        let repo = DatabaseRepository::<Product>::new(db, "products");
-        let ctx = LsContext::with_session(LsId::new());
-
-        let product = Product {
-            id: None,
-            name: "Widget".into(),
-            price: 9.99,
-        };
-        let inserted = repo.insert(ctx.child(), product).await.unwrap();
-        assert_eq!(inserted.name, "Widget");
-        assert!(inserted.id.is_some());
-
-        let all = repo
-            .query(
-                ctx.child(),
-                vec![],
-                Pagination {
-                    page: 1,
-                    page_size: 10,
-                },
+        let registrar = bus.registrar();
+        registrar
+            .register(
+                EventType::PluginInstalled,
+                Arc::new(move |_evt: Event| {
+                    c.fetch_add(1, Ordering::SeqCst);
+                }),
+                "test handler",
             )
-            .await
+            .await;
+
+        let event = Event::new(EventType::PluginInstalled, "test", serde_json::json!({"key": "value"}));
+        bus.publish(&event).await;
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+        assert_eq!(counter.load(Ordering::SeqCst), 1);
+    }
+
+    // ── 6. Plugin 清单解析 ──────────────────────
+    #[tokio::test]
+    async fn test_plugin_manifest_parsing() {
+        use lingshu_plugin::manifest::parse_manifest;
+
+        let json = serde_json::json!({
+            "name": "test-plugin",
+            "version": "1.0.0",
+            "description": "Test plugin",
+            "author": "test",
+            "license": "MIT",
+            "entry": "test.wasm",
+            "permissions": []
+        });
+
+        let manifest = parse_manifest(&json.to_string()).expect("parse manifest");
+        assert_eq!(manifest.base.name, "test-plugin");
+        assert_eq!(manifest.base.version, "1.0.0");
+    }
+
+    // ── 7. Rate Limiter (TokenBucket) ──────────────
+    #[tokio::test]
+    async fn test_rate_limiter_bucket() {
+        use lingshu_ratelimit::bucket::TokenBucket;
+        use lingshu_ratelimit::RateLimiter;
+
+        let bucket = TokenBucket::new(5, 10.0); // 容量 5, 每秒恢复 10
+
+        // 测试 5 次内通过
+        for i in 0..5 {
+            let result = bucket.check("test-key").await.unwrap();
+            assert!(
+                result.allowed,
+                "request {} should be allowed",
+                i + 1
+            );
+        }
+
+        // 第 6 次应当限流
+        let result = bucket.check("test-key").await.unwrap();
+        assert!(!result.allowed, "6th request should be denied");
+    }
+
+    // ── 8. Prompt Template ─────────────────────────
+    #[test]
+    fn test_prompt_template_compile() {
+        use lingshu_prompt::registry::PromptRegistry;
+        use lingshu_prompt::{TemplateEngine, TemplateVariable};
+        use std::collections::HashMap;
+
+        let engine = TemplateEngine::new();
+        let registry = PromptRegistry::new();
+
+        registry
+            .register(
+                "test-prompt",
+                "Integration test prompt",
+                "Answer in {{ language }}: {{ query }}",
+                vec![
+                    TemplateVariable {
+                        name: "language".into(),
+                        description: Some("Output language".into()),
+                        required: true,
+                        default_value: None,
+                    },
+                    TemplateVariable {
+                        name: "query".into(),
+                        description: Some("User query".into()),
+                        required: true,
+                        default_value: None,
+                    },
+                ],
+            )
             .unwrap();
-        assert_eq!(all.total, 1);
+
+        let mut vars = HashMap::new();
+        vars.insert("language".to_string(), "Chinese".to_string());
+        vars.insert("query".to_string(), "What is Rust?".to_string());
+
+        let compiled = registry.compile("test-prompt", &vars, &engine).unwrap();
+        assert_eq!(compiled.text, "Answer in Chinese: What is Rust?");
     }
-}
 
-// ── 11. RateLimit ────────────────────────────────
-#[tokio::test]
-async fn test_ratelimit_token_bucket_integration() {
-    use lingshu_ratelimit::RateLimiter;
-    use lingshu_ratelimit::TokenBucket;
+    #[tokio::test]
+    async fn test_prompt_ab_test() {
+        use chrono::Utc;
+        use lingshu_prompt::ABTestConfig;
+        use lingshu_prompt::ABTestManager;
 
-    let bucket = TokenBucket::new(100, 10.0);
-    for _ in 0..100 {
-        let r = bucket.check("test").await.unwrap();
-        assert!(r.allowed);
+        let mut manager = ABTestManager::new();
+        manager
+            .register(ABTestConfig {
+                name: "test-ab".into(),
+                variant_a: "v1".into(),
+                variant_b: "v2".into(),
+                traffic_percent_b: 50,
+                enabled: true,
+                start_at: Utc::now(),
+                end_at: None,
+            })
+            .unwrap();
+
+        manager.record_result("test-ab", "v1", true, 100.0).unwrap();
+        manager.record_result("test-ab", "v2", true, 80.0).unwrap();
+
+        let result = manager.get_result("test-ab").unwrap();
+        assert_eq!(result.a_count, 1);
+        assert_eq!(result.b_count, 1);
     }
-    let r = bucket.check("test").await.unwrap();
-    assert!(!r.allowed);
-}
 
-#[tokio::test]
-async fn test_ratelimit_sliding_window() {
-    use lingshu_ratelimit::RateLimiter;
-    use lingshu_ratelimit::SlidingWindow;
+    // ── 9. Websocket Connection Manager ────────────
+    #[tokio::test]
+    async fn test_websocket_connection_manager() {
+        use lingshu_websocket::connection::{Connection, ConnectionManager};
+        #[allow(unused_imports)] use lingshu_websocket::types::ConnectionState;
 
-    let sw = SlidingWindow::new(10, 60);
-    for _ in 0..10 {
-        let r = sw.check("key").await.unwrap();
-        assert!(r.allowed);
+        let mgr = ConnectionManager::new(300);
+
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+        let conn = Connection::new(
+            "session-1".to_string(),
+            "user-1".to_string(),
+            tx,
+            "127.0.0.1:9999".to_string(),
+            "test-agent".to_string(),
+        );
+        mgr.register(conn).await;
+
+        let found = mgr.get("session-1").await;
+        assert!(found.is_some(), "connection should be registered");
+
+        let count = mgr.active_count().await;
+        assert_eq!(count, 1, "should have 1 active connection");
+
+        mgr.unregister("session-1").await;
+        let count = mgr.active_count().await;
+        assert_eq!(count, 0, "should have 0 active connections");
     }
-    let r = sw.check("key").await.unwrap();
-    assert!(!r.allowed);
-}
 
-// ── 12. Billing ──────────────────────────────────
-#[tokio::test]
-async fn test_billing_full_flow() {
-    use lingshu_billing::{BillingPlan, BillingSystem};
+    // ── 10. HTTP Integration Tests ─────────────────
 
-    let plans = vec![
-        BillingPlan::free(),
-        BillingPlan::basic(),
-        BillingPlan::pro(),
-    ];
-    let system = BillingSystem::new(plans).unwrap();
+    /// 启动一个最小的测试 HTTP 服务器，返回 base URL。
+    #[cfg(test)]
+    pub(crate) async fn spawn_test_server() -> String {
+        use axum::{routing::get, Json, Router};
+        use std::net::TcpListener as StdListener;
 
-    system
-        .record_usage("alice", "gpt-4", 1000, 500)
-        .await
-        .unwrap();
-    system
-        .record_usage("alice", "gpt-4", 2000, 1000)
-        .await
-        .unwrap();
-
-    let quota = system.check_quota("alice", "free").await.unwrap();
-    assert_eq!(quota.token_quota, 1_000_000);
-    assert_eq!(quota.requests_used, 2);
-    assert_eq!(quota.tokens_used, 4500);
-}
-
-// ── 13. Audit ────────────────────────────────────
-#[tokio::test]
-async fn test_audit_log_integration() {
-    use lingshu_audit::AuditQueryBuilder;
-    use lingshu_audit::{AuditEntry, AuditEventType, AuditLog, AuditLogStore};
-
-    let log = AuditLog::new();
-
-    log.append(AuditEntry::new(
-        AuditEventType::UserLogin,
-        "user.login",
-        "alice",
-        "user",
-        "user-001",
-        r#"{"ip":"10.0.0.1"}"#,
-    ))
-    .await
-    .unwrap();
-
-    let q = AuditQueryBuilder::new()
-        .with_actor("alice")
-        .with_event_type(AuditEventType::UserLogin)
-        .build();
-
-    let results = log.query(&q).await.unwrap();
-    assert_eq!(results.len(), 1);
-    assert_eq!(results[0].resource_id, "user-001");
-}
-
-// ── 14. Prompt ───────────────────────────────────
-#[test]
-fn test_prompt_template_compile() {
-    use lingshu_prompt::{PromptRegistry, TemplateEngine, TemplateVariable};
-    use std::collections::HashMap;
-
-    let engine = TemplateEngine::new();
-    let registry = PromptRegistry::new();
-
-    registry
-        .register(
-            "test-prompt",
-            "Integration test prompt",
-            "Answer in {{ language }}: {{ query }}",
-            vec![
-                TemplateVariable {
-                    name: "language".into(),
-                    description: Some("Output language".into()),
-                    required: true,
-                    default_value: None,
-                },
-                TemplateVariable {
-                    name: "query".into(),
-                    description: Some("User query".into()),
-                    required: true,
-                    default_value: None,
-                },
-            ],
-        )
-        .unwrap();
-
-    let mut vars = HashMap::new();
-    vars.insert("language".to_string(), "Chinese".to_string());
-    vars.insert("query".to_string(), "What is Rust?".to_string());
-
-    let compiled = registry.compile("test-prompt", &vars, &engine).unwrap();
-    assert_eq!(compiled.text, "Answer in Chinese: What is Rust?");
-}
-
-#[tokio::test]
-async fn test_prompt_ab_test() {
-    use chrono::Utc;
-    use lingshu_prompt::ABTestConfig;
-    use lingshu_prompt::ABTestManager;
-
-    let mut manager = ABTestManager::new();
-    manager
-        .register(ABTestConfig {
-            name: "test-ab".into(),
-            variant_a: "v1".into(),
-            variant_b: "v2".into(),
-            traffic_percent_b: 50,
-            enabled: true,
-            start_at: Utc::now(),
-            end_at: None,
-        })
-        .unwrap();
-
-    manager.record_result("test-ab", "v1", true, 100.0).unwrap();
-    manager.record_result("test-ab", "v2", true, 80.0).unwrap();
-
-    let result = manager.get_result("test-ab").unwrap();
-    assert_eq!(result.a_count, 1);
-    assert_eq!(result.b_count, 1);
-}
-
-// ── 15. HTTP Integration Tests ────────────────────
-
-/// 启动一个最小的测试 HTTP 服务器，返回 base URL。
-#[cfg(test)]
-pub(crate) async fn spawn_test_server() -> String {
-    use axum::{routing::get, Json, Router};
-    use std::net::TcpListener as StdListener;
-
-    let app = Router::new()
-        .route("/health", get(|| async {
-            Json(serde_json::json!({
-                "status": "ok",
-                "version": "1.0.0", 
-                "uptime": "integration-test",
-                "checks": []
+        let app = Router::new()
+            .route("/health", get(|| async {
+                Json(serde_json::json!({
+                    "status": "ok",
+                    "version": "1.0.0",
+                    "uptime": "integration-test",
+                    "checks": []
+                }))
             }))
-        }))
-        .route("/version", get(|| async {
-            Json(serde_json::json!({
-                "version": "1.0.0",
-                "build": "integration-test",
-                "rustc": "stable"
+            .route("/version", get(|| async {
+                Json(serde_json::json!({
+                    "version": "1.0.0",
+                    "build": "integration-test",
+                    "rustc": "stable"
+                }))
             }))
-        }))
-        .route("/v1/models", get(|| async {
-            Json(serde_json::json!([
-                {"id": "gpt-4o", "object": "model", "created": 1700000000, "owned_by": "openai"},
-                {"id": "claude-3-opus", "object": "model", "created": 1700000000, "owned_by": "anthropic"},
-                {"id": "mock-model", "object": "model", "created": 1700000000, "owned_by": "lingshu"}
-            ]))
-        }));
+            .route("/v1/models", get(|| async {
+                Json(serde_json::json!([
+                    {"id": "gpt-4o", "object": "model", "created": 1700000000, "owned_by": "openai"},
+                    {"id": "claude-3-opus", "object": "model", "created": 1700000000, "owned_by": "anthropic"},
+                    {"id": "mock-model", "object": "model", "created": 1700000000, "owned_by": "lingshu"}
+                ]))
+            }));
 
-    let listener = StdListener::bind("127.0.0.1:0").unwrap();
-    let addr = listener.local_addr().unwrap();
-    drop(listener);
+        let listener = StdListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        drop(listener);
 
-    let tcp_listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    let bound_addr = tcp_listener.local_addr().unwrap();
+        let tcp_listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+        let bound_addr = tcp_listener.local_addr().unwrap();
 
-    tokio::spawn(async move {
-        axum::serve(tcp_listener, app).await.unwrap();
-    });
+        tokio::spawn(async move {
+            axum::serve(tcp_listener, app).await.unwrap();
+        });
 
-    format!("http://{}", bound_addr)
-}
+        format!("http://{}", bound_addr)
+    }
 
-#[tokio::test]
-async fn int_test_health_endpoint() {
-    let base_url = spawn_test_server().await;
-    let client = reqwest::Client::new();
+    #[tokio::test]
+    async fn int_test_health_endpoint() {
+        let base_url = spawn_test_server().await;
+        let client = reqwest::Client::new();
 
-    let resp = client
-        .get(format!("{}/health", base_url))
-        .send()
-        .await
-        .expect("health request failed");
+        let resp = client
+            .get(format!("{}/health", base_url))
+            .send()
+            .await
+            .expect("health request failed");
 
-    assert_eq!(resp.status(), reqwest::StatusCode::OK);
-    let body: serde_json::Value = resp.json().await.unwrap();
-    assert_eq!(body["status"], "ok");
-    assert_eq!(body["version"], "1.0.0");
-}
+        assert_eq!(resp.status(), reqwest::StatusCode::OK);
+        let body: serde_json::Value = resp.json().await.unwrap();
+        assert_eq!(body["status"], "ok");
+        assert_eq!(body["version"], "1.0.0");
+    }
 
-#[tokio::test]
-async fn int_test_version_endpoint() {
-    let base_url = spawn_test_server().await;
-    let client = reqwest::Client::new();
+    #[tokio::test]
+    async fn int_test_version_endpoint() {
+        let base_url = spawn_test_server().await;
+        let client = reqwest::Client::new();
 
-    let resp = client
-        .get(format!("{}/version", base_url))
-        .send()
-        .await
-        .expect("version request failed");
+        let resp = client
+            .get(format!("{}/version", base_url))
+            .send()
+            .await
+            .expect("version request failed");
 
-    assert_eq!(resp.status(), reqwest::StatusCode::OK);
-    let body: serde_json::Value = resp.json().await.unwrap();
-    assert_eq!(body["version"], "1.0.0");
-}
+        assert_eq!(resp.status(), reqwest::StatusCode::OK);
+        let body: serde_json::Value = resp.json().await.unwrap();
+        assert_eq!(body["version"], "1.0.0");
+    }
 
-#[tokio::test]
-async fn int_test_models_endpoint() {
-    let base_url = spawn_test_server().await;
-    let client = reqwest::Client::new();
+    #[tokio::test]
+    async fn int_test_models_endpoint() {
+        let base_url = spawn_test_server().await;
+        let client = reqwest::Client::new();
 
-    let resp = client
-        .get(format!("{}/v1/models", base_url))
-        .send()
-        .await
-        .expect("models request failed");
+        let resp = client
+            .get(format!("{}/v1/models", base_url))
+            .send()
+            .await
+            .expect("models request failed");
 
-    assert_eq!(resp.status(), reqwest::StatusCode::OK);
-    let models: Vec<serde_json::Value> = resp.json().await.unwrap();
-    assert!(models.len() >= 3);
-    assert!(models.iter().any(|m| m["id"] == "gpt-4o"));
+        assert_eq!(resp.status(), reqwest::StatusCode::OK);
+        let models: Vec<serde_json::Value> = resp.json().await.unwrap();
+        assert!(models.len() >= 3);
+        assert!(models.iter().any(|m| m["id"] == "gpt-4o"));
+    }
 }

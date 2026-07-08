@@ -28,6 +28,11 @@ RUN mkdir -p \
     cargo build --release -p lingshu 2>/dev/null || true
 
 COPY . .
+
+# ── WebUI WASM Build (trunk) ──
+RUN rustup target add wasm32-unknown-unknown &&     cargo install trunk --locked &&     cd webui && trunk build --release
+
+# ── Final Server Build ──
 RUN cargo build --release -p lingshu
 
 # ── Stage 2: Runtime ──
@@ -38,6 +43,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/target/release/lingshu /usr/local/bin/lingshu
+COPY --from=builder /app/webui/dist/ /webui/dist/
 COPY config/ /etc/lingshu/config/
 
 RUN mkdir -p /var/lib/lingshu /var/log/lingshu
