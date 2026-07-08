@@ -6,9 +6,16 @@
 pub mod audit;
 pub mod auth;
 pub mod permission;
+pub mod service_auth;
+
+#[cfg(feature = "oauth2")]
+pub mod oauth2;
+pub mod api_key;
 
 pub use auth::*;
 pub use permission::*;
-pub mod service_auth;
-pub use audit::*;
 pub use service_auth::*;
+pub use api_key::*;
+
+#[cfg(feature = "oauth2")]
+pub use oauth2::*;

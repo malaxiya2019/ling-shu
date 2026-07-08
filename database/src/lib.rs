@@ -12,6 +12,7 @@
 //! 首次连接时自动执行 `migrations/001_init.sql`, 创建以下表:
 //! - documents, users, sessions, memories, vectors, events, audit_logs, plugins
 
+pub mod checkpoint;
 pub mod repository;
 #[cfg(feature = "sqlite")]
 pub mod sqlite;

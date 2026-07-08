@@ -19,3 +19,10 @@ ed25519-dalek = { version = "2", default-features = false, features = ["pkcs8", 
 rand = "0.8"
 base64 = "0.22"
 sha2 = "0.10"
+
+# OAuth2 (optional)
+reqwest = { version = "0.12", features = ["json"], optional = true }
+urlencoding = { version = "2", optional = true }
+[features]
+default = []
+oauth2 = ["dep:reqwest", "dep:urlencoding"]

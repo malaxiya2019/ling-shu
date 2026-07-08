@@ -27,6 +27,12 @@ pub mod link;
 pub mod protocol;
 pub mod replication;
 pub mod types;
+#[cfg(feature = "tls")]
+pub mod tls;
+#[cfg(feature = "gossip")]
+pub mod gossip;
+#[cfg(feature = "migration")]
+pub mod migration;
 
 pub use discovery::{DiscoveryBackend, DiscoveryManager, DnsDiscovery, StaticDiscovery};
 pub use executor::{RemoteDiscovery, RemoteExecutor};

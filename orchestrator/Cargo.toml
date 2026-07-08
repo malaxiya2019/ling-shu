@@ -20,3 +20,11 @@ chrono.workspace = true
 tokio = { workspace = true, features = ["sync"] }
 tracing.workspace = true
 thiserror.workspace = true
+
+# ── Optional external integrations ──
+autoagents = { git = "https://github.com/liquidos-ai/AutoAgents.git", optional = true }
+loong = { git = "https://github.com/eastreams/loong.git", optional = true }
+
+[features]
+autoagents = ["dep:autoagents"]
+loong = ["dep:loong"]

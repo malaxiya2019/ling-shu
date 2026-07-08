@@ -16,20 +16,30 @@ tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["json", "env-filter"] }
 thiserror.workspace = true
 uuid.workspace = true
+once_cell = "1"
+
+# Prometheus metrics (optional)
+prometheus = { version = "0.13", features = ["process"], optional = true }
+
+# OpenTelemetry (optional)
 opentelemetry = { version = "0.27", features = ["trace", "metrics"], optional = true }
 opentelemetry_sdk = { version = "0.27", features = ["trace", "metrics", "rt-tokio"], optional = true }
 opentelemetry-otlp = { version = "0.27", features = ["trace", "metrics", "grpc-tonic"], optional = true }
 tracing-opentelemetry = { version = "0.28", optional = true }
-prometheus = { version = "0.13", features = ["process"], optional = true }
-once_cell = "1"
+
+# HTTP for metrics endpoint (optional)
 hyper = { version = "1", features = ["server", "http1"], optional = true }
 hyper-util = { version = "0.1", features = ["tokio", "server-auto"], optional = true }
 http-body-util = { version = "0.1", optional = true }
 bytes = { version = "1", optional = true }
+
+# Loki log shipping (optional)
+reqwest = { version = "0.12", features = ["json"], optional = true }
 
 [features]
 default = ["metrics", "http"]
 metrics = ["dep:prometheus"]
 otel = ["dep:opentelemetry", "dep:opentelemetry_sdk", "dep:opentelemetry-otlp", "dep:tracing-opentelemetry"]
 http = ["dep:hyper", "dep:hyper-util", "dep:http-body-util", "dep:bytes"]
-full = ["metrics", "otel", "http"]
+loki = ["dep:reqwest"]
+full = ["metrics", "otel", "http", "loki"]

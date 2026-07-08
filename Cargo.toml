@@ -27,6 +27,7 @@ members = [
     "evaluator",
     "federation",
     "webui",
+    "llm-router",
 ]
 
 [workspace.package]

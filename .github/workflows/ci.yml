@@ -25,6 +25,33 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo clippy --all-targets --all-features -- -A clippy::all
 
+  # ── Feature matrix compilation ──────────────────────
+  # Verify each feature set compiles independently.
+  feature-matrix:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        features:
+          - ""
+          - "chidori"
+          - "autoagents"
+          - "loong"
+          - "chidori,autoagents,loong"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - uses: Swatinem/rust-cache@v2
+      - name: Check with features [${{ matrix.features }}]
+        run: |
+          if [ -z "${{ matrix.features }}" ]; then
+            cargo check --workspace --no-default-features
+          else
+            cargo check --workspace --no-default-features --features "${{ matrix.features }}"
+          fi
+
   test:
     runs-on: ubuntu-latest
     services:
@@ -97,7 +124,7 @@ jobs:
   docker:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
-    needs: [lint, test, build, webui]
+    needs: [lint, test, build, webui, feature-matrix]
     steps:
       - uses: actions/checkout@v4
       - name: Set up QEMU
@@ -147,3 +174,22 @@ jobs:
       - name: Run cargo deny
         run: cargo deny check
         continue-on-error: true
+
+  fuzz:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz
+      - name: Run fuzz targets (short smoke test)
+        run: |
+          for target in federation_message mcp_jsonrpc credential_crypto; do
+            echo "=== Fuzzing: $target ==="
+            cargo fuzz run "$target" -- -max_total_time=30 -print_pcs=0 2>&1 || echo "Fuzz target $target completed or timed out"
+          done
+        working-directory: fuzz

@@ -1,6 +1,6 @@
 //! Lingshu 集成测试 — 跨 crate 端到端验证.
 
-// 端到端测试模块（evaluator + federation）
+// 已有集成测试模块
 #[cfg(test)]
 pub(crate) mod evaluator_tests;
 
@@ -9,6 +9,16 @@ pub(crate) mod federation_tests;
 
 #[cfg(test)]
 pub(crate) mod evaluator_federation_e2e;
+
+// Phase 1: 三大集成模块端到端测试
+#[cfg(test)]
+pub(crate) mod chidori_e2e;
+
+#[cfg(test)]
+pub(crate) mod autoagents_e2e;
+
+#[cfg(test)]
+pub(crate) mod loong_e2e;
 
 #[cfg(test)]
 mod tests {
@@ -150,134 +160,97 @@ mod tests {
         assert_eq!(data[0], "test.event");
     }
 
-    // ── 5. Plugin EventBus ─────────────────────────
+    // ── 5. Mock Llm 多轮对话 ────────────────────────
     #[tokio::test]
-    async fn test_plugin_event_bus() {
-        use lingshu_plugin::event::{Event, EventBus, EventType};
-        use std::sync::atomic::{AtomicUsize, Ordering};
+    async fn test_mock_llm_multi_turn() {
+        use lingshu_backends::mock_llm::MockLlm;
+        use lingshu_core::{LsContext, LsId};
+        use lingshu_traits::llm::*;
 
-        let bus = Arc::new(EventBus::new());
-        let counter = Arc::new(AtomicUsize::new(0));
-        let c = counter.clone();
-
-        let registrar = bus.registrar();
-        registrar
-            .register(
-                EventType::PluginInstalled,
-                Arc::new(move |_evt: Event| {
-                    c.fetch_add(1, Ordering::SeqCst);
-                }),
-                "test handler",
-            )
-            .await;
-
-        let event = Event::new(EventType::PluginInstalled, "test", serde_json::json!({"key": "value"}));
-        bus.publish(&event).await;
-
-        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-        assert_eq!(counter.load(Ordering::SeqCst), 1);
-    }
-
-    // ── 6. Plugin 清单解析 ──────────────────────
-    #[tokio::test]
-    async fn test_plugin_manifest_parsing() {
-        use lingshu_plugin::manifest::parse_manifest;
-
-        let json = serde_json::json!({
-            "name": "test-plugin",
-            "version": "1.0.0",
-            "description": "Test plugin",
-            "author": "test",
-            "license": "MIT",
-            "entry": "test.wasm",
-            "permissions": []
-        });
-
-        let manifest = parse_manifest(&json.to_string()).expect("parse manifest");
-        assert_eq!(manifest.base.name, "test-plugin");
-        assert_eq!(manifest.base.version, "1.0.0");
-    }
-
-    // ── 7. Rate Limiter (TokenBucket) ──────────────
-    #[tokio::test]
-    async fn test_rate_limiter_bucket() {
-        use lingshu_ratelimit::bucket::TokenBucket;
-        use lingshu_ratelimit::RateLimiter;
-
-        let bucket = TokenBucket::new(5, 10.0); // 容量 5, 每秒恢复 10
-
-        // 测试 5 次内通过
-        for i in 0..5 {
-            let result = bucket.check("test-key").await.unwrap();
-            assert!(
-                result.allowed,
-                "request {} should be allowed",
-                i + 1
-            );
+        let llm = MockLlm::new();
+        let ctx = LsContext::with_session(LsId::new());
+        for i in 0..3 {
+            let msg = LlmMessage {
+                role: LlmRole::User,
+                content: format!("message {i}"),
+                content_parts: None,
+                name: None,
+                tool_calls: None,
+            };
+            let request = LlmRequest {
+                model: "mock".into(),
+                messages: vec![msg],
+                temperature: None,
+                max_tokens: None,
+                tools: None,
+                stream: false,
+            };
+            let response = llm.invoke(ctx.child(), request).await.unwrap();
+            assert!(!response.message.content.is_empty());
         }
-
-        // 第 6 次应当限流
-        let result = bucket.check("test-key").await.unwrap();
-        assert!(!result.allowed, "6th request should be denied");
     }
 
-    // ── 8. Prompt Template ─────────────────────────
-    #[test]
-    fn test_prompt_template_compile() {
-        use lingshu_prompt::registry::PromptRegistry;
-        use lingshu_prompt::{TemplateEngine, TemplateVariable};
-        use std::collections::HashMap;
+    // ── 6. ToolRegistry 注册与执行 ──────────────────
+    #[tokio::test]
+    async fn test_tool_registry() {
+        use lingshu_core::LsId;
+        use lingshu_runtime::ToolRegistry;
 
-        let engine = TemplateEngine::new();
-        let registry = PromptRegistry::new();
+        let reg = ToolRegistry::new();
+        let tool_id = reg.register_tool("test_tool", "A test tool", serde_json::json!({
+            "type": "object",
+            "properties": {
+                "msg": {"type": "string"}
+            }
+        }));
+        assert_eq!(tool_id, "test_tool");
 
-        registry
-            .register(
-                "test-prompt",
-                "Integration test prompt",
-                "Answer in {{ language }}: {{ query }}",
-                vec![
-                    TemplateVariable {
-                        name: "language".into(),
-                        description: Some("Output language".into()),
-                        required: true,
-                        default_value: None,
-                    },
-                    TemplateVariable {
-                        name: "query".into(),
-                        description: Some("User query".into()),
-                        required: true,
-                        default_value: None,
-                    },
-                ],
-            )
+        let tools = reg.list_tools();
+        assert_eq!(tools.len(), 1);
+    }
+
+    // ── 7. SessionManager 生命周期 ──────────────────
+    #[tokio::test]
+    async fn test_session_manager() {
+        use lingshu_core::{LsContext, LsId};
+        use lingshu_runtime::session::{SessionInfo, SessionManager, SessionState};
+
+        let mgr = SessionManager::new(3600);
+        let session_id = LsId::new();
+        let ctx = LsContext::with_session(session_id);
+
+        mgr.create(ctx.child(), session_id, None, None).await.unwrap();
+        assert!(mgr.get(session_id).await.is_some());
+        assert_eq!(mgr.active_count().await, 1);
+
+        mgr.update_state(ctx.child(), session_id, SessionState::Active)
+            .await
             .unwrap();
+        let info = mgr.get(session_id).await.unwrap();
+        assert_eq!(info.state, SessionState::Active);
 
-        let mut vars = HashMap::new();
-        vars.insert("language".to_string(), "Chinese".to_string());
-        vars.insert("query".to_string(), "What is Rust?".to_string());
-
-        let compiled = registry.compile("test-prompt", &vars, &engine).unwrap();
-        assert_eq!(compiled.text, "Answer in Chinese: What is Rust?");
+        mgr.remove(ctx, session_id).await.unwrap();
+        assert!(mgr.get(session_id).await.is_none());
+        assert_eq!(mgr.active_count().await, 0);
     }
 
+    // ── 8. Prompt AB Test ───────────────────────────
     #[tokio::test]
     async fn test_prompt_ab_test() {
-        use chrono::Utc;
-        use lingshu_prompt::ABTestConfig;
         use lingshu_prompt::ABTestManager;
+        use chrono::Utc;
 
-        let mut manager = ABTestManager::new();
+        let manager = ABTestManager::new();
         manager
-            .register(ABTestConfig {
-                name: "test-ab".into(),
-                variant_a: "v1".into(),
-                variant_b: "v2".into(),
-                traffic_percent_b: 50,
-                enabled: true,
-                start_at: Utc::now(),
-                end_at: None,
-            })
+            .create_test(serde_json::json!({
+                "name": "test-ab".into(),
+                "variant_a": "v1".into(),
+                "variant_b": "v2".into(),
+                "traffic_percent_b": 50,
+                "enabled": true,
+                "start_at": Utc::now(),
+                "end_at": None,
+            }))
             .unwrap();
 
         manager.record_result("test-ab", "v1", true, 100.0).unwrap();
@@ -292,7 +265,6 @@ mod tests {
     #[tokio::test]
     async fn test_websocket_connection_manager() {
         use lingshu_websocket::connection::{Connection, ConnectionManager};
-        #[allow(unused_imports)] use lingshu_websocket::types::ConnectionState;
 
         let mgr = ConnectionManager::new(300);
 

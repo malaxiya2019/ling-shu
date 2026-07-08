@@ -1,0 +1,22 @@
+[package]
+name = "lingshu-fuzz"
+version.workspace = true
+edition.workspace = true
+description = "Fuzz targets for lingshu — federation, MCP, crypto"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+lingshu-federation = { path = "../federation" }
+lingshu-mcp = { path = "../mcp" }
+lingshu-credentials = { path = "../credentials" }
+lingshu-core = { path = "../core" }
+serde_json = "1"
+serde = "1"
+
+# Prevent this from interfering with workspace
+[workspace]

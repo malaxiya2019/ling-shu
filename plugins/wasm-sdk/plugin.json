@@ -1,0 +1,9 @@
+{
+  "name": "lingshu-wasm-plugin",
+  "version": "0.1.0",
+  "description": "LingShu WASM Plugin 模板",
+  "runtime": "wasmtime",
+  "entry": "lingshu_wasm_plugin.wasm",
+  "capabilities": ["exec"],
+  "permissions": []
+}

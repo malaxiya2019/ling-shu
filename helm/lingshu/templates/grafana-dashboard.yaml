@@ -10,50 +10,117 @@ metadata:
   annotations:
     grafana_folder: "LingShu"
 data:
-  lingshu-metrics.json: |
+  lingshu-system-metrics.json: |
     {
       "title": "LingShu — System Metrics",
       "uid": "lingshu-system",
-      "version": 1,
-      "tags": ["lingshu", "ai", "agent"],
+      "version": 2,
+      "tags": ["lingshu", "ai", "agent", "rust"],
       "timezone": "browser",
       "editable": true,
+      "refresh": "10s",
       "panels": [
         {
           "title": "CPU Usage (%)",
-          "type": "graph",
-          "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0},
-          "targets": [{"expr": "cpu_usage", "legendFormat": "CPU"}]
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0},
+          "targets": [{"expr": "rate(process_cpu_seconds_total[1m]) * 100", "legendFormat": "CPU"}],
+          "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}}
         },
         {
           "title": "Memory Usage (MB)",
-          "type": "graph",
-          "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0},
-          "targets": [{"expr": "memory_mb", "legendFormat": "Memory"}]
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0},
+          "targets": [{"expr": "process_resident_memory_bytes / 1024 / 1024", "legendFormat": "RSS"}],
+          "fieldConfig": {"defaults": {"unit": "MB"}}
         },
         {
-          "title": "LLM Tokens Total",
-          "type": "graph",
-          "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0},
-          "targets": [{"expr": "llm_tokens_total", "legendFormat": "Tokens"}]
+          "title": "LLM Tokens / min",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0},
+          "targets": [
+            {"expr": "rate(ls_llm_tokens_total{type=\"prompt\"}[1m])", "legendFormat": "Prompt"},
+            {"expr": "rate(ls_llm_tokens_total{type=\"completion\"}[1m])", "legendFormat": "Completion"}
+          ],
+          "fieldConfig": {"defaults": {"unit": "none"}}
+        },
+        {
+          "title": "LLM Invocations / min",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0},
+          "targets": [{"expr": "rate(ls_llm_invocations_total[1m])", "legendFormat": "{{provider}}"}],
+          "fieldConfig": {"defaults": {"unit": "ops"}}
         },
         {
           "title": "Active Sessions",
           "type": "stat",
-          "gridPos": {"h": 4, "w": 4, "x": 0, "y": 8},
-          "targets": [{"expr": "active_sessions"}]
+          "gridPos": {"h": 4, "w": 3, "x": 0, "y": 8},
+          "targets": [{"expr": "ls_sessions_active"}],
+          "fieldConfig": {"defaults": {"unit": "none", "color": {"mode": "background"}}}
         },
         {
           "title": "Total Agents",
           "type": "stat",
-          "gridPos": {"h": 4, "w": 4, "x": 4, "y": 8},
-          "targets": [{"expr": "total_agents"}]
+          "gridPos": {"h": 4, "w": 3, "x": 3, "y": 8},
+          "targets": [{"expr": "ls_agents_total"}],
+          "fieldConfig": {"defaults": {"unit": "none"}}
         },
         {
           "title": "Federation Nodes",
           "type": "stat",
-          "gridPos": {"h": 4, "w": 4, "x": 8, "y": 8},
-          "targets": [{"expr": "federation_nodes"}]
+          "gridPos": {"h": 4, "w": 3, "x": 6, "y": 8},
+          "targets": [{"expr": "ls_federation_nodes"}],
+          "fieldConfig": {"defaults": {"unit": "none"}}
+        },
+        {
+          "title": "Error Rate",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 3, "x": 9, "y": 8},
+          "targets": [{"expr": "rate(ls_tasks_failed_total[5m]) / rate(ls_tasks_submitted_total[5m]) * 100"}],
+          "fieldConfig": {"defaults": {"unit": "percent", "color": {"mode": "background", "thresholds": {"steps": [{"value": 0, "color": "green"}, {"value": 5, "color": "yellow"}, {"value": 15, "color": "red"}]}}}}
+        },
+        {
+          "title": "HTTP Request Duration (P95)",
+          "type": "timeseries",
+          "gridPos": {"h": 6, "w": 8, "x": 0, "y": 12},
+          "targets": [{"expr": "histogram_quantile(0.95, sum(rate(ls_http_requests_duration_seconds_bucket[1m])) by (le))", "legendFormat": "P95"}],
+          "fieldConfig": {"defaults": {"unit": "s"}}
+        },
+        {
+          "title": "HTTP Requests / min",
+          "type": "timeseries",
+          "gridPos": {"h": 6, "w": 8, "x": 8, "y": 12},
+          "targets": [{"expr": "rate(ls_http_requests_total[1m])", "legendFormat": "{{method}} {{path}}"}],
+          "fieldConfig": {"defaults": {"unit": "rps"}}
+        },
+        {
+          "title": "Memory Operations / min",
+          "type": "timeseries",
+          "gridPos": {"h": 6, "w": 8, "x": 16, "y": 12},
+          "targets": [{"expr": "rate(ls_memory_ops_total[1m])", "legendFormat": "{{operation}}"}],
+          "fieldConfig": {"defaults": {"unit": "ops"}}
+        },
+        {
+          "title": "Task Success vs Failure",
+          "type": "timeseries",
+          "gridPos": {"h": 6, "w": 8, "x": 0, "y": 18},
+          "targets": [
+            {"expr": "rate(ls_tasks_completed_total[1m])", "legendFormat": "Success"},
+            {"expr": "rate(ls_tasks_failed_total[1m])", "legendFormat": "Failed"}
+          ]
+        },
+        {
+          "title": "Lifecycle Transitions",
+          "type": "timeseries",
+          "gridPos": {"h": 6, "w": 8, "x": 8, "y": 18},
+          "targets": [{"expr": "rate(ls_lifecycle_transitions_total[1m])", "legendFormat": "{{transition}}"}]
+        },
+        {
+          "title": "Event Bus Throughput",
+          "type": "timeseries",
+          "gridPos": {"h": 6, "w": 8, "x": 16, "y": 18},
+          "targets": [{"expr": "rate(ls_events_published_total[1m])", "legendFormat": "{{topic}}"}],
+          "fieldConfig": {"defaults": {"unit": "events/s"}}
         }
       ]
     }

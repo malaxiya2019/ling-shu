@@ -104,6 +104,13 @@ pub struct LingshuRuntime {
     pub federation: std::sync::Arc<lingshu_federation::Federation>,
     /// 配置热重载通知接收器.
     pub config_rx: tokio::sync::broadcast::Receiver<lingshu_config::settings::ConfigEvent>,
+
+    /// [可选] chidori 持久化恢复管理器 (feature = "chidori").
+    pub chidori_recovery: Option<std::sync::Arc<lingshu_runtime::ChidoriRecoveryManager>>,
+    /// [可选] AutoAgents 编排器桥接 (feature = "autoagents").
+    pub autoagents: Option<std::sync::Arc<lingshu_orchestrator::AutoAgentsOrchestrator>>,
+    /// [可选] Loong 轻量 Agent 适配器 (feature = "loong").
+    pub loong_adapter: Option<std::sync::Arc<lingshu_orchestrator::LoongAdapter>>,
 }
 
 impl LingshuRuntime {
@@ -204,6 +211,35 @@ impl LingshuRuntime {
         let credential_manager = std::sync::Arc::new(CredentialManager::new(credential_store));
         tracing::info!(path = %cred_db_path.display(), "credential vault initialized");
 
+
+        // ── Optional: chidori recovery (feature = "chidori") ────
+        #[cfg(feature = "chidori")]
+        let chidori_recovery = Some(std::sync::Arc::new(
+            lingshu_runtime::ChidoriRecoveryManager::new(
+                lingshu_runtime::CheckpointConfig::default(),
+            ),
+        ));
+        #[cfg(not(feature = "chidori"))]
+        let chidori_recovery: Option<std::sync::Arc<lingshu_runtime::ChidoriRecoveryManager>> = None;
+
+        // ── Optional: AutoAgents orchestrator (feature = "autoagents") ──
+        #[cfg(feature = "autoagents")]
+        let autoagents = Some(std::sync::Arc::new(
+            lingshu_orchestrator::AutoAgentsOrchestrator::new(
+                lingshu_orchestrator::OrchestratorConfig::default(),
+            ),
+        ));
+        #[cfg(not(feature = "autoagents"))]
+        let autoagents: Option<std::sync::Arc<lingshu_orchestrator::AutoAgentsOrchestrator>> = None;
+
+        // ── Optional: Loong adapter (feature = "loong") ──────────
+        #[cfg(feature = "loong")]
+        let loong_adapter = Some(std::sync::Arc::new(
+            lingshu_orchestrator::LoongAdapter::new(),
+        ));
+        #[cfg(not(feature = "loong"))]
+        let loong_adapter: Option<std::sync::Arc<lingshu_orchestrator::LoongAdapter>> = None;
+
         let runtime = Self {
             lifecycle,
             scheduler,
@@ -249,6 +285,9 @@ impl LingshuRuntime {
             credential_manager,
             eval_store,
             federation,
+            chidori_recovery,
+            autoagents,
+            loong_adapter,
             config_rx: {
                 let (config_tx, config_rx) = tokio::sync::broadcast::channel(16);
                 let (std_tx, std_rx) =

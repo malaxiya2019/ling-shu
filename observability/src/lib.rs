@@ -7,6 +7,10 @@ pub mod health;
 pub mod metrics;
 pub mod span;
 pub mod tracing;
+#[cfg(feature = "otel")]
+pub mod otel;
+#[cfg(feature = "loki")]
+pub mod loki;
 
 pub use health::*;
 pub use metrics::*;

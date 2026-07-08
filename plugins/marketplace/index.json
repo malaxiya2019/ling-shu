@@ -1,0 +1,41 @@
+{
+  "$schema": "v1",
+  "plugins": [
+    {
+      "name": "beef-plugin",
+      "version": "0.1.0",
+      "description": "Beef 协议集成插件 — 支持 BEEF 交易广播和查询",
+      "author": "LingShu Team",
+      "repository": "https://github.com/ling-shu/lingshu",
+      "runtime": "native",
+      "entry": "plugins/beef-plugin/target/release/libbeef_plugin.so",
+      "checksum": "",
+      "capabilities": ["blockchain", "transaction"],
+      "permissions": ["network"]
+    },
+    {
+      "name": "watch-plugin",
+      "version": "0.1.0",
+      "description": "文件系统监控插件 — Watch 路径变更并触发 Agent",
+      "author": "LingShu Team",
+      "repository": "https://github.com/ling-shu/lingshu",
+      "runtime": "native",
+      "entry": "plugins/watch-plugin/target/release/libwatch_plugin.so",
+      "checksum": "",
+      "capabilities": ["fs", "watch"],
+      "permissions": ["fs_read"]
+    },
+    {
+      "name": "wasm-template",
+      "version": "0.1.0",
+      "description": "WASM 插件模板 — 沙箱化执行的轻量插件",
+      "author": "LingShu Team",
+      "repository": "https://github.com/ling-shu/lingshu",
+      "runtime": "wasmtime",
+      "entry": "plugins/wasm-sdk/target/wasm32-wasip1/release/lingshu_wasm_plugin.wasm",
+      "checksum": "",
+      "capabilities": ["exec"],
+      "permissions": []
+    }
+  ]
+}

@@ -23,6 +23,20 @@ tokio-util = { workspace = true }
 tracing.workspace = true
 thiserror.workspace = true
 dashmap = "6"
+bincode = { version = "1", optional = true }
+fastrand = { version = "2", optional = true }
+futures.workspace = true
+
+# TLS (optional)
+tokio-rustls = { version = "0.26", optional = true }
+rustls = { version = "0.23", optional = true }
+rustls-pemfile = { version = "2", optional = true }
+
+[features]
+default = []
+tls = ["dep:tokio-rustls", "dep:rustls", "dep:rustls-pemfile"]
+gossip = ["dep:fastrand"]
+migration = ["dep:bincode"]
 
 [dev-dependencies]
 tracing-subscriber.workspace = true
