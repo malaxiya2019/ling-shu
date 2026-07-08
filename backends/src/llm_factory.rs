@@ -30,6 +30,7 @@ pub fn build_raw(config: &LlmConfig) -> Box<dyn Llm> {
         LlmProvider::Groq => build_groq(config),
         LlmProvider::Mock => build_mock(config),
         LlmProvider::Llmkit => build_llmkit(config),
+        LlmProvider::Llamacpp => build_llamacpp(config),
     }
 }
 
@@ -226,6 +227,26 @@ fn build_llmkit(config: &LlmConfig) -> Box<dyn Llm> {
 #[cfg(not(feature = "llmkit"))]
 fn build_llmkit(_config: &LlmConfig) -> Box<dyn Llm> {
     tracing::warn!("'llmkit' feature not enabled, falling back");
+    build_fallback()
+}
+
+// ── llama.cpp ──────────────────────────────────────
+
+#[cfg(feature = "llamacpp")]
+fn build_llamacpp(config: &LlmConfig) -> Box<dyn Llm> {
+    let base_url = std::env::var("LLAMACPP_BASE_URL")
+        .unwrap_or_else(|_| "http://127.0.0.1:8080".into());
+    tracing::info!(
+        "llm: using llama.cpp backend (url: {}, model: {})",
+        base_url,
+        config.default_model
+    );
+    Box::new(crate::LlamaCppLlm::new(&base_url, &config.default_model))
+}
+
+#[cfg(not(feature = "llamacpp"))]
+fn build_llamacpp(_config: &LlmConfig) -> Box<dyn Llm> {
+    tracing::warn!("'llamacpp' feature not enabled, falling back");
     build_fallback()
 }
 

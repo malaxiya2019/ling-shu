@@ -20,6 +20,8 @@ pub enum LlmProvider {
     Mock,
     #[serde(rename = "llmkit")]
     Llmkit,
+    #[serde(rename = "llamacpp")]
+    Llamacpp,
 }
 
 impl LlmProvider {
@@ -34,6 +36,7 @@ impl LlmProvider {
                 "groq" => Some(Self::Groq),
                 "mock" => Some(Self::Mock),
                 "llmkit" => Some(Self::Llmkit),
+                "llamacpp" => Some(Self::Llamacpp),
                 _ => None,
             })
             .unwrap_or(Self::Openai)
@@ -46,6 +49,7 @@ impl LlmProvider {
             Self::Groq => "groq",
             Self::Mock => "mock",
             Self::Llmkit => "llmkit",
+            Self::Llamacpp => "llamacpp",
         }
     }
 }

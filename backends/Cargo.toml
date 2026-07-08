@@ -8,6 +8,8 @@ description = "LSBackends — Concrete implementations: OpenAI, Anthropic, Groq,
 default = ["openai", "mock"]
 # llmkit 统一后端: 27+ 提供商 (Anthropic, OpenAI, Google Gemini, Mistral, Groq, DeepSeek, Ollama, 等)
 llmkit = ["dep:llmkit"]
+# llama.cpp 本地推理后端 (需要预先安装 llama.cpp)
+llamacpp = ["dep:reqwest", "dep:futures-util"]
 # OpenAI 提供商 (LLM + Embedding)，依赖 reqwest
 openai = ["dep:reqwest", "dep:futures-util"]
 # Anthropic 提供商，依赖 reqwest
