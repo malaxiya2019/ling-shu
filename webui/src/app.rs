@@ -1,7 +1,7 @@
 use yew::prelude::*;
 
 use crate::components::sidebar::Sidebar;
-use crate::i18n::{use_lang, LanguageProvider};
+use crate::i18n::LanguageProvider;
 use crate::pages::{Dashboard, EvalReports, Federation, Metrics, Page, Plugins, Security};
 
 #[function_component(App)]

@@ -216,6 +216,7 @@ impl LangContext {
 }
 
 /// Hook 获取当前语言上下文
+#[hook]
 pub fn use_lang() -> LangContext {
     use_context::<LangContext>().expect("LanguageProvider not found")
 }
