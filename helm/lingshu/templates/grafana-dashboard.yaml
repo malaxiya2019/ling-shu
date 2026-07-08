@@ -1,0 +1,60 @@
+{{- if .Values.monitoring.enabled }}
+{{- $fullname := include "lingshu.fullname" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-grafana-dashboard
+  labels:
+    {{- include "lingshu.labels" . | nindent 4 }}
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: "LingShu"
+data:
+  lingshu-metrics.json: |
+    {
+      "title": "LingShu — System Metrics",
+      "uid": "lingshu-system",
+      "version": 1,
+      "tags": ["lingshu", "ai", "agent"],
+      "timezone": "browser",
+      "editable": true,
+      "panels": [
+        {
+          "title": "CPU Usage (%)",
+          "type": "graph",
+          "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0},
+          "targets": [{"expr": "cpu_usage", "legendFormat": "CPU"}]
+        },
+        {
+          "title": "Memory Usage (MB)",
+          "type": "graph",
+          "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0},
+          "targets": [{"expr": "memory_mb", "legendFormat": "Memory"}]
+        },
+        {
+          "title": "LLM Tokens Total",
+          "type": "graph",
+          "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0},
+          "targets": [{"expr": "llm_tokens_total", "legendFormat": "Tokens"}]
+        },
+        {
+          "title": "Active Sessions",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 4, "x": 0, "y": 8},
+          "targets": [{"expr": "active_sessions"}]
+        },
+        {
+          "title": "Total Agents",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 4, "x": 4, "y": 8},
+          "targets": [{"expr": "total_agents"}]
+        },
+        {
+          "title": "Federation Nodes",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 4, "x": 8, "y": 8},
+          "targets": [{"expr": "federation_nodes"}]
+        }
+      ]
+    }
+{{- end }}

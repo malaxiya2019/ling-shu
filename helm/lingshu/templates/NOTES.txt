@@ -1,82 +1,43 @@
-# ── Lingshu Helm Chart — Post-Install Notes ──
+🎯 LingShu {{ .Chart.AppVersion }} has been deployed successfully!
 
-🚀 **Lingshu Agent System** v{{ .Chart.AppVersion }} is deployed!
-
-────────────────────────────────────────────────
-
-## Verify Deployment
-
-  kubectl get pods -l app.kubernetes.io/name={{ include "lingshu.name" . }}
-
-## Test API
-
-  # Port-forward to localhost
-  kubectl port-forward svc/{{ include "lingshu.fullname" . }} 8080:{{ .Values.service.httpPort }}
-
-  # Health check
+📋 **Access the API:**
+  kubectl port-forward service/{{ include "lingshu.fullname" . }} 8080:{{ .Values.service.httpPort }}
   curl http://localhost:8080/health
-
-  # API Documentation
-  curl http://localhost:8080/docs
-
-  # Swagger UI
   curl http://localhost:8080/docs/swagger
 
-## Federation (Multi-Replica)
+🌐 **Documentation:**
+  API Docs:    http://localhost:8080/docs
+  Swagger UI:  http://localhost:8080/docs/swagger
+  OpenAPI:     http://localhost:8080/docs/openapi.json
 
-  {{- if .Values.federation.enabled }}
-  This deployment has federation **enabled** with {{ .Values.federation.topology }} topology.
+🏗️ **Federation (Multi-Replica):**
+  Topology:     {{ .Values.federation.topology }}
+  Cluster:      {{ .Values.federation.clusterName }}
+  Replicas:     {{ .Values.replicaCount }}
 
-  # Check federation status
-  curl http://localhost:8080/v1/federation/status
+  To check federation status:
+    curl http://localhost:8080/v1/federation/status
 
-  # List online nodes
-  curl http://localhost:8080/v1/federation/nodes
+🔌 **Plugins:**
+  Market:        {{ if .Values.pluginMarket.enabled }}Enabled{{ else }}Disabled{{ end }}
+  Install Dir:   {{ .Values.pluginMarket.installDir }}
 
-  {{- if eq .Values.workloadType "StatefulSet" }}
-  Pods discover each other via DNS SRV records from the headless service `{{ include "lingshu.fullname" . }}-federation`.
-  {{- else }}
-  For production federation, consider setting `workloadType: StatefulSet` for stable pod DNS names.
-  {{- end }}
-  {{- else }}
-  Federation is **disabled**. Set `federation.enabled: true` to enable cross-cluster communication.
-  {{- end }}
+📊 **Monitoring (if enabled):**
+  Prometheus:    http://localhost:9090
+  Grafana:       Import dashboard from ConfigMap "{{ include "lingshu.fullname" . }}-grafana-dashboard"
 
-## Accessing WebUI
+📖 **Useful Commands:**
+  # Check pod status
+  kubectl get pods -l app.kubernetes.io/name=lingshu
 
-  # After port-forwarding, open in browser:
-  #   http://localhost:8080/admin     (Server-rendered admin panel)
-  #   http://localhost:8080/webui/    (WASM-based panel — requires trunk build)
+  # Stream logs
+  kubectl logs -l app.kubernetes.io/name=lingshu --tail=100 -f
 
-## Monitoring
+  # Scale cluster
+  kubectl scale deployment/{{ include "lingshu.fullname" . }} --replicas=5
 
-  {{- if .Values.monitoring.enabled }}
-  Prometheus ServiceMonitor is configured. Metrics are scraped at `{{ .Values.monitoring.serviceMonitor.interval }}`.
-  {{- else }}
-  Enable monitoring with `monitoring.enabled: true` (requires kube-prometheus-stack).
-  {{- end }}
-
-## Configuration
-
-  # View current configuration
-  kubectl describe configmap {{ include "lingshu.fullname" . }}-config
-
-  # Override values
-  helm upgrade {{ .Release.Name }} . --set replicaCount=5 --set federation.topology=HubSpoke
-
-## Useful Commands
-
-  # Scale
-  kubectl scale --replicas=5 deployment/{{ include "lingshu.fullname" . }}
-
-  # Logs
-  kubectl logs -l app.kubernetes.io/name={{ include "lingshu.name" . }} --tail=50 -f
+  # Upgrade with custom values
+  helm upgrade {{ .Release.Name }} . -f custom-values.yaml
 
   # Uninstall
   helm uninstall {{ .Release.Name }}
-
-  # List installed versions
-  helm list
-
-────────────────────────────────────────────────
-📖 Full documentation: https://github.com/malaxiya2019/ling-shu
