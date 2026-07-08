@@ -148,8 +148,11 @@
 | `federation/` | 7 源文件 | ~1,988 lines |
 | `webui/` | 14 源文件 | ~1,450 lines |
 | `cache/` | 3 源文件 | ~380 lines |
+| `vault/` | 3 源文件 | ~420 lines |
+| `tee/` | 4 源文件 | ~500 lines |
+| `tenant/` | 3 源文件 | ~380 lines |
 | `app/` | 源文件 (main.rs + api.rs + gRPC + openapi_spec.rs) | ~4,500 lines |
-| **总计 (全部 29 crates)** | | **~29,000+ lines** |
+| **总计 (全部 31 crates)** | | **~31,000+ lines** |
 
 ## 3. 架构总览
 
@@ -183,11 +186,13 @@
 
 ## 4. 下一阶段计划
 
-### v3.3 — 企业特性
-- **多租户 (Multi-Tenant)** — 组织/项目/用户三级隔离
-- **审计仪表盘** — 审计日志实时检索与可视化
-- **Secrets Vault** — HashiCorp Vault 集成
-- **TEE 支持** — 机密计算硬件安全模块 (Intel SGX/TDX)
+### v3.3 — 企业特性 ✅ (最新完成)
+| 组件 | 状态 | 说明 |
+|------|------|------|
+| 多租户 (Multi-Tenant) | ✅ | 组织/项目/用户三级隔离, tenant/ crate + API 端点 + WebUI |
+| 审计仪表盘 (Audit Dashboard) | ✅ | 审计日志实时检索与可视化, WebUI 完整集成 |
+| Secrets Vault | ✅ | HashiCorp Vault 集成: KV v2, 动态 Secret, Transit 加解密, Lease 管理 |
+| TEE 支持 | ✅ | Intel SGX/TDX 远程证明 + 加密内存区域 + 策略引擎, tee/ crate + API
 
 ### v3.4 — 生态系统
 - **OpenHands 集成** — 参考 FastAPI + MCP router 架构

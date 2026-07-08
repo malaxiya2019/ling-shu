@@ -17,6 +17,10 @@ pub fn sidebar(props: &SidebarProps) -> Html {
         let cb = props.on_navigate.clone();
         Callback::from(move |_| cb.emit(Page::Dashboard))
     };
+    let on_click_audit = {
+        let cb = props.on_navigate.clone();
+        Callback::from(move |_| cb.emit(Page::Audit))
+    };
     let on_click_fed = {
         let cb = props.on_navigate.clone();
         Callback::from(move |_| cb.emit(Page::Federation))
@@ -43,6 +47,7 @@ pub fn sidebar(props: &SidebarProps) -> Html {
     };
 
     let dash_class = if matches!(props.active_page, Page::Dashboard) { "active" } else { "" };
+    let audit_class = if matches!(props.active_page, Page::Audit) { "active" } else { "" };
     let fed_class = if matches!(props.active_page, Page::Federation) { "active" } else { "" };
     let eval_class = if matches!(props.active_page, Page::EvalReports) { "active" } else { "" };
     let metrics_class = if matches!(props.active_page, Page::Metrics) { "active" } else { "" };
@@ -71,6 +76,11 @@ pub fn sidebar(props: &SidebarProps) -> Html {
                 <li>
                     <a class={dash_class} onclick={on_click_dash}>
                         <span class="nav-icon">{ "📊" }</span><span>{ strings.nav_dashboard }</span>
+                    </a>
+                </li>
+                <li>
+                    <a class={audit_class} onclick={on_click_audit}>
+                        <span class="nav-icon">{ "📋" }</span><span>{ strings.nav_audit }</span>
                     </a>
                 </li>
                 <li>

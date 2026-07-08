@@ -29,6 +29,9 @@ members = [
     "webui",
     "llm-router",
     "cache",
+    "tenant",
+    "vault",
+    "tee",
 ]
 
 [workspace.package]

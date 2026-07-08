@@ -30,6 +30,7 @@ lingshu-code-analyzer = { path = "../code-analyzer" }
 lingshu-credentials = { path = "../credentials" }
 lingshu-orchestrator = { path = "../orchestrator" }
 lingshu-websocket = { path = "../websocket" }
+lngshu-tenant = { path = "../tenant" }
 lingshu-evaluator = { path = "../evaluator" }
 lingshu-federation = { path = "../federation" }
 

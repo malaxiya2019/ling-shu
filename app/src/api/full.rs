@@ -24,7 +24,9 @@ use axum::{
     Router,
 };
 use lingshu_evaluator;
+use lingshu_tenant;
 use lingshu_federation;
+use lingshu_tenant::{CreateOrganizationRequest, CreateProjectRequest, InviteUserRequest, TenantRole};
 use lingshu_watch_plugin;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -59,6 +61,9 @@ use crate::LingshuRuntime;
 // ── Shared State ────────────────────────────────────
 
 pub struct AppState {
+    pub tenant_manager: std::sync::Arc<lingshu_tenant::TenantManager>,
+    pub vault_client: std::sync::Arc<dyn lingshu_vault::VaultClientTrait>,
+    pub tee_system: std::sync::Arc<lingshu_tee::TeeSystem>,
     pub runtime: Arc<LingshuRuntime>,
     pub plugin_event_bus: Arc<lingshu_plugin::event::EventBus>,
     pub plugin_registry: Arc<PluginRegistry>,
@@ -763,6 +768,31 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             "/v1/credentials/providers",
             get(credential_providers_handler),
         )
+                // Audit API — 审计日志查询
+        .route("/v1/audit/logs", get(audit_query_handler))
+// Tenant API (MT) -- 多租户管理
+        .route("/v1/tenant/orgs", get(tenant_list_orgs_handler).post(tenant_create_org_handler))
+        .route("/v1/tenant/orgs/{org_id}", get(tenant_get_org_handler))
+        .route("/v1/tenant/orgs/{org_id}/projects", get(tenant_list_projects_handler).post(tenant_create_project_handler))
+        .route("/v1/tenant/orgs/{org_id}/projects/{project_id}", get(tenant_get_project_handler))
+        .route("/v1/tenant/orgs/{org_id}/users", get(tenant_list_users_handler).post(tenant_invite_user_handler))
+        .route("/v1/tenant/orgs/{org_id}/users/{user_id}", get(tenant_get_user_handler).delete(tenant_remove_user_handler))
+        .route("/v1/tenant/stats", get(tenant_stats_handler))
+        // Vault API (Secret Management)
+        .route("/v1/vault/health", get(vault_health_handler))
+        .route("/v1/vault/secrets", post(vault_write_handler).get(vault_list_handler))
+        .route("/v1/vault/secrets/{path:.*}", get(vault_read_handler).delete(vault_delete_handler))
+        .route("/v1/vault/encrypt", post(vault_encrypt_handler))
+        .route("/v1/vault/decrypt", post(vault_decrypt_handler))
+        .route("/v1/vault/dynamic-secret/{path:.*}", get(vault_dynamic_secret_handler))
+        .route("/v1/vault/lease/{lease_id}/renew", post(vault_renew_lease_handler))
+        .route("/v1/vault/lease/{lease_id}/revoke", post(vault_revoke_lease_handler))
+        // TEE API (Confidential Computing)
+        .route("/v1/tee/health", get(tee_health_handler))
+        .route("/v1/tee/attest", post(tee_attest_handler))
+        .route("/v1/tee/encrypted-memory", post(tee_encrypted_memory_store_handler).get(tee_encrypted_memory_list_handler))
+        .route("/v1/tee/encrypted-memory/{id}", get(tee_encrypted_memory_get_handler).delete(tee_encrypted_memory_delete_handler))
+        .route("/v1/tee/policy", get(tee_policy_get_handler).put(tee_policy_update_handler))
         // Evaluator API (ES)
         .route("/v1/eval/run", post(eval_run_handler))
         .route("/v1/eval/result", get(eval_result_handler))
@@ -4581,6 +4611,182 @@ async fn federation_execute_handler(
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok(Json(result))
 }
+
+
+
+// ── Audit API Handlers ────────────────────────────
+
+/// GET /v1/audit/logs — 查询审计日志
+async fn audit_query_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let mut qb = lingshu_audit::AuditQueryBuilder::new();
+    if let Some(actor) = params.get("actor") {
+        qb = qb.with_actor(actor);
+    }
+    if let Some(event_type) = params.get("event_type") {
+        let et = match event_type.as_str() {
+            "user_login" => lingshu_audit::AuditEventType::UserLogin,
+            "user_logout" => lingshu_audit::AuditEventType::UserLogout,
+            "api_call" => lingshu_audit::AuditEventType::ApiCall,
+            "agent_execution" => lingshu_audit::AuditEventType::AgentExecution,
+            "admin_action" => lingshu_audit::AuditEventType::AdminAction,
+            "config_change" => lingshu_audit::AuditEventType::ConfigChange,
+            "permission_change" => lingshu_audit::AuditEventType::PermissionChange,
+            "system" => lingshu_audit::AuditEventType::System,
+            _ => lingshu_audit::AuditEventType::Custom(event_type.clone()),
+        };
+        qb = qb.with_event_type(et);
+    }
+    if let Some(name) = params.get("event_name") {
+        qb = qb.with_event_name(name);
+    }
+    if let Some(resource) = params.get("resource_type") {
+        qb = qb.with_resource_type(resource);
+    }
+    if let Some(result) = params.get("result") {
+        qb = qb.with_result(result);
+    }
+    if let Some(offset) = params.get("offset").and_then(|v| v.parse::<u64>().ok()) {
+        qb = qb.with_offset(offset);
+    }
+    if let Some(limit) = params.get("limit").and_then(|v| v.parse::<u64>().ok()) {
+        qb = qb.with_limit(limit);
+    }
+
+    let query = qb.build();
+    let entries = state.runtime.audit_log.query(&query).await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))))?;
+
+    Ok(Json(json!({
+        "entries": entries,
+        "total": entries.len(),
+    })))
+}
+
+// ── Tenant API Handlers (Multi-Tenant) ─────────────
+
+/// GET /v1/tenant/orgs — 列出所有组织
+async fn tenant_list_orgs_handler(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    match state.tenant_manager.list_organizations().await {
+        Ok(orgs) => Ok(Json(json!(orgs))),
+        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()})))),
+    }
+}
+
+/// POST /v1/tenant/orgs — 创建组织
+async fn tenant_create_org_handler(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<lingshu_tenant::CreateOrganizationRequest>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let req = req;
+    match state.tenant_manager.create_organization(&req.name, &req.slug, "system").await {
+        Ok(org) => Ok((StatusCode::CREATED, Json(json!(org)))),
+        Err(e) => Err((StatusCode::CONFLICT, Json(json!({"error": e.to_string()})))),
+    }
+}
+
+/// GET /v1/tenant/orgs/{org_id} — 获取组织详情
+async fn tenant_get_org_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(org_id): axum::extract::Path<String>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    match state.tenant_manager.get_organization(&org_id).await {
+        Ok(org) => Ok(Json(json!(org))),
+        Err(e) => Err((StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()})))),
+    }
+}
+
+/// GET /v1/tenant/orgs/{org_id}/projects — 列出项目
+async fn tenant_list_projects_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(org_id): axum::extract::Path<String>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    match state.tenant_manager.list_projects(&org_id).await {
+        Ok(projects) => Ok(Json(json!(projects))),
+        Err(e) => Err((StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()})))),
+    }
+}
+
+/// POST /v1/tenant/orgs/{org_id}/projects — 创建项目
+async fn tenant_create_project_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(org_id): axum::extract::Path<String>,
+    Json(req): Json<lingshu_tenant::CreateProjectRequest>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    match state.tenant_manager.create_project(&org_id, &req.name, &req.description.unwrap_or_default()).await {
+        Ok(project) => Ok((StatusCode::CREATED, Json(json!(project)))),
+        Err(e) => Err((StatusCode::BAD_REQUEST, Json(json!({"error": e.to_string()})))),
+    }
+}
+
+/// GET /v1/tenant/orgs/{org_id}/projects/{project_id} — 获取项目
+async fn tenant_get_project_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path((_org_id, project_id)): axum::extract::Path<(String, String)>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    match state.tenant_manager.get_project(&project_id).await {
+        Ok(project) => Ok(Json(json!(project))),
+        Err(e) => Err((StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()})))),
+    }
+}
+
+/// GET /v1/tenant/orgs/{org_id}/users — 列出用户
+async fn tenant_list_users_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(org_id): axum::extract::Path<String>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    match state.tenant_manager.list_users(&org_id).await {
+        Ok(users) => Ok(Json(json!(users))),
+        Err(e) => Err((StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()})))),
+    }
+}
+
+/// POST /v1/tenant/orgs/{org_id}/users — 邀请用户
+async fn tenant_invite_user_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(org_id): axum::extract::Path<String>,
+    Json(req): Json<lingshu_tenant::InviteUserRequest>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    match state.tenant_manager.invite_user(&org_id, &req.email, req.role).await {
+        Ok(user) => Ok((StatusCode::CREATED, Json(json!(user)))),
+        Err(e) => Err((StatusCode::CONFLICT, Json(json!({"error": e.to_string()})))),
+    }
+}
+
+/// GET /v1/tenant/orgs/{org_id}/users/{user_id} — 获取用户
+async fn tenant_get_user_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path((_org_id, user_id)): axum::extract::Path<(String, String)>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    match state.tenant_manager.get_user(&user_id).await {
+        Ok(user) => Ok(Json(json!(user))),
+        Err(e) => Err((StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()})))),
+    }
+}
+
+/// DELETE /v1/tenant/orgs/{org_id}/users/{user_id} — 移除用户
+async fn tenant_remove_user_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path((_org_id, user_id)): axum::extract::Path<(String, String)>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    match state.tenant_manager.remove_user(&user_id).await {
+        Ok(_) => Ok(Json(json!({"success": true}))),
+        Err(e) => Err((StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()})))),
+    }
+}
+
+/// GET /v1/tenant/stats — 租户统计
+async fn tenant_stats_handler(
+    State(state): State<Arc<AppState>>,
+) -> Json<Value> {
+    let stats = state.tenant_manager.stats().await;
+    Json(json!(stats))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -5109,4 +5315,364 @@ async fn watch_list_videos_handler(
             Json(json!({"error": "Watch plugin not registered or not started"})),
         )),
     }
+}
+
+// ── Vault API Handlers ─────────────────────────────
+
+/// GET /v1/vault/health — Vault 健康检查
+async fn vault_health_handler(
+    State(state): State<Arc<AppState>>,
+) -> Json<serde_json::Value> {
+    match state.vault_client.health().await {
+        Ok(health) => Json(serde_json::json!({
+            "success": true,
+            "initialized": health.initialized,
+            "sealed": health.sealed,
+            "standby": health.standby,
+            "cluster_name": health.cluster_name,
+            "cluster_id": health.cluster_id,
+        })),
+        Err(e) => Json(serde_json::json!({
+            "success": false,
+            "error": e.to_string(),
+        })),
+    }
+}
+
+/// POST /v1/vault/secrets — 写入 Secret
+async fn vault_write_handler(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+    Json(payload): Json<serde_json::Value>,
+) -> Json<serde_json::Value> {
+    let path = params.get("path").map(|s| s.as_str()).unwrap_or("default");
+    let data = payload.get("data")
+        .and_then(|v| v.as_object())
+        .cloned()
+        .unwrap_or_default();
+
+    match state.vault_client.write_secret(path, data).await {
+        Ok(resp) => Json(serde_json::json!({
+            "success": true,
+            "version": resp.metadata.version,
+            "created_time": resp.metadata.created_time,
+        })),
+        Err(e) => Json(serde_json::json!({
+            "success": false,
+            "error": e.to_string(),
+        })),
+    }
+}
+
+/// GET /v1/vault/secrets/{path} — 读取 Secret
+async fn vault_read_handler(
+    State(state): State<Arc<AppState>>,
+    Path(path): Path<String>,
+) -> Json<serde_json::Value> {
+    match state.vault_client.read_secret(&path).await {
+        Ok(resp) => Json(serde_json::json!({
+            "success": true,
+            "data": resp.data.data,
+            "version": resp.metadata.version,
+            "created_time": resp.metadata.created_time,
+        })),
+        Err(e) => Json(serde_json::json!({
+            "success": false,
+            "error": e.to_string(),
+        })),
+    }
+}
+
+/// DELETE /v1/vault/secrets/{path} — 删除 Secret
+async fn vault_delete_handler(
+    State(state): State<Arc<AppState>>,
+    Path(path): Path<String>,
+) -> Json<serde_json::Value> {
+    match state.vault_client.delete_secret(&path).await {
+        Ok(()) => Json(serde_json::json!({ "success": true })),
+        Err(e) => Json(serde_json::json!({
+            "success": false,
+            "error": e.to_string(),
+        })),
+    }
+}
+
+/// GET /v1/vault/secrets — 列出 Secrets
+async fn vault_list_handler(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Json<serde_json::Value> {
+    let path = params.get("path").map(|s| s.as_str()).unwrap_or("");
+    match state.vault_client.list_secrets(path).await {
+        Ok(keys) => Json(serde_json::json!({
+            "success": true,
+            "keys": keys,
+        })),
+        Err(e) => Json(serde_json::json!({
+            "success": false,
+            "error": e.to_string(),
+        })),
+    }
+}
+
+/// POST /v1/vault/encrypt — 加密数据
+async fn vault_encrypt_handler(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<serde_json::Value>,
+) -> Json<serde_json::Value> {
+    let key_name = payload.get("key_name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("default");
+    let plaintext = payload.get("plaintext")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+
+    use base64::Engine;
+    let plaintext_b64 = base64::engine::general_purpose::STANDARD.encode(plaintext);
+
+    match state.vault_client.encrypt(key_name, &plaintext_b64).await {
+        Ok(ciphertext) => Json(serde_json::json!({
+            "success": true,
+            "ciphertext": ciphertext,
+        })),
+        Err(e) => Json(serde_json::json!({
+            "success": false,
+            "error": e.to_string(),
+        })),
+    }
+}
+
+/// POST /v1/vault/decrypt — 解密数据
+async fn vault_decrypt_handler(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<serde_json::Value>,
+) -> Json<serde_json::Value> {
+    let key_name = payload.get("key_name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("default");
+    let ciphertext = payload.get("ciphertext")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+
+    match state.vault_client.decrypt(key_name, ciphertext).await {
+        Ok(plaintext_b64) => {
+            use base64::Engine;
+            match base64::engine::general_purpose::STANDARD.decode(&plaintext_b64) {
+                Ok(decoded) => Json(serde_json::json!({
+                    "success": true,
+                    "plaintext": String::from_utf8_lossy(&decoded),
+                })),
+                Err(e) => Json(serde_json::json!({
+                    "success": false,
+                    "error": format!("base64 decode failed: {e}"),
+                })),
+            }
+        }
+        Err(e) => Json(serde_json::json!({
+            "success": false,
+            "error": e.to_string(),
+        })),
+    }
+}
+
+/// GET /v1/vault/dynamic-secret/{path} — 请求动态 Secret
+async fn vault_dynamic_secret_handler(
+    State(state): State<Arc<AppState>>,
+    Path(path): Path<String>,
+) -> Json<serde_json::Value> {
+    match state.vault_client.request_dynamic_secret(&path).await {
+        Ok(secret) => Json(serde_json::json!({
+            "success": true,
+            "lease_id": secret.lease_id,
+            "lease_duration": secret.lease_duration,
+            "data": secret.data,
+        })),
+        Err(e) => Json(serde_json::json!({
+            "success": false,
+            "error": e.to_string(),
+        })),
+    }
+}
+
+/// POST /v1/vault/lease/{lease_id}/renew — 续约 Lease
+async fn vault_renew_lease_handler(
+    State(state): State<Arc<AppState>>,
+    Path(lease_id): Path<String>,
+    Json(payload): Json<serde_json::Value>,
+) -> Json<serde_json::Value> {
+    let increment = payload.get("increment").and_then(|v| v.as_u64()).unwrap_or(3600);
+    match state.vault_client.renew_lease(&lease_id, increment).await {
+        Ok(()) => Json(serde_json::json!({ "success": true })),
+        Err(e) => Json(serde_json::json!({
+            "success": false,
+            "error": e.to_string(),
+        })),
+    }
+}
+
+/// POST /v1/vault/lease/{lease_id}/revoke — 撤销 Lease
+async fn vault_revoke_lease_handler(
+    State(state): State<Arc<AppState>>,
+    Path(lease_id): Path<String>,
+) -> Json<serde_json::Value> {
+    match state.vault_client.revoke_lease(&lease_id).await {
+        Ok(()) => Json(serde_json::json!({ "success": true })),
+        Err(e) => Json(serde_json::json!({
+            "success": false,
+            "error": e.to_string(),
+        })),
+    }
+}
+
+// ── TEE API Handlers ───────────────────────────────
+
+/// GET /v1/tee/health — TEE 健康状态
+async fn tee_health_handler(
+    State(state): State<Arc<AppState>>,
+) -> Json<serde_json::Value> {
+    let tee = &state.tee_system;
+    let platform = &tee.platform;
+
+    Json(serde_json::json!({
+        "success": true,
+        "platform": platform,
+        "platform_label": platform.label(),
+        "available": platform.is_available(),
+        "sgx_available": tee.sgx.is_some(),
+        "tdx_available": tee.tdx.is_some(),
+        "encrypted_memory_count": tee.encrypted_memory.list_ids().unwrap_or_default().len(),
+        "policy_enforce": tee.policy_engine.enforce,
+    }))
+}
+
+/// POST /v1/tee/attest — 执行远程证明
+async fn tee_attest_handler(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<serde_json::Value>,
+) -> Json<serde_json::Value> {
+    let nonce = payload.get("nonce")
+        .and_then(|v| v.as_str())
+        .unwrap_or("default-nonce");
+
+    match state.tee_system.attest(nonce).await {
+        Ok(report) => Json(serde_json::json!({
+            "success": true,
+            "platform": report.platform,
+            "nonce": report.nonce,
+            "quote_hex": report.quote_hex,
+            "is_valid": report.is_valid,
+            "timestamp": report.timestamp,
+            "details": report.details,
+        })),
+        Err(e) => Json(serde_json::json!({
+            "success": false,
+            "error": e.to_string(),
+        })),
+    }
+}
+
+/// POST /v1/tee/encrypted-memory — 加密存储数据
+async fn tee_encrypted_memory_store_handler(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<serde_json::Value>,
+) -> Json<serde_json::Value> {
+    let id = payload.get("id").and_then(|v| v.as_str()).unwrap_or("data");
+    let data = payload.get("data").and_then(|v| v.as_str()).unwrap_or("");
+
+    match state.tee_system.encrypted_memory.store(id, data.as_bytes()) {
+        Ok(blob) => Json(serde_json::json!({
+            "success": true,
+            "id": blob.id,
+            "key_id": blob.key_id,
+            "created_at": blob.created_at,
+            "ciphertext_size": blob.ciphertext.len(),
+        })),
+        Err(e) => Json(serde_json::json!({
+            "success": false,
+            "error": e.to_string(),
+        })),
+    }
+}
+
+/// GET /v1/tee/encrypted-memory/{id} — 解密读取
+async fn tee_encrypted_memory_get_handler(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> Json<serde_json::Value> {
+    match state.tee_system.encrypted_memory.retrieve(&id) {
+        Ok(plaintext) => Json(serde_json::json!({
+            "success": true,
+            "id": id,
+            "data": String::from_utf8_lossy(&plaintext),
+        })),
+        Err(e) => Json(serde_json::json!({
+            "success": false,
+            "error": e.to_string(),
+        })),
+    }
+}
+
+/// DELETE /v1/tee/encrypted-memory/{id} — 删除加密块
+async fn tee_encrypted_memory_delete_handler(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> Json<serde_json::Value> {
+    match state.tee_system.encrypted_memory.delete(&id) {
+        Ok(()) => Json(serde_json::json!({ "success": true })),
+        Err(e) => Json(serde_json::json!({
+            "success": false,
+            "error": e.to_string(),
+        })),
+    }
+}
+
+/// GET /v1/tee/encrypted-memory — 列出加密块
+async fn tee_encrypted_memory_list_handler(
+    State(state): State<Arc<AppState>>,
+) -> Json<serde_json::Value> {
+    match state.tee_system.encrypted_memory.list_ids() {
+        Ok(ids) => Json(serde_json::json!({
+            "success": true,
+            "ids": ids,
+        })),
+        Err(e) => Json(serde_json::json!({
+            "success": false,
+            "error": e.to_string(),
+        })),
+    }
+}
+
+/// GET /v1/tee/policy — 获取 TEE 策略配置
+async fn tee_policy_get_handler(
+    State(state): State<Arc<AppState>>,
+) -> Json<serde_json::Value> {
+    let config = state.tee_system.policy_engine.policy_config();
+    Json(serde_json::json!({
+        "success": true,
+        "enforce": config.enforce,
+        "required_operations": config.required_operations,
+    }))
+}
+
+/// PUT /v1/tee/policy — 更新 TEE 策略
+async fn tee_policy_update_handler(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<serde_json::Value>,
+) -> Json<serde_json::Value> {
+    if let Some(enforce) = payload.get("enforce").and_then(|v| v.as_bool()) {
+        state.tee_system.policy_engine.set_enforce(enforce);
+    }
+    if let Some(ops) = payload.get("required_operations").and_then(|v| v.as_array()) {
+        for op in ops {
+            if let Some(op_str) = op.as_str() {
+                state.tee_system.policy_engine.register_required(op_str);
+            }
+        }
+    }
+    let config = state.tee_system.policy_engine.policy_config();
+    Json(serde_json::json!({
+        "success": true,
+        "enforce": config.enforce,
+        "required_operations": config.required_operations,
+    }))
 }

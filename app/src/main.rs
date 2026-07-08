@@ -626,6 +626,18 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
         sse_broadcaster: Arc::new(SseBroadcaster::new(1024)),
         file_store: Arc::new(tokio::sync::RwLock::new(Vec::new())),
         credential_manager: runtime.credential_manager.clone(),
+        tenant_manager: std::sync::Arc::new(lingshu_tenant::TenantManager::new()),
+        vault_client: std::sync::Arc::new(lingshu_vault::MockVaultClient::new()),
+        tee_system: std::sync::Arc::new(lingshu_tee::TeeSystem::initialize().await.unwrap_or_else(|e| {
+            tracing::warn!("Failed to initialize TEE system: {e}, using fallback");
+            lingshu_tee::TeeSystem {
+                platform: lingshu_tee::TeePlatform::None,
+                sgx: None,
+                tdx: None,
+                encrypted_memory: std::sync::Arc::new(lingshu_tee::EncryptedMemoryRegion::new()),
+                policy_engine: std::sync::Arc::new(lingshu_tee::TeePolicyEngine::default()),
+            }
+        })),
         jwt_service: lingshu_security::auth::JwtService::from_env_or("lingshu-dev-secret", 86400),
     });
     // 桥接 MCP 进度通知到 SSE

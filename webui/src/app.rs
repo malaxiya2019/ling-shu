@@ -3,7 +3,8 @@ use yew::prelude::*;
 use crate::components::sidebar::Sidebar;
 use crate::i18n::LanguageProvider;
 use crate::pages::{
-    Benchmark, Dashboard, EvalReports, Federation, Metrics, Page, Plugins, Security,
+    AuditDashboard, Benchmark, Dashboard, EvalReports, Federation, Metrics, Page, Plugins,
+    Security,
 };
 
 #[function_component(App)]
@@ -26,6 +27,7 @@ fn app_inner() -> Html {
 
     let content = match (*page).clone() {
         Page::Dashboard => html! { <Dashboard /> },
+        Page::Audit => html! { <AuditDashboard /> },
         Page::Federation => html! { <Federation /> },
         Page::EvalReports => html! { <EvalReports /> },
         Page::Metrics => html! { <Metrics /> },

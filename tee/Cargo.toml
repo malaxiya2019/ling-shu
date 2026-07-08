@@ -1,0 +1,17 @@
+[package]
+name = "lingshu-tee"
+version.workspace = true
+edition.workspace = true
+description = "LSTEE — 机密计算支持 (Intel SGX/TDX 远程证明 + 加密内存区域)"
+
+[dependencies]
+lingshu-core = { path = "../core" }
+lingshu-security = { path = "../security" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tokio = { workspace = true, features = ["sync"] }
+tracing.workspace = true
+thiserror.workspace = true
