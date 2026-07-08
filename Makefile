@@ -147,3 +147,16 @@ docker-logs:
 
 docker-restart: docker-down docker-up
 
+
+# ── Benchmarks ─────────────────────────────────────
+
+bench:
+	cargo bench --package lingshu-benchmarks
+
+bench-report:
+	cargo bench --package lingshu-benchmarks -- --verbose
+	@echo "📊 HTML report: target/criterion/report/index.html"
+
+bench-compare:
+	cargo bench --package lingshu-benchmarks -- --save-baseline current
+	@echo "📊 Run again after changes, then: cargo bench -- --load-baseline current --baseline previous"

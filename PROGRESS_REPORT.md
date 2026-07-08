@@ -152,7 +152,7 @@
 | `tee/` | 4 源文件 | ~500 lines |
 | `tenant/` | 3 源文件 | ~380 lines |
 | `app/` | 源文件 (main.rs + api.rs + gRPC + openapi_spec.rs) | ~4,500 lines |
-| **总计 (全部 31 crates)** | | **~31,000+ lines** |
+| **总计 (全部 33 crates)** | | **~33,000+ lines** |
 
 ## 3. 架构总览
 
@@ -194,9 +194,11 @@
 | Secrets Vault | ✅ | HashiCorp Vault 集成: KV v2, 动态 Secret, Transit 加解密, Lease 管理 |
 | TEE 支持 | ✅ | Intel SGX/TDX 远程证明 + 加密内存区域 + 策略引擎, tee/ crate + API
 
-### v3.4 — 生态系统
-- **OpenHands 集成** — 参考 FastAPI + MCP router 架构
-- **AutoAgents Orchestrator** — 结构化 ReAct agent 编排
-- **chidori Durable Execution** — checkpointing 持久化恢复
-- **Plugin 市场 WebUI** — 在线浏览/安装/卸载插件
-- **Criterion Benchmark** — 自动基准测试与结果持久化
+### v3.4 — 生态系统 ✅ (最新完成)
+| 组件 | 状态 | 说明 |
+|------|------|------|
+| OpenHands 集成 | ✅ | api/ 模块化重构: health/metrics/auth/chat/agents/plugins/mcp/federation/eval 9 模块 |
+| AutoAgents Orchestrator | ✅ | ReAct agent + 结构化工具调用编排 (feature-gated) |
+| chidori Durable Execution | ✅ | checkpointing 持久化恢复 (feature-gated) |
+| Plugin 市场 WebUI | ✅ | 在线浏览/搜索/安装/卸载/热加载, 完整 marketplace 集成 |
+| Criterion Benchmark | ✅ | 全局基准测试套件: 10+ crate, 15+ 场景, HTML 报告

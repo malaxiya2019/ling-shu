@@ -1,0 +1,31 @@
+[package]
+name = "lingshu-benchmarks"
+version.workspace = true
+edition.workspace = true
+description = "Lingshu 全局 Criterion 基准测试套件"
+publish = false
+
+[dependencies]
+lingshu-core = { path = "../core" }
+lingshu-runtime = { path = "../runtime" }
+lingshu-orchestrator = { path = "../orchestrator" }
+lingshu-evaluator = { path = "../evaluator" }
+lingshu-federation = { path = "../federation" }
+lingshu-memory = { path = "../memory" }
+lingshu-mcp = { path = "../mcp" }
+lingshu-cache = { path = "../cache" }
+lingshu-audit = { path = "../audit" }
+lingshu-tenant = { path = "../tenant" }
+lingshu-vault = { path = "../vault" }
+lingshu-tee = { path = "../tee" }
+lingshu-security = { path = "../security" }
+lingshu-database = { path = "../database" }
+lingshu-config = { path = "../config" }
+criterion = { version = "0.5", features = ["html_reports"] }
+tokio = { workspace = true, features = ["rt", "macros"] }
+serde_json.workspace = true
+serde.workspace = true
+
+[[bench]]
+name = "lingshu_benchmarks"
+harness = false

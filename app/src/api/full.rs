@@ -662,7 +662,13 @@ async fn admin_handler() -> Html<String> {
 </html>"##
     ))
 }
+/// 构建路由 — 聚合模块化路由 + full.rs 遗留路由.
+///
+/// 先组合各模块路由，再合并 full.rs 遗留路由，最后应用共享状态.
 pub fn build_router(state: Arc<AppState>) -> Router {
+    // 模块化路由 (OpenHands FastAPI + MCP router 模式)
+    let modular = super::build_app_router();
+    // 整合为单一路由树
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
@@ -825,7 +831,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             state.clone(),
             rate_limit_middleware,
         ))
-        .with_state(state)
+        .merge(modular).with_state(state)
 }
 
 // ── Admin Auth Middleware ────────────────────────────
@@ -5314,6 +5320,19 @@ async fn watch_list_videos_handler(
             StatusCode::NOT_FOUND,
             Json(json!({"error": "Watch plugin not registered or not started"})),
         )),
+    }
+}
+/// 格式化 Duration 为人类可读字符串.
+pub fn format_duration(d: std::time::Duration) -> String {
+    let secs = d.as_secs();
+    if secs < 60 {
+        format!("{}s", secs)
+    } else if secs < 3600 {
+        format!("{}m {}s", secs / 60, secs % 60)
+    } else if secs < 86400 {
+        format!("{}h {}m", secs / 3600, (secs % 3600) / 60)
+    } else {
+        format!("{}d {}h", secs / 86400, (secs % 86400) / 3600)
     }
 }
 
