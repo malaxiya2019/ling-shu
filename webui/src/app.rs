@@ -2,7 +2,9 @@ use yew::prelude::*;
 
 use crate::components::sidebar::Sidebar;
 use crate::i18n::LanguageProvider;
-use crate::pages::{Dashboard, EvalReports, Federation, Metrics, Page, Plugins, Security};
+use crate::pages::{
+    Benchmark, Dashboard, EvalReports, Federation, Metrics, Page, Plugins, Security,
+};
 
 #[function_component(App)]
 pub fn app() -> Html {
@@ -29,6 +31,7 @@ fn app_inner() -> Html {
         Page::Metrics => html! { <Metrics /> },
         Page::Plugins => html! { <Plugins /> },
         Page::Security => html! { <Security /> },
+        Page::Benchmark => html! { <Benchmark /> },
     };
 
     html! {

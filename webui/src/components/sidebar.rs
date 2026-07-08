@@ -37,117 +37,83 @@ pub fn sidebar(props: &SidebarProps) -> Html {
         let cb = props.on_navigate.clone();
         Callback::from(move |_| cb.emit(Page::Security))
     };
-
-    let dash_class = if matches!(props.active_page, Page::Dashboard) {
-        "active"
-    } else {
-        ""
-    };
-    let fed_class = if matches!(props.active_page, Page::Federation) {
-        "active"
-    } else {
-        ""
-    };
-    let eval_class = if matches!(props.active_page, Page::EvalReports) {
-        "active"
-    } else {
-        ""
-    };
-    let metrics_class = if matches!(props.active_page, Page::Metrics) {
-        "active"
-    } else {
-        ""
-    };
-    let plugins_class = if matches!(props.active_page, Page::Plugins) {
-        "active"
-    } else {
-        ""
-    };
-    let security_class = if matches!(props.active_page, Page::Security) {
-        "active"
-    } else {
-        ""
+    let on_click_bench = {
+        let cb = props.on_navigate.clone();
+        Callback::from(move |_| cb.emit(Page::Benchmark))
     };
 
-    // ── Sidebar language switcher ────────────────────
+    let dash_class = if matches!(props.active_page, Page::Dashboard) { "active" } else { "" };
+    let fed_class = if matches!(props.active_page, Page::Federation) { "active" } else { "" };
+    let eval_class = if matches!(props.active_page, Page::EvalReports) { "active" } else { "" };
+    let metrics_class = if matches!(props.active_page, Page::Metrics) { "active" } else { "" };
+    let plugins_class = if matches!(props.active_page, Page::Plugins) { "active" } else { "" };
+    let security_class = if matches!(props.active_page, Page::Security) { "active" } else { "" };
+    let bench_class = if matches!(props.active_page, Page::Benchmark) { "active" } else { "" };
+
+    // Sidebar language switcher
     let is_zh = matches!(lang.locale, Locale::Zh);
     let toggle_zh = {
         let cb = lang.on_toggle.clone();
-        Callback::from(move |_| {
-            if !is_zh {
-                cb.emit(())
-            }
-        })
+        Callback::from(move |_| { if !is_zh { cb.emit(()) } })
     };
     let toggle_en = {
         let cb = lang.on_toggle.clone();
-        Callback::from(move |_| {
-            if is_zh {
-                cb.emit(())
-            }
-        })
+        Callback::from(move |_| { if is_zh { cb.emit(()) } })
     };
 
     html! {
         <nav class="sidebar">
             <div class="sidebar-header">
-                <span >{ "⚡" }</span>
-                <span >{ "Lingshu" }</span>
+                <span>{ "⚡" }</span>
+                <span>{ "Lingshu" }</span>
             </div>
             <ul class="sidebar-nav">
                 <li>
                     <a class={dash_class} onclick={on_click_dash}>
-                        <span class="nav-icon">{ "📊" }</span>
-                        <span>{ strings.nav_dashboard }</span>
+                        <span class="nav-icon">{ "📊" }</span><span>{ strings.nav_dashboard }</span>
                     </a>
                 </li>
                 <li>
                     <a class={fed_class} onclick={on_click_fed}>
-                        <span class="nav-icon">{ "🌐" }</span>
-                        <span>{ strings.nav_federation }</span>
+                        <span class="nav-icon">{ "🌐" }</span><span>{ strings.nav_federation }</span>
                     </a>
                 </li>
                 <li>
                     <a class={eval_class} onclick={on_click_eval}>
-                        <span class="nav-icon">{ "📋" }</span>
-                        <span>{ strings.nav_eval_reports }</span>
+                        <span class="nav-icon">{ "📋" }</span><span>{ strings.nav_eval_reports }</span>
                     </a>
                 </li>
                 <li>
                     <a class={metrics_class} onclick={on_click_metrics}>
-                        <span class="nav-icon">{ "📈" }</span>
-                        <span>{ strings.nav_metrics }</span>
+                        <span class="nav-icon">{ "📈" }</span><span>{ strings.nav_metrics }</span>
+                    </a>
+                </li>
+                <li>
+                    <a class={bench_class} onclick={on_click_bench}>
+                        <span class="nav-icon">{ "⚡" }</span><span>{ strings.nav_benchmark }</span>
                     </a>
                 </li>
                 <li>
                     <a class={plugins_class} onclick={on_click_plugins}>
-                        <span class="nav-icon">{ "🧩" }</span>
-                        <span>{ strings.nav_plugins }</span>
+                        <span class="nav-icon">{ "🧩" }</span><span>{ strings.nav_plugins }</span>
                     </a>
                 </li>
                 <li>
                     <a class={security_class} onclick={on_click_security}>
-                        <span class="nav-icon">{ "🕷️" }</span>
-                        <span>{ strings.nav_security }</span>
+                        <span class="nav-icon">{ "🕷️" }</span><span>{ strings.nav_security }</span>
                     </a>
                 </li>
             </ul>
 
-            // ── Sidebar language switcher ──
             <div class="sidebar-footer">
-                <div >{ strings.lang_switch }</div>
-                <div >
-                    <button class={format!("lang-btn{}",
-                        if is_zh { " lang-btn-active" } else { "" }
-                    )} onclick={toggle_zh}>
-                        { strings.lang_zh }
-                    </button>
-                    <button class={format!("lang-btn{}",
-                        if !is_zh { " lang-btn-active" } else { "" }
-                    )} onclick={toggle_en}>
-                        { strings.lang_en }
-                    </button>
+                <div>{ strings.lang_switch }</div>
+                <div>
+                    <button class={format!("lang-btn{}", if is_zh { " lang-btn-active" } else { "" })}
+                        onclick={toggle_zh}>{ strings.lang_zh }</button>
+                    <button class={format!("lang-btn{}", if !is_zh { " lang-btn-active" } else { "" })}
+                        onclick={toggle_en}>{ strings.lang_en }</button>
                 </div>
-            </div></nav>
+            </div>
+        </nav>
     }
 }

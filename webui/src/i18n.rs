@@ -37,6 +37,7 @@ pub struct Translations {
     pub nav_metrics: &'static str,
     pub nav_plugins: &'static str,
     pub nav_security: &'static str,
+    pub nav_benchmark: &'static str,
     pub dash_title: &'static str,
     pub dash_system_status: &'static str,
     pub dash_healthy: &'static str,
@@ -77,6 +78,13 @@ pub struct Translations {
     pub eval_title: &'static str,
     pub metrics_title: &'static str,
     pub security_title: &'static str,
+    pub benchmark_title: &'static str,
+    pub benchmark_suites: &'static str,
+    pub benchmark_samples: &'static str,
+    pub benchmark_pass_rate: &'static str,
+    pub benchmark_categories: &'static str,
+    pub benchmark_throughput: &'static str,
+    pub benchmark_error_rate: &'static str,
 }
 
 const EN: Translations = Translations {
@@ -87,6 +95,7 @@ const EN: Translations = Translations {
     nav_metrics: "Metrics",
     nav_plugins: "Plugins",
     nav_security: "Security",
+    nav_benchmark: "Benchmark",
     dash_title: "📊 Dashboard",
     dash_system_status: "System Status",
     dash_healthy: "Healthy",
@@ -128,6 +137,13 @@ const EN: Translations = Translations {
     eval_title: "📋 Eval Reports",
     metrics_title: "📈 Metrics",
     security_title: "🕷️ Security",
+    benchmark_title: "⚡ Benchmark",
+    benchmark_suites: "Benchmark Suites",
+    benchmark_samples: "Total Samples",
+    benchmark_pass_rate: "Pass Rate",
+    benchmark_categories: "Categories",
+    benchmark_throughput: "Throughput",
+    benchmark_error_rate: "Error Rate",
 };
 
 const ZH: Translations = Translations {
@@ -138,6 +154,7 @@ const ZH: Translations = Translations {
     nav_metrics: "监控指标",
     nav_plugins: "插件管理",
     nav_security: "安全中心",
+    nav_benchmark: "基准测试",
     dash_title: "📊 仪表盘",
     dash_system_status: "系统状态",
     dash_healthy: "健康",
@@ -178,6 +195,13 @@ const ZH: Translations = Translations {
     eval_title: "📋 评测报告",
     metrics_title: "📈 监控指标",
     security_title: "🕷️ 安全中心",
+    benchmark_title: "⚡ 基准测试",
+    benchmark_suites: "测试套件",
+    benchmark_samples: "总采样数",
+    benchmark_pass_rate: "通过率",
+    benchmark_categories: "类别数",
+    benchmark_throughput: "吞吐量",
+    benchmark_error_rate: "错误率",
 };
 
 /// 获取语言对应的翻译

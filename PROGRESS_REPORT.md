@@ -108,154 +108,10 @@
 | gRPC 服务 | ✅ | tonic + prost 构建, proto 定义 |
 | 安装脚本 | ✅ | Termux + Ubuntu 一键安装 |
 
----
-
-## 2. 架构总览 (v2)
-
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                         HTTP API (axum)                          │
-│  /health  /v1/chat  /v1/agent  /v1/eval  /v1/federation  ...    │
-│  /admin (SSR)  /webui (WASM)  /docs (API Docs)                  │
-└──────────────────────────┬───────────────────────────────────────┘
-                           │
-┌──────────────────────────▼───────────────────────────────────────┐
-│                      LingshuRuntime                              │
-│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────────────┐  │
-│  │Core  │ │Event │ │Agent │ │Memory│ │MCP   │ │Credentials   │  │
-│  │Types │ │Bus   │ │Mgr   │ │Mgr   │ │Server│ │Vault         │  │
-│  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──────────────┘  │
-│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────────────┐  │
-│  │Eval  │ │Fed   │ │Rate  │ │Bill  │ │Audit │ │Knowledge     │  │
-│  │Store │ │Feder.│ │Limit │ │System│ │Log   │ │Graph         │  │
-│  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──────────────┘  │
-└──────────────────────────────────────────────────────────────────┘
-                           │
-            ┌──────────────┼──────────────┐
-            ▼              ▼              ▼
-     ┌──────────┐   ┌──────────┐   ┌──────────┐
-     │  LLM     │   │  Plugin  │   │  Storage │
-     │ Backends │   │ Registry │   │  (Local  │
-     │(OpenAI/..)│   │          │   │  + SQLite)│
-     └──────────┘   └──────────┘   └──────────┘
-
-┌──────────────────────────────────────────────────────────────────┐
-│                       Federation Cluster                         │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────────────┐   │
-│  │Discovery │  │  Link    │  │Protocol  │  │  Replication   │   │
-│  │(Static/  │  │ (TCP +   │  │(JSON-RPC │  │  (Broadcast/   │   │
-│  │ DNS/SRv) │  │  Heart)  │  │  2.0)    │  │  ToLeader)     │   │
-│  └──────────┘  └──────────┘  └──────────┘  └────────────────┘   │
-└──────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 3. 代码统计
-
-| 目录 | 源文件 | 代码行 (约) |
-|------|--------|-------------|
-| `evaluator/` | 7 源文件 | ~1,988 lines |
-| `federation/` | 7 源文件 | ~1,988 lines |
-| `webui/` | 13 源文件 | ~1,200 lines |
-| `app/` | 源文件 (main.rs + api.rs + gRPC + openapi_spec.rs) | ~4,500 lines |
-| **总计 (全部 28 crates)** | | **~28,000+ lines** |
-
----
-
-## 4. 测试结果 (全量通过)
-
-```
-cargo test --workspace --all-features:  290+ passed, 0 failed
-
-lingshu-core:             8 passed
-lingshu-traits:          10 passed
-lingshu-runtime:         82 passed
-lingshu-eventbus:        12 passed
-lingshu-code-analyzer:   29 passed
-lingshu-memory:          12 passed
-lingshu-config:           7 passed
-lingshu-knowledge-graph: 19 passed
-lingshu-database:        10 passed, 2 ignored (Postgres)
-lingshu-orchestrator:    23 passed
-lingshu-evaluator:       14 passed
-lingshu-backends:         9 passed
-lingshu-federation:      19 passed
-lingshu-websocket:        1  doc-test passed
-```
-
----
-
-## 5. 环境与构建
-
-- **平台**: Termux on Android (aarch64-linux-android)
-- **Rust**: 1.96.1
-- **构建**: `cargo check --workspace --all-features` ✅ (0 warnings)
-- **全量测试**: `cargo test --workspace --all-features` ✅ (0 failed)
-
----
-
-## 6. API 端点汇总
-
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/health` | GET | 健康检查 |
-| `/version` | GET | 版本信息 |
-| `/metrics` | GET | Prometheus 指标 |
-| `/docs` | GET | API 文档页面 |
-| `/docs/openapi.json` | GET | OpenAPI 规范 |
-| `/v1/models` | GET | 模型列表 |
-| `/v1/chat/completions` | POST | OpenAI 兼容聊天 |
-| `/v1/embeddings` | POST | OpenAI 兼容 Embedding |
-| `/v1/chat` | POST | 内部聊天 |
-| `/v1/agent/run` | POST | 运行 Agent |
-| `/v1/agents` | GET | 列出 Agents |
-| `/v1/mcp` | POST | MCP 方法调用 |
-| `/v1/files/upload` | POST | 文件上传 |
-| `/v1/graph/{project}` | GET/POST | 知识图谱查询/分析 |
-| `/v1/plugins` | GET/POST | 插件列表/安装 |
-| `/v1/credentials` | GET/POST/... | 凭证管理 (CRUD + 验证) |
-| `/v1/credentials/providers` | GET | 凭证提供商列表 |
-| `/v1/eval/run` | POST | 运行评测套件 |
-| `/v1/eval/result` | GET | 获取最新评测结果 |
-| `/v1/eval/regression` | POST | 回归检测 |
-| `/v1/federation/status` | GET | 联邦状态 |
-| `/v1/federation/nodes` | GET | 在线节点列表 |
-| `/v1/federation/execute` | POST | 远程执行 |
-| `/v2/events` | GET | SSE 实时事件推送 |
-| `/ws` | WS | WebSocket |
-| `/admin` | GET | 管理面板 (服务端渲染) |
-| `/webui/*` | GET | WASM 管理面板 (需 trunk build) |
-| `/api/auth/login` | POST | 管理员登录 |
-| `/api/auth/logout` | POST | 登出 |
-| `/api/auth/me` | GET | 当前登录状态 |
-
----
-
-## 7. ~~下一步建议~~ ✅ 全部完成
-
-以下 6 项任务已在 v2.8 中全部完成：
-
-1. ✅ **Helm Chart 完善** — K8s 部署配置 (ConfigMap/NOTES/反亲和/拓扑分布/HPA/Ingress)
-2. ✅ **OpenAPI/Swagger UI** — 自动生成 OpenAPI 3.0.3 规范, 覆盖 60+ 端点
-3. ✅ **监控 Dashboard** — WebUI 实时 CPU/Memory/Token 图表 (SVG 曲线 + 60 点环形缓冲)
-4. ✅ **端到端测试** — evaluator + federation 集成测试 (5 个场景: 独立/部分失败/回归/并发/联邦)
-5. ✅ **WASM 构建 CI** — `trunk build --release` 集成到 Dockerfile 多阶段构建 + GitHub CI webui job
-6. ✅ **Plugin wasmtime 修复** — wasmtime 移至 `cfg(not(target_os = "android"))` 条件编译, 避免 Termux 编译失败
-
----
-
-## 8. 下一步建议
-
-1. **性能基准** — 使用已添加的 criterion bench 持续追踪性能回归
-2. **国际化 (i18n)** — WebUI 支持中英文切换
-3. **代码覆盖** — 集成 cargo-tarpaulin 或类似工具
-4. **TEE 支持** — 机密计算硬件安全模块
-
 ### v3.0 — SDK & 文档 (Phase 8)
 | 组件 | 状态 | 说明 |
 |------|------|------|
-| mdBook 文档站点 | ✅ | 25 页面完整文档（用户指南、开发者指南、部署、SDK） |
+| mdBook 文档站点 | ✅ | 25 页面完整文档 |
 | Python SDK | ✅ | 同步/异步 HTTP 客户端 |
 | TypeScript SDK | ✅ | 类型化 HTTP 客户端 |
 | WASM Plugin SDK | ✅ | wasmtime 沙箱插件模板 + 构建脚本 |
@@ -267,9 +123,75 @@ lingshu-websocket:        1  doc-test passed
 | 联邦加密与迁移 | ✅ | TLS 加密 + 八卦协议 + Agent 热迁移 |
 | 安全增强 | ✅ | OAuth2/OIDC + API Key 轮换 |
 
-## 2. 未完成 / 计划中
+### v3.1 — WebUI & API 重构
+| 组件 | 状态 | 说明 |
+|------|------|------|
+| 实时 Metrics JSON 端点 | ✅ | `/v1/metrics` CPU/Memory/Token 实时数据 |
+| WebUI Metrics 图表 | ✅ | SVG CPU 仪表盘 + Memory + Token/Request 折线图 |
+| 共享 CSS 主题 | ✅ | 346 行 GitHub Dark 主题样式表，移除全部内联样式 |
+| API 模块化重构 | ✅ | api.rs → api/ 模块目录 (OpenHands FastAPI 模式) |
+| 端到端测试 | ✅ | evaluator + federation 组合集成测试 |
 
-### v3.1 — 待办
-- WebUI 实时 Metrics 图表 (CPU/Memory/Token)
-- 端到端测试完善 (evaluator + federation)
-- 集成 OpenHands FastAPI + MCP router 模式
+### v3.2 — 性能与可观测性 ✅ (最新完成)
+| 组件 | 状态 | 说明 |
+|------|------|------|
+| gRPC ChatStream 流式推理 | ✅ | Tonic streaming 实时 Token 流 (基于 Llm::invoke_stream) |
+| Prometheus AlertManager | ✅ | Helm 集成告警规则 (服务宕机/CPU/内存/Token/错误率/联邦节点/延迟) |
+| LLM 缓存层 | ✅ | 新增 `cache/` crate, 支持 In-Memory / Redis / Memcached 后端 |
+| Benchmark 仪表盘 | ✅ | WebUI 基准测试结果可视化页面 (8 场景, 4 类别) |
+
+## 2. 代码统计
+
+| 目录 | 源文件 | 代码行 (约) |
+|------|--------|-------------|
+| `evaluator/` | 7 源文件 | ~1,988 lines |
+| `federation/` | 7 源文件 | ~1,988 lines |
+| `webui/` | 14 源文件 | ~1,450 lines |
+| `cache/` | 3 源文件 | ~380 lines |
+| `app/` | 源文件 (main.rs + api.rs + gRPC + openapi_spec.rs) | ~4,500 lines |
+| **总计 (全部 29 crates)** | | **~29,000+ lines** |
+
+## 3. 架构总览
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  HTTP API Server (axum, :8080)  |  gRPC Server (tonic, :50051)   │
+│  /v1/chat /v1/agent /v1/eval /v1/federation ...                  │
+│  /admin (SSR) /webui (WASM) /docs (API Docs)                     │
+└────────────────────────────────┬─────────────────────────────────┘
+                                 │
+┌────────────────────────────────▼─────────────────────────────────┐
+│                        LingshuRuntime                              │
+│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────────────┐  │
+│  │Core  │ │Event │ │Agent │ │Memory│ │MCP   │ │Cache  Layer  │  │
+│  │Types │ │Bus   │ │Mgr   │ │Mgr   │ │Server│ │(Redis/Mem)   │  │
+│  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──────────────┘  │
+│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────────────┐  │
+│  │Eval  │ │Fed   │ │Rate  │ │Bill  │ │Audit │ │Metrics +     │  │
+│  │Store │ │Feder.│ │Limit │ │System│ │Log   │ │AlertManager  │  │
+│  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──────────────┘  │
+└──────────────────────────────────────────────────────────────────┘
+                                 │
+            ┌────────────────────┼────────────────┐
+            ▼                    ▼                ▼
+     ┌──────────┐       ┌──────────┐       ┌──────────┐
+     │  LLM     │       │  Plugin  │       │  Storage │
+     │ Backends │       │ Registry │       │  (Local  │
+     │(OpenAI/..)│      │          │       │  + SQLite)│
+     └──────────┘       └──────────┘       └──────────┘
+```
+
+## 4. 下一阶段计划
+
+### v3.3 — 企业特性
+- **多租户 (Multi-Tenant)** — 组织/项目/用户三级隔离
+- **审计仪表盘** — 审计日志实时检索与可视化
+- **Secrets Vault** — HashiCorp Vault 集成
+- **TEE 支持** — 机密计算硬件安全模块 (Intel SGX/TDX)
+
+### v3.4 — 生态系统
+- **OpenHands 集成** — 参考 FastAPI + MCP router 架构
+- **AutoAgents Orchestrator** — 结构化 ReAct agent 编排
+- **chidori Durable Execution** — checkpointing 持久化恢复
+- **Plugin 市场 WebUI** — 在线浏览/安装/卸载插件
+- **Criterion Benchmark** — 自动基准测试与结果持久化

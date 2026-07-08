@@ -1,0 +1,29 @@
+[package]
+name = "lingshu-cache"
+version.workspace = true
+edition.workspace = true
+description = "LSCache — LLM 响应缓存层，支持 Redis / Memcached 后端"
+
+[dependencies]
+lingshu-core = { path = "../core" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["sync", "time"] }
+tracing.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+sha2 = "0.10"
+hex = "0.4"
+
+# Redis backend (optional)
+redis = { version = "0.28", features = ["tokio-comp", "connection-manager"], optional = true }
+
+# Memcached backend (optional)
+memcache = { version = "0.17", optional = true }
+
+[features]
+default = []
+redis-cache = ["dep:redis"]
+memcached-cache = ["dep:memcache"]
+full = ["redis-cache", "memcached-cache"]

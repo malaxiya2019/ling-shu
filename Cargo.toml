@@ -28,6 +28,7 @@ members = [
     "federation",
     "webui",
     "llm-router",
+    "cache",
 ]
 
 [workspace.package]

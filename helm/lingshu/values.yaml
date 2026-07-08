@@ -243,3 +243,16 @@ topologySpreadConstraints:
 # Additional key-value pairs injected into the ConfigMap and pods.
 extraEnv: {}
   # LS_CUSTOM_VAR: "value"
+
+# ── Alerting (Prometheus AlertManager) ────────────────────────────
+# Alert rules are automatically deployed when monitoring is enabled.
+# These rules cover:
+#   - Service down / high CPU / high memory
+#   - High token usage / LLM error rates
+#   - Federation node health
+#   - Request latency (P95) / active session limits
+alerting:
+  # Additional alert annotations (severity, team, slack, pagerduty)
+  annotations:
+    team: "platform"
+    slack_channel: "#lingshu-alerts"

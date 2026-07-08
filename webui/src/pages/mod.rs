@@ -1,3 +1,4 @@
+pub mod benchmark;
 pub mod dashboard;
 pub mod eval_reports;
 pub mod federation;
@@ -5,6 +6,7 @@ pub mod metrics;
 pub mod plugins;
 pub mod security;
 
+pub use benchmark::Benchmark;
 pub use dashboard::Dashboard;
 pub use eval_reports::EvalReports;
 pub use federation::Federation;
@@ -20,4 +22,5 @@ pub enum Page {
     Metrics,
     Plugins,
     Security,
+    Benchmark,
 }
