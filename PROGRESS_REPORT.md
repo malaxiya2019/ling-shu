@@ -251,3 +251,25 @@ lingshu-websocket:        1  doc-test passed
 2. **国际化 (i18n)** — WebUI 支持中英文切换
 3. **代码覆盖** — 集成 cargo-tarpaulin 或类似工具
 4. **TEE 支持** — 机密计算硬件安全模块
+
+### v3.0 — SDK & 文档 (Phase 8)
+| 组件 | 状态 | 说明 |
+|------|------|------|
+| mdBook 文档站点 | ✅ | 25 页面完整文档（用户指南、开发者指南、部署、SDK） |
+| Python SDK | ✅ | 同步/异步 HTTP 客户端 |
+| TypeScript SDK | ✅ | 类型化 HTTP 客户端 |
+| WASM Plugin SDK | ✅ | wasmtime 沙箱插件模板 + 构建脚本 |
+| Plugin Marketplace | ✅ | 插件索引 + 安装脚本 |
+| chidori 集成 | ✅ | durable execution + checkpointing (feature-gated) |
+| autoagents 集成 | ✅ | ReAct agent + 结构化工具调用 (feature-gated) |
+| loong 集成 | ✅ | 轻量 Agent 基础设施 (feature-gated) |
+| llm-router | ✅ | 5 种路由策略 + MetricsCollector |
+| 联邦加密与迁移 | ✅ | TLS 加密 + 八卦协议 + Agent 热迁移 |
+| 安全增强 | ✅ | OAuth2/OIDC + API Key 轮换 |
+
+## 2. 未完成 / 计划中
+
+### v3.1 — 待办
+- WebUI 实时 Metrics 图表 (CPU/Memory/Token)
+- 端到端测试完善 (evaluator + federation)
+- 集成 OpenHands FastAPI + MCP router 模式
