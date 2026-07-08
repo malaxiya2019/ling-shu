@@ -1,20 +1,18 @@
-{{- if eq .Values.workloadType "Deployment" }}
+{{- if eq .Values.workloadType "StatefulSet" }}
 {{- $fullname := include "lingshu.fullname" . -}}
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: {{ $fullname }}
   labels:
     {{- include "lingshu.labels" . | nindent 4 }}
 spec:
+  serviceName: {{ $fullname }}-federation
   replicas: {{ .Values.replicaCount }}
+  podManagementPolicy: OrderedReady
   selector:
     matchLabels:
       {{- include "lingshu.selectorLabels" . | nindent 6 }}
-  strategy:
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
   template:
     metadata:
       annotations:
@@ -107,6 +105,16 @@ spec:
             - name: LS_FEDERATION_HUB_COUNT
               value: {{ .Values.federation.hubCount | quote }}
             {{- end }}
+            {{- if eq .Values.workloadType "StatefulSet" }}
+            - name: LS_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: LS_POD_ORDINAL
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['apps.kubernetes.io/pod-index']
+            {{- end }}
             {{- end }}
             {{- if .Values.secrets.openai_api_key }}
             - name: OPENAI_API_KEY
@@ -177,23 +185,35 @@ spec:
               mountPath: /etc/lingshu/marketplace-config.yaml
               subPath: marketplace-config.yaml
             {{- end }}
-      volumes:
-        {{- if .Values.persistence.enabled }}
-        - name: data
-          persistentVolumeClaim:
-            claimName: {{ $fullname }}-data
+  volumeClaimTemplates:
+    {{- if .Values.persistence.enabled }}
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
+        {{- if .Values.persistence.storageClass }}
+        storageClassName: {{ .Values.persistence.storageClass }}
         {{- end }}
-        {{- if and .Values.pluginMarket.enabled .Values.pluginMarket.persistence.enabled }}
-        - name: plugins
-          persistentVolumeClaim:
-            claimName: {{ $fullname }}-plugins
-        {{- else if .Values.pluginMarket.enabled }}
-        - name: plugins
-          emptyDir: {}
+    {{- end }}
+    {{- if and .Values.pluginMarket.enabled .Values.pluginMarket.persistence.enabled }}
+    - metadata:
+        name: plugins
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ .Values.pluginMarket.persistence.size }}
+        {{- if .Values.pluginMarket.persistence.storageClass }}
+        storageClassName: {{ .Values.pluginMarket.persistence.storageClass }}
         {{- end }}
-        {{- if .Values.pluginMarket.enabled }}
-        - name: config
-          configMap:
-            name: {{ $fullname }}-plugin-config
-        {{- end }}
+    {{- end }}
+  {{- if not .Values.pluginMarket.enabled }}
+  volumes:
+    - name: config
+      configMap:
+        name: {{ $fullname }}-plugin-config
+  {{- end }}
 {{- end }}

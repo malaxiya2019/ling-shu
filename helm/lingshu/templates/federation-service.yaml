@@ -1,29 +1,41 @@
 {{- if .Values.federation.enabled }}
+{{- $fullname := include "lingshu.fullname" . -}}
+---
+# ── Headless Service for Federation Peer Discovery ──
+# Used by StaticDiscovery and DnsDiscovery to resolve peer pods via DNS SRV.
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "lingshu.fullname" . }}-federation
+  name: {{ $fullname }}-federation
   labels:
     {{- include "lingshu.labels" . | nindent 4 }}
+    lingshu.io/component: federation
   annotations:
     service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
 spec:
   clusterIP: None
+  publishNotReadyAddresses: true
   ports:
     - port: {{ .Values.federation.port }}
       targetPort: federation
       name: federation
+      {{- if .Values.service.federationNodePort }}
+      nodePort: {{ .Values.service.federationNodePort }}
+      {{- end }}
   selector:
     {{- include "lingshu.selectorLabels" . | nindent 4 }}
 ---
+# ── General Headless Service ──
+# Exposes all ports for intra-cluster communication.
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "lingshu.fullname" . }}-headless
+  name: {{ $fullname }}-headless
   labels:
     {{- include "lingshu.labels" . | nindent 4 }}
 spec:
   clusterIP: None
+  publishNotReadyAddresses: true
   ports:
     - port: {{ .Values.service.httpPort }}
       targetPort: http
@@ -31,11 +43,9 @@ spec:
     - port: {{ .Values.service.clusterPort }}
       targetPort: cluster
       name: cluster
-    {{- if .Values.federation.enabled }}
     - port: {{ .Values.federation.port }}
       targetPort: federation
       name: federation
-    {{- end }}
   selector:
     {{- include "lingshu.selectorLabels" . | nindent 4 }}
 {{- end }}

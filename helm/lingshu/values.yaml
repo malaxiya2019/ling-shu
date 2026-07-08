@@ -1,21 +1,36 @@
-# ── LingShu Helm Values ──
+# ── LingShu Helm Values ───────────────────────────────────────────
+# Comprehensive configuration for LingShu Agent System on Kubernetes.
+# ==================================================================
 
+# ── Replica Count ─────────────────────────────────────────────────
+# For federation multi-replica setups, use >= 3 for quorum.
 replicaCount: 3
 
+# ── Image ─────────────────────────────────────────────────────────
 image:
   repository: ghcr.io/malaxiya2019/lingshu
   tag: latest
   pullPolicy: IfNotPresent
 
+# ── Name Overrides ────────────────────────────────────────────────
 nameOverride: ""
 fullnameOverride: ""
 
+# ── Workload Type ─────────────────────────────────────────────────
+# "Deployment" (default) or "StatefulSet".
+# StatefulSet provides stable pod DNS names (pod-name.service), which
+# is useful for federation peer discovery in multi-replica clusters.
+workloadType: Deployment
+
+# ── Service Account ───────────────────────────────────────────────
 serviceAccount:
   create: true
   name: ""
 
+# ── Pod Annotations ───────────────────────────────────────────────
 podAnnotations: {}
 
+# ── Pod Security Context ──────────────────────────────────────────
 podSecurityContext: {}
   # fsGroup: 2000
 
@@ -27,11 +42,15 @@ securityContext:
   runAsNonRoot: true
   runAsUser: 1000
 
+# ── Service ───────────────────────────────────────────────────────
 service:
   type: ClusterIP
   httpPort: 8080
   clusterPort: 9090
+  # NodePort for federation when type is NodePort/LoadBalancer
+  federationNodePort: 0
 
+# ── Ingress ───────────────────────────────────────────────────────
 ingress:
   enabled: true
   className: nginx
@@ -45,12 +64,53 @@ ingress:
       hosts:
         - api.lingshu.local
 
+# ── Federation (Multi-Replica Cluster) ────────────────────────────
+# Lingshu supports cross-pod clustering via TCP-based federation protocol.
 federation:
   enabled: true
   port: 9550
   clusterName: lingshu-cluster
+
+  # ── Topology ────────────────────────────────────────────────────
+  # Mesh      — Every node connects to every other node (full mesh).
+  # HubSpoke  — One or more hub nodes; spokes connect only to hubs.
+  # Partial   — User-specified peers via seed urls.
+  topology: Mesh
+
+  # ── Node Role (HubSpoke only) ──────────────────────────────────
+  # "auto"     — First N pods (by ordinal) are hubs, rest are spokes.
+  # "hub"      — Force this pod as hub.
+  # "spoke"    — Force this pod as spoke.
+  nodeRole: auto
+
+  # ── Number of hub nodes (HubSpoke only) ─────────────────────────
+  hubCount: 2
+
+  # ── Seed Discovery ──────────────────────────────────────────────
+  # Static      — Use seedService DNS for SRV-based discovery.
+  # DnsSrv      — Use DNS SRV records from seedService.
+  discovery: Static
+
+  # ── Seed Service ────────────────────────────────────────────────
+  # Headless service used for pod DNS-based peer discovery.
+  # In multi-replica setups, pods discover each other via SRV records.
   seedService: lingshu-federation
 
+  # ── Replication Strategy ────────────────────────────────────────
+  # Broadcast  — Replicate state to all peers in the cluster.
+  # ToLeader   — Replicate only to the leader/hub nodes.
+  # Direct     — Direct peer-to-peer replication.
+  replicationStrategy: Broadcast
+
+  # ── Heartbeat ───────────────────────────────────────────────────
+  heartbeat:
+    intervalSeconds: 5
+    timeoutSeconds: 15
+
+  # ── Max Message Size ────────────────────────────────────────────
+  maxMessageSize: 10485760  # 10 MB
+
+# ── Resources ─────────────────────────────────────────────────────
 resources:
   limits:
     cpu: "2"
@@ -59,6 +119,7 @@ resources:
     cpu: 500m
     memory: 256Mi
 
+# ── Autoscaling (Deployment only) ─────────────────────────────────
 autoscaling:
   enabled: true
   minReplicas: 3
@@ -66,29 +127,35 @@ autoscaling:
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
 
+# ── Pod Disruption Budget ─────────────────────────────────────────
+# Ensures minimum availability during voluntary disruptions.
+# Recommended minAvailable=2 for replicaCount >= 3.
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+  # maxUnavailable: 1   # Alternative to minAvailable
+
+# ── Environment Variables ─────────────────────────────────────────
 env:
   LS_ENV: prod
   LS_LOG_LEVEL: info
   LS_CLUSTER_ADDR: "0.0.0.0:9090"
 
+# ── Secrets ───────────────────────────────────────────────────────
+# Set these via --set or a separate secrets file.
 secrets:
   openai_api_key: ""
   anthropic_api_key: ""
   groq_api_key: ""
   credential_master_key: "change-me-in-production"
 
+# ── Persistence ───────────────────────────────────────────────────
 persistence:
   enabled: true
   size: 10Gi
   storageClass: ""
 
-nodeSelector: {}
-
-tolerations: []
-
-affinity: {}
-
-# ── Plugin Market ──
+# ── Plugin Market ─────────────────────────────────────────────────
 pluginMarket:
   enabled: true
   installDir: /var/lib/lingshu/plugins
@@ -110,7 +177,7 @@ pluginMarket:
     size: 2Gi
     storageClass: ""
 
-# ── BeEF Security Testing Plugin ──
+# ── BeEF Security Testing Plugin ──────────────────────────────────
 beef:
   enabled: true
   port: 3000
@@ -127,3 +194,23 @@ beef:
     requests:
       cpu: 200m
       memory: 128Mi
+
+# ── Prometheus / ServiceMonitor ───────────────────────────────────
+# Requires prometheus-operator or kube-prometheus-stack.
+monitoring:
+  enabled: false
+  serviceMonitor:
+    interval: 30s
+    scrapeTimeout: 10s
+    # namespace: monitoring
+    labels: {}
+    #  release: prometheus
+
+# ── Node Selector ─────────────────────────────────────────────────
+nodeSelector: {}
+
+# ── Tolerations ───────────────────────────────────────────────────
+tolerations: []
+
+# ── Affinity ──────────────────────────────────────────────────────
+affinity: {}
