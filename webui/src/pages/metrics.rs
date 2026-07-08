@@ -242,45 +242,6 @@ pub fn metrics() -> Html {
             } else {
                 html! { <div class="loading">{ "Loading metrics..." }</div> }
             }}
-
-            <style>
-                {r##"
-.page { margin-left: 240px; padding: 2rem; }
-.page-title { font-size: 1.5rem; margin-bottom: 1.5rem; color: #c9d1d9; }
-.error-banner { background: #f8514933; color: #f85149; padding: 0.5rem 1rem; border-radius: 6px; margin-bottom: 1rem; }
-.loading { color: #8b949e; font-size: 0.9rem; text-align: center; padding: 2rem; }
-.cards-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
-.charts-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
-.chart-card {
-  background: #161b22; border: 1px solid #30363d; border-radius: 8px;
-  padding: 1rem; flex: 1 1 45%; min-width: 300px;
-}
-.chart-card-wide { flex: 1 1 92%; }
-.chart-title { font-size: 0.9rem; color: #8b949e; margin: 0 0 0.5rem 0; text-transform: uppercase; letter-spacing: 0.04em; }
-.chart-container { width: 100%; height: 160px; }
-.chart-container svg { width: 100%; height: 100%; }
-.gauge { background: #161b22; border-radius: 12px; padding: 1rem; flex: 0 0 auto; }
-.gauge-svg { width: 120px; height: 120px; }
-.stat-card {
-  background: #161b22; border: 1px solid #30363d; border-radius: 8px;
-  padding: 1rem 1.2rem; min-width: 140px; text-align: center;
-  transition: border-color 0.15s;
-}
-.stat-card:hover { border-color: #58a6ff; }
-.stat-icon { font-size: 1.3rem; display: block; margin-bottom: 0.3rem; }
-.stat-value { font-size: 1.5rem; font-weight: 700; color: #c9d1d9; display: block; }
-.stat-label { font-size: 0.75rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.04em; }
-.section { margin: 1.5rem 0; }
-.section h2 { font-size: 1.1rem; color: #c9d1d9; margin-bottom: 0.8rem; }
-.metrics-table { width: 100%; border-collapse: collapse; }
-.metrics-table th, .metrics-table td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #21262d; }
-.metrics-table th { color: #58a6ff; font-size: 0.8rem; text-transform: uppercase; }
-.metrics-table td { color: #c9d1d9; }
-.metric-value { font-family: monospace; color: #3fb950; }
-.metric-labels { font-family: monospace; color: #6e7681; font-size: 0.85em; }
-.metric-card { background: #161b22; border-radius: 8px; padding: 1rem; }
-                "##}
-            </style>
         </div>
     }
 }

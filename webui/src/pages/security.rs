@@ -227,61 +227,6 @@ pub fn security() -> Html {
                     <p class="hook-note">{ "Replace YOUR_SERVER_IP with the actual IP of the BeEF server." }</p>
                 </div>
             </div>
-
-            <style>
-                {r##"
-.page { margin-left: 240px; padding: 2rem; }
-.page-title { font-size: 1.5rem; margin-bottom: 1.5rem; color: #c9d1d9; }
-.alert { padding: 0.5rem 1rem; border-radius: 6px; margin-bottom: 1rem; }
-.alert-error { background: #f8514933; color: #f85149; }
-.alert-success { background: #3fb95033; color: #3fb950; }
-.section { margin-top: 2rem; }
-.section h2 { font-size: 1.1rem; color: #c9d1d9; margin-bottom: 1rem; }
-
-.beef-status-card {
-  background: #161b22; border: 1px solid #30363d; border-radius: 10px;
-  padding: 1.5rem; max-width: 550px;
-}
-.beef-status-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.2rem; }
-.beef-status-indicator { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
-.beef-status-text { font-size: 1.2rem; font-weight: 700; }
-.beef-status-details { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 1.2rem; }
-.beef-detail-row { display: flex; flex-direction: column; }
-.detail-label { font-size: 0.75rem; color: #6e7681; text-transform: uppercase; letter-spacing: 0.04em; }
-.detail-value { font-size: 1rem; color: #c9d1d9; font-weight: 600; }
-.beef-actions { display: flex; gap: 0.5rem; }
-
-.btn { border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; padding: 0.5rem 1.2rem; transition: opacity 0.15s; }
-.btn:hover { opacity: 0.85; }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-success { background: #238636; color: #fff; }
-.btn-danger { background: #da3633; color: #fff; }
-.btn-warning { background: #d29922; color: #fff; }
-
-.hooks-table-wrapper { overflow-x: auto; }
-.hooks-table { width: 100%; border-collapse: collapse; }
-.hooks-table th, .hooks-table td { text-align: left; padding: 0.5rem 0.8rem; border-bottom: 1px solid #21262d; }
-.hooks-table th { color: #58a6ff; font-size: 0.8rem; text-transform: uppercase; }
-.hooks-table td { color: #c9d1d9; font-size: 0.9rem; }
-.hooks-table tr:hover td { background: #1c2128; }
-.hook-time { font-family: monospace; font-size: 0.85rem; color: #8b949e; }
-.hook-online { background: #3fb95033; color: #3fb950; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.8rem; }
-.hook-offline { background: #6e768133; color: #6e7681; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.8rem; }
-.empty-state { text-align: center; color: #6e7681; padding: 2rem; font-size: 0.95rem; }
-
-.hook-script-card {
-  background: #161b22; border: 1px solid #30363d; border-radius: 8px;
-  padding: 1rem; max-width: 600px;
-}
-.hook-script-card p { margin: 0 0 0.5rem 0; color: #8b949e; font-size: 0.9rem; }
-.hook-code {
-  background: #0d1117; border: 1px solid #21262d; border-radius: 6px;
-  padding: 0.8rem; overflow-x: auto; margin: 0.5rem 0;
-}
-.hook-code code { color: #58a6ff; font-size: 0.9rem; }
-.hook-note { font-size: 0.85rem; color: #d29922; margin-top: 0.5rem !important; }
-                "##}
-            </style>
         </div>
     }
 }

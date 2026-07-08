@@ -59,7 +59,7 @@ pub fn federation() -> Html {
             if !nodes.is_empty() {
                 <div class="section">
                     <h2>{ "📋 Peer Nodes" }</h2>
-                    <table class="node-table">
+                    <table class="data-table">
                         <thead>
                             <tr><th>{ "Name" }</th><th>{ "Address" }</th><th>{ "Status" }</th><th>{ "Capabilities" }</th></tr>
                         </thead>
@@ -83,25 +83,6 @@ pub fn federation() -> Html {
                     </table>
                 </div>
             }
-
-            <style>
-                {r##"
-.page { margin-left: 240px; padding: 2rem; }
-.page-title { font-size: 1.5rem; margin-bottom: 1.5rem; color: #c9d1d9; }
-.error-banner { background: #f8514933; color: #f85149; padding: 0.5rem 1rem; border-radius: 6px; margin-bottom: 1rem; }
-.cards-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 2rem; }
-.section { margin: 1.5rem 0; }
-.section h2 { font-size: 1.1rem; color: #c9d1d9; margin-bottom: 0.8rem; }
-.node-table { width: 100%; border-collapse: collapse; }
-.node-table th, .node-table td { text-align: left; padding: 0.6rem; border-bottom: 1px solid #21262d; }
-.node-table th { color: #58a6ff; font-size: 0.8rem; text-transform: uppercase; }
-.node-table td { color: #c9d1d9; }
-.node-table code { background: #161b22; padding: 0.15em 0.4em; border-radius: 3px; font-size: 0.85em; }
-.status-online   { color: #3fb950; }
-.status-offline  { color: #f85149; }
-.status-degraded { color: #d29922; }
-                "##}
-            </style>
         </div>
     }
 }

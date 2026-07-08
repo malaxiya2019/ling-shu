@@ -62,7 +62,7 @@ pub fn eval_reports() -> Html {
                     html! {
                         <div class="section">
                             <h2>{ "📈 Metrics" }</h2>
-                            <table class="metrics-table">
+                            <table class="data-table">
                                 <thead><tr><th>{ "Metric" }</th><th>{ "Value" }</th></tr></thead>
                                 <tbody>
                                     { for r.metrics.iter().map(|(k, v)| {
@@ -83,22 +83,6 @@ pub fn eval_reports() -> Html {
             } else {
                 html! {}
             }}
-
-            <style>
-                {r##"
-.page { margin-left: 240px; padding: 2rem; }
-.page-title { font-size: 1.5rem; margin-bottom: 1.5rem; color: #c9d1d9; }
-.error-banner { background: #f8514933; color: #f85149; padding: 0.5rem 1rem; border-radius: 6px; margin-bottom: 1rem; }
-.cards-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 2rem; }
-.section { margin: 1.5rem 0; }
-.section h2 { font-size: 1.1rem; color: #c9d1d9; margin-bottom: 0.8rem; }
-.metrics-table { width: 100%; max-width: 500px; border-collapse: collapse; }
-.metrics-table th, .metrics-table td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #21262d; }
-.metrics-table th { color: #58a6ff; font-size: 0.8rem; text-transform: uppercase; }
-.metrics-table td { color: #c9d1d9; }
-.metric-value { font-family: monospace; color: #3fb950; }
-                "##}
-            </style>
         </div>
     }
 }

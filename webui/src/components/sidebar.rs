@@ -90,11 +90,11 @@ pub fn sidebar(props: &SidebarProps) -> Html {
 
     html! {
         <nav class="sidebar">
-            <div class="logo">
-                <span class="logo-icon">{ "⚡" }</span>
-                <span class="logo-text">{ "Lingshu" }</span>
+            <div class="sidebar-header">
+                <span >{ "⚡" }</span>
+                <span >{ "Lingshu" }</span>
             </div>
-            <ul class="nav-list">
+            <ul class="sidebar-nav">
                 <li>
                     <a class={dash_class} onclick={on_click_dash}>
                         <span class="nav-icon">{ "📊" }</span>
@@ -134,9 +134,9 @@ pub fn sidebar(props: &SidebarProps) -> Html {
             </ul>
 
             // ── Sidebar language switcher ──
-            <div class="sidebar-lang">
-                <div class="sidebar-lang-label">{ strings.lang_switch }</div>
-                <div class="sidebar-lang-buttons">
+            <div class="sidebar-footer">
+                <div >{ strings.lang_switch }</div>
+                <div >
                     <button class={format!("lang-btn{}",
                         if is_zh { " lang-btn-active" } else { "" }
                     )} onclick={toggle_zh}>
@@ -148,87 +148,6 @@ pub fn sidebar(props: &SidebarProps) -> Html {
                         { strings.lang_en }
                     </button>
                 </div>
-            </div>
-
-            <style>
-                {r##"
-.sidebar {
-  width: 240px;
-  background: #161b22;
-  height: 100vh;
-  position: fixed;
-  left: 0;
-  top: 0;
-  border-right: 1px solid #30363d;
-  display: flex;
-  flex-direction: column;
-}
-.logo {
-  padding: 1.2rem 1.5rem;
-  border-bottom: 1px solid #30363d;
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-.logo-icon { font-size: 1.4rem; }
-.logo-text { font-size: 1.1rem; font-weight: 700; color: #58a6ff; }
-.nav-list {
-  list-style: none;
-  padding: 0.8rem 0;
-  flex: 1;
-}
-.nav-list li a {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.7rem 1.5rem;
-  color: #8b949e;
-  text-decoration: none;
-  font-size: 0.95rem;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-.nav-list li a:hover, .nav-list li a.active {
-  background: #1f2937;
-  color: #c9d1d9;
-}
-.nav-icon { font-size: 1.1rem; }
-.sidebar-lang {
-  padding: 1rem 1.5rem;
-  border-top: 1px solid #30363d;
-}
-.sidebar-lang-label {
-  font-size: 0.75rem;
-  color: #6e7681;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 0.5rem;
-}
-.sidebar-lang-buttons {
-  display: flex;
-  gap: 0.4rem;
-}
-.lang-btn {
-  flex: 1;
-  padding: 0.35rem 0.5rem;
-  border: 1px solid #30363d;
-  border-radius: 6px;
-  background: #0d1117;
-  color: #8b949e;
-  cursor: pointer;
-  font-size: 0.8rem;
-  text-align: center;
-  transition: all 0.15s;
-}
-.lang-btn:hover { border-color: #58a6ff; color: #c9d1d9; }
-.lang-btn-active {
-  background: #1f6feb33;
-  border-color: #58a6ff;
-  color: #58a6ff;
-  font-weight: 600;
-}
-                "##}
-            </style>
-        </nav>
+            </div></nav>
     }
 }

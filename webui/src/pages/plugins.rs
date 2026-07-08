@@ -318,49 +318,6 @@ pub fn plugins() -> Html {
                     }
                 </div>
             }
-
-            <style>
-                {r##"
-.page { margin-left: 240px; padding: 2rem; }
-.page-title { font-size: 1.5rem; margin-bottom: 1.5rem; color: #c9d1d9; }
-.page-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem; }
-.header-actions { display: flex; gap: 0.5rem; }
-.alert { padding: 0.5rem 1rem; border-radius: 6px; margin-bottom: 1rem; }
-.alert-error { background: #f8514933; color: #f85149; }
-.alert-success { background: #3fb95033; color: #3fb950; }
-.section { margin-top: 1rem; }
-.section h2 { font-size: 1.1rem; color: #c9d1d9; margin-bottom: 1rem; }
-.plugin-grid, .market-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
-.plugin-card, .market-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1rem; }
-.plugin-card:hover, .market-card:hover { border-color: #58a6ff; }
-.plugin-card-header, .market-card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
-.plugin-name { font-weight: 600; color: #e6edf3; }
-.plugin-version { font-size: 0.8rem; color: #6e7681; background: #21262d; padding: 0.15rem 0.4rem; border-radius: 4px; }
-.plugin-status { font-size: 0.75rem; padding: 0.15rem 0.4rem; border-radius: 4px; margin-left: auto; }
-.status-running { background: #3fb95033; color: #3fb950; }
-.status-stopped { background: #f8514933; color: #f85149; }
-.status-installed { background: #58a6ff33; color: #58a6ff; }
-.plugin-card-body, .market-card-body { margin-bottom: 0.5rem; }
-.plugin-desc { font-size: 0.85rem; color: #8b949e; margin-bottom: 0.3rem; }
-.plugin-author { font-size: 0.8rem; color: #6e7681; }
-.plugin-tags { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-top: 0.3rem; }
-.tag { font-size: 0.7rem; background: #21262d; color: #58a6ff; padding: 0.1rem 0.4rem; border-radius: 4px; }
-.plugin-card-actions, .market-card-footer { display: flex; gap: 0.4rem; justify-content: flex-end; }
-.plugin-size { font-size: 0.8rem; color: #6e7681; margin-right: auto; }
-.btn { border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: opacity 0.15s; }
-.btn:hover { opacity: 0.8; }
-.btn-sm { padding: 0.3rem 0.7rem; }
-.btn-primary { background: #238636; color: #fff; }
-.btn-secondary { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; }
-.btn-warning { background: #d29922; color: #fff; }
-.btn-danger { background: #da3633; color: #fff; }
-.search-bar { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
-.search-input { flex: 1; padding: 0.5rem 0.8rem; border: 1px solid #30363d; border-radius: 6px; background: #0d1117; color: #c9d1d9; font-size: 0.9rem; }
-.search-input:focus { outline: none; border-color: #58a6ff; }
-.empty-state { text-align: center; color: #6e7681; padding: 2rem; font-size: 0.95rem; }
-.market-section { margin-top: 0.5rem; }
-                "##}
-            </style>
         </div>
     }
 }

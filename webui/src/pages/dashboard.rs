@@ -171,38 +171,7 @@ pub fn dashboard() -> Html {
                 </div>
             </div>
 
-            <style>
-                {r##"
-.page { margin-left: 240px; padding: 2rem; }
-.page-title { font-size: 1.5rem; margin-bottom: 1.5rem; color: #c9d1d9; }
-.error-banner { background: #f8514933; color: #f85149; padding: 0.5rem 1rem; border-radius: 6px; margin-bottom: 1rem; }
-.cards-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 2rem; }
-.section { margin-top: 1rem; }
-.section h2 { font-size: 1.1rem; color: #c9d1d9; margin-bottom: 1rem; }
-.plugin-mini-list { display: flex; flex-direction: column; gap: 0.3rem; max-width: 500px; }
-.plugin-mini-item {
-  display: flex; align-items: center; gap: 0.5rem;
-  background: #161b22; border: 1px solid #30363d; border-radius: 6px;
-  padding: 0.5rem 0.8rem;
-}
-.p-status-on { width: 8px; height: 8px; border-radius: 50%; background: #3fb950; flex-shrink: 0; }
-.p-status-off { width: 8px; height: 8px; border-radius: 50%; background: #6e7681; flex-shrink: 0; }
-.p-name { font-weight: 600; color: #c9d1d9; flex: 1; }
-.p-version { font-size: 0.8rem; color: #6e7681; }
-.p-badge { font-size: 0.7rem; padding: 0.1rem 0.4rem; border-radius: 4px; }
-.p-badge-on { background: #3fb95033; color: #3fb950; }
-.p-badge-off { background: #6e768133; color: #6e7681; }
-.quick-links { display: flex; gap: 1rem; flex-wrap: wrap; }
-.ql-card {
-  background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.2rem; width: 200px;
-  transition: border-color 0.15s;
-}
-.ql-card:hover { border-color: #58a6ff; }
-.ql-icon { font-size: 1.5rem; }
-.ql-text { font-weight: 600; color: #c9d1d9; display: block; }
-.ql-desc  { font-size: 0.8rem; color: #6e7681; }
-                "##}
-            </style>
+            { /* Styles from shared styles.css */ }
         </div>
     }
 }
