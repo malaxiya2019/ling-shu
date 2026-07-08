@@ -28,6 +28,8 @@ pub mod workflow;
 
 pub mod embedding_openai;
 pub mod knowledge_mem;
+#[cfg(feature = "llmkit")]
+pub mod llm_llmkit;
 #[cfg(feature = "anthropic")]
 pub mod llm_anthropic;
 pub mod llm_factory;
@@ -54,6 +56,8 @@ pub use llm_factory::build_llm;
 #[cfg(any(feature = "openai", feature = "groq"))]
 pub use llm_openai::OpenAiLlm;
 pub use llm_retry::{with_retry, RetryLlm};
+#[cfg(feature = "llmkit")]
+pub use llm_llmkit::LlmkitLlm;
 #[cfg(feature = "vector-store-sqlite")]
 pub use memory_sqlite::MemorySQLite;
 #[cfg(feature = "mock")]

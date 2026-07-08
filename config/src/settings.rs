@@ -18,6 +18,8 @@ pub enum LlmProvider {
     Groq,
     #[serde(rename = "mock")]
     Mock,
+    #[serde(rename = "llmkit")]
+    Llmkit,
 }
 
 impl LlmProvider {
@@ -31,6 +33,7 @@ impl LlmProvider {
                 "anthropic" => Some(Self::Anthropic),
                 "groq" => Some(Self::Groq),
                 "mock" => Some(Self::Mock),
+                "llmkit" => Some(Self::Llmkit),
                 _ => None,
             })
             .unwrap_or(Self::Openai)
@@ -42,6 +45,7 @@ impl LlmProvider {
             Self::Anthropic => "anthropic",
             Self::Groq => "groq",
             Self::Mock => "mock",
+            Self::Llmkit => "llmkit",
         }
     }
 }
@@ -130,8 +134,11 @@ impl Default for SecurityConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct LlmConfig {
-    /// 提供商类型 (openai / anthropic / groq / mock).
+    /// 提供商类型 (openai / anthropic / groq / mock / llmkit).
     pub provider: LlmProvider,
+    /// llmkit 内部提供商名 (仅 provider=llmkit 时生效).
+    /// 可选: anthropic, openai, google, mistral, groq, deepseek, ollama, 等 27+.
+    pub llmkit_provider: String,
     /// 默认模型名称 (各提供商不同).
     pub default_model: String,
     pub max_tokens: u32,
@@ -145,6 +152,7 @@ impl Default for LlmConfig {
     fn default() -> Self {
         Self {
             provider: LlmProvider::Openai,
+            llmkit_provider: "anthropic".into(),
             default_model: "gpt-4o".into(),
             max_tokens: 4096,
             timeout_seconds: 120,
@@ -322,6 +330,7 @@ fn apply_env_overrides(config: &mut LsConfig) {
             "anthropic" => config.llm.provider = LlmProvider::Anthropic,
             "groq" => config.llm.provider = LlmProvider::Groq,
             "mock" => config.llm.provider = LlmProvider::Mock,
+            "llmkit" => config.llm.provider = LlmProvider::Llmkit,
             _ => {}
         }
     }
@@ -332,6 +341,7 @@ fn apply_env_overrides(config: &mut LsConfig) {
             "anthropic" => config.llm.provider = LlmProvider::Anthropic,
             "groq" => config.llm.provider = LlmProvider::Groq,
             "mock" => config.llm.provider = LlmProvider::Mock,
+            "llmkit" => config.llm.provider = LlmProvider::Llmkit,
             _ => {}
         }
     }

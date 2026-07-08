@@ -6,6 +6,8 @@ description = "LSBackends — Concrete implementations: OpenAI, Anthropic, Groq,
 
 [features]
 default = ["openai", "mock"]
+# llmkit 统一后端: 27+ 提供商 (Anthropic, OpenAI, Google Gemini, Mistral, Groq, DeepSeek, Ollama, 等)
+llmkit = ["dep:llmkit"]
 # OpenAI 提供商 (LLM + Embedding)，依赖 reqwest
 openai = ["dep:reqwest", "dep:futures-util"]
 # Anthropic 提供商，依赖 reqwest
@@ -34,6 +36,7 @@ meval = "0.2"
 tokio = { workspace = true, features = ["sync"] }
 tracing.workspace = true
 thiserror.workspace = true
+llmkit = { version = "1", optional = true }
 reqwest = { version = "0.12", features = ["json", "stream"], optional = true }
 futures-util = { version = "0.3", optional = true }
 rusqlite = { version = "0.32", features = ["bundled", "uuid"], optional = true }

@@ -29,6 +29,7 @@ pub fn build_raw(config: &LlmConfig) -> Box<dyn Llm> {
         LlmProvider::Anthropic => build_anthropic(config),
         LlmProvider::Groq => build_groq(config),
         LlmProvider::Mock => build_mock(config),
+        LlmProvider::Llmkit => build_llmkit(config),
     }
 }
 
@@ -174,6 +175,58 @@ pub fn build_llm_from_env() -> Box<dyn Llm> {
     let mut llm_config = config.llm.clone();
     llm_config.provider = provider;
     build_llm(&llm_config)
+}
+
+// ── llmkit ──────────────────────────────────────────
+
+#[cfg(feature = "llmkit")]
+fn build_llmkit(config: &LlmConfig) -> Box<dyn Llm> {
+    let api_key = config
+        .api_key
+        .clone()
+        .or_else(|| {
+            // Try common env vars based on the llmkit provider
+            let provider = config.llmkit_provider.to_lowercase();
+            match provider.as_str() {
+                "anthropic" => std::env::var("ANTHROPIC_API_KEY").ok(),
+                "openai" => std::env::var("OPENAI_API_KEY").ok(),
+                "google" => std::env::var("GOOGLE_API_KEY").ok(),
+                "mistral" => std::env::var("MISTRAL_API_KEY").ok(),
+                "groq" => std::env::var("GROQ_API_KEY").ok(),
+                "deepseek" => std::env::var("DEEPSEEK_API_KEY").ok(),
+                "ollama" => Some("ollama".into()), // Ollama doesn't need a real key
+                "bedrock" | "vertex" => std::env::var("AWS_ACCESS_KEY_ID").ok(),
+                _ => std::env::var("LLMKIT_API_KEY")
+                    .or_else(|_| std::env::var("API_KEY").ok()),
+            }
+        });
+    match api_key {
+        Some(key) => {
+            tracing::info!(
+                "llm: using llmkit provider '{}' (model: {})",
+                config.llmkit_provider,
+                config.default_model
+            );
+            Box::new(crate::LlmkitLlm::new(
+                &config.llmkit_provider,
+                &key,
+                &config.default_model,
+            ))
+        }
+        None => {
+            tracing::warn!(
+                "API key not set for llmkit provider '{}', falling back to Mock",
+                config.llmkit_provider
+            );
+            build_mock(config)
+        }
+    }
+}
+
+#[cfg(not(feature = "llmkit"))]
+fn build_llmkit(_config: &LlmConfig) -> Box<dyn Llm> {
+    tracing::warn!("'llmkit' feature not enabled, falling back");
+    build_fallback()
 }
 
 #[cfg(test)]
