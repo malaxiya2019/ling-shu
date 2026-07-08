@@ -54,5 +54,10 @@ pub mod server;
 pub mod tool;
 pub mod types;
 
+#[cfg(feature = "rmcp")]
+pub mod rmcp_server;
+#[cfg(feature = "rmcp")]
+pub mod rmcp_client;
+
 pub use server::McpServer;
 pub use types::*;
