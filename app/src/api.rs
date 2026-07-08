@@ -96,6 +96,26 @@ struct HealthCheckItem {
     detail: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+struct MetricsJsonResponse {
+    cpu_usage: f64,
+    memory_mb: f64,
+    active_sessions: u64,
+    total_agents: u64,
+    llm_requests_total: u64,
+    llm_tokens_total: u64,
+    federation_nodes: u64,
+    uptime_secs: u64,
+    custom_metrics: Vec<MetricSample>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct MetricSample {
+    name: String,
+    value: f64,
+    labels: std::collections::HashMap<String, String>,
+}
+
 #[derive(Serialize)]
 struct VersionResponse {
     version: String,
@@ -650,6 +670,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/logout", get(logout_handler))
         .route("/api/auth/me", get(auth_me_handler))
         .route("/metrics", get(metrics_handler))
+        .route("/v1/metrics", get(v1_metrics_handler))
         .route("/version", get(version_handler))
         .route("/v1/models", get(models_handler))
         .route("/v1/chat/completions", post(chat_completions_handler))
@@ -1115,6 +1136,78 @@ async fn metrics_handler() -> (StatusCode, String) {
     (StatusCode::OK, text)
 }
 
+
+/// GET /v1/metrics — JSON format for WebUI real-time charts
+async fn v1_metrics_handler() -> Json<MetricsJsonResponse> {
+    use std::sync::OnceLock;
+    static SYS: OnceLock<sysinfo::System> = OnceLock::new();
+    let sys = SYS.get_or_init(|| {
+        let mut s = sysinfo::System::new();
+        s.refresh_cpu();
+        s.refresh_memory();
+        s
+    });
+    sys.refresh_cpu();
+    sys.refresh_memory();
+
+    let cpu_usage = sys.global_cpu_info().cpu_usage() as f64;
+    let total_mem_kb = sys.total_memory();
+    let used_mem_kb = sys.used_memory();
+    let memory_mb = if total_mem_kb > 0 {
+        used_mem_kb as f64 / 1024.0
+    } else {
+        0.0
+    };
+
+    let registry = lingshu_observability::metrics::MetricsRegistry::global();
+    let gathered = registry.gather();
+    let mut llm_requests_total = 0u64;
+    let mut llm_tokens_total = 0u64;
+    for mf in &gathered {
+        match mf.get_name() {
+            "ls_llm_invocations_total" => {
+                for m in mf.get_metric() {
+                    llm_requests_total += m.get_counter().get_samples() as u64;
+                }
+            }
+            "ls_llm_tokens_total" => {
+                for m in mf.get_metric() {
+                    llm_tokens_total += m.get_counter().get_samples() as u64;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    Json(MetricsJsonResponse {
+        cpu_usage,
+        memory_mb,
+        active_sessions: 0,
+        total_agents: 0,
+        llm_requests_total,
+        llm_tokens_total,
+        federation_nodes: 0,
+        uptime_secs: 0,
+        custom_metrics: vec![
+            MetricSample {
+                name: "ls_cpu_usage".into(),
+                value: cpu_usage,
+                labels: std::collections::HashMap::from([(
+                    "type".into(),
+                    "percent".into(),
+                )]),
+            },
+            MetricSample {
+                name: "ls_memory_mb".into(),
+                value: memory_mb,
+                labels: std::collections::HashMap::from([(
+                    "type".into(),
+                    "mb".into(),
+                )]),
+            },
+        ],
+    })
+}
 /// GET /version
 async fn version_handler() -> Json<VersionResponse> {
     Json(VersionResponse {

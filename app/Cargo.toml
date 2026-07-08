@@ -57,7 +57,9 @@ tokio-stream = "0.1"
 bytes = "1"
 async-stream = "0.3"
 hyper = { version = "1", features = ["server", "http1"] }
+sysinfo = "0.33"
 hyper-util = { version = "0.1", features = ["tokio", "server-auto"] }
+sysinfo = "0.33"
 http-body-util = "0.1"
 
 [build-dependencies]

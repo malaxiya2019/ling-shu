@@ -435,5 +435,5 @@ fn format_tokens(n: u64) -> String {
 }
 
 async fn fetch_metrics() -> Result<MetricsResponse, String> {
-    client::get_json::<MetricsResponse>("/metrics").await
+    client::get_json::<MetricsResponse>("/v1/metrics").await
 }
