@@ -29,3 +29,4 @@ serde.workspace = true
 [[bench]]
 name = "lingshu_benchmarks"
 harness = false
+path = "src/lingshu_benchmarks.rs"

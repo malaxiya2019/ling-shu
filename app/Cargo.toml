@@ -30,7 +30,7 @@ lingshu-code-analyzer = { path = "../code-analyzer" }
 lingshu-credentials = { path = "../credentials" }
 lingshu-orchestrator = { path = "../orchestrator" }
 lingshu-websocket = { path = "../websocket" }
-lngshu-tenant = { path = "../tenant" }
+lingshu-tenant = { path = "../tenant" }
 lingshu-evaluator = { path = "../evaluator" }
 lingshu-federation = { path = "../federation" }
 
@@ -60,7 +60,6 @@ async-stream = "0.3"
 hyper = { version = "1", features = ["server", "http1"] }
 sysinfo = "0.33"
 hyper-util = { version = "0.1", features = ["tokio", "server-auto"] }
-sysinfo = "0.33"
 http-body-util = "0.1"
 
 [build-dependencies]

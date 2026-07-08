@@ -1,6 +1,5 @@
 [workspace]
 resolver = "2"
-
 members = [
     "plugins/beef-plugin",
     "plugins/watch-plugin",
@@ -32,15 +31,14 @@ members = [
     "tenant",
     "vault",
     "tee",
+    "circuit-breaker",
     "benches",
 ]
-
 [workspace.package]
 version = "3.0.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Lingshu Agent System — LSCode v1.0.0"
-
 [workspace.dependencies]
 serial_test = { version = "3", features = ["async"] }
 jsonwebtoken = "9"
@@ -58,7 +56,5 @@ tokio-util = { version = "0.7", features = ["rt"] }
 tonic = "0.12"
 prost = "0.13"
 futures = "0.3"
-
 [profile.release]
 opt-level = 3
-

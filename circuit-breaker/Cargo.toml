@@ -1,0 +1,15 @@
+[package]
+name = "lingshu-circuit-breaker"
+version.workspace = true
+edition.workspace = true
+description = "LSCircuitBreaker — 熔断器 (滑动窗口 + 半开检测)"
+
+[dependencies]
+lingshu-core = { path = "../core" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["sync", "time"] }
+tracing.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
