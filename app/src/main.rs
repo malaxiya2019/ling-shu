@@ -192,11 +192,13 @@ impl LingshuRuntime {
 
         // ── Federation ─────────────────────────────────────────
         let federation = {
-            let mut fed_config = lingshu_federation::FederationConfig::default();
-            fed_config.enabled = !cli.no_federation;
-            fed_config.listen_addr = format!("0.0.0.0:{}", cli.federation_port)
-                .parse()
-                .unwrap_or_else(|_| "0.0.0.0:9550".parse().unwrap());
+            let fed_config = lingshu_federation::FederationConfig {
+                enabled: !cli.no_federation,
+                listen_addr: format!("0.0.0.0:{}", cli.federation_port)
+                    .parse()
+                    .unwrap_or_else(|_| "0.0.0.0:9550".parse().unwrap()),
+                ..Default::default()
+            };
             std::sync::Arc::new(lingshu_federation::Federation::new(LsId::new(), fed_config).await)
         };
 

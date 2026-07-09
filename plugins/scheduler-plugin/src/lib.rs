@@ -211,7 +211,7 @@ async fn scheduler_loop(
             break;
         }
 
-        let check_cron = tick_count % 12 == 0;
+        let check_cron = tick_count.is_multiple_of(12);
         let now = Utc::now();
         let mut tasks_to_run: Vec<String> = Vec::new();
         let mut cron_tasks: Vec<(String, String)> = Vec::new();
@@ -241,7 +241,7 @@ async fn scheduler_loop(
                 if let Ok(sched) = expr.parse::<cron::Schedule>() {
                     let should_run = sched.upcoming(Utc).take(1).any(|next| {
                         let diff = (next - now).num_seconds();
-                        diff >= 0 && diff <= 5
+                        (0..=5).contains(&diff)
                     });
                     if should_run { tasks_to_run.push(id); }
                 }
