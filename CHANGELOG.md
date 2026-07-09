@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.0] - 2026-07-09
+
+### Added
+- `start.sh --china` 标志: 跳过境外检测 + USTC cargo 镜像提示 + 国内站点加速
+- `start.sh --with-openclaw` 标志: 自动构建并启动 openclaw MCP HTTP Bridge
+- `start.sh update` 增强: 自动 `cargo install` + 版本 changelog 展示
+- WebUI 自动构建: `start.sh` 自动检测 trunk/wasm32 并编译 WebUI
+- openclaw MCP HTTP Bridge (`examples/openclaw-bridge/`): 支持 HTTP 模式 (HTTP_PORT 环境变量)
+- web-search 插件 (`plugins/web-search-plugin/`): DuckDuckGo 免费搜索引擎, 无需 API Key
+- Tauri 桌面端脚手架 (`desktop/`): Tauri v2 框架, 跨平台桌面支持
+- CI 增强: release.yml (x86_64 / aarch64 / Termux 三平台打包), bench.yml (Criterion), coverage.yml, docker.yml, build-deps.yml
+
+### Changed
+- `start.sh` 升级至 691 行, 支持 7 个子命令: --check-env/--quick/--repl/--doctor/--update/--china/--with-openclaw
+- CI clippy 配置优化: 分级别 lint (-D correctness, -W style/complexity/perf)
+- README 完整更新: 44 crate 架构表, 新命令行参数, WeChat 配置说明, OpenClaw 集成文档, 桌面端构建指引
+- `.gitignore` 更新: 排除 openclaw-bridge 构建产物
+
+### Fixed
+- `code-sandbox-plugin`: 消除 `dead_code` 警告 (self.status 和 self.created_at 改为使用)
+- SQLite 迁移 `005_checkpoint.sql` 注册修复 (database/src/sqlite.rs)
+
 ## [3.4.0] - 2026-07-09
 
 ### Added
