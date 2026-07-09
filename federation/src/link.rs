@@ -246,6 +246,7 @@ type LinkMap = Arc<RwLock<HashMap<String, FederationLink>>>;
 type CapMap = Arc<RwLock<HashMap<String, Vec<crate::types::Capability>>>>;
 type EvtTx = mpsc::UnboundedSender<LinkEvent>;
 
+#[allow(clippy::too_many_arguments)]
 async fn handle_inbound(
     mut stream: TcpStream,
     peer_addr: SocketAddr,
@@ -338,7 +339,7 @@ async fn handle_inbound(
     read_loop(reader, &cluster_id, connections).await;
     Ok(())
 }
-
+#[allow(clippy::too_many_arguments)]
 async fn handle_outbound(
     mut stream: TcpStream,
     cluster_id: &str,

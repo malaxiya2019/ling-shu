@@ -157,6 +157,10 @@ impl DistributedCache {
         }
         total
     }
+    pub async fn is_empty(&self) -> bool {
+        self.len().await == 0
+    }
+
 
     pub async fn stats(&self) -> CacheStats {
         let mut total_entries = 0;

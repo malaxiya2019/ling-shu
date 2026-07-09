@@ -96,14 +96,7 @@ impl GraphGenerator {
                     id: format!(
                         "{}:{}{}",
                         node_type.as_str(),
-                        if entry.path.starts_with("/")
-                            || entry.path.starts_with("./")
-                            || entry.path.starts_with("..")
-                        {
-                            ""
-                        } else {
-                            ""
-                        },
+                        "",
                         entry.path
                     ),
                     node_type,

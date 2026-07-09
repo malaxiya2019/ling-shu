@@ -42,10 +42,10 @@ impl CredentialManager {
 
     /// 从请求构建 CredentialEntry.
     fn build_entry(&self, req: CreateCredentialRequest) -> LsResult<CredentialEntry> {
-        let provider = GitProvider::from_str(&req.provider).ok_or_else(|| {
+        let provider = GitProvider::parse_str(&req.provider).ok_or_else(|| {
             lingshu_core::LsError::Internal(format!("unknown provider: {}", req.provider))
         })?;
-        let ct = CredentialType::from_str(&req.credential_type).ok_or_else(|| {
+        let ct = CredentialType::parse_str(&req.credential_type).ok_or_else(|| {
             lingshu_core::LsError::Internal(format!(
                 "unknown credential type: {}",
                 req.credential_type

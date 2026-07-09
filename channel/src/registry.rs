@@ -13,6 +13,7 @@ pub struct ChannelRegistry {
     /// 已加载插件.
     loaded: RwLock<HashMap<&'static str, Arc<dyn MessageChannel>>>,
     /// 内置插件工厂 (懒加载).
+    #[allow(clippy::type_complexity)]
     builtins: RwLock<HashMap<&'static str, Box<dyn Fn() -> Arc<dyn MessageChannel> + Send + Sync>>>,
     /// ID → 别名映射.
     aliases: RwLock<HashMap<String, &'static str>>,

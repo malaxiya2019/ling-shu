@@ -43,6 +43,7 @@ pub trait StateBackend: Send + Sync {
 
 /// 内存状态后端.
 pub struct MemoryStateBackend {
+    #[allow(clippy::type_complexity)]
     data: Arc<RwLock<HashMap<String, HashMap<String, (Value, u64)>>>>,
 }
 

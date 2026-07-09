@@ -21,7 +21,6 @@ tauri-plugin-clipboard-manager = "2"
 
 lingshu-core = { path = "../core" }
 lingshu-traits = { path = "../traits" }
-lingshu = { path = "../app" }
 
 serde.workspace = true
 serde_json.workspace = true

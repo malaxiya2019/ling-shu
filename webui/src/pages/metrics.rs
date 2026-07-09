@@ -288,7 +288,7 @@ fn render_line_chart(data: &[DataPoint], metric: &str, y_min: f64, y_max: f64, c
                 <line x1={pad_l.to_string()} y1={y.to_string()} x2={(pad_l + plot_w).to_string()} y2={y.to_string()}
                     stroke="#21262d" stroke-width="1"/>
                 <text x="35" y={(y + 3.0).to_string()} text-anchor="end" fill="#6e7681" font-size="9">
-                    {if metric == "mem" { format!("{:.0}", val) } else { format!("{:.0}", val) }}
+                    {format!("{:.0}", val)}
                 </text>
             </>
         }

@@ -287,7 +287,7 @@ fn test_all_provider_types() {
     for (i, (provider, ct)) in providers.iter().enumerate() {
         let mut entry = make_entry(&format!("prov-{i:03}"));
         entry.provider = provider.clone();
-        entry.credential_type = CredentialType::from_str(ct).unwrap();
+        entry.credential_type = CredentialType::parse_str(ct).unwrap();
         entry.token = format!("token-for-{:?}", provider);
         store.insert(&entry).expect("insert");
     }

@@ -140,7 +140,7 @@ impl MultimodalRetriever for MultimodalRag {
             .cloned()
             .collect();
 
-        matched.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        matched.sort_by_key(|a| std::cmp::Reverse(a.created_at));
         matched.truncate(limit);
 
         Ok(MultimodalSearchResult {
@@ -159,7 +159,7 @@ impl MultimodalRetriever for MultimodalRag {
     async fn list(&self, _ctx: &LsContext) -> LsResult<Vec<MultimodalDocument>> {
         let docs = self.documents.read().await;
         let mut items: Vec<MultimodalDocument> = docs.values().cloned().collect();
-        items.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        items.sort_by_key(|a| std::cmp::Reverse(a.created_at));
         Ok(items)
     }
 }

@@ -99,7 +99,7 @@ impl ReportGenerator {
         }
 
         let mut per_model: Vec<ModelUsage> = model_map.into_values().collect();
-        per_model.sort_by(|a, b| b.total_tokens.cmp(&a.total_tokens));
+        per_model.sort_by_key(|a| std::cmp::Reverse(a.total_tokens));
 
         Ok(UsageReport {
             user_id: user_id.to_string(),

@@ -6478,7 +6478,6 @@ dependencies = [
 name = "lingshu-desktop"
 version = "0.1.0"
 dependencies = [
- "lingshu",
  "lingshu-core",
  "lingshu-traits",
  "serde",

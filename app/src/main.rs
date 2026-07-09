@@ -939,7 +939,7 @@ async fn main() -> LsResult<()> {
             use lingshu_config::settings::ConfigEvent;
             while let Ok(event) = rx.recv().await {
                 match event {
-                    ConfigEvent::Reloaded(new_config) => {
+                    ConfigEvent::Reloaded(ref new_config) => {
                         info!(model = %new_config.llm.default_model, "config reloaded");
                     }
                     ConfigEvent::Error(msg) => {

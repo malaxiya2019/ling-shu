@@ -23,7 +23,7 @@ impl GitProvider {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse_str(s: &str) -> Option<Self> {
         match s {
             "gitee" => Some(GitProvider::Gitee),
             "codeup" => Some(GitProvider::Codeup),
@@ -54,7 +54,7 @@ impl CredentialType {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse_str(s: &str) -> Option<Self> {
         match s {
             "personal_access_token" => Some(CredentialType::PersonalAccessToken),
             "enterprise_token" => Some(CredentialType::EnterpriseToken),

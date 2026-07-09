@@ -147,7 +147,7 @@ impl FileScanner {
     }
 
     /// 文件分类.
-    fn categorize(extension: &str, path: &str) -> FileCategory {
+    fn categorize(extension: &str, _path: &str) -> FileCategory {
         match extension {
             "rs" | "py" | "js" | "ts" | "tsx" | "jsx" | "go" | "java" | "rb" | "c" | "h"
             | "cpp" | "hpp" | "cs" | "swift" | "kt" | "scala" | "php" | "r" | "zig" | "hs"
@@ -158,14 +158,7 @@ impl FileScanner {
             | "properties" => FileCategory::Config,
             "md" | "markdown" | "rst" | "txt" | "adoc" | "wiki" => FileCategory::Docs,
             "dockerfile" | "makefile" | "Dockerfile" | "Makefile" | "mk" | "tf" | "hcl" => {
-                if path.contains("docker")
-                    || extension == "dockerfile"
-                    || path.ends_with("Dockerfile")
-                {
-                    FileCategory::Infra
-                } else {
-                    FileCategory::Infra
-                }
+                FileCategory::Infra
             }
             "sh" | "bash" | "zsh" | "pl" | "lua" => FileCategory::Script,
             "html" | "htm" | "css" | "scss" | "less" | "svg" => FileCategory::Markup,

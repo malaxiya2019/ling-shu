@@ -218,7 +218,7 @@ fn apply_query(entries: &[AuditEntry], q: &super::query::AuditQuery) -> Vec<Audi
         .collect();
 
     // 按时间降序排列
-    results.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    results.sort_by_key(|a| std::cmp::Reverse(a.timestamp));
 
     // 分页
     let offset = q.offset.unwrap_or(0) as usize;

@@ -146,6 +146,10 @@ impl DistributedStore {
         }
         total
     }
+    pub async fn is_empty(&self) -> bool {
+        self.len().await == 0
+    }
+
 
     pub async fn scan_prefix(&self, prefix: &str) -> Vec<StoreValue> {
         let mut results = Vec::new();

@@ -153,8 +153,8 @@ impl CredentialStore {
                 id: row
                     .get(0)
                     .map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?,
-                provider: GitProvider::from_str(&provider_str).unwrap_or(GitProvider::Gitee),
-                credential_type: CredentialType::from_str(&ct_str)
+                provider: GitProvider::parse_str(&provider_str).unwrap_or(GitProvider::Gitee),
+                credential_type: CredentialType::parse_str(&ct_str)
                     .unwrap_or(CredentialType::PersonalAccessToken),
                 name: row
                     .get(3)

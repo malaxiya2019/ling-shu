@@ -52,6 +52,7 @@ impl GraphBuilder {
     }
 
     /// 添加文件节点 + 包含的函数/类节点（含 contains 边）.
+    #[allow(clippy::too_many_arguments)]
     pub fn add_file_with_children(
         &mut self,
         file_path: &str,

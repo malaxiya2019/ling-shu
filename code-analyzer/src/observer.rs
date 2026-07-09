@@ -282,9 +282,7 @@ impl NotifyFileObserver {
                 > = std::collections::HashMap::new();
                 const DEBOUNCE_MS: u64 = 300;
 
-                loop {
-                    match rx.recv() {
-                        Ok(event) => {
+                while let Ok(event) = rx.recv() {
                             if paused_clone.load(std::sync::atomic::Ordering::Relaxed) {
                                 continue;
                             }
@@ -328,9 +326,6 @@ impl NotifyFileObserver {
                             if debounce.len() > 1000 {
                                 debounce.retain(|_, v| now.duration_since(*v).as_secs() < 5);
                             }
-                        }
-                        Err(std::sync::mpsc::RecvError) => break,
-                    }
                 }
             })
             .map_err(|e| lingshu_core::LsError::Internal(format!("spawn thread: {e}")))?;

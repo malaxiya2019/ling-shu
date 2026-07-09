@@ -578,7 +578,7 @@ storage:
 #[derive(Debug, Clone)]
 pub enum ConfigEvent {
     /// 配置已重新加载.
-    Reloaded(LsConfig),
+    Reloaded(Box<LsConfig>),
     /// 配置加载失败.
     Error(String),
 }
@@ -604,7 +604,7 @@ impl ConfigWatcher {
             // 初始加载
             match LsConfig::load_for_env(&env_owned) {
                 Ok(cfg) => {
-                    let _ = tx.send(ConfigEvent::Reloaded(cfg));
+                    let _ = tx.send(ConfigEvent::Reloaded(Box::new(cfg)));
                 }
                 Err(e) => {
                     let _ = tx.send(ConfigEvent::Error(e.to_string()));
@@ -623,7 +623,7 @@ impl ConfigWatcher {
                             last_mtime = Some(mtime);
                             match LsConfig::load_for_env(&env_owned) {
                                 Ok(cfg) => {
-                                    let _ = tx.send(ConfigEvent::Reloaded(cfg));
+                                    let _ = tx.send(ConfigEvent::Reloaded(Box::new(cfg)));
                                 }
                                 Err(e) => {
                                     let _ = tx.send(ConfigEvent::Error(e.to_string()));

@@ -28,7 +28,7 @@ impl BillingTier {
         }
     }
 
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse_str(s: &str) -> Self {
         match s {
             "free" => BillingTier::Free,
             "basic" => BillingTier::Basic,

@@ -105,6 +105,7 @@ impl SimpleEmbedder {
 // ---------------------------------------------------------------------------
 
 struct DocumentStore {
+    #[allow(clippy::type_complexity)]
     docs: RwLock<HashMap<String, Vec<(String, Vec<f32>)>>>,
 }
 
