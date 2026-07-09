@@ -55,3 +55,10 @@ cargo_patch.py
 
 # ── Node.js ──
 node_modules/
+
+# =============================================================================
+# openclaw-bridge (MCP 通道网关)
+# =============================================================================
+examples/openclaw-bridge/dist/
+examples/openclaw-bridge/node_modules/
+examples/openclaw-bridge/config.json

@@ -439,8 +439,8 @@ impl Plugin for CodeSandboxPlugin {
         PluginInfo {
             plugin_id: LsId::new(),
             manifest,
-            status: PluginStatus::Loaded,
-            loaded_at: None,
+            status: self.status.clone(),
+            loaded_at: chrono::DateTime::from_timestamp(self.created_at, 0),
         }
     }
 

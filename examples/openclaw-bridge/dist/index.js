@@ -554,6 +554,86 @@ async function main() {
     console.error("[INFO] openclaw-bridge MCP server starting...");
     await server.connect(transport);
     console.error("[INFO] openclaw-bridge MCP server running (stdio)");
+    // ── HTTP 服务器（可选）─────────────────────────────
+    const HTTP_PORT = process.env.HTTP_PORT || "";
+    if (HTTP_PORT) {
+        const http = await import("node:http");
+        const urlMod = await import("node:url");
+        const sseClients = [];
+        const httpServer = http.createServer(async (req, res) => {
+            const parsedUrl = urlMod.parse(req.url || "/", true);
+            const pathname = parsedUrl.pathname || "/";
+            if (pathname === "/health") {
+                res.writeHead(200, { "Content-Type": "application/json" });
+                const results = {};
+                for (const [id, ch] of channels) {
+                    results[id] = await ch.healthCheck();
+                }
+                res.end(JSON.stringify({ status: "ok", channels: results }));
+                return;
+            }
+            if (pathname === "/sse") {
+                res.writeHead(200, {
+                    "Content-Type": "text/event-stream",
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "Access-Control-Allow-Origin": "*",
+                });
+                res.write("data: connected\n\n");
+                sseClients.push(res);
+                req.on("close", () => {
+                    const idx = sseClients.indexOf(res);
+                    if (idx >= 0)
+                        sseClients.splice(idx, 1);
+                });
+                return;
+            }
+            // 获取所有可用工具
+            if (pathname === "/api/tools/list" && req.method === "GET") {
+                const handler = server["_requestHandlers"]?.tools?.list;
+                if (handler) {
+                    const result = await handler();
+                    res.writeHead(200, { "Content-Type": "application/json" });
+                    res.end(JSON.stringify(result));
+                }
+                else {
+                    res.writeHead(500, { "Content-Type": "application/json" });
+                    res.end(JSON.stringify({ error: "Handler not available" }));
+                }
+                return;
+            }
+            // 调用工具
+            if (pathname === "/api/tools/call" && req.method === "POST") {
+                let body = "";
+                req.on("data", (chunk) => (body += chunk));
+                req.on("end", async () => {
+                    try {
+                        const { name, args } = JSON.parse(body);
+                        const handler = server["_requestHandlers"]?.tools?.call;
+                        if (handler) {
+                            const result = await handler({ params: { name, arguments: args } });
+                            res.writeHead(200, { "Content-Type": "application/json" });
+                            res.end(JSON.stringify(result));
+                        }
+                        else {
+                            res.writeHead(500, { "Content-Type": "application/json" });
+                            res.end(JSON.stringify({ error: "Handler not available" }));
+                        }
+                    }
+                    catch (err) {
+                        res.writeHead(400, { "Content-Type": "application/json" });
+                        res.end(JSON.stringify({ error: String(err) }));
+                    }
+                });
+                return;
+            }
+            res.writeHead(404, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Not found" }));
+        });
+        httpServer.listen(parseInt(HTTP_PORT, 10), "127.0.0.1", () => {
+            console.error(`[INFO] openclaw-bridge HTTP server on http://127.0.0.1:${HTTP_PORT}`);
+        });
+    }
 }
 main().catch((err) => {
     console.error("[FATAL]", err);

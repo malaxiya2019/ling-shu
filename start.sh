@@ -38,6 +38,8 @@ show_help() {
   --check-env         仅检查系统依赖是否满足，不启动服务
   --doctor            全面诊断: Rust / Cargo / 依赖 / API Key / 网络 / 权限 / 内存
   --update            拉取最新代码并重新编译
+  --china             中国网络优化: 跳过国外站点检测，使用国内镜像
+  --with-openclaw     集成 OpenClaw MCP 通道网关 (需要 Node.js)
   --help              显示此帮助
 
 首次运行:
@@ -55,6 +57,8 @@ show_help() {
   ./start.sh --doctor                全面诊断
   ./start.sh --update                更新到最新版
   ./start.sh --addr 0.0.0.0:8080    开放网络访问
+  ./start.sh --china                 使用中国网络优化模式
+  ./start.sh --with-openclaw        集成 OpenClaw 消息通道
 HELP
     exit 0
 }
@@ -65,6 +69,8 @@ REPL=false
 CHECK_ENV=false
 DOCTOR=false
 UPDATE=false
+CHINA=false
+WITH_OPENCLAW=false
 ADDR="127.0.0.1:8080"
 ENV="dev"
 
@@ -75,6 +81,8 @@ while [[ $# -gt 0 ]]; do
         --check-env)  CHECK_ENV=true; shift ;;
         --doctor)     DOCTOR=true; shift ;;
         --update)     UPDATE=true; shift ;;
+        --china)      CHINA=true; shift ;;
+        --with-openclaw) WITH_OPENCLAW=true; shift ;;
         --addr)       ADDR="$2"; shift 2 ;;
         --env)        ENV="$2"; shift 2 ;;
         --help|-h)    show_help ;;
@@ -85,6 +93,26 @@ done
 # ── 1. 定位项目根目录 ──
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
+
+# ── 中国网络优化 ──
+if $CHINA; then
+    info "🌐 中国网络模式已启用"
+    info "   跳过国外站点连通性检测，使用国内镜像源"
+    if [[ ! -f "$HOME/.cargo/config.toml" ]] || ! grep -q "mirrors.ustc.edu.cn" "$HOME/.cargo/config.toml" 2>/dev/null; then
+        cat << MIRROR_EOF
+
+  ⚡ 建议配置 Rust 国内镜像加速:
+
+  mkdir -p ~/.cargo && cat > ~/.cargo/config.toml << EOF
+  [source.crates-io]
+  replace-with = "ustc"
+
+  [source.ustc]
+  registry = "sparse+https://mirrors.ustc.edu.cn/crates.io-index/"
+  EOF
+MIRROR_EOF
+    fi
+fi
 
 # 确保 cargo/rustc 在 PATH 中（Termux 兼容）
 for _p in /data/data/com.termux/files/usr/bin "$HOME/.cargo/bin" "$HOME/.rustup/bin"; do
@@ -374,13 +402,27 @@ if $DOCTOR; then
     # 网络连通性
     echo ""
     echo -e "${BOLD}网络检查${NC}"
-    for target in "https://api.openai.com" "https://api.deepseek.com" "https://api.github.com"; do
-        if curl -sf --max-time 5 "$target" &>/dev/null; then
-            echo -e "  ${GREEN}✔${NC} $(echo $target | sed 's|https://||'): 可达"
-        else
-            echo -e "  ${RED}✘${NC} $(echo $target | sed 's|https://||'): 不可达 (检查网络/代理)"
-        fi
-    done
+    if $CHINA; then
+        echo -e "  ${GREEN}✔${NC} 国内网络模式启用 — 跳过境外站点检测"
+        for target in "https://api.deepseek.com" "https://mirrors.ustc.edu.cn" "https://www.baidu.com"; do
+            if curl -sf --max-time 5 "$target" &>/dev/null; then
+                echo -e "  ${GREEN}✔${NC} $(echo $target | sed 's|https://||'): 可达"
+            else
+                echo -e "  ${YELLOW}⚠${NC} $(echo $target | sed 's|https://||'): 不可达 (可能需要代理)"
+            fi
+        done
+        echo ""
+        echo -e "  ${GREEN}✔${NC} DeepSeek / 千问 等国内 API 一般可直接访问"
+        echo -e "  ${YELLOW}⚠${NC} 如需访问境外 API (OpenAI 等)，请配置代理"
+    else
+        for target in "https://api.openai.com" "https://api.deepseek.com" "https://api.github.com"; do
+            if curl -sf --max-time 5 "$target" &>/dev/null; then
+                echo -e "  ${GREEN}✔${NC} $(echo $target | sed 's|https://||'): 可达"
+            else
+                echo -e "  ${RED}✘${NC} $(echo $target | sed 's|https://||'): 不可达 (检查网络/代理)"
+            fi
+        done
+    fi
     
     # 目录权限
     echo ""
@@ -558,8 +600,32 @@ else
     ok "编译完成 (耗时 ${DURATION} 秒，缓存命中)"
 fi
 
-# ── 6. 启动 ──
+# ── 7. 启动 ──
 header "🌐 启动服务"
+
+
+# ── 6a. OpenClaw Bridge ──
+if $WITH_OPENCLAW; then
+    if command -v node &>/dev/null && command -v npm &>/dev/null; then
+        OPENCLAW_DIR="examples/openclaw-bridge"
+        if [[ -d "$OPENCLAW_DIR" ]]; then
+            info "🔌 构建 OpenClaw Bridge..."
+            (cd "$OPENCLAW_DIR" && npm install --silent && npm run build) || warn "OpenClaw Bridge 构建失败，跳过"
+            ok "OpenClaw Bridge 构建完成"
+            # 设置 HTTP 端口，供 lingshu MCP 客户端连接
+            export OPENCLAW_HTTP_PORT=18931
+            info "OpenClaw Bridge HTTP 端口: $OPENCLAW_HTTP_PORT"
+            # 启动 openclaw-bridge (后台进程)
+            (cd "$OPENCLAW_DIR" && HTTP_PORT=$OPENCLAW_HTTP_PORT node dist/index.js &)
+            sleep 1
+            ok "OpenClaw Bridge 已启动 (PID: $!)"
+        else
+            warn "OpenClaw Bridge 目录不存在: $OPENCLAW_DIR"
+        fi
+    else
+        warn "Node.js 未安装，跳过 OpenClaw Bridge"
+    fi
+fi
 
 EXTRA_ARGS=""
 $REPL && EXTRA_ARGS="$EXTRA_ARGS --repl"
