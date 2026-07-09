@@ -287,7 +287,6 @@ impl LingshuRuntime {
                 tracing::info!("channel registered: qq");
             }
 
-            reg
             // 微信 (环境变量: LINGSHU_WECHAT_APP_ID + LINGSHU_WECHAT_APP_SECRET + LINGSHU_WECHAT_TOKEN)
             #[cfg(feature = "wechat")]
             if let (Ok(app_id), Ok(app_secret), Ok(token)) = (
@@ -300,6 +299,7 @@ impl LingshuRuntime {
                 tracing::info!("channel registered: wechat");
             }
 
+            reg
         };
 
         let runtime = Self {

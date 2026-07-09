@@ -11,6 +11,7 @@
 //! let plugin = RagPlugin::default();
 //! plugin.store_document("Rust is a systems language empowering everyone.").await?;
 //! let results = plugin.search("systems language", 3).await?;
+//! let ctx = plugin.query_for_llm("systems language", 3).await;
 //! ```
 
 use async_trait::async_trait;
@@ -66,7 +67,6 @@ impl SimpleEmbedder {
         let mut vec = vec![0.0_f32; self.dim];
 
         for token in text.split_whitespace() {
-            // 清理标点，小写化
             let cleaned: String = token
                 .chars()
                 .filter(|c| c.is_alphanumeric())
@@ -77,12 +77,10 @@ impl SimpleEmbedder {
                 continue;
             }
 
-            // 确定性哈希 → bin 索引
             let idx = self.hash_to_index(&cleaned);
             vec[idx] += 1.0;
         }
 
-        // L2 归一化
         let norm: f32 = vec.iter().map(|v| v * v).sum::<f32>().sqrt();
         if norm > 0.0 {
             for v in &mut vec {
@@ -93,7 +91,6 @@ impl SimpleEmbedder {
         vec
     }
 
-    /// 简单非密码学哈希，映射到 [0, dim)。
     fn hash_to_index(&self, token: &str) -> usize {
         let mut h: usize = 5381;
         for b in token.bytes() {
@@ -107,7 +104,6 @@ impl SimpleEmbedder {
 // 存储层
 // ---------------------------------------------------------------------------
 
-/// 内存文档存储：doc_id → Vec<(chunk_text, embedding)>
 struct DocumentStore {
     docs: RwLock<HashMap<String, Vec<(String, Vec<f32>)>>>,
 }
@@ -119,13 +115,11 @@ impl DocumentStore {
         }
     }
 
-    /// 插入一个文档的分块结果。
     fn store(&self, doc_id: String, chunks: Vec<(String, Vec<f32>)>) {
         let mut map = self.docs.write().expect("RwLock poisoned");
         map.insert(doc_id, chunks);
     }
 
-    /// 余弦相似度搜索，返回 (doc_id, chunk_text, score)。
     fn search(&self, query_embed: &[f32], top_k: usize) -> Vec<(String, String, f32)> {
         let map = self.docs.read().expect("RwLock poisoned");
         let mut scored: Vec<(String, String, f32)> = Vec::new();
@@ -137,20 +131,17 @@ impl DocumentStore {
             }
         }
 
-        // 按相似度降序排列
         scored.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
         scored.truncate(top_k);
         scored
     }
 
-    /// 列出所有文档 ID。
     fn list_documents(&self) -> Vec<String> {
         let map = self.docs.read().expect("RwLock poisoned");
         map.keys().cloned().collect()
     }
 }
 
-/// 计算两个向量之间的余弦相似度。
 fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
     let norm_a: f32 = a.iter().map(|v| v * v).sum::<f32>().sqrt();
@@ -181,9 +172,6 @@ impl Default for RagPlugin {
 
 impl RagPlugin {
     /// 创建 RAG 插件实例。
-    ///
-    /// - `max_chars_per_chunk`: 每个分块的最大字符数
-    /// - `embedding_dim`: 嵌入向量维度
     pub fn new(max_chars_per_chunk: usize, embedding_dim: usize) -> Self {
         let manifest = PluginManifest {
             name: "rag-plugin".into(),
@@ -276,16 +264,8 @@ impl RagPlugin {
             "embedding_dim": self.embedder.dim,
         })
     }
-}
-
 
     /// 搜索并格式化为 LLM 上下文（RAG 核心功能）.
-    ///
-    /// 对查询进行语义搜索，将结果格式化为可直接插入 LLM prompt 的上下文文本。
-    ///
-    /// ## 示例
-    ///
-    /// 
     pub async fn query_for_llm(&self, query: &str, top_k: usize) -> String {
         let results = self.search(query, top_k).await;
         Self::format_context(&results)
@@ -297,10 +277,8 @@ impl RagPlugin {
             return "无相关文档。".to_string();
         }
 
-        let mut context = String::from("以下是与用户问题相关的文档片段（按相关性排序）：
-
-");
-        for (i, (doc_id, chunk_text, score)) in results.iter().enumerate() {
+        let mut context = String::from("以下是与用户问题相关的文档片段（按相关性排序）：\n\n");
+        for (i, (_doc_id, chunk_text, score)) in results.iter().enumerate() {
             let relevance = if *score > 0.7 {
                 "【高度相关】"
             } else if *score > 0.4 {
@@ -309,10 +287,7 @@ impl RagPlugin {
                 "【低度相关】"
             };
             context.push_str(&format!(
-                "{relevance} [文档 {i}/{}] (相关度: {:.2})
-{}
-
-",
+                "{relevance} [文档 {i}/{}] (相关度: {:.2})\n{}\n\n",
                 results.len(),
                 score,
                 chunk_text
@@ -339,6 +314,11 @@ impl RagPlugin {
         let map = self.store.docs.read().ok()?;
         map.get(doc_id).map(|chunks| chunks.len())
     }
+}
+
+// ---------------------------------------------------------------------------
+// Plugin trait 实现
+// ---------------------------------------------------------------------------
 
 #[async_trait]
 impl Plugin for RagPlugin {
@@ -391,7 +371,6 @@ mod tests {
         let v1 = emb.embed("hello world");
         let v2 = emb.embed("hello world");
         assert_eq!(v1.len(), 128);
-        // 相同文本应产生相同向量
         assert!((cosine_similarity(&v1, &v2) - 1.0).abs() < 1e-6);
     }
 
@@ -401,7 +380,6 @@ mod tests {
         let v1 = emb.embed("apple banana");
         let v2 = emb.embed("dog cat");
         let sim = cosine_similarity(&v1, &v2);
-        // 不同文本应产生较低相似度
         assert!(sim < 0.8, "Expected low similarity, got {sim}");
     }
 
@@ -431,7 +409,6 @@ mod tests {
     #[tokio::test]
     async fn test_store_and_search() {
         let plugin = RagPlugin::default();
-
         plugin
             .store_document("The Rust programming language is fast and memory-efficient")
             .await;
@@ -476,6 +453,15 @@ mod tests {
         assert!(perms.iter().any(|p| p.resource == "memory"));
     }
 
+    #[test]
+    fn test_chunker() {
+        let chunker = TextChunker::new(50);
+        let text = "word ".repeat(200);
+        let chunks: Vec<&str> = chunker.chunk(&text);
+        assert!(chunks.len() >= 2, "Expected multiple chunks");
+    }
+
+    // ── 新增功能测试 ──
 
     #[tokio::test]
     async fn test_query_for_llm() {
@@ -484,9 +470,9 @@ mod tests {
         plugin.store_document("Python is an interpreted high-level programming language").await;
 
         let context = plugin.query_for_llm("Rust safety", 2).await;
-        assert!(!context.is_empty(), "Expected non-empty context");
-        assert!(context.contains("相关文档"), "Expected formatted context");
-        assert!(context.contains("Rust"), "Expected Rust-related content");
+        assert!(!context.is_empty(), "Expected non-empty context, got empty");
+        assert!(context.contains("用户问题"), "Expected formatted context, got: {context}");
+        assert!(context.contains("Rust"), "Expected Rust-related content, got: {context}");
     }
 
     #[tokio::test]
@@ -511,15 +497,15 @@ mod tests {
         assert_eq!(plugin.document_count().await, 0);
     }
 
-    #[tokio::test]
-    async fn test_format_context_empty() {
+    #[test]
+    fn test_format_context_empty() {
         let results: Vec<(String, String, f32)> = vec![];
         let context = RagPlugin::format_context(&results);
         assert_eq!(context, "无相关文档。");
     }
 
-    #[tokio::test]
-    async fn test_format_context_with_results() {
+    #[test]
+    fn test_format_context_with_results() {
         let results = vec![
             ("doc1".to_string(), "Rust is safe".to_string(), 0.95),
             ("doc2".to_string(), "Python is flexible".to_string(), 0.45),
@@ -528,13 +514,5 @@ mod tests {
         assert!(context.contains("高度相关"));
         assert!(context.contains("中度相关"));
         assert!(context.contains("Rust is safe"));
-    }
-
-    #[test]
-    fn test_chunker() {
-        let chunker = TextChunker::new(50);
-        let text = "word ".repeat(200);
-        let chunks: Vec<&str> = chunker.chunk(&text);
-        assert!(chunks.len() >= 2, "Expected multiple chunks");
     }
 }
