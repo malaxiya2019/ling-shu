@@ -152,14 +152,11 @@ impl BeefManager {
             // 等待最多 5 秒
             for _ in 0..5 {
                 tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-                match child.try_wait() {
-                    Ok(Some(exit)) => {
-                        info!(code = %exit, "BeEF process exited");
-                        *child_lock = None;
-                        *status = BeefStatus::Stopped;
-                        return Ok(());
-                    }
-                    _ => {}
+                if let Ok(Some(exit)) = child.try_wait() {
+                    info!(code = %exit, "BeEF process exited");
+                    *child_lock = None;
+                    *status = BeefStatus::Stopped;
+                    return Ok(());
                 }
             }
 

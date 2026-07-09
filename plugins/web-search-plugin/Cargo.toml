@@ -1,0 +1,21 @@
+[package]
+name = "lingshu-web-search"
+version = "1.0.0"
+edition.workspace = true
+description = "Web Search Plugin — 联网搜索支持 (DuckDuckGo/Bing/Google)"
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+lingshu-core = { path = "../../core" }
+lingshu-traits = { path = "../../traits" }
+
+async-trait.workspace = true
+tokio = { workspace = true, features = ["process", "time"] }
+tracing.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+reqwest = { version = "0.12", features = ["json"] }
+chrono.workspace = true
+uuid.workspace = true

@@ -47,8 +47,10 @@ pub use strategies::{
 
 /// 路由策略类型.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Default)]
 pub enum RouterPolicy {
     /// 按优先级顺序（默认）
+    #[default]
     Priority,
     /// 主后端失败时降级
     Fallback,
@@ -60,11 +62,6 @@ pub enum RouterPolicy {
     RoundRobin,
 }
 
-impl Default for RouterPolicy {
-    fn default() -> Self {
-        Self::Priority
-    }
-}
 
 /// 后端注册信息.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -388,13 +385,10 @@ impl Llm for LlmRouter {
     async fn usage_stats(&self, ctx: LsContext) -> LsResult<HashMap<String, u64>> {
         let mut total = HashMap::new();
         for (name, llm) in &self.backends {
-            match llm.usage_stats(ctx.clone()).await {
-                Ok(stats) => {
-                    for (k, v) in stats {
-                        *total.entry(format!("{name}_{k}")).or_insert(0) += v;
-                    }
+            if let Ok(stats) = llm.usage_stats(ctx.clone()).await {
+                for (k, v) in stats {
+                    *total.entry(format!("{name}_{k}")).or_insert(0) += v;
                 }
-                Err(_) => {}
             }
         }
         Ok(total)

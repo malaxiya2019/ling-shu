@@ -1,0 +1,28 @@
+{
+  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
+  "productName": "Lingshu",
+  "version": "3.4.0",
+  "identifier": "com.lingshu.desktop",
+  "build": {
+    "frontendDist": "../webui/dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "cd ../webui && trunk serve",
+    "beforeBuildCommand": "cd ../webui && trunk build --release"
+  },
+  "app": {
+    "title": "Lingshu Agent System",
+    "windows": [
+      {
+        "title": "Lingshu (灵枢)",
+        "width": 1200,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  }
+}

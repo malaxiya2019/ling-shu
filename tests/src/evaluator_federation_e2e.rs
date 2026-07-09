@@ -368,7 +368,7 @@ async fn test_evaluator_regression_federated() {
 
     #[async_trait]
     impl Evaluable for DegradedEval {
-        async fn execute(&self, _ctx: &LsContext, case: &TestCase) -> LsResult<ExecutedOutput> {
+        async fn execute(&self, _ctx: &LsContext, _case: &TestCase) -> LsResult<ExecutedOutput> {
             tokio::time::sleep(Duration::from_millis(5)).await;
             Ok(ExecutedOutput {
                 output: json!("wrong_answer"),
@@ -431,7 +431,7 @@ async fn test_federation_concurrent_eval_across_nodes() {
         )
         .await;
         register_static_discovery(&mut fed, seeds);
-        fed.start().await.expect(&format!("node-{} start", i));
+        fed.start().await.unwrap_or_else(|_| panic!("node-{} start", i));
         feds.push(fed);
     }
 

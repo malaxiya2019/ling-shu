@@ -174,7 +174,7 @@ impl LinkManager {
 
     pub async fn connect_all(&self) {
         let nodes = self.nodes.read().await.clone();
-        for (_id, node) in &nodes {
+        for node in nodes.values() {
             if node.cluster_id == self.local_id {
                 continue;
             }

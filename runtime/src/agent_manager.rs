@@ -276,7 +276,7 @@ mod tests {
         async fn snapshot(&self, _ctx: LsContext) -> LsResult<AgentSnapshot> {
             Ok(AgentSnapshot {
                 agent_id: self.id,
-                status: self.status.clone(),
+                status: self.status,
                 context: LsContext::with_session(LsId::new()),
                 state: Vec::new(),
                 created_at: chrono::Utc::now(),
@@ -286,7 +286,7 @@ mod tests {
             Ok(())
         }
         async fn status(&self, _ctx: LsContext) -> LsResult<AgentStatus> {
-            Ok(self.status.clone())
+            Ok(self.status)
         }
     }
 

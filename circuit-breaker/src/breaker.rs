@@ -105,14 +105,11 @@ impl CircuitBreaker for DefaultCircuitBreaker {
 
     async fn record_success(&self) {
         let mut state = self.state.write().await;
-        match state.current() {
-            CircuitState::HalfOpen => {
-                debug!(name = %self.name, "probe succeeded, resetting to closed");
-                state.record_probe_success();
-                self.failure_window.write().await.clear();
-                self.request_window.write().await.clear();
-            }
-            _ => {}
+        if state.current() == CircuitState::HalfOpen {
+            debug!(name = %self.name, "probe succeeded, resetting to closed");
+            state.record_probe_success();
+            self.failure_window.write().await.clear();
+            self.request_window.write().await.clear();
         }
     }
 
@@ -121,14 +118,11 @@ impl CircuitBreaker for DefaultCircuitBreaker {
         self.request_window.write().await.record();
 
         let mut state = self.state.write().await;
-        match state.current() {
-            CircuitState::HalfOpen => {
-                warn!(name = %self.name, "probe failed, returning to open");
-                state.record_probe_failure();
-                self.failure_window.write().await.clear();
-                self.request_window.write().await.clear();
-            }
-            _ => {}
+        if state.current() == CircuitState::HalfOpen {
+            warn!(name = %self.name, "probe failed, returning to open");
+            state.record_probe_failure();
+            self.failure_window.write().await.clear();
+            self.request_window.write().await.clear();
         }
     }
 

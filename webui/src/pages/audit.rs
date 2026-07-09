@@ -62,9 +62,7 @@ pub fn audit_dashboard() -> Html {
 
                 // 构建查询参数
                 let _actor_clone = state.filter_actor.clone();
-                let params = vec![
-                    ("limit", "200"),
-                ];
+                let params = [("limit", "200")];
 
                 let url = format!("/v1/audit/logs?{}", params.iter()
                     .map(|(k, v)| format!("{k}={v}"))
@@ -94,7 +92,7 @@ pub fn audit_dashboard() -> Html {
         "", "user_login", "user_logout", "api_call", "agent_execution",
         "admin_action", "config_change", "permission_change", "system",
     ];
-    let _result_types = vec!["", "success", "failure"];
+    let _result_types = ["", "success", "failure"];
 
     html! {
         <div class="audit-page">

@@ -196,181 +196,6 @@ impl Tool for CalculatorTool {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use lingshu_core::LsContext;
-    use serde_json::json;
-
-    fn test_ctx() -> LsContext {
-        LsContext::with_session(LsId::new())
-    }
-
-    #[tokio::test]
-    async fn test_current_time_utc() {
-        let tool = CurrentTimeTool;
-        let result = tool
-            .execute(test_ctx(), json!({"timezone": "utc", "format": "iso"}))
-            .await
-            .unwrap();
-        assert_eq!(result["timezone"], "UTC");
-        assert!(result["unix_timestamp"].as_i64().unwrap() > 1_700_000_000);
-        assert!(result["timestamp"].as_str().unwrap().contains("T"));
-    }
-
-    #[tokio::test]
-    async fn test_current_time_unix() {
-        let tool = CurrentTimeTool;
-        let result = tool
-            .execute(test_ctx(), json!({"format": "unix"}))
-            .await
-            .unwrap();
-        // Unix timestamp should be a number string
-        let ts: i64 = result["timestamp"].as_str().unwrap().parse().unwrap();
-        assert!(ts > 1_700_000_000);
-    }
-
-    #[tokio::test]
-    async fn test_current_time_human() {
-        let tool = CurrentTimeTool;
-        let result = tool
-            .execute(test_ctx(), json!({"format": "human"}))
-            .await
-            .unwrap();
-        let ts = result["timestamp"].as_str().unwrap();
-        assert!(ts.contains("UTC"));
-    }
-
-    #[tokio::test]
-    async fn test_current_time_invalid_tz() {
-        let tool = CurrentTimeTool;
-        let result = tool.validate(&json!({"timezone": "invalid"}));
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_calculator_simple() {
-        let tool = CalculatorTool;
-        let result = tool
-            .execute(test_ctx(), json!({"expression": "2 + 3 * 4"}))
-            .await
-            .unwrap();
-        assert!((result["result"].as_f64().unwrap() - 14.0).abs() < 1e-10);
-    }
-
-    #[tokio::test]
-    async fn test_calculator_sqrt() {
-        let tool = CalculatorTool;
-        let result = tool
-            .execute(test_ctx(), json!({"expression": "sqrt(144)"}))
-            .await
-            .unwrap();
-        assert!((result["result"].as_f64().unwrap() - 12.0).abs() < 1e-10);
-    }
-
-    #[tokio::test]
-    async fn test_calculator_pow() {
-        let tool = CalculatorTool;
-        let result = tool
-            .execute(test_ctx(), json!({"expression": "2*2*2*2*2*2*2*2*2*2"}))
-            .await
-            .unwrap();
-        assert!((result["result"].as_f64().unwrap() - 1024.0).abs() < 1e-10);
-    }
-
-    #[tokio::test]
-    async fn test_calculator_invalid_expr() {
-        let tool = CalculatorTool;
-        let result = tool.execute(test_ctx(), json!({"expression": "2 +"})).await;
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_calculator_validation() {
-        let tool = CalculatorTool;
-        // Disallowed chars
-        let result = tool
-            .execute(test_ctx(), json!({"expression": "2 + 3; rm -rf /"}))
-            .await;
-        assert!(result.is_err());
-    }
-
-    // ── 表达式求值器单元测试 ──
-    #[test]
-    fn test_eval_basic_arithmetic() {
-        let r = eval_expression("1 + 2 * 3").unwrap();
-        assert!((r - 7.0).abs() < 1e-10, "1+2*3 = 7, got {r}");
-    }
-
-    #[test]
-    fn test_eval_parentheses() {
-        let r = eval_expression("(1 + 2) * 3").unwrap();
-        assert!((r - 9.0).abs() < 1e-10, "(1+2)*3 = 9, got {r}");
-    }
-
-    #[test]
-    fn test_eval_power() {
-        let r = eval_expression("2 ^ 10").unwrap();
-        assert!((r - 1024.0).abs() < 1e-10, "2^10 = 1024, got {r}");
-    }
-
-    #[test]
-    fn test_eval_sqrt() {
-        let r = eval_expression("sqrt(16)").unwrap();
-        assert!((r - 4.0).abs() < 1e-10, "sqrt(16) = 4, got {r}");
-    }
-
-    #[test]
-    fn test_eval_sin_pi_over_2() {
-        let r = eval_expression("sin(pi / 2)").unwrap();
-        assert!((r - 1.0).abs() < 1e-10, "sin(pi/2) = 1, got {r}");
-    }
-
-    #[test]
-    fn test_eval_ln_e() {
-        let r = eval_expression("ln(e)").unwrap();
-        assert!((r - 1.0).abs() < 1e-10, "ln(e) = 1, got {r}");
-    }
-
-    #[test]
-    fn test_eval_abs() {
-        let r = eval_expression("abs(-10)").unwrap();
-        assert!((r - 10.0).abs() < 1e-10, "abs(-10) = 10, got {r}");
-    }
-
-    #[test]
-    fn test_eval_modulo() {
-        let r = eval_expression("10 % 3").unwrap();
-        assert!((r - 1.0).abs() < 1e-10, "10%3 = 1, got {r}");
-    }
-
-    #[test]
-    fn test_eval_round() {
-        let r = eval_expression("round(1.5)").unwrap();
-        assert!((r - 2.0).abs() < 1e-10, "round(1.5) = 2, got {r}");
-    }
-
-    #[test]
-    fn test_eval_error_incomplete_expr() {
-        assert!(eval_expression("1+").is_err(), "1+ should error");
-    }
-
-    #[test]
-    fn test_eval_error_unmatched_paren() {
-        assert!(eval_expression("(").is_err(), "( should error");
-    }
-
-    #[test]
-    fn test_eval_error_sqrt_no_arg() {
-        assert!(eval_expression("sqrt(").is_err(), "sqrt( should error");
-    }
-
-    #[test]
-    fn test_eval_error_unknown_symbol() {
-        assert!(eval_expression("abc").is_err(), "abc should error");
-    }
-}
-
 // ── 简易数学表达式求值 ─────────────────────────────
 
 /// 简易表达式求值器，替换 meval crate。
@@ -580,4 +405,179 @@ fn parse_expr(chars: &[char], pos: &mut usize) -> Result<f64, String> {
         skip_whitespace(chars, pos);
     }
     Ok(left)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use lingshu_core::LsContext;
+    use serde_json::json;
+
+    fn test_ctx() -> LsContext {
+        LsContext::with_session(LsId::new())
+    }
+
+    #[tokio::test]
+    async fn test_current_time_utc() {
+        let tool = CurrentTimeTool;
+        let result = tool
+            .execute(test_ctx(), json!({"timezone": "utc", "format": "iso"}))
+            .await
+            .unwrap();
+        assert_eq!(result["timezone"], "UTC");
+        assert!(result["unix_timestamp"].as_i64().unwrap() > 1_700_000_000);
+        assert!(result["timestamp"].as_str().unwrap().contains("T"));
+    }
+
+    #[tokio::test]
+    async fn test_current_time_unix() {
+        let tool = CurrentTimeTool;
+        let result = tool
+            .execute(test_ctx(), json!({"format": "unix"}))
+            .await
+            .unwrap();
+        // Unix timestamp should be a number string
+        let ts: i64 = result["timestamp"].as_str().unwrap().parse().unwrap();
+        assert!(ts > 1_700_000_000);
+    }
+
+    #[tokio::test]
+    async fn test_current_time_human() {
+        let tool = CurrentTimeTool;
+        let result = tool
+            .execute(test_ctx(), json!({"format": "human"}))
+            .await
+            .unwrap();
+        let ts = result["timestamp"].as_str().unwrap();
+        assert!(ts.contains("UTC"));
+    }
+
+    #[tokio::test]
+    async fn test_current_time_invalid_tz() {
+        let tool = CurrentTimeTool;
+        let result = tool.validate(&json!({"timezone": "invalid"}));
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_calculator_simple() {
+        let tool = CalculatorTool;
+        let result = tool
+            .execute(test_ctx(), json!({"expression": "2 + 3 * 4"}))
+            .await
+            .unwrap();
+        assert!((result["result"].as_f64().unwrap() - 14.0).abs() < 1e-10);
+    }
+
+    #[tokio::test]
+    async fn test_calculator_sqrt() {
+        let tool = CalculatorTool;
+        let result = tool
+            .execute(test_ctx(), json!({"expression": "sqrt(144)"}))
+            .await
+            .unwrap();
+        assert!((result["result"].as_f64().unwrap() - 12.0).abs() < 1e-10);
+    }
+
+    #[tokio::test]
+    async fn test_calculator_pow() {
+        let tool = CalculatorTool;
+        let result = tool
+            .execute(test_ctx(), json!({"expression": "2*2*2*2*2*2*2*2*2*2"}))
+            .await
+            .unwrap();
+        assert!((result["result"].as_f64().unwrap() - 1024.0).abs() < 1e-10);
+    }
+
+    #[tokio::test]
+    async fn test_calculator_invalid_expr() {
+        let tool = CalculatorTool;
+        let result = tool.execute(test_ctx(), json!({"expression": "2 +"})).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_calculator_validation() {
+        let tool = CalculatorTool;
+        // Disallowed chars
+        let result = tool
+            .execute(test_ctx(), json!({"expression": "2 + 3; rm -rf /"}))
+            .await;
+        assert!(result.is_err());
+    }
+
+    // ── 表达式求值器单元测试 ──
+    #[test]
+    fn test_eval_basic_arithmetic() {
+        let r = eval_expression("1 + 2 * 3").unwrap();
+        assert!((r - 7.0).abs() < 1e-10, "1+2*3 = 7, got {r}");
+    }
+
+    #[test]
+    fn test_eval_parentheses() {
+        let r = eval_expression("(1 + 2) * 3").unwrap();
+        assert!((r - 9.0).abs() < 1e-10, "(1+2)*3 = 9, got {r}");
+    }
+
+    #[test]
+    fn test_eval_power() {
+        let r = eval_expression("2 ^ 10").unwrap();
+        assert!((r - 1024.0).abs() < 1e-10, "2^10 = 1024, got {r}");
+    }
+
+    #[test]
+    fn test_eval_sqrt() {
+        let r = eval_expression("sqrt(16)").unwrap();
+        assert!((r - 4.0).abs() < 1e-10, "sqrt(16) = 4, got {r}");
+    }
+
+    #[test]
+    fn test_eval_sin_pi_over_2() {
+        let r = eval_expression("sin(pi / 2)").unwrap();
+        assert!((r - 1.0).abs() < 1e-10, "sin(pi/2) = 1, got {r}");
+    }
+
+    #[test]
+    fn test_eval_ln_e() {
+        let r = eval_expression("ln(e)").unwrap();
+        assert!((r - 1.0).abs() < 1e-10, "ln(e) = 1, got {r}");
+    }
+
+    #[test]
+    fn test_eval_abs() {
+        let r = eval_expression("abs(-10)").unwrap();
+        assert!((r - 10.0).abs() < 1e-10, "abs(-10) = 10, got {r}");
+    }
+
+    #[test]
+    fn test_eval_modulo() {
+        let r = eval_expression("10 % 3").unwrap();
+        assert!((r - 1.0).abs() < 1e-10, "10%3 = 1, got {r}");
+    }
+
+    #[test]
+    fn test_eval_round() {
+        let r = eval_expression("round(1.5)").unwrap();
+        assert!((r - 2.0).abs() < 1e-10, "round(1.5) = 2, got {r}");
+    }
+
+    #[test]
+    fn test_eval_error_incomplete_expr() {
+        assert!(eval_expression("1+").is_err(), "1+ should error");
+    }
+
+    #[test]
+    fn test_eval_error_unmatched_paren() {
+        assert!(eval_expression("(").is_err(), "( should error");
+    }
+
+    #[test]
+    fn test_eval_error_sqrt_no_arg() {
+        assert!(eval_expression("sqrt(").is_err(), "sqrt( should error");
+    }
+
+    #[test]
+    fn test_eval_error_unknown_symbol() {
+        assert!(eval_expression("abc").is_err(), "abc should error");
+    }
 }

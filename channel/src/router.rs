@@ -138,7 +138,7 @@ impl ChannelRouter {
         // 根据载荷类型选择合适的发送方法
         if let Some(text) = &payload.text {
             // 如果有媒体，使用 send_payload
-            if payload.media_urls.as_ref().map_or(false, |v| !v.is_empty()) {
+            if payload.media_urls.as_ref().is_some_and(|v| !v.is_empty()) {
                 channel
                     .send_payload(SendPayloadContext {
                         to: target.into(),
@@ -161,7 +161,7 @@ impl ChannelRouter {
                     })
                     .await
             }
-        } else if payload.media_urls.as_ref().map_or(false, |v| !v.is_empty()) {
+        } else if payload.media_urls.as_ref().is_some_and(|v| !v.is_empty()) {
             // 仅媒体
             let first_media = payload.media_urls.as_ref().unwrap()[0].clone();
             channel
@@ -213,7 +213,7 @@ mod tests {
         async fn query(&self, _ctx: lingshu_core::LsContext, _collection: &str, _filters: Vec<lingshu_traits::database::QueryFilter>, _pagination: lingshu_traits::database::Pagination) -> lingshu_core::LsResult<lingshu_traits::database::PaginatedResult> {
             let items: Vec<serde_json::Value> = self.store.read().unwrap().values().cloned().collect();
             let total = items.len() as u64;
-            Ok(lingshu_traits::database::PaginatedResult { items, total, page: 1, page_size: total as u64, total_pages: 1 })
+            Ok(lingshu_traits::database::PaginatedResult { items, total, page: 1, page_size: total, total_pages: 1 })
         }
         async fn update(&self, _ctx: lingshu_core::LsContext, _collection: &str, id: &str, value: serde_json::Value) -> lingshu_core::LsResult<Option<serde_json::Value>> {
             let old = self.store.read().unwrap().get(id).cloned();

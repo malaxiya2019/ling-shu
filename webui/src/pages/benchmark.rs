@@ -132,7 +132,7 @@ pub fn benchmark() -> Html {
             entry.push(item.clone());
         }
         let mut sorted: Vec<_> = cat_map.into_iter().collect();
-        sorted.sort_by(|a, b| a.0.cmp(&b.0));
+        sorted.sort_by(|a, b| a.0.cmp(b.0));
         for (key, val) in sorted {
             categories.push((key, val));
         }

@@ -465,11 +465,40 @@ if $UPDATE; then
     START_TIME=$(date +%s)
     cargo build --release -p lingshu 2>&1 | tail -3
     END_TIME=$(date +%s)
-    ok "编译完成 (耗时 $((END_TIME - START_TIME)) 秒)"
+    BUILD_DURATION=$((END_TIME - START_TIME))
+    ok "编译完成 (耗时 ${BUILD_DURATION} 秒)"
+    
+    # 安装到 ~/.cargo/bin （可选，方便直接调用）
+    if [[ -d "$HOME/.cargo/bin" ]]; then
+        info "安装到 \$HOME/.cargo/bin..."
+        cp target/release/lingshu "$HOME/.cargo/bin/lingshu" 2>/dev/null &&             ok "已安装: \$HOME/.cargo/bin/lingshu" ||             warn "安装失败，请手动复制: cp target/release/lingshu \$HOME/.cargo/bin/"
+    fi
+    
+    # 如果有 Node.js，也更新 openclaw-bridge
+    if command -v node &>/dev/null && [[ -d "examples/openclaw-bridge" ]]; then
+        info "更新 OpenClaw Bridge..."
+        (cd examples/openclaw-bridge && npm install --silent && npm run build) 2>/dev/null &&             ok "OpenClaw Bridge 已更新" ||             warn "OpenClaw Bridge 更新跳过"
+    fi
+    
+    # 显示版本变化
+    OLD_VERSION=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "无")
+    NEW_VERSION="${NEWEST_TAG}"
+    if [[ "$OLD_VERSION" != "$NEW_VERSION" && "$OLD_VERSION" != "无" ]]; then
+        echo ""
+        echo -e "${BOLD}版本变化:${NC}"
+        git log --oneline "${OLD_VERSION}..${NEW_VERSION}" 2>/dev/null | head -20 | while read -r line; do
+            echo "  • $line"
+        done
+        COMMIT_COUNT=$(git log --oneline "${OLD_VERSION}..${NEW_VERSION}" 2>/dev/null | wc -l)
+        if [[ "$COMMIT_COUNT" -gt 20 ]]; then
+            echo "  ... 还有 $((COMMIT_COUNT - 20)) 个提交未显示"
+        fi
+    fi
     
     echo ""
     echo -e "${GREEN}✅ 更新完成！${NC}"
     echo "  运行 ./start.sh --quick 启动新版本"
+    echo "  运行 lingshu (PATH 中) 直接启动已安装的二进制"
     exit 0
 fi
 
@@ -584,6 +613,14 @@ elif command -v vm_stat &>/dev/null; then
     BUILD_JOBS=""
 else
     BUILD_JOBS=""
+fi
+
+# 可选构建 WebUI
+if [[ -d "webui" ]] && command -v trunk &>/dev/null; then
+    if rustup target list --installed 2>/dev/null | grep -q "wasm32-unknown-unknown"; then
+        info "🌐 检测到 WebUI 构建环境，编译 WASM..."
+        (cd webui && trunk build --release 2>&1 | tail -3) &&             ok "WebUI 构建完成" ||             warn "WebUI 编译失败（不影响核心功能）"
+    fi
 fi
 
 info "环境: ${ENV} | 监听: ${ADDR} | REPL: ${REPL}"

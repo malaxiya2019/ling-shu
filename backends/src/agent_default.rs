@@ -429,13 +429,13 @@ mod tests {
 
     fn make_agent() -> DefaultAgent {
         let registry = Arc::new(tokio::sync::RwLock::new(ToolRegistry::new()));
-        let agent = DefaultAgent::new(
+        
+        DefaultAgent::new(
             AgentConfig::default(),
             Arc::new(crate::MockLlm::new()),
             registry,
             None,
-        );
-        agent
+        )
     }
 
     #[tokio::test]

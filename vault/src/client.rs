@@ -129,7 +129,7 @@ impl VaultClientTrait for VaultClient {
     async fn health(&self) -> LsResult<VaultHealth> {
         let resp = self
             .client
-            .get(&self.health_path())
+            .get(self.health_path())
             .header("X-Vault-Token", &self.config.token)
             .send()
             .await
@@ -146,7 +146,7 @@ impl VaultClientTrait for VaultClient {
     async fn read_secret(&self, path: &str) -> LsResult<KvSecretResponse> {
         let resp = self
             .client
-            .get(&self.kv_read_path(path))
+            .get(self.kv_read_path(path))
             .header("X-Vault-Token", &self.config.token)
             .send()
             .await
@@ -173,7 +173,7 @@ impl VaultClientTrait for VaultClient {
 
         let resp = self
             .client
-            .post(&self.kv_write_path(path))
+            .post(self.kv_write_path(path))
             .header("X-Vault-Token", &self.config.token)
             .json(&body)
             .send()
@@ -199,7 +199,7 @@ impl VaultClientTrait for VaultClient {
     async fn delete_secret(&self, path: &str) -> LsResult<()> {
         let resp = self
             .client
-            .delete(&self.kv_delete_path(path))
+            .delete(self.kv_delete_path(path))
             .header("X-Vault-Token", &self.config.token)
             .send()
             .await
@@ -219,7 +219,7 @@ impl VaultClientTrait for VaultClient {
     async fn list_secrets(&self, path: &str) -> LsResult<Vec<String>> {
         let resp = self
             .client
-            .request(reqwest::Method::from_bytes(b"LIST").unwrap(), &self.kv_list_path(path))
+            .request(reqwest::Method::from_bytes(b"LIST").unwrap(), self.kv_list_path(path))
             .header("X-Vault-Token", &self.config.token)
             .send()
             .await
@@ -249,7 +249,7 @@ impl VaultClientTrait for VaultClient {
     async fn request_dynamic_secret(&self, path: &str) -> LsResult<DynamicSecret> {
         let resp = self
             .client
-            .get(&self.dynamic_secret_path(path))
+            .get(self.dynamic_secret_path(path))
             .header("X-Vault-Token", &self.config.token)
             .send()
             .await
@@ -289,7 +289,7 @@ impl VaultClientTrait for VaultClient {
 
         let resp = self
             .client
-            .put(&self.renew_lease_path())
+            .put(self.renew_lease_path())
             .header("X-Vault-Token", &self.config.token)
             .json(&body)
             .send()
@@ -313,7 +313,7 @@ impl VaultClientTrait for VaultClient {
 
         let resp = self
             .client
-            .put(&self.revoke_lease_path())
+            .put(self.revoke_lease_path())
             .header("X-Vault-Token", &self.config.token)
             .json(&body)
             .send()
@@ -339,7 +339,7 @@ impl VaultClientTrait for VaultClient {
 
         let resp = self
             .client
-            .post(&self.transit_encrypt_path(key_name))
+            .post(self.transit_encrypt_path(key_name))
             .header("X-Vault-Token", &self.config.token)
             .json(&body)
             .send()
@@ -376,7 +376,7 @@ impl VaultClientTrait for VaultClient {
 
         let resp = self
             .client
-            .post(&self.transit_decrypt_path(key_name))
+            .post(self.transit_decrypt_path(key_name))
             .header("X-Vault-Token", &self.config.token)
             .json(&body)
             .send()
@@ -410,6 +410,12 @@ impl VaultClientTrait for VaultClient {
 /// 内存 Mock Vault 客户端 (用于测试).
 pub struct MockVaultClient {
     secrets: std::sync::RwLock<std::collections::HashMap<String, serde_json::Map<String, serde_json::Value>>>,
+}
+
+impl Default for MockVaultClient {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MockVaultClient {

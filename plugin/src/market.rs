@@ -304,14 +304,13 @@ impl PluginMarket {
         let plugin_dir = target_dir.join(&entry.name);
 
         // 检查是否已安装
-        if plugin_dir.exists() && !options.force {
-            if self.installed.contains_key(&entry.name) {
+        if plugin_dir.exists() && !options.force
+            && self.installed.contains_key(&entry.name) {
                 return Err(LsError::AlreadyExists(format!(
                     "plugin '{}' already installed",
                     entry.name
                 )));
             }
-        }
 
         // 下载插件包
         info!(

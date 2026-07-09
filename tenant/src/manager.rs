@@ -53,7 +53,7 @@ impl TenantManager {
     pub async fn list_organizations(&self) -> LsResult<Vec<Organization>> {
         let orgs = self.orgs.read().await;
         let mut list: Vec<_> = orgs.values().cloned().collect();
-        list.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+        list.sort_by_key(|a| a.created_at);
         Ok(list)
     }
 
@@ -115,7 +115,7 @@ impl TenantManager {
         self.get_organization(org_id).await?;
         let projs = self.projects.read().await;
         let mut list: Vec<_> = projs.values().filter(|p| p.org_id == org_id).cloned().collect();
-        list.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+        list.sort_by_key(|a| a.created_at);
         Ok(list)
     }
 
@@ -174,7 +174,7 @@ impl TenantManager {
         self.get_organization(org_id).await?;
         let users = self.users.read().await;
         let mut list: Vec<_> = users.values().filter(|u| u.org_id == org_id).cloned().collect();
-        list.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+        list.sort_by_key(|a| a.created_at);
         Ok(list)
     }
 

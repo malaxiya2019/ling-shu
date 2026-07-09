@@ -375,7 +375,7 @@ mod stub_tests {
     #[tokio::test]
     async fn test_stub_with_registry() {
         let registry = Arc::new(AgentRegistry::new());
-        let adapter = LoongAdapter::new().with_registry(registry.clone());
+        let _adapter = LoongAdapter::new().with_registry(registry.clone());
         // Stub should not panic and registry should remain empty
         assert_eq!(registry.count().await, 0);
     }

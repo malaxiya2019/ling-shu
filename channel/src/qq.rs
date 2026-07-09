@@ -147,7 +147,7 @@ async fn connect_and_listen(
         .map_err(|e| LsError::Plugin(format!("QQ WS: identify serialize: {e}")))?;
 
     write
-        .send(Message::Text(identify_text.into()))
+        .send(Message::Text(identify_text))
         .await
         .map_err(|e| LsError::Plugin(format!("QQ WS: identify send: {e}")))?;
 
@@ -204,7 +204,7 @@ async fn connect_and_listen(
                 });
                 let hb_text = serde_json::to_string(&heartbeat)
                     .unwrap_or_else(|_| r#"{"op":1,"d":null}"#.into());
-                if let Err(e) = write.send(Message::Text(hb_text.into())).await {
+                if let Err(e) = write.send(Message::Text(hb_text)).await {
                     tracing::warn!(error = %e, "QQ WS: heartbeat send failed");
                     return Err(LsError::Plugin(format!("Heartbeat send: {e}")));
                 }
@@ -262,7 +262,7 @@ async fn connect_and_listen(
                     }
                     Some(Ok(Message::Ping(_))) => {
                         // Send pong
-                        if let Err(e) = write.send(Message::Pong(vec![].into())).await {
+                        if let Err(e) = write.send(Message::Pong(vec![])).await {
                             tracing::warn!(error = %e, "QQ WS: pong send failed");
                         }
                     }

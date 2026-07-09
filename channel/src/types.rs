@@ -37,6 +37,7 @@ impl std::fmt::Display for ChatType {
 ///
 /// 对应 OpenClaw 的 `ReplyPayload`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct ReplyPayload {
     /// 文本内容.
     pub text: Option<String>,
@@ -81,20 +82,6 @@ impl ReplyPayload {
     }
 }
 
-impl Default for ReplyPayload {
-    fn default() -> Self {
-        Self {
-            text: None,
-            media_urls: None,
-            reply_to_id: None,
-            audio_as_voice: None,
-            is_error: None,
-            is_reasoning: None,
-            is_status_notice: None,
-            channel_data: None,
-        }
-    }
-}
 
 // ── 消息批次 ───────────────────────────────────────
 

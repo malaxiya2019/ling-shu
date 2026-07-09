@@ -23,6 +23,12 @@ pub struct EncryptedBlob {
     pub access_count: u64,
 }
 
+impl Default for EncryptedMemoryRegion {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EncryptedMemoryRegion {
     pub fn new() -> Self {
         Self {

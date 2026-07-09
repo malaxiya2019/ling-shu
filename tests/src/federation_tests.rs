@@ -137,7 +137,7 @@ async fn test_federation_three_nodes_mesh() {
         )
         .await;
         register_static_discovery(&mut fed, seeds);
-        fed.start().await.expect(&format!("node-{} start", i));
+        fed.start().await.unwrap_or_else(|_| panic!("node-{} start", i));
         feds.push(fed);
     }
 

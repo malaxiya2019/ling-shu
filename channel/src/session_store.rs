@@ -224,7 +224,7 @@ mod tests {
                 .cloned()
                 .collect();
             let total = items.len() as u64;
-            Ok(lingshu_traits::database::PaginatedResult { items, total, page: 1, page_size: total as u64, total_pages: 1 })
+            Ok(lingshu_traits::database::PaginatedResult { items, total, page: 1, page_size: total, total_pages: 1 })
         }
         async fn update(&self, _ctx: lingshu_core::LsContext, _collection: &str, id: &str, value: serde_json::Value) -> lingshu_core::LsResult<Option<serde_json::Value>> {
             let old = self.store.read().unwrap().get(id).cloned();

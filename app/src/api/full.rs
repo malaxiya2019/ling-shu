@@ -473,48 +473,47 @@ async fn swagger_ui_handler() -> Html<&'static str> {
 /// Server-rendered admin dashboard page.
 /// Fetches live data from REST API via JavaScript.
 async fn admin_handler() -> Html<String> {
-    Html(format!(
-        r##"<!DOCTYPE html>
+    Html(r##"<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lingshu Admin Dashboard</title>
   <style>
-    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-    body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0d1117; color: #c9d1d9; font-size: 14px; }}
-    #app {{ display: flex; min-height: 100vh; }}
-    .sidebar {{ width: 240px; background: #161b22; border-right: 1px solid #30363d; padding: 1.2rem 0; flex-shrink: 0; }}
-    .sidebar .logo {{ padding: 0 1.5rem 1rem; border-bottom: 1px solid #30363d; margin-bottom: 0.5rem; font-size: 1.1rem; font-weight: 700; color: #58a6ff; }}
-    .sidebar nav a {{ display: block; padding: 0.6rem 1.5rem; color: #8b949e; text-decoration: none; transition: background 0.15s; }}
-    .sidebar nav a:hover, .sidebar nav a.active {{ background: #1f2937; color: #c9d1d9; }}
-    .main {{ flex: 1; padding: 2rem; }}
-    h1 {{ font-size: 1.5rem; margin-bottom: 1.5rem; color: #c9d1d9; }}
-    .cards {{ display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }}
-    .card {{ background: #161b22; border-radius: 8px; padding: 1rem 1.2rem; min-width: 160px; border-left: 3px solid #58a6ff; }}
-    .card.ok {{ border-left-color: #3fb950; }}
-    .card.warn {{ border-left-color: #d29922; }}
-    .card.err {{ border-left-color: #f85149; }}
-    .card .lbl {{ font-size: 0.75rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.04em; }}
-    .card .val {{ font-size: 1.5rem; font-weight: 700; margin-top: 0.3rem; }}
-    .card .sub {{ font-size: 0.8rem; color: #6e7681; margin-top: 0.2rem; }}
-    .section {{ margin: 2rem 0; }}
-    .section h2 {{ font-size: 1.1rem; color: #c9d1d9; margin-bottom: 0.8rem; }}
-    table {{ width: 100%; border-collapse: collapse; }}
-    th, td {{ text-align: left; padding: 0.5rem; border-bottom: 1px solid #21262d; }}
-    th {{ color: #58a6ff; font-size: 0.8rem; text-transform: uppercase; }}
-    td {{ color: #c9d1d9; }}
-    code {{ background: #161b22; padding: 0.15em 0.4em; border-radius: 3px; font-size: 0.85em; }}
-    .badge {{ display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; }}
-    .badge.online {{ background: #23863633; color: #3fb950; }}
-    .badge.offline {{ background: #f8514933; color: #f85149; }}
-    .badge.degraded {{ background: #d2992233; color: #d29922; }}
-    .error-box {{ background: #f8514933; color: #f85149; padding: 0.5rem 1rem; border-radius: 6px; margin-bottom: 1rem; }}
-    .topo-svg {{ display: block; margin: 1rem auto; max-width: 400px; }}
-    .legend {{ display: flex; justify-content: center; gap: 1rem; margin-top: 0.5rem; font-size: 0.8rem; color: #8b949e; }}
-    .legend .dot {{ display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }}
-    #loading {{ text-align: center; padding: 3rem; color: #6e7681; }}
-    .error-detail {{ margin-top: 1rem; padding: 0.5rem; background: #161b22; border-radius: 6px; color: #8b949e; font-family: monospace; }}
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0d1117; color: #c9d1d9; font-size: 14px; }
+    #app { display: flex; min-height: 100vh; }
+    .sidebar { width: 240px; background: #161b22; border-right: 1px solid #30363d; padding: 1.2rem 0; flex-shrink: 0; }
+    .sidebar .logo { padding: 0 1.5rem 1rem; border-bottom: 1px solid #30363d; margin-bottom: 0.5rem; font-size: 1.1rem; font-weight: 700; color: #58a6ff; }
+    .sidebar nav a { display: block; padding: 0.6rem 1.5rem; color: #8b949e; text-decoration: none; transition: background 0.15s; }
+    .sidebar nav a:hover, .sidebar nav a.active { background: #1f2937; color: #c9d1d9; }
+    .main { flex: 1; padding: 2rem; }
+    h1 { font-size: 1.5rem; margin-bottom: 1.5rem; color: #c9d1d9; }
+    .cards { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .card { background: #161b22; border-radius: 8px; padding: 1rem 1.2rem; min-width: 160px; border-left: 3px solid #58a6ff; }
+    .card.ok { border-left-color: #3fb950; }
+    .card.warn { border-left-color: #d29922; }
+    .card.err { border-left-color: #f85149; }
+    .card .lbl { font-size: 0.75rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.04em; }
+    .card .val { font-size: 1.5rem; font-weight: 700; margin-top: 0.3rem; }
+    .card .sub { font-size: 0.8rem; color: #6e7681; margin-top: 0.2rem; }
+    .section { margin: 2rem 0; }
+    .section h2 { font-size: 1.1rem; color: #c9d1d9; margin-bottom: 0.8rem; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #21262d; }
+    th { color: #58a6ff; font-size: 0.8rem; text-transform: uppercase; }
+    td { color: #c9d1d9; }
+    code { background: #161b22; padding: 0.15em 0.4em; border-radius: 3px; font-size: 0.85em; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; }
+    .badge.online { background: #23863633; color: #3fb950; }
+    .badge.offline { background: #f8514933; color: #f85149; }
+    .badge.degraded { background: #d2992233; color: #d29922; }
+    .error-box { background: #f8514933; color: #f85149; padding: 0.5rem 1rem; border-radius: 6px; margin-bottom: 1rem; }
+    .topo-svg { display: block; margin: 1rem auto; max-width: 400px; }
+    .legend { display: flex; justify-content: center; gap: 1rem; margin-top: 0.5rem; font-size: 0.8rem; color: #8b949e; }
+    .legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+    #loading { text-align: center; padding: 3rem; color: #6e7681; }
+    .error-detail { margin-top: 1rem; padding: 0.5rem; background: #161b22; border-radius: 6px; color: #8b949e; font-family: monospace; }
   </style>
 </head>
 <body>
@@ -534,35 +533,35 @@ async fn admin_handler() -> Html<String> {
   </div>
 
   <script>
-    (function() {{
+    (function() {
       const main = document.getElementById('main-content');
       const navLinks = document.querySelectorAll('.sidebar nav a');
 
-      async function loadPage(page) {{
+      async function loadPage(page) {
         navLinks.forEach(a => a.classList.remove('active'));
-        navLinks.forEach(a => {{ if (a.dataset.page === page) a.classList.add('active'); }});
+        navLinks.forEach(a => { if (a.dataset.page === page) a.classList.add('active'); });
         main.innerHTML = '<div id="loading"><p>Loading...</p></div>';
-        try {{
+        try {
           if (page === 'dashboard') await renderDashboard();
           else if (page === 'federation') await renderFederation();
           else if (page === 'eval') await renderEval();
-        }} catch(e) {{
+        } catch(e) {
           main.innerHTML = '<div class="error-box">⚠ Error: ' + e.message + '</div>';
-        }}
-      }}
+        }
+      }
 
-      async function api(path) {{
+      async function api(path) {
         const r = await fetch(path);
         if (!r.ok) throw new Error(path + ' returned ' + r.status);
         return r.json();
-      }}
+      }
 
-      function card(label, value, status, subtitle) {{
+      function card(label, value, status, subtitle) {
         return '<div class="card ' + (status||'ok') + '"><div class="lbl">' + label + '</div><div class="val">' + value + '</div>' +
           (subtitle ? '<div class="sub">' + subtitle + '</div>' : '') + '</div>';
-      }}
+      }
 
-      async function renderDashboard() {{
+      async function renderDashboard() {
         let [health, version] = await Promise.all([
           api('/health').catch(() => null),
           api('/version').catch(() => null)
@@ -574,35 +573,35 @@ async fn admin_handler() -> Html<String> {
             card('System Status', status === 'ok' ? 'Healthy' : 'Degraded', status, health ? health.uptime : '—') +
             card('Version', version ? version.version : '—', 'ok') +
           '</div>';
-      }}
+      }
 
-      async function renderFederation() {{
+      async function renderFederation() {
         let [status, nodes] = await Promise.all([
           api('/v1/federation/status').catch(() => null),
           api('/v1/federation/nodes').catch(() => []),
         ]);
         let html = '<h1>🌐 Federation</h1><div class="cards">';
-        if (status) {{
+        if (status) {
           html += card('Status', status.enabled ? 'Enabled' : 'Disabled', status.enabled ? 'ok' : 'warn');
           html += card('Nodes', status.node_count, 'ok');
           html += card('Uptime', status.uptime_secs + 's', 'ok');
-        }} else {{
+        } else {
           html += card('Status', 'Unavailable', 'err');
-        }}
+        }
         html += '</div>';
 
-        if (nodes.length > 0) {{
+        if (nodes.length > 0) {
           const cx = 200, cy = 200, r = 130;
           let svg = '<svg viewBox="0 0 400 400" class="topo-svg">';
-          nodes.forEach((n, i) => {{
+          nodes.forEach((n, i) => {
             const angle = 2 * Math.PI * i / nodes.length;
             const x = cx + r * Math.cos(angle);
             const y = cy + r * Math.sin(angle);
             svg += '<line x1="' + cx + '" y1="' + cy + '" x2="' + x + '" y2="' + y + '" stroke="#30363d" stroke-width="2"/>';
-          }});
+          });
           svg += '<circle cx="' + cx + '" cy="' + cy + '" r="18" fill="#1f6feb"/>';
           svg += '<text x="' + cx + '" y="' + cy + '" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="10" font-weight="bold">hub</text>';
-          nodes.forEach((n, i) => {{
+          nodes.forEach((n, i) => {
             const angle = 2 * Math.PI * i / nodes.length;
             const x = cx + r * Math.cos(angle);
             const y = cy + r * Math.sin(angle);
@@ -610,7 +609,7 @@ async fn admin_handler() -> Html<String> {
             svg += '<circle cx="' + x + '" cy="' + y + '" r="16" fill="' + fill + '"/>';
             svg += '<text x="' + x + '" y="' + y + '" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="8" font-weight="bold">' +
               n.name.substring(0, 4) + '</text>';
-          }});
+          });
           svg += '</svg>';
           svg += '<div class="legend"><span><span class="dot" style="background:#238636"></span> Online</span>' +
             '<span><span class="dot" style="background:#d29922"></span> Degraded</span>' +
@@ -618,20 +617,20 @@ async fn admin_handler() -> Html<String> {
           html += '<div class="section"><h2>📋 Peer Nodes</h2>' + svg + '</div>';
 
           html += '<table><thead><tr><th>Name</th><th>Address</th><th>Status</th><th>Capabilities</th></tr></thead><tbody>';
-          nodes.forEach(n => {{
+          nodes.forEach(n => {
             html += '<tr><td>' + n.name + '</td><td><code>' + n.addr + '</code></td>' +
               '<td><span class="badge ' + n.status + '">' + n.status + '</span></td>' +
               '<td>' + (n.capabilities || []).join(', ') + '</td></tr>';
-          }});
+          });
           html += '</tbody></table>';
-        }}
+        }
         main.innerHTML = html;
-      }}
+      }
 
-      async function renderEval() {{
+      async function renderEval() {
         let result = await api('/v1/eval/result').catch(() => null);
         let html = '<h1>📋 Evaluation Reports</h1>';
-        if (result) {{
+        if (result) {
           const st = (result.status === 'passed' || result.status === 'success') ? 'ok' : result.status === 'failed' ? 'err' : 'warn';
           html += '<div class="cards">' +
             card('Score', result.score.toFixed(2), st) +
@@ -639,28 +638,27 @@ async fn admin_handler() -> Html<String> {
             card('Eval ID', result.id, 'ok') +
             card('Timestamp', result.timestamp, 'ok') +
           '</div>';
-          if (result.metrics && Object.keys(result.metrics).length > 0) {{
+          if (result.metrics && Object.keys(result.metrics).length > 0) {
             html += '<div class="section"><h2>📈 Metrics</h2><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>';
-            for (const [k, v] of Object.entries(result.metrics)) {{
+            for (const [k, v] of Object.entries(result.metrics)) {
               html += '<tr><td>' + k + '</td><td style="font-family:monospace;color:#3fb950">' + v.toFixed(4) + '</td></tr>';
-            }}
+            }
             html += '</tbody></table></div>';
-          }}
-        }} else {{
+          }
+        } else {
           html += '<p style="color:#8b949e;">No evaluation results available yet.</p>';
-        }}
+        }
         main.innerHTML = html;
-      }}
+      }
 
-      navLinks.forEach(a => {{
-        a.addEventListener('click', function(e) {{ e.preventDefault(); loadPage(this.dataset.page); }});
-      }});
+      navLinks.forEach(a => {
+        a.addEventListener('click', function(e) { e.preventDefault(); loadPage(this.dataset.page); });
+      });
       loadPage('dashboard');
-    }})();
+    })();
   </script>
 </body>
-</html>"##
-    ))
+</html>"##.to_string())
 }
 // ── Webhook Handlers ──────────────────────────────────────
 
@@ -975,40 +973,39 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 
 /// 登录页面 (GET).
 async fn login_page_handler() -> Html<String> {
-    Html(format!(
-        r##"<!DOCTYPE html>
+    Html(r##"<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lingshu Login</title>
   <style>
-    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-    body {{
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: #0d1117; color: #c9d1d9; display: flex;
       align-items: center; justify-content: center; min-height: 100vh;
-    }}
-    .login-box {{
+    }
+    .login-box {
       background: #161b22; border: 1px solid #30363d; border-radius: 8px;
       padding: 2.5rem 2rem; width: 360px;
-    }}
-    .login-box h1 {{ font-size: 1.3rem; margin-bottom: 0.3rem; color: #58a6ff; }}
-    .login-box p {{ font-size: 0.85rem; color: #8b949e; margin-bottom: 1.5rem; }}
-    .login-box label {{ display: block; font-size: 0.8rem; color: #8b949e; margin-bottom: 0.3rem; }}
-    .login-box input {{
+    }
+    .login-box h1 { font-size: 1.3rem; margin-bottom: 0.3rem; color: #58a6ff; }
+    .login-box p { font-size: 0.85rem; color: #8b949e; margin-bottom: 1.5rem; }
+    .login-box label { display: block; font-size: 0.8rem; color: #8b949e; margin-bottom: 0.3rem; }
+    .login-box input {
       width: 100%; padding: 0.6rem 0.8rem; margin-bottom: 1rem;
       background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
       color: #c9d1d9; font-size: 0.9rem; outline: none;
-    }}
-    .login-box input:focus {{ border-color: #58a6ff; }}
-    .login-box button {{
+    }
+    .login-box input:focus { border-color: #58a6ff; }
+    .login-box button {
       width: 100%; padding: 0.6rem; background: #238636; color: #fff;
       border: none; border-radius: 6px; font-size: 0.9rem; cursor: pointer;
-    }}
-    .login-box button:hover {{ background: #2ea043; }}
-    .error {{ color: #f85149; font-size: 0.85rem; margin-bottom: 0.8rem; display: none; }}
-    .login-box .hint {{ font-size: 0.75rem; color: #6e7681; margin-top: 1rem; text-align: center; }}
+    }
+    .login-box button:hover { background: #2ea043; }
+    .error { color: #f85149; font-size: 0.85rem; margin-bottom: 0.8rem; display: none; }
+    .login-box .hint { font-size: 0.75rem; color: #6e7681; margin-top: 1rem; text-align: center; }
   </style>
 </head>
 <body>
@@ -1026,33 +1023,32 @@ async fn login_page_handler() -> Html<String> {
     <div class="hint">默认凭证: admin / admin</div>
   </div>
   <script>
-    document.getElementById('login-form').addEventListener('submit', async function(e) {{
+    document.getElementById('login-form').addEventListener('submit', async function(e) {
       e.preventDefault();
       const errEl = document.getElementById('error-msg');
       const username = document.getElementById('username').value;
       const password = document.getElementById('password').value;
-      try {{
-        const res = await fetch('/login', {{
+      try {
+        const res = await fetch('/login', {
           method: 'POST',
-          headers: {{ 'Content-Type': 'application/json' }},
-          body: JSON.stringify({{ username, password }})
-        }});
-        if (res.ok) {{
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        if (res.ok) {
           window.location.href = '/admin';
-        }} else {{
+        } else {
           const data = await res.json();
           errEl.textContent = data.message || '登录失败';
           errEl.style.display = 'block';
-        }}
-      }} catch(e) {{
+        }
+      } catch(e) {
         errEl.textContent = '网络错误: ' + e.message;
         errEl.style.display = 'block';
-      }}
-    }});
+      }
+    });
   </script>
 </body>
-</html>"##
-    ))
+</html>"##.to_string())
 }
 
 #[derive(Deserialize)]
@@ -2148,8 +2144,7 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
     let _ = socket
         .send(ws::Message::Text(
             json!({"type": "connected", "session_id": session_id_str.clone()})
-                .to_string()
-                .into(),
+                .to_string(),
         ))
         .await;
 
@@ -2171,8 +2166,7 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
             let _ = socket
                 .send(ws::Message::Text(
                     json!({"type": "error", "message": "empty prompt"})
-                        .to_string()
-                        .into(),
+                        .to_string(),
                 ))
                 .await;
             continue;
@@ -2242,8 +2236,7 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
                                                 "type": "chunk",
                                                 "content": content,
                                             })
-                                            .to_string()
-                                            .into(),
+                                            .to_string(),
                                         ))
                                         .await;
                                 }
@@ -2262,12 +2255,12 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
                                             "completion_tokens": completion_tokens,
                                             "total_tokens": prompt_tokens + completion_tokens,
                                         }
-                                    }).to_string().into())).await;
+                                    }).to_string())).await;
                                 }
                             }
                             Err(e) => {
                                 let _ = socket.send(ws::Message::Text(
-                                    json!({"type": "error", "message": format!("stream error: {e}")}).to_string().into()
+                                    json!({"type": "error", "message": format!("stream error: {e}")}).to_string()
                                 )).await;
                             }
                         }
@@ -2289,8 +2282,7 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
                                         "total_tokens": prompt_tokens + completion_tokens,
                                     }
                                 })
-                                .to_string()
-                                .into(),
+                                .to_string(),
                             ))
                             .await;
                     }
@@ -2299,8 +2291,7 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
                     let _ = socket
                         .send(ws::Message::Text(
                             json!({"type": "error", "message": format!("{e}")})
-                                .to_string()
-                                .into(),
+                                .to_string(),
                         ))
                         .await;
                 }
@@ -2309,8 +2300,7 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
             let _ = socket
                 .send(ws::Message::Text(
                     json!({"type": "error", "message": "no LLM configured"})
-                        .to_string()
-                        .into(),
+                        .to_string(),
                 ))
                 .await;
         }
@@ -2415,8 +2405,7 @@ async fn v2_handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
     let _ = socket
         .send(ws::Message::Text(
             json!({"type": "connected", "session_id": sid_str.clone()})
-                .to_string()
-                .into(),
+                .to_string(),
         ))
         .await;
 
@@ -2432,7 +2421,7 @@ async fn v2_handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
             maybe_msg = rx.recv() => {
                 match maybe_msg {
                     Some(msg) => {
-                        if socket.send(ws::Message::Text(msg.into())).await.is_err() {
+                        if socket.send(ws::Message::Text(msg)).await.is_err() {
                             break;
                         }
                     }
@@ -2458,7 +2447,7 @@ async fn v2_handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
                         ClientMessage::Cancel => {
                             conn_manager.update_state(&sid_str, ConnectionState::Cancelling).await;
                             let _ = socket.send(ws::Message::Text(
-                                json!({"type": "cancelled"}).to_string().into(),
+                                json!({"type": "cancelled"}).to_string(),
                             )).await;
                             continue;
                         }
@@ -2478,7 +2467,7 @@ async fn v2_handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
 
                 if prompt.is_empty() {
                     let _ = socket.send(ws::Message::Text(
-                        json!({"type": "error", "message": "empty prompt"}).to_string().into(),
+                        json!({"type": "error", "message": "empty prompt"}).to_string(),
                     )).await;
                     continue;
                 }
@@ -2545,7 +2534,7 @@ async fn v2_handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
                                             streaming_content.push_str(content);
                                             completion_tokens += 1;
                                             let _ = socket.send(ws::Message::Text(
-                                                json!({"type": "chunk", "content": content}).to_string().into(),
+                                                json!({"type": "chunk", "content": content}).to_string(),
                                             )).await;
                                         }
                                         if let Some(reason) = &chunk.finish_reason {
@@ -2561,12 +2550,12 @@ async fn v2_handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
                                                     "completion_tokens": completion_tokens,
                                                     "total_tokens": completion_tokens,
                                                 }
-                                            }).to_string().into())).await;
+                                            }).to_string())).await;
                                         }
                                     }
                                     Err(e) => {
                                         let _ = socket.send(ws::Message::Text(
-                                            json!({"type": "error", "message": format!("stream error: {e}")}).to_string().into()
+                                            json!({"type": "error", "message": format!("stream error: {e}")}).to_string()
                                         )).await;
                                     }
                                 }
@@ -2575,13 +2564,13 @@ async fn v2_handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
                         }
                         Err(e) => {
                             let _ = socket.send(ws::Message::Text(
-                                json!({"type": "error", "message": format!("{e}")}).to_string().into(),
+                                json!({"type": "error", "message": format!("{e}")}).to_string(),
                             )).await;
                         }
                     }
                 } else {
                     let _ = socket.send(ws::Message::Text(
-                        json!({"type": "error", "message": "no LLM configured"}).to_string().into(),
+                        json!({"type": "error", "message": "no LLM configured"}).to_string(),
                     )).await;
                 }
             }
@@ -3736,7 +3725,7 @@ async fn graph_view_handler(
     let graph = cache.get(&project).ok_or_else(|| {
         (
             StatusCode::NOT_FOUND,
-            format!("Project ':project' not found"),
+            "Project ':project' not found".to_string(),
         )
     })?;
 
@@ -4212,7 +4201,7 @@ async fn credential_token_handler(
 ) -> Result<Json<lingshu_credentials::CredentialEntry>, (StatusCode, String)> {
     match state.credential_manager.get_token(&id) {
         Ok(Some(entry)) => Ok(Json(entry)),
-        Ok(None) => Err((StatusCode::NOT_FOUND, format!("credential not found: :id"))),
+        Ok(None) => Err((StatusCode::NOT_FOUND, "credential not found: :id".to_string())),
         Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
     }
 }

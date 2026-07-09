@@ -86,7 +86,7 @@ impl WeChatChannel {
     /// 微信服务器会发送 GET 请求，包含 `signature`、`timestamp`、`nonce`、`echostr`。
     /// 需要将 token、timestamp、nonce 排序后 SHA1 加密，与 signature 比对。
     pub fn verify_signature(&self, signature: &str, timestamp: &str, nonce: &str) -> bool {
-        let mut parts = vec![self.token.as_str(), timestamp, nonce];
+        let mut parts = [self.token.as_str(), timestamp, nonce];
         parts.sort_unstable();
         let joined = parts.concat();
         let hash = {
@@ -401,7 +401,7 @@ mod tests {
     fn test_signature_verification() {
         let channel = WeChatChannel::new("appid", "secret", "test_token");
         // 模拟微信签名验证
-        let mut parts = vec!["test_token", "1234567890", "nonce123"];
+        let mut parts = ["test_token", "1234567890", "nonce123"];
         parts.sort_unstable();
         let joined = parts.concat();
         let mut hasher = Sha1::new();

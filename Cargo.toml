@@ -5,6 +5,7 @@ members = [
     "plugins/watch-plugin",
     "plugins/code-sandbox-plugin",
     "plugins/rag-plugin",
+    "plugins/web-search-plugin",
     "tests",
     "app",
     "core",
@@ -36,6 +37,7 @@ members = [
     "circuit-breaker",
     "benches",
     "channel",
+    "desktop",
 ]
 [workspace.package]
 version = "3.0.0"

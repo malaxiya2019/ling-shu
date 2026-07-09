@@ -126,7 +126,7 @@ async fn test_chidori_max_snapshots() {
 /// 测试 CheckpointRecovery 策略创建
 #[test]
 fn test_checkpoint_recovery_strategy() {
-    let strategy = CheckpointRecovery::new("agent-1");
+    let _strategy = CheckpointRecovery::new("agent-1");
     // 仅在 chidori feature 开启时有字段
     #[cfg(feature = "chidori")]
     {

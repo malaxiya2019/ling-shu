@@ -163,7 +163,7 @@ impl CodeSandboxPlugin {
 
     /// 安全检查 — 禁止危险操作.
     fn check_safety(&self, language: &str, code: &str) -> Option<String> {
-        if !self.allowed_languages.iter().any(|l| l == &language) {
+        if !self.allowed_languages.iter().any(|l| l == language) {
             return Some(format!("language '{}' not in allowed list", language));
         }
 

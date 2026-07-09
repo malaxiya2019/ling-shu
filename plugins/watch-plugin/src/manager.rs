@@ -172,14 +172,11 @@ impl WatchManager {
 
             for _ in 0..5 {
                 tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-                match child.try_wait() {
-                    Ok(Some(exit)) => {
-                        info!(code = %exit, "watch-skill process exited");
-                        *child_lock = None;
-                        *status = WatchStatus::Stopped;
-                        return Ok(());
-                    }
-                    _ => {}
+                if let Ok(Some(exit)) = child.try_wait() {
+                    info!(code = %exit, "watch-skill process exited");
+                    *child_lock = None;
+                    *status = WatchStatus::Stopped;
+                    return Ok(());
                 }
             }
 

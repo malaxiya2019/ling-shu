@@ -20,17 +20,14 @@ pub struct Organization {
 
 /// 组织状态.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Default)]
 pub enum OrgStatus {
+    #[default]
     Active,
     Suspended,
     Disabled,
 }
 
-impl Default for OrgStatus {
-    fn default() -> Self {
-        Self::Active
-    }
-}
 
 /// 组织设置.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,17 +68,14 @@ pub struct Project {
 
 /// 项目状态.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Default)]
 pub enum ProjectStatus {
+    #[default]
     Active,
     Archived,
     Frozen,
 }
 
-impl Default for ProjectStatus {
-    fn default() -> Self {
-        Self::Active
-    }
-}
 
 /// 项目设置.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -121,9 +115,11 @@ pub struct TenantUser {
 
 /// 租户角色.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Default)]
 pub enum TenantRole {
     Owner,
     Admin,
+    #[default]
     Member,
     Viewer,
 }
@@ -152,25 +148,17 @@ impl TenantRole {
     }
 }
 
-impl Default for TenantRole {
-    fn default() -> Self {
-        Self::Member
-    }
-}
 
 /// 用户状态.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Default)]
 pub enum UserStatus {
+    #[default]
     Active,
     Invited,
     Disabled,
 }
 
-impl Default for UserStatus {
-    fn default() -> Self {
-        Self::Active
-    }
-}
 
 /// 创建组织请求.
 #[derive(Debug, Clone, Serialize, Deserialize)]

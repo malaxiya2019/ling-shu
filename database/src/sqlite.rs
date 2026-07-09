@@ -73,6 +73,7 @@ impl SqliteDatabase {
             ("002", include_str!("migrations/002_graph_cache.sql")),
             ("003", include_str!("migrations/003_audit.sql")),
             ("004", include_str!("migrations/004_billing.sql")),
+            ("005", include_str!("migrations/005_checkpoint.sql")),
         ];
 
         for (version, sql) in migrations {

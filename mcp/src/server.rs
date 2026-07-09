@@ -641,10 +641,10 @@ mod tests {
         }
 
         fn validate(&self, input: &Value) -> LsResult<()> {
-            if !input.get("a").and_then(|v| v.as_f64()).is_some() {
+            if input.get("a").and_then(|v| v.as_f64()).is_none() {
                 return Err(LsError::Validation("missing a".into()));
             }
-            if !input.get("b").and_then(|v| v.as_f64()).is_some() {
+            if input.get("b").and_then(|v| v.as_f64()).is_none() {
                 return Err(LsError::Validation("missing b".into()));
             }
             Ok(())

@@ -8,7 +8,7 @@ pub fn security() -> Html {
     let lang = crate::i18n::use_lang();
     let _strings = lang.strings();
     let status = use_state(|| None::<BeefStatusResponse>);
-    let hooks = use_state(|| Vec::<BeefHookedBrowser>::new());
+    let hooks = use_state(Vec::<BeefHookedBrowser>::new);
     let error = use_state(String::new);
     let success = use_state(String::new);
     let loading = use_state(|| false);
@@ -24,10 +24,7 @@ pub fn security() -> Html {
                     Ok(s) => status.set(Some(s)),
                     Err(e) => error.set(e),
                 }
-                match client::beef_hooks().await {
-                    Ok(h) => hooks.set(h.browsers),
-                    Err(_) => {}
-                }
+                if let Ok(h) = client::beef_hooks().await { hooks.set(h.browsers) }
             });
             || ()
         });
@@ -161,7 +158,7 @@ pub fn security() -> Html {
                     </div>
                     <div class="beef-detail-row">
                         <span class="detail-label">{"Uptime"}</span>
-                        <span class="detail-value">{ status.as_ref().and_then(|s| s.uptime_secs).map(|u| format_uptime(u)).unwrap_or_else(|| "—".into()) }</span>
+                        <span class="detail-value">{ status.as_ref().and_then(|s| s.uptime_secs).map(format_uptime).unwrap_or_else(|| "—".into()) }</span>
                     </div>
                 </div>
                 <div class="beef-actions">

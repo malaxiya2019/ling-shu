@@ -46,6 +46,12 @@ pub struct MemoryStateBackend {
     data: Arc<RwLock<HashMap<String, HashMap<String, (Value, u64)>>>>,
 }
 
+impl Default for MemoryStateBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MemoryStateBackend {
     pub fn new() -> Self {
         Self {
@@ -128,16 +134,10 @@ impl StateReplicator {
             let version = self
                 .backend
                 .get(namespace, key)
-                .await
-                .and_then(|_| {
-                    // 从后端获取版本（简化：使用时间戳）
-                    Some(
-                        std::time::SystemTime::now()
+                .await.map(|_| std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
                             .unwrap()
-                            .as_secs(),
-                    )
-                })
+                            .as_secs())
                 .unwrap_or(0);
 
             let payload = StateReplicatePayload {

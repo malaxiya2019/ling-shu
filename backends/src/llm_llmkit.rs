@@ -113,7 +113,7 @@ impl Llm for LlmkitLlm {
             req = req.with_system(sys);
         }
         if let Some(max_tokens) = request.max_tokens {
-            req = req.with_max_tokens(max_tokens as u32);
+            req = req.with_max_tokens(max_tokens);
         }
         if let Some(temp) = request.temperature {
             req = req.with_temperature(temp as f32);

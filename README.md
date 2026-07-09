@@ -91,7 +91,7 @@ docker run -p 8080:8080 -e OPENAI_API_KEY=sk-... ghcr.io/malaxiya2019/ling-shu
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-## Workspace Structure (28 Crates)
+## Workspace Structure (44 Crates)
 
 | Crate | Version | Description |
 |-------|---------|-------------|
@@ -123,6 +123,14 @@ docker run -p 8080:8080 -e OPENAI_API_KEY=sk-... ghcr.io/malaxiya2019/ling-shu
 | `evaluator` | v2.6 | Agent evaluation framework + regression detection |
 | `federation` | v2.7 | Cross-cluster federation communication |
 | `webui` | v2.7 | Rust WASM admin panel (Yew CSR) |
+| `channel` | v3.4 | Messaging channels: Telegram, Feishu, QQ, WeChat |
+| `tee` | v3.3 | TEE (SGX/TDX) secure enclave integration |
+| `vault` | v3.3 | Encrypted secrets vault (AES-256-GCM) |
+| `tenant` | v3.3 | Multi-tenant isolation and resource quotas |
+| `llm-router` | v3.4 | Smart LLM provider routing (latency/cost/fallback) |
+| `cache` | v3.4 | Multi-layer cache (memory + disk + Redis) |
+| `circuit-breaker` | v3.4 | Circuit breaker for external service resilience |
+| `benches` | v3.4 | Criterion benchmarks for key crates |
 
 ## Quick Start
 
@@ -159,6 +167,12 @@ cd ling-shu
 
 # 仅检查环境
 ./start.sh --check-env
+
+# 国内网络优化（跳过境外站点检测，使用国内镜像）
+./start.sh --china
+
+# 集成 OpenClaw MCP 通道网关（需要 Node.js）
+./start.sh --with-openclaw
 ```
 
 ### 🔧 手工构建（跳过脚本）
@@ -210,6 +224,9 @@ cp .env.example .env
 | `LINGSHU_TELEGRAM_BOT_TOKEN` | — | Telegram Bot Token (可选) |
 | `LINGSHU_FEISHU_APP_ID` | — | 飞书应用 ID (可选) |
 | `LINGSHU_QQ_APP_ID` | — | QQ 机器人 ID (可选) |
+| `LINGSHU_WECHAT_APP_ID` | — | 微信公众号 App ID (可选) |
+| `LINGSHU_WECHAT_APP_SECRET` | — | 微信公众号 App Secret (可选) |
+| `LINGSHU_WECHAT_TOKEN` | — | 微信公众号服务器 Token (可选) |
 
 > 📖 完整变量列表见 [.env.example](.env.example)（115 行，含中文注释）
 
@@ -248,6 +265,9 @@ cp .env.example .env
 - **Agent Evaluation**: Built-in evaluation framework with test suites, metrics, and regression detection
 - **Federation**: Cross-cluster agent execution with discovery, heartbeats, and state replication
 - **Admin UI**: WASM-based management panel (Yew) + server-rendered fallback
+- **Multi-Channel**: Native Telegram / 飞书 / QQ / 微信 (公众号) integration
+- **OpenClaw Compatible**: MCP bridge for OpenClaw ecosystem channels
+- **Edge-Optimized**: Termux (Android) support, China network mode (`--china`), low-memory operation
 
 ## Docker
 
@@ -317,3 +337,30 @@ cargo fmt
 ## License
 
 MIT OR Apache-2.0
+
+## 🖥️ Desktop App (Tauri)
+
+Lingshu 可以作为跨平台桌面应用运行（由 Tauri 提供支持）。
+
+```bash
+# 安装 Tauri CLI
+cargo install tauri-cli
+
+# 构建桌面应用
+cd desktop
+cargo tauri build
+
+# 开发模式
+cargo tauri dev
+```
+
+> **系统要求**: Linux 需要 `libwebkit2gtk-4.1-dev`, macOS 需要 Xcode, Windows 需要 WebView2。
+> 桌面端构建需在桌面操作系统上进行（不支持 Termux）。
+
+### 桌面端特性
+
+- 🪟 原生窗口体验 (Linux/macOS/Windows)
+- 🔔 系统通知 (新消息提醒)
+- 📋 剪贴板集成
+- 🗂️ 文件对话框 (上传/下载)
+- ⚡ 系统托盘 (后台运行)

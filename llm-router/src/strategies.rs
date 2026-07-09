@@ -26,6 +26,12 @@ pub trait RouterStrategy {
 /// 按选择第一个可用后端。实际优先级排序在注册时由条目顺序管理。
 pub struct PriorityStrategy;
 
+impl Default for PriorityStrategy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PriorityStrategy {
     pub fn new() -> Self {
         Self
@@ -43,6 +49,12 @@ impl RouterStrategy for PriorityStrategy {
 
 /// 降级策略 — 如同 Priority，但记录降级事件.
 pub struct FallbackStrategy;
+
+impl Default for FallbackStrategy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl FallbackStrategy {
     pub fn new() -> Self {
@@ -75,6 +87,12 @@ impl RouterStrategy for FallbackStrategy {
 /// 延迟策略 — 选择平均延迟最低的后端.
 pub struct LatencyStrategy;
 
+impl Default for LatencyStrategy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LatencyStrategy {
     pub fn new() -> Self {
         Self
@@ -104,6 +122,12 @@ impl RouterStrategy for LatencyStrategy {
 
 /// 成本策略 — 选择每次请求成本最低的后端.
 pub struct CostStrategy;
+
+impl Default for CostStrategy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl CostStrategy {
     pub fn new() -> Self {
@@ -135,6 +159,12 @@ impl RouterStrategy for CostStrategy {
 /// 轮询策略 — 循环选择后端.
 pub struct RoundRobinStrategy {
     counter: AtomicUsize,
+}
+
+impl Default for RoundRobinStrategy {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl RoundRobinStrategy {
