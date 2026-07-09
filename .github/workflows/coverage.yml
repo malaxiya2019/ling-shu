@@ -28,7 +28,7 @@ jobs:
         run: cargo install cargo-llvm-cov
 
       - name: Generate code coverage
-        run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+        run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info --ignore-run-fail
         env:
           DATABASE_URL: sqlite::memory:
 

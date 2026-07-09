@@ -98,19 +98,25 @@ cd "$SCRIPT_DIR"
 if $CHINA; then
     info "🌐 中国网络模式已启用"
     info "   跳过国外站点连通性检测，使用国内镜像源"
+    # 自动配置 Rust 国内镜像
     if [[ ! -f "$HOME/.cargo/config.toml" ]] || ! grep -q "mirrors.ustc.edu.cn" "$HOME/.cargo/config.toml" 2>/dev/null; then
-        cat << MIRROR_EOF
+        info "   自动配置 Rust 国内镜像加速 (USTC)..."
+        mkdir -p "$HOME/.cargo"
+        cat > "$HOME/.cargo/config.toml" << MIRROREOF
+[source.crates-io]
+replace-with = "ustc"
 
-  ⚡ 建议配置 Rust 国内镜像加速:
+[source.ustc]
+registry = "sparse+https://mirrors.ustc.edu.cn/crates.io-index/"
+MIRROREOF
+        info "   ✅ Rust 国内镜像配置完成 (~/.cargo/config.toml)"
+    else
+        info "   ✅ Rust 国内镜像已配置"
+    fi
 
-  mkdir -p ~/.cargo && cat > ~/.cargo/config.toml << EOF
-  [source.crates-io]
-  replace-with = "ustc"
-
-  [source.ustc]
-  registry = "sparse+https://mirrors.ustc.edu.cn/crates.io-index/"
-  EOF
-MIRROR_EOF
+    # 设置 git 国内镜像（如果有 gitee remote）
+    if git remote get-url gitee &>/dev/null; then
+        info "   检测到 Gitee 远程仓库，使用 Gitee 加速"
     fi
 fi
 
