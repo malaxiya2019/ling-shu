@@ -170,6 +170,144 @@ fn urlencoding(s: &str) -> String {
         .collect()
 }
 
+
+// ===========================================================================
+// Bing 搜索引擎
+// ===========================================================================
+
+/// Bing Search API 客户端 (需要 API Key).
+struct BingSearchClient {
+    client: reqwest::Client,
+    api_key: String,
+}
+
+impl BingSearchClient {
+    fn new(api_key: String) -> Self {
+        Self {
+            client: reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(15))
+                .user_agent("Lingshu/1.0 (Agent Search)")
+                .build()
+                .unwrap_or_default(),
+            api_key,
+        }
+    }
+}
+
+#[async_trait]
+impl SearchEngineClient for BingSearchClient {
+    async fn search(&self, query: &str, max_results: usize) -> Result<Vec<SearchResult>, String> {
+        let url = format!(
+            "https://api.bing.microsoft.com/v7.0/search?q={}&count={}&mkt=zh-CN",
+            urlencoding(query),
+            max_results.min(50)
+        );
+
+        let resp = self
+            .client
+            .get(&url)
+            .header("Ocp-Apim-Subscription-Key", &self.api_key)
+            .send()
+            .await
+            .map_err(|e| format!("Bing request failed: {e}"))?;
+
+        let status = resp.status();
+        if !status.is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(format!("Bing API error ({}): {}", status, body));
+        }
+
+        let data: serde_json::Value = resp
+            .json()
+            .await
+            .map_err(|e| format!("Bing response parse failed: {e}"))?;
+
+        let mut results = Vec::new();
+        if let Some(web_pages) = data["webPages"]["value"].as_array() {
+            for item in web_pages.iter().take(max_results) {
+                results.push(SearchResult {
+                    title: item["name"].as_str().unwrap_or("").to_string(),
+                    url: item["url"].as_str().unwrap_or("").to_string(),
+                    snippet: item["snippet"].as_str().unwrap_or("").to_string(),
+                    engine: "bing".into(),
+                });
+            }
+        }
+
+        Ok(results)
+    }
+}
+
+// ===========================================================================
+// Google 搜索引擎
+// ===========================================================================
+
+/// Google Custom Search API 客户端 (需要 API Key + CSE ID).
+struct GoogleSearchClient {
+    client: reqwest::Client,
+    api_key: String,
+    cse_id: String,
+}
+
+impl GoogleSearchClient {
+    fn new(api_key: String, cse_id: String) -> Self {
+        Self {
+            client: reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(15))
+                .user_agent("Lingshu/1.0 (Agent Search)")
+                .build()
+                .unwrap_or_default(),
+            api_key,
+            cse_id,
+        }
+    }
+}
+
+#[async_trait]
+impl SearchEngineClient for GoogleSearchClient {
+    async fn search(&self, query: &str, max_results: usize) -> Result<Vec<SearchResult>, String> {
+        let url = format!(
+            "https://www.googleapis.com/customsearch/v1?key={}&cx={}&q={}&num={}",
+            self.api_key,
+            self.cse_id,
+            urlencoding(query),
+            max_results.min(10).max(1)
+        );
+
+        let resp = self
+            .client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| format!("Google request failed: {e}"))?;
+
+        let status = resp.status();
+        if !status.is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(format!("Google API error ({}): {}", status, body));
+        }
+
+        let data: serde_json::Value = resp
+            .json()
+            .await
+            .map_err(|e| format!("Google response parse failed: {e}"))?;
+
+        let mut results = Vec::new();
+        if let Some(items) = data["items"].as_array() {
+            for item in items.iter().take(max_results) {
+                results.push(SearchResult {
+                    title: item["title"].as_str().unwrap_or("").to_string(),
+                    url: item["link"].as_str().unwrap_or("").to_string(),
+                    snippet: item["snippet"].as_str().unwrap_or("").to_string(),
+                    engine: "google".into(),
+                });
+            }
+        }
+
+        Ok(results)
+    }
+}
+
 // ===========================================================================
 // 插件实现
 // ===========================================================================
@@ -194,6 +332,18 @@ impl WebSearchPlugin {
 
         let engine: Box<dyn SearchEngineClient> = match engine_name.as_str() {
             "duckduckgo" => Box::new(DuckDuckGoClient::new()),
+            "bing" => {
+                let api_key = std::env::var("LINGSHU_BING_API_KEY")
+                    .expect("LINGSHU_BING_API_KEY 环境变量未设置。请设置 Bing Search API Key。");
+                Box::new(BingSearchClient::new(api_key))
+            }
+            "google" => {
+                let api_key = std::env::var("LINGSHU_GOOGLE_API_KEY")
+                    .expect("LINGSHU_GOOGLE_API_KEY 环境变量未设置。请设置 Google Custom Search API Key。");
+                let cse_id = std::env::var("LINGSHU_GOOGLE_CSE_ID")
+                    .expect("LINGSHU_GOOGLE_CSE_ID 环境变量未设置。请设置 Google Custom Search Engine ID。");
+                Box::new(GoogleSearchClient::new(api_key, cse_id))
+            }
             other => {
                 tracing::warn!(engine = other, "未知搜索引擎，回退到 DuckDuckGo");
                 Box::new(DuckDuckGoClient::new())

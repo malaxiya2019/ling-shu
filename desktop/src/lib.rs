@@ -3,7 +3,7 @@
 //! 将 Lingshu Agent 系统打包为跨平台桌面应用。
 //! 支持: Linux / macOS / Windows
 
-use lingshu_core::LsResult;
+
 
 /// 初始化 Lingshu 运行时并返回 Tauri 构建器.
 #[tauri::command]

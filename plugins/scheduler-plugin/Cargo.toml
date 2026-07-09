@@ -1,0 +1,23 @@
+[package]
+name = "lingshu-scheduler"
+version = "1.0.0"
+edition.workspace = true
+description = "Scheduler Plugin — 定时任务插件 (cron/间隔/一次性)"
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+lingshu-core = { path = "../../core" }
+lingshu-traits = { path = "../../traits" }
+
+async-trait.workspace = true
+tokio = { workspace = true, features = ["process", "time", "sync"] }
+tracing.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+
+# cron 表达式解析
+cron = "0.15"

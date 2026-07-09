@@ -6,6 +6,7 @@ members = [
     "plugins/code-sandbox-plugin",
     "plugins/rag-plugin",
     "plugins/web-search-plugin",
+    "plugins/scheduler-plugin",
     "tests",
     "app",
     "core",
