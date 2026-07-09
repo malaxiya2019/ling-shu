@@ -1,44 +1,25 @@
-# Summary
+# 目录
 
-[Overview](overview.md)
-[Quick Start](quick-start.md)
-[Architecture](architecture.md)
+[简介](README.md)
 
----
-
-# User Guide
-
-- [Configuration](configuration.md)
-- [API Reference](api-reference.md)
-- [LLM Providers](llm-providers.md)
-- [Memory System](memory.md)
-- [Plugins](plugins.md)
-- [Federation](federation.md)
-- [Evaluation](evaluation.md)
-
-# Developer Guide
-
-- [Architecture Deep Dive](architecture-deep-dive.md)
-- [Crate Reference](crate-reference.md)
-- [Building from Source](building.md)
-- [Testing](testing.md)
-- [Contributing](contributing.md)
-
-# Deployment
-
-- [Docker](deployment/docker.md)
-- [Kubernetes (Helm)](deployment/kubernetes.md)
-- [Configuration Reference](deployment/config-reference.md)
-- [Monitoring](deployment/monitoring.md)
-
-# SDK & Integrations
-
-- [Python SDK](sdk/python.md)
-- [TypeScript SDK](sdk/typescript.md)
-- [WASM Plugin SDK](sdk/wasm.md)
-- [Plugin Marketplace](sdk/marketplace.md)
-
----
-
-[Changelog](changelog.md)
-[License](license.md)
+- [快速开始](getting-started.md)
+- [架构概览](architecture.md)
+- [配置指南](configuration.md)
+  - [环境变量](env-vars.md)
+  - [通道配置](channels.md)
+  - [LLM 后端](llm-backends.md)
+- [插件系统](plugins.md)
+  - [内置插件](builtin-plugins.md)
+  - [插件开发](plugin-dev.md)
+- [API 参考](api.md)
+  - [REST API](rest-api.md)
+  - [WebSocket](websocket.md)
+  - [gRPC](grpc.md)
+- [部署指南](deployment.md)
+  - [Docker 部署](docker-deploy.md)
+  - [Termux 部署](termux-deploy.md)
+  - [TEE 部署](tee-deploy.md)
+- [开发指南](development.md)
+  - [Workspace 结构](workspace.md)
+  - [贡献指南](contributing.md)
+- [发布历史](changelog.md)

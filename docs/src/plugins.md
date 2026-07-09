@@ -1,26 +1,18 @@
-# Plugins
+# 插件系统
 
-LingShu supports two types of plugins:
+Lingshu 支持 **静态插件** 和 **WASM 热加载插件** 两种模式。
 
-## Native Plugins
-- Shared libraries (.so/.dylib/.dll)
-- High performance
-- Direct access to system APIs
+## 内置插件
 
-## WASM Plugins
-- WebAssembly sandbox execution
-- Platform independent
-- Isolated from host system
-- Resource limited
+| 插件 | 类型 | 功能 |
+|------|------|------|
+| web-search | 静态 | DuckDuckGo/Bing/Google 搜索 |
+| scheduler | 静态 | cron/间隔/一次性任务调度 |
+| rag | 静态 | 简易 RAG (零外部依赖) |
+| code-sandbox | 静态 | 安全代码执行 |
+| beef | 静态 | Beef 协议集成 |
+| watch | 静态 | 文件系统监听 |
 
-## Plugin Lifecycle
+## 插件开发
 
-1. **Discovery**: Scan plugin directories
-2. **Load**: Load metadata from `plugin.json`
-3. **Initialize**: Call `plugin_init()` (native) or load WASM module
-4. **Execute**: Handle incoming requests
-5. **Shutdown**: Clean up resources
-
-## Creating a Plugin
-
-See [WASM Plugin SDK](sdk/wasm.md) and [Plugin Marketplace](sdk/marketplace.md) for detailed guides.
+参考 `plugins/web-search-plugin/` 或 `plugins/scheduler-plugin/` 的源码结构。

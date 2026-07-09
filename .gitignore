@@ -63,3 +63,4 @@ examples/openclaw-bridge/dist/
 examples/openclaw-bridge/node_modules/
 examples/openclaw-bridge/config.json
 desktop/gen/
+book/

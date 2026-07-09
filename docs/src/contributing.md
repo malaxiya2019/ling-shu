@@ -1,31 +1,14 @@
-# Contributing
+# 贡献指南
 
-## Development Setup
+1. Fork 本仓库
+2. 创建特性分支: `git checkout -b feat/amazing-feature`
+3. 提交修改: `git commit -m 'feat: add amazing feature'`
+4. 推送到分支: `git push origin feat/amazing-feature`
+5. 提交 Pull Request
 
-1. Fork the repository
-2. Clone your fork
-3. Install dependencies
-4. Create a feature branch
+## 代码规范
 
-## Code Style
-
-- Follow Rust standard formatting (`cargo fmt`)
-- Document all public APIs
-- Add tests for new functionality
-- Use feature gates for optional features
-
-## Pull Request Process
-
-1. Ensure all tests pass
-2. Run `cargo clippy` with no warnings
-3. Update documentation if needed
-4. Create a PR with clear description
-
-## Commit Convention
-
-```
-feat(component): description
-fix(component): description
-docs: description
-chore: description
-```
+- 使用 `cargo fmt` 格式化
+- 通过 `cargo clippy` (无新增 warning)
+- 新增功能需包含测试
+- 文档使用简体中文

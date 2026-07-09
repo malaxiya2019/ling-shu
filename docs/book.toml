@@ -1,20 +1,21 @@
 [book]
-title = "LingShu Agent System"
-authors = ["LingShu Team"]
-language = "en"
-description = "LingShu — A distributed agent system with multi-LLM routing, federation, and plugin architecture"
-
-[build]
-build-dir = "book"
-create-missing = true
+authors = ["Lingshu Team"]
+language = "zh-CN"
+src = "src"
+title = "Lingshu (灵枢) — AI Agent 平台"
 
 [output.html]
-theme = "theme"
+cname = "lingshu.dev"
 default-theme = "ayu"
-preferred-dark-theme = "ayu"
-git-repository-url = "https://github.com/ling-shu/lingshu"
-edit-url-template = "https://github.com/ling-shu/lingshu/edit/main/docs/{path}"
-site-url = "/lingshu/"
-mathjax-support = false
-copy-fonts = true
-no-section-label = false
+preferred-dark-theme = "navy"
+
+[output.html.search]
+enable = true
+
+[output.html.fold]
+enable = true
+level = 1
+
+[build]
+build-dir = "../book"
+create-missing = false

@@ -1,0 +1,26 @@
+# LLM 后端
+
+支持 27+ LLM 提供商。配置方式：
+
+```env
+# OpenAI 兼容
+LINGSHU_LLM_PROVIDER=openai
+LINGSHU_OPENAI_API_KEY=sk-xxx
+
+# DeepSeek
+LINGSHU_LLM_PROVIDER=deepseek
+LINGSHU_DEEPSEEK_API_KEY=sk-xxx
+
+# 千问 (Qwen)
+LINGSHU_LLM_PROVIDER=qwen
+LINGSHU_QWEN_API_KEY=sk-xxx
+
+# 智谱 ChatGLM
+LINGSHU_LLM_PROVIDER=zhipu
+LINGSHU_ZHIPU_API_KEY=xxx
+
+# 百度文心
+LINGSHU_LLM_PROVIDER=baidu
+LINGSHU_BAIDU_API_KEY=xxx
+LINGSHU_BAIDU_SECRET_KEY=xxx
+```
