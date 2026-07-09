@@ -99,7 +99,7 @@ impl CodeSandboxPlugin {
 
     /// 设置最大超时时间.
     pub fn with_timeout(mut self, secs: u64) -> Self {
-        self.max_timeout_secs = secs.max(5).min(300);
+        self.max_timeout_secs = secs.clamp(5, 300);
         self
     }
 

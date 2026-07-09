@@ -57,8 +57,7 @@ pub fn audit_dashboard() -> Html {
         let refresh = refresh.clone();
         use_effect_with(refresh.clone(), move |_| {
             wasm_bindgen_futures::spawn_local(async move {
-                let mut s = AuditState::default();
-                s.loading = true;
+                let mut s = AuditState { loading: true, ..Default::default() };
 
                 // 构建查询参数
                 let _actor_clone = state.filter_actor.clone();

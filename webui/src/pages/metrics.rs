@@ -124,7 +124,7 @@ pub fn metrics() -> Html {
                         <svg viewBox="0 0 120 120" class="gauge-svg">
                             <circle cx="60" cy="60" r="50" fill="none" stroke="#21262d" stroke-width="8"/>
                             <circle cx="60" cy="60" r="50" fill="none" stroke="#3fb950" stroke-width="8"
-                                stroke-dasharray={format!("{} {}", (cpu_pct.max(0.0).min(100.0) / 100.0 * 314.0).max(0.0), 314.0)}
+                                stroke-dasharray={format!("{} {}", (cpu_pct.clamp(0.0, 100.0) / 100.0 * 314.0).max(0.0), 314.0)}
                                 stroke-linecap="round" transform="rotate(-90 60 60)"/>
                             <text x="60" y="55" text-anchor="middle" fill="#c9d1d9" font-size="22" font-weight="bold">{format!("{:.0}%", cpu_pct)}</text>
                             <text x="60" y="72" text-anchor="middle" fill="#6e7681" font-size="10">{"CPU"}</text>
@@ -136,7 +136,7 @@ pub fn metrics() -> Html {
                         <svg viewBox="0 0 120 120" class="gauge-svg">
                             <circle cx="60" cy="60" r="50" fill="none" stroke="#21262d" stroke-width="8"/>
                             <circle cx="60" cy="60" r="50" fill="none" stroke="#58a6ff" stroke-width="8"
-                                stroke-dasharray={format!("{} {}", ((mem_mb / 2048.0 * 100.0).max(0.0).min(100.0) / 100.0 * 314.0).max(0.0), 314.0)}
+                                stroke-dasharray={format!("{} {}", ((mem_mb / 2048.0 * 100.0).clamp(0.0, 100.0) / 100.0 * 314.0).max(0.0), 314.0)}
                                 stroke-linecap="round" transform="rotate(-90 60 60)"/>
                             <text x="60" y="55" text-anchor="middle" fill="#c9d1d9" font-size="16" font-weight="bold">{format!("{:.0}MB", mem_mb)}</text>
                             <text x="60" y="72" text-anchor="middle" fill="#6e7681" font-size="10">{"Memory"}</text>
@@ -148,7 +148,7 @@ pub fn metrics() -> Html {
                         <svg viewBox="0 0 120 120" class="gauge-svg">
                             <circle cx="60" cy="60" r="50" fill="none" stroke="#21262d" stroke-width="8"/>
                             <circle cx="60" cy="60" r="50" fill="none" stroke="#d29922" stroke-width="8"
-                                stroke-dasharray={format!("{} {}", ((llm_tokens as f64 / 100000.0 * 100.0).max(0.0).min(100.0) / 100.0 * 314.0).max(0.0), 314.0)}
+                                stroke-dasharray={format!("{} {}", ((llm_tokens as f64 / 100000.0 * 100.0).clamp(0.0, 100.0) / 100.0 * 314.0).max(0.0), 314.0)}
                                 stroke-linecap="round" transform="rotate(-90 60 60)"/>
                             <text x="60" y="55" text-anchor="middle" fill="#c9d1d9" font-size="16" font-weight="bold">{format_tokens(llm_tokens)}</text>
                             <text x="60" y="72" text-anchor="middle" fill="#6e7681" font-size="10">{"Tokens"}</text>

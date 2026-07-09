@@ -271,7 +271,7 @@ impl SearchEngineClient for GoogleSearchClient {
             self.api_key,
             self.cse_id,
             urlencoding(query),
-            max_results.min(10).max(1)
+            max_results.clamp(1, 10)
         );
 
         let resp = self

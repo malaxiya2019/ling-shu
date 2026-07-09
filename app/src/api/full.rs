@@ -4539,7 +4539,6 @@ async fn tenant_create_org_handler(
     State(state): State<Arc<AppState>>,
     Json(req): Json<lingshu_tenant::CreateOrganizationRequest>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    let req = req;
     match state.tenant_manager.create_organization(&req.name, &req.slug, "system").await {
         Ok(org) => Ok(Json(json!(org))),
         Err(e) => Err((StatusCode::CONFLICT, Json(json!({"error": e.to_string()})))),

@@ -19,7 +19,6 @@ pub trait MessageChannel: Send + Sync {
     fn capabilities(&self) -> ChannelCapabilities;
 
     /// ── 发送消息 ──
-
     /// 发送纯文本消息.
     async fn send_text(&self, ctx: SendTextContext) -> crate::LsResult<SendReceipt>;
 
@@ -43,17 +42,14 @@ pub trait MessageChannel: Send + Sync {
     }
 
     /// ── 入站处理 ──
-
     /// 处理入站事件 (Webhook/WebSocket 回调解析).
     async fn handle_inbound(&self, event: InboundEvent) -> crate::LsResult<()>;
 
     /// ── 生命周期 ──
-
     /// 渠道健康检查.
     async fn health_check(&self) -> crate::LsResult<HealthStatus>;
 
     /// ── 目标解析 ──
-
     /// 解析原始输入为目标标识.
     fn parse_target(&self, raw: &str) -> crate::LsResult<MessagingTarget>;
 }
