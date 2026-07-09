@@ -515,7 +515,7 @@ mod tests {
             session_id: "sess-1".into(),
             role: "user".into(),
             content: "hello world".into(),
-            embedding: Some(vec![0.1, 0.2, 0.3].iter().flat_map(|f| f.to_le_bytes()).collect()),
+            embedding: Some(vec![0.1f64, 0.2f64, 0.3f64].into_iter().flat_map(f64::to_le_bytes).collect()),
             model: "test-model".into(),
             token_count: 5,
             created_at: chrono::Utc::now(),

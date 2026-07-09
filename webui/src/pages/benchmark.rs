@@ -1,4 +1,3 @@
-use crate::api::client;
 use crate::i18n::use_lang;
 use yew::prelude::*;
 
@@ -17,6 +16,7 @@ struct BenchmarkItem {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[allow(dead_code)]
 struct BenchmarkSummary {
     items: Vec<BenchmarkItem>,
     last_updated: String,
@@ -131,10 +131,10 @@ pub fn benchmark() -> Html {
             let entry = cat_map.entry(&item.category).or_default();
             entry.push(item.clone());
         }
-        let mut keys: Vec<&&str> = cat_map.keys().collect();
-        keys.sort();
-        for key in keys {
-            categories.push((key, cat_map.remove(key).unwrap()));
+        let mut sorted: Vec<_> = cat_map.into_iter().collect();
+        sorted.sort_by(|a, b| a.0.cmp(&b.0));
+        for (key, val) in sorted {
+            categories.push((key, val));
         }
     }
 

@@ -3,12 +3,13 @@
 //! ✅ 已完成迁移 (从 full.rs)
 
 use crate::api::AppState;
-use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
+use axum::{Json, extract::State, http::StatusCode};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 /// 管理面板登录请求
 #[derive(Deserialize)]
+#[allow(dead_code)]
 pub struct LoginRequest {
     pub username: String,
     pub password: String,
@@ -16,6 +17,7 @@ pub struct LoginRequest {
 
 /// 管理面板登录响应
 #[derive(Serialize)]
+#[allow(dead_code)]
 pub struct LoginResponse {
     pub success: bool,
     pub token: Option<String>,
@@ -23,6 +25,7 @@ pub struct LoginResponse {
 }
 
 /// POST /v1/login — 管理面板登录
+#[allow(dead_code)]
 pub async fn login_handler(
     State(state): State<Arc<AppState>>,
     Json(req): Json<LoginRequest>,
@@ -62,12 +65,14 @@ pub async fn login_handler(
 }
 
 /// POST /v1/logout — 管理面板登出
+#[allow(dead_code)]
 pub async fn logout_handler() -> (StatusCode, [(&'static str, &'static str); 2], &'static str) {
     let headers = [("Set-Cookie", "token=; Max-Age=0; Path=/; HttpOnly"), ("Content-Type", "text/plain")];
     (StatusCode::OK, headers, "Logged out")
 }
 
 /// Axum route definition for Auth module
+#[allow(dead_code)]
 pub fn auth_routes() -> axum::Router<Arc<AppState>> {
     axum::Router::new()
         .route("/v1/login", axum::routing::post(login_handler))

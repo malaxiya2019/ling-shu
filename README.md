@@ -1,10 +1,56 @@
 # 🚀 Lingshu (灵枢) Agent System
 [![CI](https://github.com/malaxiya2019/ling-shu/actions/workflows/ci.yml/badge.svg)](https://github.com/malaxiya2019/ling-shu/actions/workflows/ci.yml) 
 [![Docker](https://github.com/malaxiya2019/ling-shu/actions/workflows/docker.yml/badge.svg)](https://github.com/malaxiya2019/ling-shu/actions/workflows/docker.yml) 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE-MIT) 
+[![License: MIT](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](LICENSE) 
 [![Rust](https://img.shields.io/badge/rust-1.88%2B-orange)](https://www.rust-lang.org/)
 
 **Lingshu** is a modular agent system framework written in Rust, designed for building production-grade AI agents with strong security, observability, and extensibility.
+
+## 安装
+
+### 方式一：下载预编译二进制（推荐）
+
+从 [Releases](https://github.com/malaxiya2019/ling-shu/releases) 下载对应平台的压缩包：
+
+| 平台 | 下载 |
+|------|------|
+| Linux x86_64 | `lingshu-x86_64-unknown-linux-gnu.tar.gz` |
+| Linux ARM64 (树莓派等) | `lingshu-aarch64-unknown-linux-gnu.tar.gz` |
+| Termux / Android | `lingshu-aarch64-linux-android.tar.gz` |
+
+```bash
+# 示例: Linux x86_64
+curl -fsSL https://github.com/malaxiya2019/ling-shu/releases/latest/download/lingshu-x86_64-unknown-linux-gnu.tar.gz \
+  | tar xz
+cd lingshu
+cp .env.example .env   # 编辑 .env 填入 API Key
+./lingshu
+```
+
+### 方式二：一键脚本（自动编译）
+
+```bash
+git clone https://github.com/malaxiya2019/ling-shu.git
+cd ling-shu
+./start.sh
+```
+
+> 首次运行会自动检查依赖、引导配置 LLM API Key、编译并启动。
+> 后续只需 `./start.sh --quick`。
+
+### 方式三：Docker
+
+```bash
+docker pull ghcr.io/malaxiya2019/ling-shu:latest
+docker run -p 8080:8080 -e OPENAI_API_KEY=sk-... ghcr.io/malaxiya2019/ling-shu
+```
+
+### 系统要求
+
+- **Rust**: 1.81+（仅编译时需要，二进制运行无需）
+- **内存**: 编译最低 1GB，运行最低 256MB
+- **存储**: 编译 ~5GB，运行 ~200MB
+- **系统**: Linux / Termux / macOS（Windows 可通过 WSL）
 
 ## Architecture
 
@@ -80,43 +126,92 @@
 
 ## Quick Start
 
+### 🚀 一分钟启动（推荐）
+
+```bash
+git clone https://github.com/malaxiya2019/ling-shu.git
+cd ling-shu
+./start.sh
+```
+
+第一次运行会自动引导你：
+1. 检查 Rust / 系统依赖（缺什么会提示安装命令）
+2. 选择 LLM 提供商并输入 API Key
+3. 编译并启动服务
+
+> 💡 后续启动只需 `./start.sh --quick`，跳过向导直接启动。
+> 环境检查单独运行：`./start.sh --check-env`
+
+### ⚡ 高级用法
+
+```bash
+# 首次启动（交互式配置向导）
+./start.sh
+
+# 快速启动（跳过检查，直接运行）
+./start.sh --quick
+
+# REPL 交互模式（不需要 HTTP 服务）
+./start.sh --repl
+
+# 生产模式
+./start.sh --env prod --addr 0.0.0.0:8080
+
+# 仅检查环境
+./start.sh --check-env
+```
+
+### 🔧 手工构建（跳过脚本）
+
 ```bash
 # Prerequisites
 rustup update stable
-cargo install cargo-audit cargo-deny  # optional, for security audits
 
-# Build everything
-cargo build --all-features
+# Build (默认包含 Telegram / 飞书 / QQ 通道支持)
+cargo build --release
 
 # Run all tests (290+ tests, all passing)
 cargo test --all --all-features
 
 # Start HTTP API server
-cargo run -p lingshu -- --addr 0.0.0.0:8080
+cargo run -p lingshu --release -- --addr 0.0.0.0:8080
 
 # Start in production mode
-LS_ENV=prod cargo run -p lingshu -- -e prod --addr 0.0.0.0:8080
+LS_ENV=prod cargo run -p lingshu --release -- -e prod --addr 0.0.0.0:8080
 
 # REPL interactive mode
-cargo run -p lingshu -- --repl
+cargo run -p lingshu --release -- --repl
 ```
 
 ## Configuration
 
-Lingshu uses a layered configuration system (YAML → environment variables → defaults):
+Lingshu uses a layered configuration system (YAML → `.env` → environment variables → defaults).
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LS_ENV` | `dev` | Runtime environment |
-| `LS_LOG_LEVEL` | `debug` (dev) / `info` (prod) | Log level |
-| `LS_LLM_PROVIDER` | `mock` | LLM backend to use |
-| `LS_ADDR` | `127.0.0.1:8080` | HTTP listen address |
-| `LS_MAX_CONCURRENT_TASKS` | `100` | Max concurrent agent tasks |
-| `LS_SESSION_TTL_SECONDS` | `3600` | Session expiry in seconds |
-| `LS_FEDERATION_PORT` | `9550` | Federation listen port |
-| `LS_CLUSTER_NAME` | `lingshu-default` | Federation cluster name |
+### 快速配置
 
-See [.env.example](.env.example) for the full list.
+复制模板并编辑：
+
+```bash
+cp .env.example .env
+# 编辑 .env，填入你的 API Key
+```
+
+### 核心配置项
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `LS_ENV` | `dev` | 运行环境: `dev` / `test` / `prod` |
+| `LLM_PROVIDER` | `openai` | LLM 提供商: `openai` / `deepseek` / `qwen` / `anthropic` / `mock` |
+| `OPENAI_API_KEY` | — | OpenAI API Key |
+| `DEEPSEEK_API_KEY` | — | DeepSeek API Key (国产推荐) |
+| `QWEN_API_KEY` | — | 阿里千问 API Key |
+| `ANTHROPIC_API_KEY` | — | Anthropic Claude API Key |
+| `LS_LOG_LEVEL` | `debug`(dev) / `info`(prod) | 日志级别 |
+| `LINGSHU_TELEGRAM_BOT_TOKEN` | — | Telegram Bot Token (可选) |
+| `LINGSHU_FEISHU_APP_ID` | — | 飞书应用 ID (可选) |
+| `LINGSHU_QQ_APP_ID` | — | QQ 机器人 ID (可选) |
+
+> 📖 完整变量列表见 [.env.example](.env.example)（115 行，含中文注释）
 
 ## API Endpoints
 

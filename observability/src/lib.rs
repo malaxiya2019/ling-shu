@@ -4,6 +4,8 @@
 //! 与健康检查的统一入口。
 
 pub mod health;
+#[cfg(feature = "otel")]
+pub mod genai;
 pub mod metrics;
 pub mod span;
 pub mod tracing;
@@ -16,6 +18,8 @@ pub use health::*;
 pub use metrics::*;
 pub use span::*;
 pub use tracing::*;
+#[cfg(feature = "otel")]
+pub use genai::*;
 
 use lingshu_config::env::Environment;
 

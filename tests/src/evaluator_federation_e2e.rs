@@ -198,7 +198,7 @@ async fn test_evaluator_runs_with_federation_active() {
     assert!(result.total_duration > Duration::ZERO, "should have duration");
 
     // Verify metrics exist
-    let metrics = compute_metrics(&result);
+    let metrics = compute_metrics(&result.case_results);
     assert!((metrics.accuracy - 1.0).abs() < 1e-6, "accuracy should be 1.0");
     assert!((metrics.precision - 1.0).abs() < 1e-6, "precision should be 1.0");
     assert!((metrics.recall - 1.0).abs() < 1e-6, "recall should be 1.0");
@@ -391,18 +391,19 @@ async fn test_evaluator_regression_federated() {
 
     // Regression detection
     let thresholds = RegressionThresholds {
-        accuracy_drop: 0.1,
-        latency_increase_pct: 50.0,
-        min_sample_size: 1,
+        max_score_degradation: 0.2,
+        max_pass_rate_degradation: 0.1,
+        max_latency_increase: Duration::from_millis(500),
+        max_cost_increase: 1.0,
     };
     let regression = RegressionDetector::detect(&current, &baseline, &thresholds);
 
     assert!(
-        matches!(regression.status, RegressionStatus::Regression),
+        regression.has_regression,
         "degraded agent should be detected as regression"
     );
     assert!(
-        regression.summary.contains("accuracy"),
+        regression.score_delta < 0.0,
         "summary should mention accuracy drop"
     );
 
@@ -423,7 +424,7 @@ async fn test_federation_concurrent_eval_across_nodes() {
 
     let mut feds = Vec::new();
     for i in 0..2 {
-        let seeds = (0..2).filter(|j| *j != i).map(|j| addrs[j]).collect();
+        let seeds: Vec<SocketAddr> = (0..2).filter(|j| *j != i).map(|j| addrs[j]).collect();
         let mut fed = Federation::new(
             ids[i],
             make_fed_config(&format!("concurrent-node-{}", i), ports[i], seeds.clone()),
@@ -468,7 +469,7 @@ async fn test_federation_concurrent_eval_across_nodes() {
 
     let handle_b = tokio::spawn(async move {
         let runner = EvalRunner::new(target_b, EvalConfig::default());
-        runner.run_suite(&suite, &mut ctx).await
+        runner.run_suite(&suite, &ctx).await
     });
 
     let (result_a, result_b) = tokio::join!(handle_a, handle_b);

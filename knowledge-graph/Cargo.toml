@@ -14,7 +14,7 @@ chrono.workspace = true
 tokio = { workspace = true, features = ["sync"] }
 tracing.workspace = true
 thiserror.workspace = true
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.39", features = ["bundled"] }
 
 [dev-dependencies]
 tracing-subscriber.workspace = true

@@ -6,6 +6,7 @@ description = "LSBackends — Concrete implementations: OpenAI, Anthropic, Groq,
 
 [features]
 default = ["openai", "mock"]
+otel = ["lingshu-observability/otel"]
 # llmkit 统一后端: 27+ 提供商 (Anthropic, OpenAI, Google Gemini, Mistral, Groq, DeepSeek, Ollama, 等)
 llmkit = ["dep:llmkit"]
 # llama.cpp 本地推理后端 (需要预先安装 llama.cpp)
@@ -27,22 +28,21 @@ vector-store-pg = ["dep:sqlx"]
 lingshu-core = { path = "../core" }
 lingshu-traits = { path = "../traits" }
 lingshu-config = { path = "../config" }
-lingshu-observability = { path = "../observability" }
+lingshu-observability = { path = "../observability", features = ["otel"] }
 lingshu-runtime = { path = "../runtime" }
 async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 uuid.workspace = true
 chrono.workspace = true
-meval = "0.2"
 tokio = { workspace = true, features = ["sync"] }
 tracing.workspace = true
 thiserror.workspace = true
-llmkit = { version = "0.1", optional = true }
+llmkit = { version = "0.1", optional = true, features = ["openai-compatible", "deepseek", "alibaba", "openai"] }
 reqwest = { version = "0.12", features = ["json", "stream"], optional = true }
 futures-util = { version = "0.3", optional = true }
-rusqlite = { version = "0.32", features = ["bundled", "uuid"], optional = true }
-sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "chrono", "uuid"], optional = true }
+rusqlite = { version = "0.39", features = ["bundled", "uuid"], optional = true }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "chrono", "uuid"], optional = true }
 
 [dev-dependencies]
 lingshu-eventbus = { path = "../eventbus" }

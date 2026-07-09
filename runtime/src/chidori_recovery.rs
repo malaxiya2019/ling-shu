@@ -266,7 +266,7 @@ impl ChidoriRecoveryManager {
         _agent_id: &str,
         _state: Vec<u8>,
     ) -> LsResult<String> {
-        Err(LsError::Unsupported(
+        Err(LsError::NotImplemented(
             "chidori feature not enabled".into(),
         ))
     }
@@ -276,7 +276,7 @@ impl ChidoriRecoveryManager {
         &self,
         _agent_id: &str,
     ) -> LsResult<Option<ChidoriSavePoint>> {
-        Err(LsError::Unsupported(
+        Err(LsError::NotImplemented(
             "chidori feature not enabled".into(),
         ))
     }
@@ -288,7 +288,7 @@ impl ChidoriRecoveryManager {
 
     /// 清除断点。
     pub async fn clear_checkpoints(&self, _agent_id: &str) -> LsResult<usize> {
-        Err(LsError::Unsupported(
+        Err(LsError::NotImplemented(
             "chidori feature not enabled".into(),
         ))
     }

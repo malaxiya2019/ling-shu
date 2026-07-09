@@ -61,8 +61,28 @@ impl JwtService {
             std::env::var("LS_SECURITY_JWT_SECRET").unwrap_or_else(|_| default_secret.to_string());
         Self::new(secret, ttl_seconds)
     }
+    /// 签发 JWT 令牌 (简化版 — 兼容旧 API).
+    pub fn generate_token(
+        &self,
+        user_id: &str,
+        ttl_override: Option<u64>,
+    ) -> LsResult<String> {
+        let ttl = ttl_override.unwrap_or(self.ttl_seconds);
+        let now = chrono::Utc::now();
+        let claims = Claims {
+            sub: user_id.to_string(),
+            sid: uuid::Uuid::new_v4().to_string(),
+            tid: None,
+            roles: vec!["admin".to_string()],
+            iat: now.timestamp() as u64,
+            exp: (now + chrono::Duration::seconds(ttl as i64)).timestamp() as u64,
+        };
+        let header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::HS256);
+        jsonwebtoken::encode(&header, &claims, &jsonwebtoken::EncodingKey::from_secret(&self.secret))
+            .map_err(|e| LsError::AuthenticationFailed(format!("jwt encode: {e}")))
+    }
 
-    /// 签发 JWT 令牌.
+    /// 签发完整的 JWT 令牌.
     pub fn issue(
         &self,
         user_id: &str,

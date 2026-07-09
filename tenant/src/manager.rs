@@ -1,6 +1,5 @@
 //! TenantManager — 租户 CRUD + 隔离校验.
 
-use async_trait::async_trait;
 use lingshu_core::{LsError, LsResult};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -267,6 +266,8 @@ impl Default for TenantManager {
 
 /// 租户统计.
 #[derive(Debug, Clone, Default)]
+#[derive(serde::Serialize)]
+#[allow(dead_code)]
 pub struct TenantStats {
     pub total_orgs: usize,
     pub total_projects: usize,

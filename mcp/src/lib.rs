@@ -53,6 +53,7 @@ pub mod credential_tools;
 pub mod server;
 pub mod tool;
 pub mod types;
+#[cfg(feature = "rmcp")]
 pub mod server_launcher;
 
 #[cfg(feature = "rmcp")]

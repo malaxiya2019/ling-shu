@@ -13,7 +13,7 @@
 //! let result = client.call_tool("my-tool", serde_json::json!({})).await?;
 //! ```
 
-use lingshu_core::{LsError, LsResult};
+use lingshu_core::{LsError, LsResult, LsId};
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -92,10 +92,10 @@ impl McpClient {
             .json(&body)
             .send()
             .await
-            .map_err(|e| LsError::Provider(format!("MCP request failed: {e}")))?
+            .map_err(|e| LsError::Internal(format!("MCP request failed: {e}")))?
             .json::<Value>()
             .await
-            .map_err(|e| LsError::Provider(format!("MCP response parse failed: {e}")))?;
+            .map_err(|e| LsError::Internal(format!("MCP response parse failed: {e}")))?;
 
         // 检查错误
         if let Some(err) = resp.get("error") {
@@ -104,12 +104,12 @@ impl McpClient {
                 .get("message")
                 .and_then(|v| v.as_str())
                 .unwrap_or("unknown error");
-            return Err(LsError::Provider(format!("MCP error [{code}]: {msg}")));
+            return Err(LsError::Internal(format!("MCP error [{code}]: {msg}")));
         }
 
         resp.get("result")
             .cloned()
-            .ok_or_else(|| LsError::Provider("MCP response missing result".into()))
+            .ok_or_else(|| LsError::Internal("MCP response missing result".into()))
     }
 
     /// tools/list — 列出远程服务器上的工具.
@@ -143,9 +143,10 @@ impl McpClient {
         Ok(tools
             .into_iter()
             .map(|t| lingshu_traits::tool::ToolInfo {
+                tool_id: LsId::new(),
                 name: t.name,
                 description: t.description,
-                params: vec![],
+                parameters: vec![],
             })
             .collect())
     }

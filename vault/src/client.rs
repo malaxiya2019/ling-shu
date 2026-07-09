@@ -5,8 +5,7 @@
 use crate::models::*;
 use async_trait::async_trait;
 use lingshu_core::LsResult;
-use std::sync::Arc;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 /// Vault 客户端 Trait.
 #[async_trait]
@@ -67,6 +66,7 @@ impl VaultClient {
     }
 
     /// 获取带认证头的请求构造器.
+    #[allow(dead_code)]
     fn auth_header(&self) -> String {
         format!("Bearer {}", self.config.token)
     }
@@ -219,7 +219,7 @@ impl VaultClientTrait for VaultClient {
     async fn list_secrets(&self, path: &str) -> LsResult<Vec<String>> {
         let resp = self
             .client
-            .list(&self.kv_list_path(path))
+            .request(reqwest::Method::from_bytes(b"LIST").unwrap(), &self.kv_list_path(path))
             .header("X-Vault-Token", &self.config.token)
             .send()
             .await

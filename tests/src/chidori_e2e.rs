@@ -19,7 +19,7 @@ async fn test_chidori_checkpoint_roundtrip() {
     let state = b"agent-state-42".to_vec();
     let point_id = match manager.save_checkpoint(&ctx, "agent-e2e", state.clone()).await {
         Ok(id) => id,
-        Err(e) if matches!(e, LsError::Unsupported(_)) => {
+        Err(e) if matches!(e, LsError::NotImplemented(_)) => {
             // 桩模式：验证返回正确的错误类型
             assert!(e.to_string().contains("chidori feature not enabled"));
             return;
@@ -110,7 +110,7 @@ async fn test_chidori_max_snapshots() {
     for i in 0..5 {
         match manager.save_checkpoint(&ctx, "agent-limit", vec![i as u8]).await {
             Ok(_) => {}
-            Err(LsError::Unsupported(_)) => return,
+            Err(LsError::NotImplemented(_)) => return,
             Err(e) => panic!("unexpected error: {e}"),
         }
     }

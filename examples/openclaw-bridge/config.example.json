@@ -1,0 +1,36 @@
+{
+  "channels": [
+    {
+      "id": "console",
+      "label": "本地控制台",
+      "platform": "console",
+      "options": {}
+    },
+    {
+      "id": "telegram-main",
+      "label": "Telegram Bot",
+      "platform": "telegram",
+      "options": {
+        "token": "YOUR_TELEGRAM_BOT_TOKEN"
+      }
+    },
+    {
+      "id": "feishu-bot",
+      "label": "飞书 Bot",
+      "platform": "feishu",
+      "options": {
+        "appId": "cli_xxxxxxxxxxxxxx",
+        "appSecret": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    },
+    {
+      "id": "qq-bot",
+      "label": "QQ 机器人",
+      "platform": "qq",
+      "options": {
+        "appId": "YOUR_QQ_APP_ID",
+        "botToken": "YOUR_QQ_BOT_TOKEN"
+      }
+    }
+  ]
+}

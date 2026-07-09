@@ -60,6 +60,13 @@ impl PluginRegistry {
         }
     }
 
+    /// 返回已注册的插件 ID 列表.
+    pub fn plugins(&self) -> Vec<lingshu_core::LsId> {
+        self.plugins.try_read()
+            .map(|map| map.keys().cloned().collect())
+            .unwrap_or_default()
+    }
+
     /// 使用指定 EventBus 创建插件注册中心.
     pub fn with_event_bus(event_bus: Arc<event::EventBus>) -> Self {
         Self {

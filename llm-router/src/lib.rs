@@ -34,7 +34,6 @@ use metrics::MetricsCollector;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
 use strategies::RouterStrategy;
 use tokio::sync::RwLock;
 use tracing::{info, warn};
@@ -116,6 +115,7 @@ impl BackendEntry {
 }
 
 /// Multi-LLM Router — 动态多提供商路由.
+#[allow(dead_code)]
 pub struct LlmRouter {
     /// 已注册的后端（名称 → Llm）
     backends: HashMap<String, Box<dyn Llm + Send + Sync>>,
@@ -172,7 +172,7 @@ impl LlmRouter {
 
     /// 获取后端指标.
     pub async fn get_metrics(&self, backend: &str) -> Option<BackendMetrics> {
-        self.metrics.read().await.get(backend).cloned()
+        self.metrics.read().await.get(backend)
     }
 
     /// 获取所有后端指标.
@@ -204,7 +204,7 @@ impl LlmRouter {
 
         // 使用策略选择后端
         let strategy = self.strategy.read().await;
-        let selected = strategy.select(&enabled, &self.metrics.read().await).await;
+        let selected = strategy.select(&enabled, &*self.metrics.read().await).await;
 
         let backend_name = match selected {
             Some(name) => name,
@@ -323,14 +323,7 @@ impl LlmRouter {
     }
 
     /// 启用/禁用后端.
-    pub async fn set_backend_enabled(&self, name: &str, enabled: bool) -> LsResult<()> {
-        let mut entries = self.entries
-            .write()
-            .map_err(|_| LsError::Internal("lock poisoned".into()))?;
-        // self.entries is HashMap, not RwLock. Need to rethink...
-        // Actually self.entries is not behind a RwLock. Let me fix this.
-        // For now, we require &mut self for this operation.
-        drop(entries);
+    pub async fn set_backend_enabled(&self, _name: &str, _enabled: bool) -> LsResult<()> {
         Err(LsError::NotImplemented("use register() to reconfigure".into()))
     }
 }
@@ -412,7 +405,7 @@ impl Llm for LlmRouter {
 mod tests {
     use super::*;
     use lingshu_core::LsId;
-    use lingshu_traits::llm::{LlmMessage, LlmMessageRole};
+    use lingshu_traits::llm::{LlmMessage, LlmRole};
 
     fn mock_llm() -> Box<dyn Llm + Send + Sync> {
         Box::new(lingshu_backends::MockLlm::new())
@@ -445,19 +438,22 @@ mod tests {
 
         let ctx = LsContext::with_session(LsId::new());
         let req = LlmRequest {
-            model: "mock".into(),
             messages: vec![LlmMessage {
-                role: LlmMessageRole::User,
+                role: LlmRole::User,
                 content: "hello".into(),
+                content_parts: None,
+                name: None,
+                tool_calls: None,
             }],
             temperature: None,
             max_tokens: None,
             stream: false,
-            ..LlmRequest::default()
+            model: "mock".into(),
+            tools: None,
         };
 
         let resp = router.route_and_invoke(&ctx, &req).await.unwrap();
-        assert!(!resp.content.is_empty());
+        assert!(!resp.message.content.is_empty());
     }
 
     #[tokio::test]
@@ -465,7 +461,14 @@ mod tests {
         // Use a router with no real backends — should return fallback error
         let router = LlmRouter::new(RouterPolicy::Fallback);
         let ctx = LsContext::with_session(LsId::new());
-        let req = LlmRequest::default();
+        let req = LlmRequest {
+            model: "mock".into(),
+            messages: vec![],
+            temperature: None,
+            max_tokens: None,
+            tools: None,
+            stream: false,
+        };
         let result = router.route_and_invoke(&ctx, &req).await;
         assert!(result.is_err());
     }
@@ -480,15 +483,18 @@ mod tests {
 
         let ctx = LsContext::with_session(LsId::new());
         let req = LlmRequest {
-            model: "mock".into(),
             messages: vec![LlmMessage {
-                role: LlmMessageRole::User,
+                role: LlmRole::User,
                 content: "test".into(),
+                content_parts: None,
+                name: None,
+                tool_calls: None,
             }],
             temperature: None,
             max_tokens: None,
             stream: false,
-            ..LlmRequest::default()
+            model: "mock".into(),
+            tools: None,
         };
 
         let _ = router.route_and_invoke(&ctx, &req).await;
@@ -503,7 +509,14 @@ mod tests {
         router.set_policy(RouterPolicy::RoundRobin).await;
         // Verify we can still route after policy switch
         let ctx = LsContext::with_session(LsId::new());
-        let req = LlmRequest::default();
+        let req = LlmRequest {
+            model: "mock".into(),
+            messages: vec![],
+            temperature: None,
+            max_tokens: None,
+            tools: None,
+            stream: false,
+        };
         let result = router.route_and_invoke(&ctx, &req).await;
         assert!(result.is_err()); // No backends
     }
@@ -518,15 +531,21 @@ mod tests {
 
         let ctx = LsContext::with_session(LsId::new());
         let req = LlmRequest {
-            model: "mock".into(),
             messages: vec![LlmMessage {
-                role: LlmMessageRole::User,
+                role: LlmRole::User,
                 content: "hello from trait".into(),
+                content_parts: None,
+                name: None,
+                tool_calls: None,
             }],
-            ..LlmRequest::default()
+            model: "mock".into(),
+            temperature: None,
+            max_tokens: None,
+            tools: None,
+            stream: false,
         };
 
         let resp = Llm::invoke(&router, ctx, req).await.unwrap();
-        assert!(!resp.content.is_empty());
+        assert!(!resp.message.content.is_empty());
     }
 }

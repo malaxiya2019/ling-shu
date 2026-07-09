@@ -232,7 +232,7 @@ impl LoongAdapter {
 
     /// 创建 agent.
     pub async fn create_agent(&self, _config: LoongAgentConfig) -> LsResult<LsId> {
-        Err(LsError::Unsupported("loong feature not enabled".into()))
+        Err(LsError::NotImplemented("loong feature not enabled".into()))
     }
 
     /// 执行 agent.
@@ -241,12 +241,12 @@ impl LoongAdapter {
         _agent_id: &LsId,
         _input: serde_json::Value,
     ) -> LsResult<AgentOutput> {
-        Err(LsError::Unsupported("loong feature not enabled".into()))
+        Err(LsError::NotImplemented("loong feature not enabled".into()))
     }
 
     /// 停止 agent.
     pub async fn stop_agent(&self, _agent_id: &LsId) -> LsResult<()> {
-        Err(LsError::Unsupported("loong feature not enabled".into()))
+        Err(LsError::NotImplemented("loong feature not enabled".into()))
     }
 
     /// 列出 agents.
@@ -375,7 +375,7 @@ mod stub_tests {
     #[tokio::test]
     async fn test_stub_with_registry() {
         let registry = Arc::new(AgentRegistry::new());
-        let adapter = LoongAdapter::new().with_registry(registry);
+        let adapter = LoongAdapter::new().with_registry(registry.clone());
         // Stub should not panic and registry should remain empty
         assert_eq!(registry.count().await, 0);
     }

@@ -8,15 +8,11 @@
 //! // ... your app ...
 //! drop(guard); // shutdown OTel
 //! ```
-//!
-//! ## 环境变量
-//! - `LS_OTEL_ENDPOINT` — OTLP gRPC 端点 (默认: `http://localhost:4317`)
-//! - `LS_OTEL_SERVICE_NAME` — 服务名 (默认: `lingshu`)
-//! - `LS_OTEL_ENABLED` — 设为 `true` 启用
 
 use lingshu_core::LsResult;
 use std::sync::OnceLock;
-use tracing::{info, warn};
+use tracing::info;
+use opentelemetry_otlp::{WithExportConfig};
 
 static OTEL_INIT: OnceLock<()> = OnceLock::new();
 
@@ -30,8 +26,7 @@ impl Drop for OtelGuard {
         #[cfg(feature = "otel")]
         {
             info!("shutting down OpenTelemetry");
-            opentelemetry_sdk::runtime::TokioCurrentThread::shutdown_all();
-            // Force a short sleep to let pending exports finish
+            opentelemetry::global::shutdown_tracer_provider();
             std::thread::sleep(std::time::Duration::from_millis(200));
         }
     }
@@ -50,45 +45,35 @@ pub async fn init_otel(endpoint: &str) -> LsResult<Option<OtelGuard>> {
     {
         info!(endpoint = %endpoint, "initializing OpenTelemetry OTLP exporter");
 
-        // ── Tracer Provider ──
-        let tracer_provider = opentelemetry_otlp::new_pipeline()
-            .tracing()
-            .with_exporter(
-                opentelemetry_otlp::new_exporter()
-                    .tonic()
-                    .with_endpoint(endpoint)
-                    .with_timeout(std::time::Duration::from_secs(10)),
-            )
-            .with_trace_config(
-                opentelemetry_sdk::trace::Config::default()
-                    .with_sampler(opentelemetry_sdk::trace::Sampler::ParentBased(
-                        Box::new(opentelemetry_sdk::trace::Sampler::TraceIdRatioBased(0.1)),
-                    ))
-                    .with_resource(opentelemetry_sdk::Resource::new(vec![
-                        opentelemetry::KeyValue::new("service.name", 
-                            std::env::var("LS_OTEL_SERVICE_NAME").unwrap_or_else(|_| "lingshu".into())),
-                        opentelemetry::KeyValue::new("service.version",
-                            std::env::var("LS_SERVICE_VERSION").unwrap_or_else(|_| "1.0.0".into())),
-                    ])),
-            )
-            .install_batch(opentelemetry_sdk::runtime::TokioCurrentThread)
-            .map_err(|e| lingshu_core::LsError::Internal(format!("OTel tracer init: {e}")))?;
+        // ── Span Exporter & Tracer Provider ──
+        let span_exporter = opentelemetry_otlp::SpanExporter::builder()
+            .with_tonic()
+            .with_endpoint(endpoint)
+            .with_timeout(std::time::Duration::from_secs(10))
+            .build()
+            .map_err(|e| lingshu_core::LsError::Internal(format!("OTel span exporter: {e}")))?;
 
-        // ── Meter Provider ──
-        let meter_provider = opentelemetry_otlp::new_pipeline()
-            .metrics(opentelemetry_sdk::runtime::TokioCurrentThread)
-            .with_exporter(
-                opentelemetry_otlp::new_exporter()
-                    .tonic()
-                    .with_endpoint(endpoint)
-                    .with_timeout(std::time::Duration::from_secs(10)),
-            )
+        let tracer = opentelemetry_sdk::trace::TracerProvider::builder()
+            .with_batch_exporter(span_exporter, opentelemetry_sdk::runtime::Tokio)
+            .with_sampler(opentelemetry_sdk::trace::Sampler::ParentBased(
+                Box::new(opentelemetry_sdk::trace::Sampler::TraceIdRatioBased(0.1)),
+            ))
             .with_resource(opentelemetry_sdk::Resource::new(vec![
                 opentelemetry::KeyValue::new("service.name",
                     std::env::var("LS_OTEL_SERVICE_NAME").unwrap_or_else(|_| "lingshu".into())),
+                opentelemetry::KeyValue::new("service.version",
+                    std::env::var("LS_SERVICE_VERSION").unwrap_or_else(|_| "1.0.0".into())),
             ]))
-            .build()
-            .map_err(|e| lingshu_core::LsError::Internal(format!("OTel meter init: {e}")))?;
+            .build();
+
+        // ── Metric Exporter (optional, sets global meter provider) ──
+        let _metric_exporter = opentelemetry_otlp::MetricExporter::builder()
+            .with_tonic()
+            .with_endpoint(endpoint)
+            .with_timeout(std::time::Duration::from_secs(10))
+            .build();
+
+        opentelemetry::global::set_tracer_provider(tracer);
 
         info!("OpenTelemetry initialized successfully");
         Ok(Some(OtelGuard { _private: () }))
@@ -120,9 +105,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_init_otel_without_server() {
-        // Should return an error or handle gracefully when no OTLP server is available
         let result = init_otel("http://127.0.0.1:14317").await;
-        // May succeed with config but fail later on export — that's fine
         assert!(result.is_ok());
     }
 

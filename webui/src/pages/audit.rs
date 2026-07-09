@@ -1,4 +1,3 @@
-use crate::api::client;
 use crate::i18n::use_lang;
 use gloo_net::http::Request;
 use serde::{Deserialize, Serialize};
@@ -34,6 +33,7 @@ struct AuditResponse {
 }
 
 #[derive(Clone, Debug, Default)]
+#[allow(dead_code)]
 struct AuditState {
     entries: Vec<AuditEntry>,
     total: usize,
@@ -61,7 +61,7 @@ pub fn audit_dashboard() -> Html {
                 s.loading = true;
 
                 // 构建查询参数
-                let actor_clone = state.filter_actor.clone();
+                let _actor_clone = state.filter_actor.clone();
                 let params = vec![
                     ("limit", "200"),
                 ];
@@ -90,11 +90,11 @@ pub fn audit_dashboard() -> Html {
         });
     }
 
-    let event_types = vec![
+    let _event_types = vec![
         "", "user_login", "user_logout", "api_call", "agent_execution",
         "admin_action", "config_change", "permission_change", "system",
     ];
-    let result_types = vec!["", "success", "failure"];
+    let _result_types = vec!["", "success", "failure"];
 
     html! {
         <div class="audit-page">
@@ -202,7 +202,7 @@ pub fn audit_dashboard() -> Html {
                                         <td><span class={format!("audit-badge {}", type_class)}>{ &entry.event_type }</span></td>
                                         <td>{ &entry.event_name }</td>
                                         <td>{ &entry.actor }</td>
-                                        <td>{ &entry.resource_type } / { &entry.resource_id }</td>
+                                        <td>{ format!("{} / {}", &entry.resource_type, &entry.resource_id) }</td>
                                         <td><span class={format!("audit-badge {}", result_class)}>{ &entry.result }</span></td>
                                         <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem; color: #8b949e;">
                                             { detail_preview }

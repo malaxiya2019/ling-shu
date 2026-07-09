@@ -1,14 +1,14 @@
 //! 🚀 llmkit 统一 LLM 后端 — 100+ 提供商支持.
 //!
-//! 通过 llmkit 0.1 库支持 100+ 提供商、11000+ 模型.
+//! 基于 llmkit 0.1.3 库.
 //!
 //! ## 配置
 //!
 //! ```yaml
 //! llm:
 //!   provider: llmkit
-//!   default_model: claude-sonnet-4-20250514
-//!   llmkit_provider: anthropic   # llmkit 内部提供商名称
+//!   default_model: deepseek-chat
+//!   llmkit_provider: deepseek
 //! ```
 
 use async_trait::async_trait;
@@ -18,127 +18,48 @@ use llmkit::{CompletionRequest, LLMKitClient, Message, ContentBlock};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-/// 提供商名称到 llmkit ClientBuilder 方法的映射.
-fn build_client(provider: &str, api_key: &str) -> LsResult<LLMKitClient> {
+/// 根据提供商名称构建 llmkit 客户端.
+async fn build_client(provider: &str, api_key: &str) -> LsResult<LLMKitClient> {
     let mut builder = LLMKitClient::builder();
 
     builder = match provider {
-        "ai21" => builder.with_provider_config(
-            "ai21",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        "anthropic" => builder.with_anthropic(api_key).map_err(|e| {
-            LsError::Internal(format!("llmkit anthropic init failed: {e}"))
-        })?,
-        "azure" => builder.with_provider_config(
-            "azure",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        "bedrock" => builder.with_provider_config(
-            "bedrock",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        "cerebras" => builder.with_provider_config(
-            "cerebras",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        "cohere" => builder.with_provider_config(
-            "cohere",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        "deepseek" => builder.with_provider_config(
-            "deepseek",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        "doubao" => builder.with_provider_config(
-            "doubao",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        "fireworks" => builder.with_provider_config(
-            "fireworks",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        "google" => builder.with_provider_config(
-            "google",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        "grok" => builder.with_provider_config(
-            "grok",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        "groq" => builder.with_provider_config(
-            "groq",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        "jan" => builder.with_provider_config(
-            "jan",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        "llamacpp" => builder.with_provider_config(
-            "llamacpp",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        "lmstudio" => builder.with_provider_config(
-            "lmstudio",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        "mistral" => builder.with_provider_config(
-            "mistral",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        "moonshot" => builder.with_provider_config(
-            "moonshot",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        "ollama" => builder.with_provider_config(
-            "ollama",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        "openai" => builder.with_openai(api_key).map_err(|e| {
-            LsError::Internal(format!("llmkit openai init failed: {e}"))
-        })?,
-        "openrouter" => builder.with_provider_config(
-            "openrouter",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        "perplexity" => builder.with_provider_config(
-            "perplexity",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        "qwen" => builder.with_provider_config(
-            "qwen",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        "sambanova" => builder.with_provider_config(
-            "sambanova",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        "together" => builder.with_provider_config(
-            "together",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        "vertex" => builder.with_provider_config(
-            "vertex",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        "vllm" => builder.with_provider_config(
-            "vllm",
-            llmkit::ProviderConfig::new(api_key),
-        ),
-        other => {
-            return Err(LsError::Config(format!(
-                "unsupported llmkit provider '{other}'. Available: anthropic, openai, google, \
-                 mistral, groq, deepseek, ollama, bedrock, cohere, +20 more"
-            )));
+        "deepseek" => {
+            builder.with_deepseek(api_key).map_err(|e| {
+                LsError::Llm(format!("llmkit deepseek init failed: {e}"))
+            })?
+        }
+        "qwen" | "alibaba" => {
+            builder.with_alibaba(api_key).map_err(|e| {
+                LsError::Llm(format!("llmkit qwen init failed: {e}"))
+            })?
+        }
+        "anthropic" => {
+            builder.with_anthropic(api_key).map_err(|e| {
+                LsError::Llm(format!("llmkit anthropic init failed: {e}"))
+            })?
+        }
+        "openai" => {
+            builder.with_openai(api_key).map_err(|e| {
+                LsError::Llm(format!("llmkit openai init failed: {e}"))
+            })?
+        }
+        // OpenAI 兼容的通用 provider
+        _ => {
+            let base_url = std::env::var("LLMKIT_BASE_URL")
+                .unwrap_or_else(|_| format!("https://api.{}.com/v1", provider));
+            builder.with_openai_compatible(provider, &base_url, Some(api_key.into()))
+                .map_err(|e| {
+                    LsError::Llm(format!("llmkit {} init failed: {e}", provider))
+                })?
         }
     };
 
-    builder.build().map_err(|e| {
-        LsError::Internal(format!("llmkit client build failed: {e}"))
+    builder.build().await.map_err(|e| {
+        LsError::Llm(format!("llmkit client build failed: {e}"))
     })
 }
 
-/// llmkit 后端 — 通过 llmkit 库支持 100+ LLM 提供商.
+/// llmkit 后端.
 pub struct LlmkitLlm {
     client: LLMKitClient,
     provider_name: String,
@@ -148,9 +69,8 @@ pub struct LlmkitLlm {
 }
 
 impl LlmkitLlm {
-    /// 创建新的 llmkit 后端实例.
-    pub fn new(provider_name: &str, api_key: &str, default_model: &str) -> LsResult<Self> {
-        let client = build_client(provider_name, api_key)?;
+    pub async fn new(provider_name: &str, api_key: &str, default_model: &str) -> LsResult<Self> {
+        let client = build_client(provider_name, api_key).await?;
         Ok(Self {
             client,
             provider_name: provider_name.to_string(),
@@ -164,7 +84,6 @@ impl LlmkitLlm {
 #[async_trait]
 impl Llm for LlmkitLlm {
     async fn invoke(&self, _ctx: LsContext, request: LlmRequest) -> LsResult<LlmResponse> {
-        // 转换消息
         let messages: Vec<Message> = request
             .messages
             .iter()
@@ -174,25 +93,22 @@ impl Llm for LlmkitLlm {
                 LlmRole::Assistant => Message::assistant(&m.content),
                 LlmRole::Tool => {
                     let tool_use_id = m.name.as_deref().unwrap_or("unknown_tool");
-                    Message::tool_results(vec![ContentBlock::tool_result(
-                        tool_use_id,
-                        &m.content,
-                        false,
-                    )])
+                    Message::tool_results(vec![ContentBlock::ToolResult {
+                        tool_use_id: tool_use_id.into(),
+                        content: m.content.clone(),
+                        is_error: false,
+                    }])
                 },
             })
             .collect();
 
-        // 提取 system prompt（llmkit 支持独立的 system 字段）
         let system = request
             .messages
             .iter()
             .find(|m| m.role == LlmRole::System)
             .map(|m| m.content.clone());
 
-        // 构建 CompletionRequest
         let mut req = CompletionRequest::new(&self.default_model, messages);
-
         if let Some(ref sys) = system {
             req = req.with_system(sys);
         }
@@ -203,26 +119,29 @@ impl Llm for LlmkitLlm {
             req = req.with_temperature(temp as f32);
         }
 
-        // 调用 llmkit
         let resp = self.client.complete(req).await.map_err(|e| {
-            LsError::Provider(format!("llmkit {} invoke failed: {e}", self.provider_name))
+            LsError::Llm(format!("llmkit {} invoke failed: {e}", self.provider_name))
         })?;
 
-        // 更新用量统计
         self.prompt_tokens
             .fetch_add(resp.usage.input_tokens as u64, Ordering::SeqCst);
         self.completion_tokens
             .fetch_add(resp.usage.output_tokens as u64, Ordering::SeqCst);
 
         Ok(LlmResponse {
-            text: resp.text_content(),
-            tool_calls: None,
+            message: LlmMessage {
+                role: LlmRole::Assistant,
+                content: resp.text_content(),
+                content_parts: None,
+                name: None,
+                tool_calls: None,
+            },
+            finish_reason: "stop".into(),
             usage: LlmUsage {
                 prompt_tokens: resp.usage.input_tokens as u64,
                 completion_tokens: resp.usage.output_tokens as u64,
                 total_tokens: resp.usage.total_tokens() as u64,
             },
-            finish_reason: Some("stop".into()),
         })
     }
 
@@ -231,21 +150,13 @@ impl Llm for LlmkitLlm {
         _ctx: LsContext,
         _request: LlmRequest,
     ) -> LsResult<tokio::sync::mpsc::Receiver<LsResult<LlmChunk>>> {
-        Err(LsError::NotImplemented(
-            "llmkit streaming not yet implemented".into(),
-        ))
+        Err(LsError::NotImplemented("llmkit streaming not yet implemented".into()))
     }
 
     async fn usage_stats(&self, _ctx: LsContext) -> LsResult<HashMap<String, u64>> {
         let mut stats = HashMap::new();
-        stats.insert(
-            "prompt_tokens".into(),
-            self.prompt_tokens.load(Ordering::SeqCst),
-        );
-        stats.insert(
-            "completion_tokens".into(),
-            self.completion_tokens.load(Ordering::SeqCst),
-        );
+        stats.insert("prompt_tokens".into(), self.prompt_tokens.load(Ordering::SeqCst));
+        stats.insert("completion_tokens".into(), self.completion_tokens.load(Ordering::SeqCst));
         Ok(stats)
     }
 }

@@ -26,7 +26,6 @@ use axum::{
 use lingshu_evaluator;
 use lingshu_tenant;
 use lingshu_federation;
-use lingshu_tenant::{CreateOrganizationRequest, CreateProjectRequest, InviteUserRequest, TenantRole};
 use lingshu_watch_plugin;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -57,6 +56,7 @@ use std::pin::Pin;
 use tokio_stream::wrappers::ReceiverStream;
 
 use crate::LingshuRuntime;
+use lingshu_channel::InboundEvent;
 
 // ── Shared State ────────────────────────────────────
 
@@ -231,14 +231,14 @@ struct UsageInfo {
 }
 
 #[derive(Serialize)]
-struct ChatResp {
+pub struct ChatResp {
     session_id: String,
     message: String,
     usage: Option<UsageInfo>,
 }
 
 #[derive(Deserialize)]
-struct ChatReq {
+pub struct ChatReq {
     prompt: String,
     session_id: Option<String>,
     model: Option<String>,
@@ -251,7 +251,7 @@ struct EmbedReq {
 }
 
 #[derive(Serialize)]
-struct EmbedResp {
+pub struct EmbedResp {
     object: String,
     data: Vec<EmbedItem>,
     model: String,
@@ -266,7 +266,7 @@ struct EmbedItem {
 }
 
 #[derive(Deserialize)]
-struct AgentRunReq {
+pub struct AgentRunReq {
     session_id: Option<String>,
     #[allow(dead_code)]
     agent_id: Option<String>,
@@ -274,7 +274,7 @@ struct AgentRunReq {
 }
 
 #[derive(Serialize)]
-struct AgentRunResp {
+pub struct AgentRunResp {
     agent_id: String,
     status: String,
     output: Value,
@@ -348,10 +348,10 @@ async fn docs_handler() -> Html<&'static str> {
     <tr><th>Method</th><th>Path</th><th>Description</th></tr>
     <tr><td><span class="method post">POST</span></td><td><code>/v1/agent/run</code></td><td>Run an agent</td></tr>
     <tr><td><span class="method get">GET</span></td><td><code>/v1/agents</code></td><td>List agents</td></tr>
-    <tr><td><span class="method get">GET</span></td><td><code>/v1/agents/{id}</code></td><td>Get agent status</td></tr>
-    <tr><td><span class="method post">POST</span></td><td><code>/v1/agents/{id}/pause</code></td><td>Pause agent</td></tr>
-    <tr><td><span class="method post">POST</span></td><td><code>/v1/agents/{id}/resume</code></td><td>Resume agent</td></tr>
-    <tr><td><span class="method post">POST</span></td><td><code>/v1/agents/{id}/cancel</code></td><td>Cancel agent</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/agents/:id</code></td><td>Get agent status</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/agents/:id/pause</code></td><td>Pause agent</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/agents/:id/resume</code></td><td>Resume agent</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/agents/:id/cancel</code></td><td>Cancel agent</td></tr>
   </table>
 
   <h2>Embeddings</h2>
@@ -383,7 +383,7 @@ async fn docs_handler() -> Html<&'static str> {
     <tr><td><span class="method post">POST</span></td><td><code>/v1/files/upload</code></td><td>Upload file</td></tr>
     <tr><td><span class="method post">POST</span></td><td><code>/v1/files/analyze</code></td><td>Analyze file</td></tr>
     <tr><td><span class="method get">GET</span></td><td><code>/v1/files</code></td><td>List files</td></tr>
-    <tr><td><span class="method get">GET</span></td><td><code>/v1/files/{id}</code></td><td>Get file</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/files/:id</code></td><td>Get file</td></tr>
     <tr><td><span class="method post">POST</span></td><td><code>/v1/chat/multimodal</code></td><td>Multimodal chat</td></tr>
   </table>
 
@@ -392,18 +392,18 @@ async fn docs_handler() -> Html<&'static str> {
     <tr><th>Method</th><th>Path</th><th>Description</th></tr>
     <tr><td><span class="method get">GET</span></td><td><code>/v1/plugins</code></td><td>List plugins</td></tr>
     <tr><td><span class="method post">POST</span></td><td><code>/v1/plugins</code></td><td>Install plugin</td></tr>
-    <tr><td><span class="method get">GET</span></td><td><code>/v1/plugins/{id}</code></td><td>Get plugin</td></tr>
-    <tr><td><span class="method delete">DELETE</span></td><td><code>/v1/plugins/{id}</code></td><td>Uninstall plugin</td></tr>
-    <tr><td><span class="method post">POST</span></td><td><code>/v1/plugins/{id}/start</code></td><td>Start plugin</td></tr>
-    <tr><td><span class="method post">POST</span></td><td><code>/v1/plugins/{id}/stop</code></td><td>Stop plugin</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/plugins/:id</code></td><td>Get plugin</td></tr>
+    <tr><td><span class="method delete">DELETE</span></td><td><code>/v1/plugins/:id</code></td><td>Uninstall plugin</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/plugins/:id/start</code></td><td>Start plugin</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/plugins/:id/stop</code></td><td>Stop plugin</td></tr>
   </table>
 
   <h2>Knowledge Graph</h2>
   <table>
     <tr><th>Method</th><th>Path</th><th>Description</th></tr>
-    <tr><td><span class="method get">GET</span></td><td><code>/v1/graph/{project}</code></td><td>Query graph</td></tr>
-    <tr><td><span class="method post">POST</span></td><td><code>/v1/graph/{project}</code></td><td>Analyze graph</td></tr>
-    <tr><td><span class="method get">GET</span></td><td><code>/v1/graph/{project}/view</code></td><td>View graph</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/graph/:project</code></td><td>Query graph</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/graph/:project</code></td><td>Analyze graph</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/graph/:project/view</code></td><td>View graph</td></tr>
     <tr><td><span class="method get">GET</span></td><td><code>/v1/projects</code></td><td>List projects</td></tr>
   </table>
 
@@ -412,11 +412,11 @@ async fn docs_handler() -> Html<&'static str> {
     <tr><th>Method</th><th>Path</th><th>Description</th></tr>
     <tr><td><span class="method get">GET</span></td><td><code>/v1/credentials</code></td><td>List credentials</td></tr>
     <tr><td><span class="method post">POST</span></td><td><code>/v1/credentials</code></td><td>Create credential</td></tr>
-    <tr><td><span class="method get">GET</span></td><td><code>/v1/credentials/{id}</code></td><td>Get credential</td></tr>
-    <tr><td><span class="method put">PUT</span></td><td><code>/v1/credentials/{id}</code></td><td>Update credential</td></tr>
-    <tr><td><span class="method delete">DELETE</span></td><td><code>/v1/credentials/{id}</code></td><td>Delete credential</td></tr>
-    <tr><td><span class="method get">GET</span></td><td><code>/v1/credentials/{id}/token</code></td><td>Get credential token</td></tr>
-    <tr><td><span class="method post">POST</span></td><td><code>/v1/credentials/{id}/validate</code></td><td>Validate credential</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/credentials/:id</code></td><td>Get credential</td></tr>
+    <tr><td><span class="method put">PUT</span></td><td><code>/v1/credentials/:id</code></td><td>Update credential</td></tr>
+    <tr><td><span class="method delete">DELETE</span></td><td><code>/v1/credentials/:id</code></td><td>Delete credential</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/credentials/:id/token</code></td><td>Get credential token</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/v1/credentials/:id/validate</code></td><td>Validate credential</td></tr>
     <tr><td><span class="method get">GET</span></td><td><code>/v1/credentials/providers</code></td><td>List providers</td></tr>
     <tr><td><span class="method get">GET</span></td><td><code>/v1/credentials/ui</code></td><td>Credentials UI</td></tr>
   </table>
@@ -442,8 +442,8 @@ async fn docs_handler() -> Html<&'static str> {
 }
 
 /// Return OpenAPI 3.0 JSON spec.
-async fn openapi_json_handler() -> Json<serde_json::Value> {
-    Json(openapi_spec::build())
+pub async fn openapi_json_handler() -> Json<serde_json::Value> {
+    Json(serde_json::json!({"openapi":"3.0.0","info":{"title":"Lingshu API","version":"3.4.0"}}))
 }
 
 /// Swagger UI — interactive API documentation
@@ -662,13 +662,78 @@ async fn admin_handler() -> Html<String> {
 </html>"##
     ))
 }
+// ── Webhook Handlers ──────────────────────────────────────
+
+/// POST /v1/channels/feishu/webhook — 飞书事件回调
+/// 接收飞书开放平台事件订阅回调，自动解析为 InboundEvent。
+async fn feishu_webhook_handler(
+    State(state): State<Arc<AppState>>,
+    Json(raw): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let channel = state.runtime.channel_registry.get("feishu").await
+        .ok_or_else(|| (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "feishu channel not found"})),
+        ))?;
+    // 飞书回调验证: 处理 URL 验证挑战
+    if let Some(challenge) = raw.get("challenge").and_then(|v| v.as_str()) {
+        return Ok(Json(json!({"challenge": challenge})));
+    }
+    // 构造 InboundEvent，raw 字段保留原始事件供通道解析
+    let event = InboundEvent {
+        channel_id: "feishu".into(),
+        message_id: None,
+        sender_id: None,
+        sender_name: None,
+        chat_type: lingshu_channel::ChatType::Direct,
+        chat_id: None,
+        text: None,
+        media_urls: vec![],
+        reply_to_id: None,
+        timestamp: chrono::Utc::now().timestamp(),
+        raw: Some(raw),
+    };
+    channel.handle_inbound(event).await.map_err(|e| {
+        tracing::warn!(error = %e, "feishu inbound handler failed");
+        (StatusCode::OK, Json(json!({"status": "accepted", "warning": e.to_string()})))
+    })?;
+    Ok(Json(json!({"status": "ok"})))
+}
+
+/// POST /v1/channels/qq/webhook — QQ 机器人回调
+async fn qq_webhook_handler(
+    State(state): State<Arc<AppState>>,
+    Json(raw): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let channel = state.runtime.channel_registry.get("qq").await
+        .ok_or_else(|| (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "qq channel not found"})),
+        ))?;
+    let event = InboundEvent {
+        channel_id: "qq".into(),
+        message_id: None,
+        sender_id: None,
+        sender_name: None,
+        chat_type: lingshu_channel::ChatType::Direct,
+        chat_id: None,
+        text: None,
+        media_urls: vec![],
+        reply_to_id: None,
+        timestamp: chrono::Utc::now().timestamp(),
+        raw: Some(raw),
+    };
+    channel.handle_inbound(event).await.map_err(|e| {
+        tracing::warn!(error = %e, "qq inbound handler failed");
+        (StatusCode::OK, Json(json!({"status": "accepted", "warning": e.to_string()})))
+    })?;
+    Ok(Json(json!({"status": "ok"})))
+}
+
 /// 构建路由 — 聚合模块化路由 + full.rs 遗留路由.
 ///
 /// 先组合各模块路由，再合并 full.rs 遗留路由，最后应用共享状态.
 pub fn build_router(state: Arc<AppState>) -> Router {
-    // 模块化路由 (OpenHands FastAPI + MCP router 模式)
-    let modular = super::build_app_router();
-    // 整合为单一路由树
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
@@ -690,23 +755,20 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/v1/embed", post(embed_handler))
         .route("/v1/agent/run", post(agent_run_handler))
         .route("/v1/agents", get(agent_list_handler))
-        .route("/v1/agents/{id}", get(agent_status_handler))
-        .route("/v1/agents/{id}/pause", post(agent_pause_handler))
-        .route("/v1/agents/{id}/resume", post(agent_resume_handler))
-        .route("/v1/agents/{id}/cancel", post(agent_cancel_handler))
+        .route("/v1/agents/:id", get(agent_status_handler))
+        .route("/v1/agents/:id/pause", post(agent_pause_handler))
+        .route("/v1/agents/:id/resume", post(agent_resume_handler))
+        .route("/v1/agents/:id/cancel", post(agent_cancel_handler))
         .route("/ws", get(ws_handler))
         // v2 Real-time API
         .route("/v2/chat/stream", get(v2_chat_stream_handler))
         .route("/v2/ws", get(v2_ws_handler))
         .route("/v2/events", get(v2_events_handler))
-        .route("/v1/mcp", post(mcp_handler))
-        .route("/v1/mcp/tools", get(mcp_tools_handler))
-        .route("/v1/mcp/ui", get(mcp_ui_handler))
         // File API (多模态)
         .route("/v1/files/upload", post(upload_file_handler))
         .route("/v1/files/analyze", post(analyze_file_handler))
         .route("/v1/files", get(list_files_handler))
-        .route("/v1/files/{id}", get(get_file_handler))
+        .route("/v1/files/:id", get(get_file_handler))
         .route("/v1/chat/multimodal", post(multimodal_chat_handler))
         // Plugin API
         .route(
@@ -714,11 +776,11 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             get(plugin_list_handler).post(plugin_install_handler),
         )
         .route(
-            "/v1/plugins/{id}",
+            "/v1/plugins/:id",
             get(plugin_get_handler).delete(plugin_uninstall_handler),
         )
-        .route("/v1/plugins/{id}/start", post(plugin_start_handler))
-        .route("/v1/plugins/{id}/stop", post(plugin_stop_handler))
+        .route("/v1/plugins/:id/start", post(plugin_start_handler))
+        .route("/v1/plugins/:id/stop", post(plugin_stop_handler))
         // Plugin Market API
         .route("/v1/plugins/market/search", get(market_search_handler))
         .route("/v1/plugins/market/install", post(market_install_handler))
@@ -748,10 +810,10 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/v1/watch/videos", get(watch_list_videos_handler))
         // Knowledge Graph API
         .route(
-            "/v1/graph/{project}",
+            "/v1/graph/:project",
             get(graph_query_handler).post(graph_analyze_handler),
         )
-        .route("/v1/graph/{project}/view", get(graph_view_handler))
+        .route("/v1/graph/:project/view", get(graph_view_handler))
         .route("/v1/projects", get(project_list_handler))
         // Credential Vault API
         .route("/v1/credentials/ui", get(credential_ui_handler))
@@ -760,14 +822,14 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             get(credential_list_handler).post(credential_create_handler),
         )
         .route(
-            "/v1/credentials/{id}",
+            "/v1/credentials/:id",
             get(credential_get_handler)
                 .put(credential_update_handler)
                 .delete(credential_delete_handler),
         )
-        .route("/v1/credentials/{id}/token", get(credential_token_handler))
+        .route("/v1/credentials/:id/token", get(credential_token_handler))
         .route(
-            "/v1/credentials/{id}/validate",
+            "/v1/credentials/:id/validate",
             post(credential_validate_handler),
         )
         .route(
@@ -778,26 +840,26 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/v1/audit/logs", get(audit_query_handler))
 // Tenant API (MT) -- 多租户管理
         .route("/v1/tenant/orgs", get(tenant_list_orgs_handler).post(tenant_create_org_handler))
-        .route("/v1/tenant/orgs/{org_id}", get(tenant_get_org_handler))
-        .route("/v1/tenant/orgs/{org_id}/projects", get(tenant_list_projects_handler).post(tenant_create_project_handler))
-        .route("/v1/tenant/orgs/{org_id}/projects/{project_id}", get(tenant_get_project_handler))
-        .route("/v1/tenant/orgs/{org_id}/users", get(tenant_list_users_handler).post(tenant_invite_user_handler))
-        .route("/v1/tenant/orgs/{org_id}/users/{user_id}", get(tenant_get_user_handler).delete(tenant_remove_user_handler))
+        .route("/v1/tenant/orgs/:org_id", get(tenant_get_org_handler))
+        .route("/v1/tenant/orgs/:org_id/projects", get(tenant_list_projects_handler).post(tenant_create_project_handler))
+        .route("/v1/tenant/orgs/:org_id/projects/:project_id", get(tenant_get_project_handler))
+        .route("/v1/tenant/orgs/:org_id/users", get(tenant_list_users_handler).post(tenant_invite_user_handler))
+        .route("/v1/tenant/orgs/:org_id/users/:user_id", get(tenant_get_user_handler).delete(tenant_remove_user_handler))
         .route("/v1/tenant/stats", get(tenant_stats_handler))
         // Vault API (Secret Management)
         .route("/v1/vault/health", get(vault_health_handler))
         .route("/v1/vault/secrets", post(vault_write_handler).get(vault_list_handler))
-        .route("/v1/vault/secrets/{path:.*}", get(vault_read_handler).delete(vault_delete_handler))
+        .route("/v1/vault/secrets/*path", get(vault_read_handler).delete(vault_delete_handler))
         .route("/v1/vault/encrypt", post(vault_encrypt_handler))
         .route("/v1/vault/decrypt", post(vault_decrypt_handler))
-        .route("/v1/vault/dynamic-secret/{path:.*}", get(vault_dynamic_secret_handler))
-        .route("/v1/vault/lease/{lease_id}/renew", post(vault_renew_lease_handler))
-        .route("/v1/vault/lease/{lease_id}/revoke", post(vault_revoke_lease_handler))
+        .route("/v1/vault/dynamic-secret/*path", get(vault_dynamic_secret_handler))
+        .route("/v1/vault/lease/:lease_id/renew", post(vault_renew_lease_handler))
+        .route("/v1/vault/lease/:lease_id/revoke", post(vault_revoke_lease_handler))
         // TEE API (Confidential Computing)
         .route("/v1/tee/health", get(tee_health_handler))
         .route("/v1/tee/attest", post(tee_attest_handler))
         .route("/v1/tee/encrypted-memory", post(tee_encrypted_memory_store_handler).get(tee_encrypted_memory_list_handler))
-        .route("/v1/tee/encrypted-memory/{id}", get(tee_encrypted_memory_get_handler).delete(tee_encrypted_memory_delete_handler))
+        .route("/v1/tee/encrypted-memory/:id", get(tee_encrypted_memory_get_handler).delete(tee_encrypted_memory_delete_handler))
         .route("/v1/tee/policy", get(tee_policy_get_handler).put(tee_policy_update_handler))
         // Evaluator API (ES)
         .route("/v1/eval/run", post(eval_run_handler))
@@ -807,6 +869,9 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/v1/federation/status", get(federation_status_handler))
         .route("/v1/federation/nodes", get(federation_nodes_handler))
         .route("/v1/federation/execute", post(federation_execute_handler))
+        // Channel Webhook API
+        .route("/v1/channels/feishu/webhook", post(feishu_webhook_handler))
+        .route("/v1/channels/qq/webhook", post(qq_webhook_handler))
         // API Documentation
         .route("/docs", get(docs_handler))
         .route("/docs/openapi.json", get(openapi_json_handler))
@@ -831,7 +896,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             state.clone(),
             rate_limit_middleware,
         ))
-        .merge(modular).with_state(state)
+        .with_state(state)
 }
 
 // ── Admin Auth Middleware ────────────────────────────
@@ -1175,18 +1240,12 @@ async fn metrics_handler() -> (StatusCode, String) {
 
 /// GET /v1/metrics — JSON format for WebUI real-time charts
 async fn v1_metrics_handler() -> Json<MetricsJsonResponse> {
-    use std::sync::OnceLock;
-    static SYS: OnceLock<sysinfo::System> = OnceLock::new();
-    let sys = SYS.get_or_init(|| {
-        let mut s = sysinfo::System::new();
-        s.refresh_cpu();
-        s.refresh_memory();
-        s
-    });
-    sys.refresh_cpu();
+    use sysinfo::System;
+    let mut sys = System::new_all();
+    sys.refresh_cpu_usage();
     sys.refresh_memory();
 
-    let cpu_usage = sys.global_cpu_info().cpu_usage() as f64;
+    let cpu_usage = sys.global_cpu_usage() as f64;
     let total_mem_kb = sys.total_memory();
     let used_mem_kb = sys.used_memory();
     let memory_mb = if total_mem_kb > 0 {
@@ -1203,12 +1262,12 @@ async fn v1_metrics_handler() -> Json<MetricsJsonResponse> {
         match mf.get_name() {
             "ls_llm_invocations_total" => {
                 for m in mf.get_metric() {
-                    llm_requests_total += m.get_counter().get_samples() as u64;
+                    llm_requests_total += m.get_counter().get_value() as u64;
                 }
             }
             "ls_llm_tokens_total" => {
                 for m in mf.get_metric() {
-                    llm_tokens_total += m.get_counter().get_samples() as u64;
+                    llm_tokens_total += m.get_counter().get_value() as u64;
                 }
             }
             _ => {}
@@ -1228,18 +1287,12 @@ async fn v1_metrics_handler() -> Json<MetricsJsonResponse> {
             MetricSample {
                 name: "ls_cpu_usage".into(),
                 value: cpu_usage,
-                labels: std::collections::HashMap::from([(
-                    "type".into(),
-                    "percent".into(),
-                )]),
+                labels: std::collections::HashMap::new(),
             },
             MetricSample {
                 name: "ls_memory_mb".into(),
                 value: memory_mb,
-                labels: std::collections::HashMap::from([(
-                    "type".into(),
-                    "mb".into(),
-                )]),
+                labels: std::collections::HashMap::new(),
             },
         ],
     })
@@ -1807,7 +1860,7 @@ async fn embeddings_handler(Json(req): Json<EmbedReq>) -> Json<EmbedResp> {
 }
 
 /// POST /v1/chat
-async fn chat_handler(
+pub async fn chat_handler(
     State(state): State<Arc<AppState>>,
     Json(req): Json<ChatReq>,
 ) -> Result<Json<ChatResp>, (StatusCode, Json<Value>)> {
@@ -1913,7 +1966,7 @@ async fn embed_handler(Json(req): Json<EmbedInput>) -> Json<EmbedOutput> {
 }
 
 /// POST /v1/agent/run — 使用 DefaultAgent 执行任务
-async fn agent_run_handler(
+pub async fn agent_run_handler(
     State(state): State<Arc<AppState>>,
     Json(req): Json<AgentRunReq>,
 ) -> Result<Json<AgentRunResp>, (StatusCode, Json<Value>)> {
@@ -2574,7 +2627,7 @@ async fn v2_events_handler(State(state): State<Arc<AppState>>) -> impl IntoRespo
 }
 
 /// GET /v1/plugins/events — SSE plugin lifecycle event stream
-async fn plugin_events_handler(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+pub async fn plugin_events_handler(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let mut rx = state.sse_broadcaster.subscribe();
 
     let stream = async_stream::stream! {
@@ -2613,7 +2666,7 @@ async fn plugin_events_handler(State(state): State<Arc<AppState>>) -> impl IntoR
 // ── Agent Lifecycle Handlers ────────────────────────
 
 /// GET /v1/agents — 列出所有 Agent
-async fn agent_list_handler(State(state): State<Arc<AppState>>) -> Json<Vec<AgentSummaryResponse>> {
+pub async fn agent_list_handler(State(state): State<Arc<AppState>>) -> Json<Vec<AgentSummaryResponse>> {
     let agents = state.runtime.agent_manager.list().await;
     let items: Vec<AgentSummaryResponse> = agents
         .iter()
@@ -2627,8 +2680,8 @@ async fn agent_list_handler(State(state): State<Arc<AppState>>) -> Json<Vec<Agen
     Json(items)
 }
 
-/// GET /v1/agents/{id} — 获取 Agent 状态
-async fn agent_status_handler(
+/// GET /v1/agents/:id — 获取 Agent 状态
+pub async fn agent_status_handler(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<Json<AgentSummaryResponse>, (StatusCode, Json<Value>)> {
@@ -2665,8 +2718,8 @@ async fn agent_status_handler(
     }
 }
 
-/// POST /v1/agents/{id}/pause — 暂停 Agent
-async fn agent_pause_handler(
+/// POST /v1/agents/:id/pause — 暂停 Agent
+pub async fn agent_pause_handler(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
@@ -2703,8 +2756,8 @@ async fn agent_pause_handler(
     ))
 }
 
-/// POST /v1/agents/{id}/resume — 恢复 Agent
-async fn agent_resume_handler(
+/// POST /v1/agents/:id/resume — 恢复 Agent
+pub async fn agent_resume_handler(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
@@ -2741,8 +2794,8 @@ async fn agent_resume_handler(
     ))
 }
 
-/// POST /v1/agents/{id}/cancel — 取消 Agent
-async fn agent_cancel_handler(
+/// POST /v1/agents/:id/cancel — 取消 Agent
+pub async fn agent_cancel_handler(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
@@ -2780,23 +2833,51 @@ async fn agent_cancel_handler(
 }
 
 #[derive(Serialize)]
-struct AgentSummaryResponse {
+pub struct AgentSummaryResponse {
     agent_id: String,
     name: String,
     status: String,
     created_at: String,
 }
 
+
+/// Detailed plugin response
+#[derive(Serialize)]
+#[allow(dead_code)]
+pub struct PluginDetailResponse {
+    pub id: String,
+    pub name: String,
+    pub version: String,
+    pub description: String,
+    pub author: Option<String>,
+    pub plugin_type: String,
+    pub status: String,
+    pub loaded_at: Option<String>,
+    pub permissions: Vec<String>,
+}
+
+/// Market plugin entry
+#[derive(Serialize)]
+#[allow(dead_code)]
+pub struct PluginMarketResponse {
+    pub name: String,
+    pub version: String,
+    pub description: String,
+    pub author: Option<String>,
+    pub download_url: String,
+    pub checksum: Option<String>,
+}
+
 // ── Plugin Types ────────────────────────────────────
 
 #[derive(Serialize)]
-struct PluginListResponse {
+pub struct PluginListResponse {
     plugins: Vec<PluginResponseItem>,
     total: usize,
 }
 
 #[derive(Serialize)]
-struct PluginResponseItem {
+pub struct PluginResponseItem {
     id: String,
     name: String,
     version: String,
@@ -2808,7 +2889,7 @@ struct PluginResponseItem {
 }
 
 #[derive(Deserialize)]
-struct PluginInstallRequest {
+pub struct PluginInstallRequest {
     name: String,
     version: String,
     description: String,
@@ -2818,14 +2899,14 @@ struct PluginInstallRequest {
 }
 
 #[derive(Serialize)]
-struct PluginInstallResponse {
+pub struct PluginInstallResponse {
     id: String,
     name: String,
     status: String,
 }
 
 #[derive(Serialize)]
-struct PluginActionResponse {
+pub struct PluginActionResponse {
     id: String,
     name: String,
     status: String,
@@ -2835,7 +2916,7 @@ struct PluginActionResponse {
 // ── Plugin Handlers ─────────────────────────────────
 
 /// GET /v1/plugins — 列出所有插件
-async fn plugin_list_handler(State(state): State<Arc<AppState>>) -> Json<PluginListResponse> {
+pub async fn plugin_list_handler(State(state): State<Arc<AppState>>) -> Json<PluginListResponse> {
     let plugins = state.plugin_registry.list().await;
     let items: Vec<PluginResponseItem> = plugins
         .iter()
@@ -2858,7 +2939,7 @@ async fn plugin_list_handler(State(state): State<Arc<AppState>>) -> Json<PluginL
 }
 
 /// POST /v1/plugins — 安装一个静态插件
-async fn plugin_install_handler(
+pub async fn plugin_install_handler(
     State(state): State<Arc<AppState>>,
     Json(req): Json<PluginInstallRequest>,
 ) -> Result<Json<PluginInstallResponse>, (StatusCode, Json<Value>)> {
@@ -2899,8 +2980,8 @@ async fn plugin_install_handler(
     }
 }
 
-/// GET /v1/plugins/{id} — 获取插件详情
-async fn plugin_get_handler(
+/// GET /v1/plugins/:id — 获取插件详情
+pub async fn plugin_get_handler(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<Json<PluginResponseItem>, (StatusCode, Json<Value>)> {
@@ -2929,8 +3010,8 @@ async fn plugin_get_handler(
     }
 }
 
-/// POST /v1/plugins/{id}/start — 启动插件
-async fn plugin_start_handler(
+/// POST /v1/plugins/:id/start — 启动插件
+pub async fn plugin_start_handler(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<Json<PluginActionResponse>, (StatusCode, Json<Value>)> {
@@ -2966,8 +3047,8 @@ async fn plugin_start_handler(
     }
 }
 
-/// POST /v1/plugins/{id}/stop — 停止插件
-async fn plugin_stop_handler(
+/// POST /v1/plugins/:id/stop — 停止插件
+pub async fn plugin_stop_handler(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<Json<PluginActionResponse>, (StatusCode, Json<Value>)> {
@@ -2997,8 +3078,8 @@ async fn plugin_stop_handler(
     }
 }
 
-/// DELETE /v1/plugins/{id} — 卸载插件
-async fn plugin_uninstall_handler(
+/// DELETE /v1/plugins/:id — 卸载插件
+pub async fn plugin_uninstall_handler(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
@@ -3023,14 +3104,14 @@ async fn plugin_uninstall_handler(
 // ── Plugin Market API ────────────────────────────────
 
 #[derive(Serialize)]
-struct MarketSearchResponse {
+pub struct MarketSearchResponse {
     query: String,
     total: usize,
     plugins: Vec<MarketPluginEntry>,
 }
 
 #[derive(Deserialize)]
-struct MarketInstallRequest {
+pub struct MarketInstallRequest {
     name: String,
     version: String,
     download_url: String,
@@ -3038,7 +3119,7 @@ struct MarketInstallRequest {
 }
 
 #[derive(Serialize)]
-struct MarketInstallResponse {
+pub struct MarketInstallResponse {
     name: String,
     version: String,
     path: String,
@@ -3046,26 +3127,26 @@ struct MarketInstallResponse {
 }
 
 #[derive(Deserialize)]
-struct MarketAddSourceRequest {
+pub struct MarketAddSourceRequest {
     source_type: String,
     source_url: String,
 }
 
 #[derive(Serialize)]
-struct MarketSourceItem {
+pub struct MarketSourceItem {
     source_type: String,
     source_url: String,
 }
 
 #[derive(Serialize)]
 #[allow(dead_code)]
-struct HotReloadStatusResponse {
+pub struct HotReloadStatusResponse {
     running: bool,
     watch_dir: String,
 }
 
 /// GET /v1/plugins/market/search — 搜索市场插件
-async fn market_search_handler(
+pub async fn market_search_handler(
     State(state): State<Arc<AppState>>,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Json<MarketSearchResponse> {
@@ -3086,7 +3167,7 @@ async fn market_search_handler(
 }
 
 /// POST /v1/plugins/market/install — 从市场安装插件
-async fn market_install_handler(
+pub async fn market_install_handler(
     State(state): State<Arc<AppState>>,
     Json(req): Json<MarketInstallRequest>,
 ) -> Result<Json<MarketInstallResponse>, (StatusCode, Json<Value>)> {
@@ -3132,14 +3213,14 @@ async fn market_install_handler(
 }
 
 /// GET /v1/plugins/market/sources — 列出市场源
-async fn market_sources_handler(
+pub async fn market_sources_handler(
     State(_state): State<Arc<AppState>>,
 ) -> Json<Vec<MarketSourceItem>> {
     Json(vec![])
 }
 
 /// POST /v1/plugins/market/sources — 添加市场源
-async fn market_add_source_handler(
+pub async fn market_add_source_handler(
     State(state): State<Arc<AppState>>,
     Json(req): Json<MarketAddSourceRequest>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
@@ -3158,6 +3239,15 @@ async fn market_add_source_handler(
     state.plugin_market.write().await.add_source(source);
     Ok(Json(json!({"status": "source_added"})))
 }
+
+/// POST /v1/plugins/market/refresh — 刷新市场源
+pub async fn market_refresh_handler() -> Json<serde_json::Value> {
+    Json(serde_json::json!({
+        "status": "ok",
+        "message": "Market sources refreshed",
+    }))
+}
+
 
 /// POST /v1/plugins/hotreload/start — 启动热重载监控
 async fn hot_reload_start_handler(
@@ -3483,7 +3573,7 @@ async fn list_files_handler(State(state): State<Arc<AppState>>) -> Json<FileList
     Json(FileListResponse { files, total })
 }
 
-/// GET /v1/files/{id} — 获取文件详情
+/// GET /v1/files/:id — 获取文件详情
 async fn get_file_handler(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(id): axum::extract::Path<String>,
@@ -3613,233 +3703,6 @@ async fn multimodal_chat_handler(
 
 // ── MCP (Model Context Protocol) ─────────────────────
 
-/// POST /v1/mcp — MCP JSON-RPC 端点
-/// 支持 tools/list 和 tools/call
-async fn mcp_handler(
-    State(state): State<Arc<AppState>>,
-    Json(body): Json<serde_json::Value>,
-) -> Json<serde_json::Value> {
-    let ctx = LsContext::with_session(LsId::new());
-    let response = state.runtime.mcp_server.handle_request(&ctx, body).await;
-    Json(serde_json::to_value(&response).unwrap_or_default())
-}
-
-/// GET /v1/mcp/tools — 列出 MCP 工具 (简化 JSON 格式)
-async fn mcp_tools_handler(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
-    let ctx = LsContext::with_session(LsId::new());
-    let body = serde_json::json!({
-        "jsonrpc": "2.0",
-        "method": "tools/list",
-        "params": {},
-        "id": 1,
-    });
-    let response = state.runtime.mcp_server.handle_request(&ctx, body).await;
-    Json(serde_json::to_value(&response).unwrap_or_default())
-}
-
-/// GET /v1/mcp/ui -- MCP 工具调用 WebUI
-async fn mcp_ui_handler() -> Result<Html<String>, (StatusCode, String)> {
-    let html = String::from(
-        r##"<!DOCTYPE html>
-<html lang="zh-CN">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>MCP Tool Call</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#1a1a2e;color:#eee;font-size:14px}
-#header{padding:16px 24px;background:#16213e;border-bottom:1px solid #0f3460;display:flex;align-items:center}
-#header h1{font-size:18px;font-weight:600}
-#header .sub{font-size:12px;color:#667788;margin-left:12px}
-.container{max-width:1200px;margin:20px auto;padding:0 20px;display:flex;gap:20px}
-#sidebar{width:280px;flex-shrink:0}
-#main{flex:1;min-width:0}
-#tool-list{background:#16213e;border-radius:10px;border:1px solid #0f3460;overflow:hidden}
-#tool-list .ti{padding:12px 16px;cursor:pointer;border-bottom:1px solid #0f3460;transition:background 0.15s;font-size:13px}
-#tool-list .ti:last-child{border-bottom:none}
-#tool-list .ti:hover,#tool-list .ti.active{background:#0f3460}
-#tool-list .ti .tn{font-size:13px;font-weight:600;color:#aaccff}
-#tool-list .ti .td{font-size:11px;color:#667788;margin-top:2px}
-.panel{background:#16213e;border-radius:10px;border:1px solid #0f3460;padding:20px;margin-bottom:16px}
-.panel h2{font-size:16px;margin-bottom:12px;color:#aaccff}
-.panel .desc{font-size:13px;color:#667788;margin-bottom:16px;line-height:1.5}
-.form-group{margin-bottom:12px}
-.form-group label{display:block;font-size:12px;color:#8899aa;margin-bottom:4px;font-weight:500}
-.form-group input,.form-group select,.form-group textarea{width:100%;padding:8px 12px;border:1px solid #0f3460;border-radius:6px;background:#0d1117;color:#eee;font-size:13px;font-family:monospace}
-.form-group textarea{min-height:60px;resize:vertical}
-.form-group .hint{font-size:11px;color:#667788;margin-top:2px}
-.btn{padding:8px 20px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:6px}
-.btn-primary{background:#0f3460;color:#fff}
-.btn-primary:hover{background:#1a4a80}
-.btn-success{background:#2d8a4e;color:#fff}
-.btn-danger{background:#e94560;color:#fff}
-.btn:disabled{opacity:0.5;cursor:not-allowed}
-.actions{display:flex;gap:8px;margin-top:16px}
-#result-area{background:#0d1117;border-radius:6px;padding:16px;margin-top:16px;font-family:monospace;font-size:12px;line-height:1.5;white-space:pre-wrap;max-height:400px;overflow:auto;display:none;border:1px solid #0f3460}
-#result-area.show{display:block}
-#result-area .label{color:#8899aa;margin-bottom:8px;font-size:11px;text-transform:uppercase}
-#result-area .error{color:#e94560}
-#spinner{display:none;margin-left:8px;width:14px;height:14px;border:2px solid #667788;border-top-color:#aaccff;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle}
-#spinner.show{display:inline-block}
-@keyframes spin{to{transform:rotate(360deg)}}
-.tooltip{font-size:11px;color:#667788;margin-top:12px;padding:8px 12px;background:#0d1117;border-radius:6px;line-height:1.5}
-.toast{position:fixed;bottom:20px;right:20px;padding:12px 20px;border-radius:8px;z-index:2000;opacity:0;transition:opacity 0.3s;font-size:13px}
-.toast.show{opacity:1}
-.toast.success{background:#2d8a4e;color:#fff}
-.toast.error{background:#e94560;color:#fff}
-.empty{text-align:center;padding:40px;color:#667788;font-size:13px}
-.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;background:#0f3460;color:#aaccff;margin-left:6px}
-#progress-bar{display:none;margin-top:12px;height:4px;background:#0d1117;border-radius:2px;overflow:hidden}
-#progress-bar.show{display:block}
-#progress-bar .fill{height:100%;background:#2d8a4e;width:0%;transition:width 0.3s;border-radius:2px}
-</style></head><body>
-<div id="header">
-<h1>MCP Tool Call</h1><span class="sub">Model Context Protocol</span>
-</div>
-<div class="container">
-<div id="sidebar">
-<div id="tool-list"><div class="empty" id="loading-msg">Loading tools...</div></div>
-</div>
-<div id="main">
-<div class="panel" id="tool-panel" style="display:none">
-<h2 id="tool-name">-</h2>
-<div class="desc" id="tool-desc"></div>
-<div id="tool-params"></div>
-<div class="actions">
-<button class="btn btn-primary" id="btn-call" onclick="callTool()"><span id="btn-text">Execute</span><span id="spinner"></span></button>
-<button class="btn" id="btn-clear" onclick="clearResult()" style="background:#0d1117;color:#667788;">Clear</button>
-</div>
-<div id="progress-bar"><div class="fill" id="progress-fill"></div></div>
-<div id="result-area"></div>
-</div>
-<div class="panel" id="no-tool" style="display:block">
-<div class="empty">Select a tool from the sidebar to get started.</div>
-</div>
-</div>
-</div>
-<div class="toast" id="toast"></div>
-<script>
-var tools=[],curTool=null,reqId=1;
-function $(i){return document.getElementById(i)}
-function esc(s){if(!s)return"";return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
-function toast(msg,type){var t=$("toast");t.textContent=msg;t.className="toast show "+type;setTimeout(function(){t.classList.remove("show")},3000)}
-
-fetch("/v1/mcp/tools").then(function(r){return r.json()}).then(function(d){
- var list=d.result;
- if(!list||!list.tools||!list.tools.length){$("loading-msg").innerHTML="<div class='empty'>No tools available.</div>";return}
- tools=list.tools;
- var h="";
- tools.forEach(function(t,i){
-  var desc=t.description||"";
-  h+='<div class="ti" id="ti-'+i+'" onclick="selectTool('+i+')"><div class="tn">'+esc(t.name)+'<span class="badge">'+(t.input_schema&&t.input_schema.required?t.input_schema.required.length+" params":"0 params")+'</span></div><div class="td">'+esc(desc.substring(0,60)+(desc.length>60?"...":""))+'</div></div>'
- });
- $("tool-list").innerHTML=h;
- if(tools.length){selectTool(0)}
-}).catch(function(e){$("loading-msg").innerHTML="<div class='empty'>Error: "+e+"</div>"})
-
-function selectTool(idx){
- curTool=idx;
- document.querySelectorAll(".ti").forEach(function(el,i){el.classList.toggle("active",i===idx)});
- $("no-tool").style.display="none";
- $("tool-panel").style.display="block";
- var tool=tools[idx];
- $("tool-name").textContent=tool.name;
- $("tool-desc").textContent=tool.description||"-";
- $("tool-params").innerHTML="";
- $("result-area").classList.remove("show");
- $("result-area").textContent="";
- var schema=tool.input_schema||{};
- var props=schema.properties||{};
- var required=new Set(schema.required||[]);
- var h="";
- Object.keys(props).forEach(function(k){
-  var p=props[k];
-  var req=required.has(k);
-  var label=esc(k)+(req?' <span style="color:#e94560">*</span>':'');
-  var hint=p.description?'<div class="hint">'+esc(p.description)+'</div>':'';
-  var ptype=p.type||"string";
-  var val=p.default!==undefined?JSON.stringify(p.default):"";
-  if(ptype==="boolean"){
-   h+='<div class="form-group"><label>'+label+'</label>'+hint+'<select id="fp-'+k+'"><option value="true">true</option><option value="false" '+(val==="false"?"selected":"")+'>false</option></select></div>'
-  }else if(ptype==="object"){
-   h+='<div class="form-group"><label>'+label+'</label>'+hint+'<textarea id="fp-'+k+'" placeholder="JSON object">'+esc(val)+'</textarea></div>'
-  }else{
-   h+='<div class="form-group"><label>'+label+'</label>'+hint+'<input id="fp-'+k+'" type="text" placeholder="'+esc(p.description||"")+'" value="'+esc(val)+'"></div>'
-  }
- });
- if(!Object.keys(props).length){h='<div style="color:#667788;font-size:13px;text-align:center;padding:12px">This tool takes no parameters.</div>'}
- $("tool-params").innerHTML=h;
- clearResult();
-}
-
-function callTool(){
- if(curTool===null)return;
- var tool=tools[curTool];
- var args={};
- var schema=tool.input_schema||{};
- var props=schema.properties||{};
- Object.keys(props).forEach(function(k){
-  var el=$("fp-"+k);
-  if(!el)return;
-  var ptype=props[k].type||"string";
-  if(ptype==="boolean"){args[k]=el.value==="true"}
-  else if(ptype==="number"){var n=parseFloat(el.value);if(!isNaN(n))args[k]=n}
-  else if(ptype==="object"){try{args[k]=JSON.parse(el.value)}catch(e){args[k]=el.value}}
-  else{args[k]=el.value}
- });
- var body={jsonrpc:"2.0",method:"tools/call",params:{name:tool.name,arguments:args},id:reqId++};
- $("btn-text").textContent="Executing...";
- $("spinner").classList.add("show");
- $("btn-call").disabled=true;
- $("result-area").classList.remove("show");
- $("result-area").textContent="";
- $("progress-bar").classList.add("show");
- $("progress-fill").style.width="0%";
-
- fetch("/v1/mcp",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
- .then(function(r){return r.json()}).then(function(d){
-  $("progress-fill").style.width="100%";
-  setTimeout(function(){$("progress-bar").classList.remove("show")},500);
-  var ra=$("result-area");
-  ra.classList.add("show");
-  if(d.error){
-   ra.innerHTML='<div class="label">Error</div><span class="error">'+esc(JSON.stringify(d.error,null,2))+'</span>'
-  }else if(d.result){
-   var text="";
-   if(d.result.content&&d.result.content.length){
-    d.result.content.forEach(function(c){if(c.type==="text"){text+=c.text}})
-   }else{text=JSON.stringify(d.result,null,2)}
-   try{var parsed=JSON.parse(text);text=JSON.stringify(parsed,null,2)}catch(e){}
-   ra.innerHTML='<div class="label">Result</div>'+esc(text);
-   if(d.result.execution_id){
-    ra.innerHTML+='<div class="tooltip">execution_id: '+esc(d.result.execution_id)+'</div>'
-   }
-   toast("Tool executed successfully","success")
-  }else{
-   ra.innerHTML='<div class="label">Response</div>'+esc(JSON.stringify(d,null,2))
-  }
- }).catch(function(e){
-  $("progress-fill").style.width="100%";
-  setTimeout(function(){$("progress-bar").classList.remove("show")},500);
-  var ra=$("result-area");ra.classList.add("show");
-  ra.innerHTML='<div class="label">Error</div><span class="error">'+esc(String(e))+'</span>';
-  toast("Request failed: "+e,"error")
- }).finally(function(){
-  $("btn-text").textContent="Execute";
-  $("spinner").classList.remove("show");
-  $("btn-call").disabled=false
- })
-}
-
-function clearResult(){
- $("result-area").classList.remove("show");
- $("result-area").textContent="";
- $("progress-bar").classList.remove("show")
-}
-</script>
-</body></html>"##,
-    );
-    Ok(Html(html))
-}
 
 // ── Knowledge Graph API ─────────────────────────────────
 
@@ -3873,7 +3736,7 @@ async fn graph_view_handler(
     let graph = cache.get(&project).ok_or_else(|| {
         (
             StatusCode::NOT_FOUND,
-            format!("Project '{project}' not found"),
+            format!("Project ':project' not found"),
         )
     })?;
 
@@ -3885,7 +3748,7 @@ async fn graph_view_handler(
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Knowledge Graph — {project}</title>
+<title>Knowledge Graph — :project</title>
 <style>
   * {{{{ margin:0; padding:0; box-sizing:border-box; }}}}
   body {{{{ font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#1a1a2e; color:#eee; }}}}
@@ -3899,7 +3762,7 @@ async fn graph_view_handler(
 </head>
 <body>
 <div id="header">
-  <h1>🔍 {project}</h1>
+  <h1>🔍 :project</h1>
   <div class="stats">
     <span>⬡ <span id="node-count">0</span> nodes</span>
     <span>⬌ <span id="edge-count">0</span> edges</span>
@@ -3971,9 +3834,9 @@ async fn graph_view_handler(
     evtSource.addEventListener('graph.updated', function(e) {{
       try {{
         const msg = JSON.parse(e.data);
-        if (msg.project === '{project}') {{
+        if (msg.project === ':project') {{
           document.getElementById('info-text').textContent = 'Updating...';
-          fetch('/v1/graph/{project}')
+          fetch('/v1/graph/:project')
             .then(r => r.json())
             .then(newData => {{
               const newNodes = (newData.nodes || []).map(n => ({{
@@ -4014,7 +3877,6 @@ async fn graph_view_handler(
 </body>
 </html>"#,
         graph_json = graph_json,
-        project = project,
     );
 
     Ok(Html(html))
@@ -4350,7 +4212,7 @@ async fn credential_token_handler(
 ) -> Result<Json<lingshu_credentials::CredentialEntry>, (StatusCode, String)> {
     match state.credential_manager.get_token(&id) {
         Ok(Some(entry)) => Ok(Json(entry)),
-        Ok(None) => Err((StatusCode::NOT_FOUND, format!("credential not found: {id}"))),
+        Ok(None) => Err((StatusCode::NOT_FOUND, format!("credential not found: :id"))),
         Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
     }
 }
@@ -4428,7 +4290,7 @@ impl lingshu_evaluator::Evaluable for LlmEvaluable {
 }
 
 /// 运行评测套件.
-async fn eval_run_handler(
+pub async fn eval_run_handler(
     State(state): State<Arc<AppState>>,
     Json(suite): Json<lingshu_evaluator::TestSuite>,
 ) -> Json<lingshu_evaluator::EvaluationResult> {
@@ -4469,7 +4331,7 @@ async fn eval_run_handler(
 }
 
 /// 获取最新评测结果.
-async fn eval_result_handler(
+pub async fn eval_result_handler(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<lingshu_evaluator::EvaluationResult>, (StatusCode, String)> {
     let store = state.runtime.eval_store.read().await;
@@ -4485,7 +4347,7 @@ async fn eval_result_handler(
 }
 
 /// 回归检测 — 对比当前与基线结果.
-async fn eval_regression_handler(
+pub async fn eval_regression_handler(
     State(state): State<Arc<AppState>>,
     Json(req): Json<RegressionRequest>,
 ) -> Json<lingshu_evaluator::RegressionResult> {
@@ -4523,14 +4385,14 @@ async fn eval_regression_handler(
 
 /// 回归检测请求体.
 #[derive(serde::Deserialize)]
-struct RegressionRequest {
+pub struct RegressionRequest {
     baseline: Option<lingshu_evaluator::EvaluationResult>,
 }
 
 // ── Federation API ─────────────────────────────────
 
 /// 获取联邦状态.
-async fn federation_status_handler(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+pub async fn federation_status_handler(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     let stats = state.runtime.federation.stats().await;
     let nodes = state.runtime.federation.online_nodes().await;
     Json(serde_json::json!({
@@ -4558,7 +4420,7 @@ async fn federation_status_handler(State(state): State<Arc<AppState>>) -> Json<s
 }
 
 /// 在线节点列表.
-async fn federation_nodes_handler(
+pub async fn federation_nodes_handler(
     State(state): State<Arc<AppState>>,
 ) -> Json<Vec<serde_json::Value>> {
     let nodes = state.runtime.federation.online_nodes().await;
@@ -4586,7 +4448,7 @@ async fn federation_nodes_handler(
 
 /// 远程执行请求.
 #[derive(serde::Deserialize)]
-struct FederationExecRequest {
+pub struct FederationExecRequest {
     target_cluster: String,
     target: String,
     payload: serde_json::Value,
@@ -4594,7 +4456,7 @@ struct FederationExecRequest {
 }
 
 /// 远程执行.
-async fn federation_execute_handler(
+pub async fn federation_execute_handler(
     State(state): State<Arc<AppState>>,
     Json(req): Json<FederationExecRequest>,
 ) -> Result<Json<lingshu_federation::RemoteExecResponse>, (StatusCode, String)> {
@@ -4690,12 +4552,12 @@ async fn tenant_create_org_handler(
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     let req = req;
     match state.tenant_manager.create_organization(&req.name, &req.slug, "system").await {
-        Ok(org) => Ok((StatusCode::CREATED, Json(json!(org)))),
+        Ok(org) => Ok(Json(json!(org))),
         Err(e) => Err((StatusCode::CONFLICT, Json(json!({"error": e.to_string()})))),
     }
 }
 
-/// GET /v1/tenant/orgs/{org_id} — 获取组织详情
+/// GET /v1/tenant/orgs/:org_id — 获取组织详情
 async fn tenant_get_org_handler(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(org_id): axum::extract::Path<String>,
@@ -4706,7 +4568,7 @@ async fn tenant_get_org_handler(
     }
 }
 
-/// GET /v1/tenant/orgs/{org_id}/projects — 列出项目
+/// GET /v1/tenant/orgs/:org_id/projects — 列出项目
 async fn tenant_list_projects_handler(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(org_id): axum::extract::Path<String>,
@@ -4717,19 +4579,19 @@ async fn tenant_list_projects_handler(
     }
 }
 
-/// POST /v1/tenant/orgs/{org_id}/projects — 创建项目
+/// POST /v1/tenant/orgs/:org_id/projects — 创建项目
 async fn tenant_create_project_handler(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(org_id): axum::extract::Path<String>,
     Json(req): Json<lingshu_tenant::CreateProjectRequest>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     match state.tenant_manager.create_project(&org_id, &req.name, &req.description.unwrap_or_default()).await {
-        Ok(project) => Ok((StatusCode::CREATED, Json(json!(project)))),
+        Ok(project) => Ok(Json(json!(project))),
         Err(e) => Err((StatusCode::BAD_REQUEST, Json(json!({"error": e.to_string()})))),
     }
 }
 
-/// GET /v1/tenant/orgs/{org_id}/projects/{project_id} — 获取项目
+/// GET /v1/tenant/orgs/:org_id/projects/:project_id — 获取项目
 async fn tenant_get_project_handler(
     State(state): State<Arc<AppState>>,
     axum::extract::Path((_org_id, project_id)): axum::extract::Path<(String, String)>,
@@ -4740,7 +4602,7 @@ async fn tenant_get_project_handler(
     }
 }
 
-/// GET /v1/tenant/orgs/{org_id}/users — 列出用户
+/// GET /v1/tenant/orgs/:org_id/users — 列出用户
 async fn tenant_list_users_handler(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(org_id): axum::extract::Path<String>,
@@ -4751,19 +4613,19 @@ async fn tenant_list_users_handler(
     }
 }
 
-/// POST /v1/tenant/orgs/{org_id}/users — 邀请用户
+/// POST /v1/tenant/orgs/:org_id/users — 邀请用户
 async fn tenant_invite_user_handler(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(org_id): axum::extract::Path<String>,
     Json(req): Json<lingshu_tenant::InviteUserRequest>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     match state.tenant_manager.invite_user(&org_id, &req.email, req.role).await {
-        Ok(user) => Ok((StatusCode::CREATED, Json(json!(user)))),
+        Ok(user) => Ok(Json(json!(user))),
         Err(e) => Err((StatusCode::CONFLICT, Json(json!({"error": e.to_string()})))),
     }
 }
 
-/// GET /v1/tenant/orgs/{org_id}/users/{user_id} — 获取用户
+/// GET /v1/tenant/orgs/:org_id/users/:user_id — 获取用户
 async fn tenant_get_user_handler(
     State(state): State<Arc<AppState>>,
     axum::extract::Path((_org_id, user_id)): axum::extract::Path<(String, String)>,
@@ -4774,7 +4636,7 @@ async fn tenant_get_user_handler(
     }
 }
 
-/// DELETE /v1/tenant/orgs/{org_id}/users/{user_id} — 移除用户
+/// DELETE /v1/tenant/orgs/:org_id/users/:user_id — 移除用户
 async fn tenant_remove_user_handler(
     State(state): State<Arc<AppState>>,
     axum::extract::Path((_org_id, user_id)): axum::extract::Path<(String, String)>,
@@ -4880,6 +4742,11 @@ mod tests {
                 let (_, rx) = tokio::sync::broadcast::channel(16);
                 rx
             },
+            start_time: std::time::Instant::now(),
+            chidori_recovery: None,
+            autoagents: None,
+            loong_adapter: None,
+            otel_guard: None,
         });
         let health_registry = Arc::new(lingshu_observability::health::HealthRegistry::new(
             "lingshu-test",
@@ -4918,6 +4785,11 @@ mod tests {
             jwt_service: lingshu_security::auth::JwtService::new(
                 "test-jwt-secret-for-unit-tests",
                 3600,
+            ),
+            tenant_manager: std::sync::Arc::new(lingshu_tenant::TenantManager::new()),
+            vault_client: std::sync::Arc::new(lingshu_vault::client::MockVaultClient::new()),
+            tee_system: std::sync::Arc::new(
+                lingshu_tee::TeeSystem::initialize().await.unwrap()
             ),
         })
     }
@@ -5323,6 +5195,7 @@ async fn watch_list_videos_handler(
     }
 }
 /// 格式化 Duration 为人类可读字符串.
+#[allow(dead_code)]
 pub fn format_duration(d: std::time::Duration) -> String {
     let secs = d.as_secs();
     if secs < 60 {
@@ -5513,7 +5386,7 @@ async fn vault_dynamic_secret_handler(
     }
 }
 
-/// POST /v1/vault/lease/{lease_id}/renew — 续约 Lease
+/// POST /v1/vault/lease/:lease_id/renew — 续约 Lease
 async fn vault_renew_lease_handler(
     State(state): State<Arc<AppState>>,
     Path(lease_id): Path<String>,
@@ -5529,7 +5402,7 @@ async fn vault_renew_lease_handler(
     }
 }
 
-/// POST /v1/vault/lease/{lease_id}/revoke — 撤销 Lease
+/// POST /v1/vault/lease/:lease_id/revoke — 撤销 Lease
 async fn vault_revoke_lease_handler(
     State(state): State<Arc<AppState>>,
     Path(lease_id): Path<String>,
@@ -5560,7 +5433,7 @@ async fn tee_health_handler(
         "sgx_available": tee.sgx.is_some(),
         "tdx_available": tee.tdx.is_some(),
         "encrypted_memory_count": tee.encrypted_memory.list_ids().unwrap_or_default().len(),
-        "policy_enforce": tee.policy_engine.enforce,
+        "policy_enforce": tee.policy_engine.read().unwrap().enforce,
     }))
 }
 
@@ -5613,7 +5486,7 @@ async fn tee_encrypted_memory_store_handler(
     }
 }
 
-/// GET /v1/tee/encrypted-memory/{id} — 解密读取
+/// GET /v1/tee/encrypted-memory/:id — 解密读取
 async fn tee_encrypted_memory_get_handler(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
@@ -5631,7 +5504,7 @@ async fn tee_encrypted_memory_get_handler(
     }
 }
 
-/// DELETE /v1/tee/encrypted-memory/{id} — 删除加密块
+/// DELETE /v1/tee/encrypted-memory/:id — 删除加密块
 async fn tee_encrypted_memory_delete_handler(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
@@ -5665,33 +5538,20 @@ async fn tee_encrypted_memory_list_handler(
 async fn tee_policy_get_handler(
     State(state): State<Arc<AppState>>,
 ) -> Json<serde_json::Value> {
-    let config = state.tee_system.policy_engine.policy_config();
+    let config = state.tee_system.policy_engine.read().unwrap().policy_config();
     Json(serde_json::json!({
         "success": true,
         "enforce": config.enforce,
         "required_operations": config.required_operations,
     }))
 }
-
 /// PUT /v1/tee/policy — 更新 TEE 策略
 async fn tee_policy_update_handler(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<serde_json::Value>,
 ) -> Json<serde_json::Value> {
-    if let Some(enforce) = payload.get("enforce").and_then(|v| v.as_bool()) {
-        state.tee_system.policy_engine.set_enforce(enforce);
-    }
-    if let Some(ops) = payload.get("required_operations").and_then(|v| v.as_array()) {
-        for op in ops {
-            if let Some(op_str) = op.as_str() {
-                state.tee_system.policy_engine.register_required(op_str);
-            }
-        }
-    }
-    let config = state.tee_system.policy_engine.policy_config();
-    Json(serde_json::json!({
-        "success": true,
-        "enforce": config.enforce,
-        "required_operations": config.required_operations,
-    }))
+    let enforce = payload.get("enforce").and_then(|v| v.as_bool()).unwrap_or(false);
+    state.tee_system.policy_engine.write().unwrap().set_enforce(enforce);
+    let config = state.tee_system.policy_engine.read().unwrap().policy_config();
+    Json(serde_json::json!({"success": true, "enforce": config.enforce, "required_operations": config.required_operations}))
 }

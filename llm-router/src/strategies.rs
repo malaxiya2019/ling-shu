@@ -5,7 +5,7 @@
 use async_trait::async_trait;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::metrics::{BackendMetrics, MetricsCollector};
+use crate::metrics::MetricsCollector;
 
 /// 路由策略 trait.
 #[async_trait]

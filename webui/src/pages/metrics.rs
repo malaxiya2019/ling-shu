@@ -55,19 +55,17 @@ pub fn metrics() -> Html {
                     match fetch_metrics().await {
                         Ok(m) => {
                             current.set(Some(m.clone()));
-                            history.modify(|h| {
-                                let mut h = h.clone();
-                                h.push(DataPoint {
-                                    cpu: m.cpu_usage,
-                                    mem: m.memory_mb,
-                                    tokens: m.llm_tokens_total,
-                                    reqs: m.llm_requests_total,
-                                });
-                                if h.len() > HISTORY_LEN {
-                                    h.remove(0);
-                                }
-                                h
+                            let mut new_history = (*history).clone();
+                            new_history.push(DataPoint {
+                                cpu: m.cpu_usage,
+                                mem: m.memory_mb,
+                                tokens: m.llm_tokens_total,
+                                reqs: m.llm_requests_total,
                             });
+                            if new_history.len() > HISTORY_LEN {
+                                new_history.remove(0);
+                            }
+                            history.set(new_history);
                         }
                         Err(e) => error.set(e),
                     }
@@ -266,7 +264,7 @@ fn render_line_chart(data: &[DataPoint], metric: &str, y_min: f64, y_max: f64, c
     let range = if (y_max - y_min).abs() < f64::EPSILON { 1.0 } else { y_max - y_min };
     let n = data.len();
 
-    let mut points: Vec<(f64, f64)> = data.iter().enumerate().map(|(i, d)| {
+    let points: Vec<(f64, f64)> = data.iter().enumerate().map(|(i, d)| {
         let val = match metric {
             "cpu" => d.cpu,
             "mem" => d.mem,
@@ -289,7 +287,7 @@ fn render_line_chart(data: &[DataPoint], metric: &str, y_min: f64, y_max: f64, c
             <>
                 <line x1={pad_l.to_string()} y1={y.to_string()} x2={(pad_l + plot_w).to_string()} y2={y.to_string()}
                     stroke="#21262d" stroke-width="1"/>
-                <text x="35" y={(y + 3).to_string()} text-anchor="end" fill="#6e7681" font-size="9">
+                <text x="35" y={(y + 3.0).to_string()} text-anchor="end" fill="#6e7681" font-size="9">
                     {if metric == "mem" { format!("{:.0}", val) } else { format!("{:.0}", val) }}
                 </text>
             </>
@@ -301,9 +299,9 @@ fn render_line_chart(data: &[DataPoint], metric: &str, y_min: f64, y_max: f64, c
             // Grid & Y-axis labels
             { for y_labels }
             // Area fill
-            <path d={area_d} fill={color} fill-opacity="0.1"/>
+            <path d={area_d} fill={color.to_owned()} fill-opacity="0.1"/>
             // Line
-            <path d={path_d} fill="none" stroke={color} stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d={path_d} fill="none" stroke={color.to_owned()} stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
     }
 }
@@ -325,7 +323,7 @@ fn render_token_chart(data: &[DataPoint], color: &str) -> Html {
 
     let min_t = data.iter().map(|d| d.tokens).min().unwrap_or(0);
     let max_t = data.iter().map(|d| d.tokens).max().unwrap_or(1);
-    let range = if max_t == min_t { 1 } else { (max_t - min_t) as f64 };
+    let range: f64 = if max_t == min_t { 1.0 } else { (max_t - min_t) as f64 };
     let n = data.len();
 
     let points: Vec<(f64, f64)> = data.iter().enumerate().map(|(i, d)| {
@@ -353,7 +351,7 @@ fn render_token_chart(data: &[DataPoint], color: &str) -> Html {
             <>
                 <line x1={pad_l.to_string()} y1={y.to_string()} x2={(pad_l + plot_w).to_string()} y2={y.to_string()}
                     stroke="#21262d" stroke-width="1"/>
-                <text x="45" y={(y + 3).to_string()} text-anchor="end" fill="#6e7681" font-size="9">{label}</text>
+                <text x="45" y={(y + 3.0).to_string()} text-anchor="end" fill="#6e7681" font-size="9">{label}</text>
             </>
         }
     }).collect();
@@ -361,8 +359,8 @@ fn render_token_chart(data: &[DataPoint], color: &str) -> Html {
     html! {
         <svg viewBox={format!("0 0 {} {}", w, h)} xmlns="http://www.w3.org/2000/svg">
             { for y_labels }
-            <path d={area_d} fill={color} fill-opacity="0.1"/>
-            <path d={path_d} fill="none" stroke={color} stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d={area_d} fill={color.to_owned()} fill-opacity="0.1"/>
+            <path d={path_d} fill="none" stroke={color.to_owned()} stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
     }
 }

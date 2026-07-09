@@ -3,7 +3,7 @@
 //! 用于开发和测试，生产环境建议使用 Redis 或 Memcached 后端。
 
 use async_trait::async_trait;
-use lingshu_core::{LsError, LsResult};
+use lingshu_core::LsResult;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;

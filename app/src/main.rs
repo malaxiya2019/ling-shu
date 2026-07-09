@@ -29,7 +29,9 @@ use lingshu_runtime::scheduler::InternalScheduler;
 use lingshu_runtime::session::SessionManager;
 use lingshu_runtime::ToolRegistry;
 use lingshu_security::service_auth::ServiceKeyBundle;
+use lingshu_rag_plugin::RagPlugin;
 use lingshu_storage::LocalStorage;
+use lingshu_channel::registry::ChannelRegistry;
 use lingshu_websocket::{ConnectionManager, SseBroadcaster};
 
 use crate::api::AppState;
@@ -66,6 +68,8 @@ pub struct Cli {
 
 /// Lingshu 系统运行时 — 全系统资源管控中心
 pub struct LingshuRuntime {
+    /// 系统启动时间.
+    pub start_time: std::time::Instant,
     pub lifecycle: LifecycleManager,
     pub scheduler: InternalScheduler,
     pub session_mgr: SessionManager,
@@ -111,6 +115,8 @@ pub struct LingshuRuntime {
     pub autoagents: Option<std::sync::Arc<lingshu_orchestrator::AutoAgentsOrchestrator>>,
     /// [可选] Loong 轻量 Agent 适配器 (feature = "loong").
     pub loong_adapter: Option<std::sync::Arc<lingshu_orchestrator::LoongAdapter>>,
+    /// 通道注册表 — 多平台消息通道.
+    pub channel_registry: Arc<ChannelRegistry>,
 }
 
 impl LingshuRuntime {
@@ -158,7 +164,13 @@ impl LingshuRuntime {
             LlmProvider::Mock
             | LlmProvider::Openai
             | LlmProvider::Anthropic
-            | LlmProvider::Groq => Some(Arc::from(lingshu_backends::build_llm(&config.llm))),
+            | LlmProvider::Groq
+            | LlmProvider::Llmkit
+            | LlmProvider::Llamacpp
+            | LlmProvider::DeepSeek
+            | LlmProvider::Qwen
+            | LlmProvider::Zhipu
+            | LlmProvider::Baidu => Some(Arc::from(lingshu_backends::build_llm(&config.llm))),
         };
 
         // ── Initialize graph store (SQLite persistence) ───
@@ -240,8 +252,59 @@ impl LingshuRuntime {
         #[cfg(not(feature = "loong"))]
         let loong_adapter: Option<std::sync::Arc<lingshu_orchestrator::LoongAdapter>> = None;
 
+
+        // ── 通道注册表 (Channel Registry) ────────────────────────
+        let channel_registry = {
+            let reg = Arc::new(ChannelRegistry::new());
+
+            // Telegram (环境变量: LINGSHU_TELEGRAM_BOT_TOKEN)
+            #[cfg(feature = "telegram")]
+            if let Ok(token) = std::env::var("LINGSHU_TELEGRAM_BOT_TOKEN") {
+                let ch = Arc::new(lingshu_channel::TelegramChannel::new(token));
+                reg.register(ch).await;
+                tracing::info!("channel registered: telegram");
+            }
+
+            // 飞书 (环境变量: LINGSHU_FEISHU_APP_ID + LINGSHU_FEISHU_APP_SECRET)
+            #[cfg(feature = "feishu")]
+            if let (Ok(app_id), Ok(app_secret)) = (
+                std::env::var("LINGSHU_FEISHU_APP_ID"),
+                std::env::var("LINGSHU_FEISHU_APP_SECRET"),
+            ) {
+                let ch = Arc::new(lingshu_channel::FeishuChannel::new(app_id, app_secret));
+                reg.register(ch).await;
+                tracing::info!("channel registered: feishu");
+            }
+
+            // QQ (环境变量: LINGSHU_QQ_APP_ID + LINGSHU_QQ_BOT_TOKEN)
+            #[cfg(feature = "qq")]
+            if let (Ok(app_id), Ok(bot_token)) = (
+                std::env::var("LINGSHU_QQ_APP_ID"),
+                std::env::var("LINGSHU_QQ_BOT_TOKEN"),
+            ) {
+                let ch = Arc::new(lingshu_channel::QqChannel::new(app_id, bot_token));
+                reg.register(ch).await;
+                tracing::info!("channel registered: qq");
+            }
+
+            reg
+            // 微信 (环境变量: LINGSHU_WECHAT_APP_ID + LINGSHU_WECHAT_APP_SECRET + LINGSHU_WECHAT_TOKEN)
+            #[cfg(feature = "wechat")]
+            if let (Ok(app_id), Ok(app_secret), Ok(token)) = (
+                std::env::var("LINGSHU_WECHAT_APP_ID"),
+                std::env::var("LINGSHU_WECHAT_APP_SECRET"),
+                std::env::var("LINGSHU_WECHAT_TOKEN"),
+            ) {
+                let ch = Arc::new(lingshu_channel::WeChatChannel::new(app_id, app_secret, token));
+                reg.register(ch).await;
+                tracing::info!("channel registered: wechat");
+            }
+
+        };
+
         let runtime = Self {
             lifecycle,
+            start_time: std::time::Instant::now(),
             scheduler,
             session_mgr,
             event_bus,
@@ -288,6 +351,7 @@ impl LingshuRuntime {
             chidori_recovery,
             autoagents,
             loong_adapter,
+            channel_registry,
             config_rx: {
                 let (config_tx, config_rx) = tokio::sync::broadcast::channel(16);
                 let (std_tx, std_rx) =
@@ -442,7 +506,9 @@ async fn run_repl(runtime: &LingshuRuntime) -> LsResult<()> {
                 println!("  /quit, /exit, /q Exit");
                 println!("  /stats           Show runtime statistics");
                 println!("  /session         Show current session info");
-                println!("  /llm <prompt>    Send prompt to LLM");
+                println!("  /channels         List registered channels
+  /channel <id> <cmd> Channel commands (send/health)
+  /llm <prompt>    Send prompt to LLM");
                 println!("  <any text>       Chat with the agent");
             }
             "/stats" => {
@@ -474,6 +540,82 @@ async fn run_repl(runtime: &LingshuRuntime) -> LsResult<()> {
                     );
                 }
             }
+            "/channels" => {
+                let channels = runtime.channel_registry.list_meta().await;
+                if channels.is_empty() {
+                    println!("No channels registered.");
+                    println!("  Set env vars to enable:");
+                    println!("  - LINGSHU_TELEGRAM_BOT_TOKEN  → Telegram");
+                    println!("  - LINGSHU_FEISHU_APP_ID + LINGSHU_FEISHU_APP_SECRET → Feishu");
+                    println!("  - LINGSHU_QQ_APP_ID + LINGSHU_QQ_BOT_TOKEN → QQ");
+                    println!("  - LINGSHU_WECHAT_APP_ID + LINGSHU_WECHAT_APP_SECRET + LINGSHU_WECHAT_TOKEN → WeChat");
+                } else {
+                    println!("Registered Channels ({}):", channels.len());
+                    for (id, meta) in &channels {
+                        println!("  {} — {} ({})", id, meta.label, meta.description);
+                    }
+                }
+            }
+            cmd if cmd.starts_with("/channel ") => {
+                let parts: Vec<&str> = cmd.splitn(3, " ").collect();
+                let channel_id = parts.get(1).unwrap_or(&"");
+                let subcmd = parts.get(2).unwrap_or(&"");
+                match *subcmd {
+                    "health" => {
+                        match runtime.channel_registry.get(channel_id).await {
+                            Some(ch) => {
+                                match ch.health_check().await {
+                                    Ok(status) => {
+                                        println!("Channel [{}] health: {}", ch.id(),
+                                            if status.healthy { "✓ healthy" } else { "✗ unhealthy" });
+                                        if let Some(ms) = status.latency_ms {
+                                            println!("  Latency: {ms}ms");
+                                        }
+                                        if let Some(err) = &status.error {
+                                            println!("  Error: {err}");
+                                        }
+                                    }
+                                    Err(e) => println!("⚠ Health check failed: {e}"),
+                                }
+                            }
+                            None => println!("⚠ Unknown channel: {channel_id}"),
+                        }
+                    }
+                    _ if subcmd.starts_with("send ") => {
+                        let send_args: Vec<&str> = subcmd.splitn(3, " ").collect();
+                        let target = send_args.get(1).unwrap_or(&"");
+                        let text = send_args.get(2).unwrap_or(&"");
+                        if target.is_empty() || text.is_empty() {
+                            println!("Usage: /channel <id> send <target> <message>");
+                        } else {
+                            match runtime.channel_registry.get(channel_id).await {
+                                Some(ch) => {
+                                    use lingshu_channel::types::SendTextContext;
+                                    let ctx = SendTextContext {
+                                        to: target.to_string(),
+                                        text: text.to_string(),
+                                        reply_to_id: None,
+                                        thread_id: None,
+                                        silent: false,
+                                        account_id: None,
+                                    };
+                                    match ch.send_text(ctx).await {
+                                        Ok(receipt) => println!("✓ Sent! message_id={}", receipt.message_id),
+                                        Err(e) => println!("⚠ Send failed: {e}"),
+                                    }
+                                }
+                                None => println!("⚠ Unknown channel: {channel_id}"),
+                            }
+                        }
+                    }
+                    _ => {
+                        println!("Usage:");
+                        println!("  /channel <id> health          Check channel health");
+                        println!("  /channel <id> send <t> <msg>  Send message");
+                    }
+                }
+            }
+
             cmd if cmd.starts_with("/llm ") || !cmd.starts_with('/') => {
                 let prompt = if cmd.starts_with("/llm ") {
                     cmd.trim_start_matches("/llm ")
@@ -635,7 +777,7 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
                 sgx: None,
                 tdx: None,
                 encrypted_memory: std::sync::Arc::new(lingshu_tee::EncryptedMemoryRegion::new()),
-                policy_engine: std::sync::Arc::new(lingshu_tee::TeePolicyEngine::default()),
+                policy_engine: std::sync::Arc::new(std::sync::RwLock::new(lingshu_tee::TeePolicyEngine::default())),
             }
         })),
         jwt_service: lingshu_security::auth::JwtService::from_env_or("lingshu-dev-secret", 86400),
@@ -649,7 +791,7 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
         let eb = state.plugin_event_bus.clone();
         tokio::spawn(async move {
             use lingshu_plugin::event::{Event, EventCallback, EventType};
-            use lingshu_websocket::types::SseEvent;
+use lingshu_websocket::types::SseEvent;
             let cb: EventCallback = Arc::new(move |event: Event| {
                 let data = serde_json::json!({
                     "type": format!("{:?}", event.event_type),
@@ -728,6 +870,22 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
             }
         });
     }
+
+    // 自动注册 RAG 文档检索插件
+    {
+        let plugin_registry = state.plugin_registry.clone();
+        tokio::spawn(async move {
+            let plugin = RagPlugin::default();
+            match plugin_registry.register(Box::new(plugin), None).await {
+                Ok(id) => {
+                    tracing::info!(plugin_id = %id, "RAG document retrieval plugin registered");
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "Failed to register RAG plugin (non-fatal)");
+                }
+            }
+        });
+    }
     let app = api::build_router(state);
 
     let listener = tokio::net::TcpListener::bind(addr)
@@ -760,6 +918,9 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
 
 #[tokio::main]
 async fn main() -> LsResult<()> {
+    // 自动加载 .env 文件 (如果存在)
+    dotenvy::dotenv().ok();
+
     let cli = Cli::parse();
     let runtime = Arc::new(LingshuRuntime::initialize(&cli).await?);
     // 启动联邦服务

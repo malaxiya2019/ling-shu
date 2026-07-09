@@ -33,6 +33,7 @@ pub struct BackendMetrics {
     pub last_call_at: Option<i64>,
 }
 
+#[allow(dead_code)]
 impl BackendMetrics {
     fn new(name: &str) -> Self {
         Self {
@@ -80,6 +81,7 @@ pub struct MetricsCollector {
     last_calls: HashMap<String, Option<i64>>,
 }
 
+#[allow(dead_code)]
 impl MetricsCollector {
     pub fn new() -> Self {
         Self {
@@ -234,7 +236,7 @@ mod tests {
 
     #[test]
     fn test_error_rate_zero_division() {
-        let collector = MetricsCollector::new();
+        let _collector = MetricsCollector::new();
         // BackendMetrics::new creates a fresh struct
         let metrics = BackendMetrics::new("test");
         assert_eq!(metrics.error_rate(), 0.0);

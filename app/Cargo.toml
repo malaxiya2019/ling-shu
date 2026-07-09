@@ -4,6 +4,16 @@ version.workspace = true
 edition.workspace = true
 description = "Lingshu Agent System — main binary entry point"
 
+[features]
+default = ["telegram", "feishu", "qq", "wechat"]
+chidori = []
+autoagents = []
+loong = []
+telegram = ["lingshu-channel/telegram"]
+feishu = ["lingshu-channel/feishu"]
+qq = ["lingshu-channel/qq"]
+wechat = ["lingshu-channel/wechat"]
+
 [dependencies]
 lingshu-core = { path = "../core" }
 lingshu-traits = { path = "../traits" }
@@ -13,17 +23,20 @@ lingshu-security = { path = "../security" }
 lingshu-config = { path = "../config" }
 lingshu-storage = { path = "../storage" }
 lingshu-database = { path = "../database" }
-lingshu-observability = { path = "../observability" }
-lingshu-backends = { path = "../backends" }
+lingshu-observability = { path = "../observability", features = ["otel", "metrics", "http"] }
+lingshu-backends = { path = "../backends", features = ["otel", "llmkit", "openai"] }
 lingshu-plugin = { path = "../plugin" }
 lingshu-beef-plugin = { path = "../plugins/beef-plugin" }
 lingshu-watch-plugin = { path = "../plugins/watch-plugin" }
+lingshu-rag-plugin = { path = "../plugins/rag-plugin" }
+lingshu-code-sandbox = { path = "../plugins/code-sandbox-plugin" }
 lingshu-memory = { path = "../memory" }
 lingshu-multimodal = { path = "../multimodal" }
 lingshu-ratelimit = { path = "../ratelimit" }
 lingshu-billing = { path = "../billing" }
 lingshu-audit = { path = "../audit" }
 lingshu-prompt = { path = "../prompt" }
+lingshu-channel = { path = "../channel", features = ["telegram", "feishu", "qq"] }
 lingshu-mcp = { path = "../mcp" }
 lingshu-knowledge-graph = { path = "../knowledge-graph" }
 lingshu-code-analyzer = { path = "../code-analyzer" }
@@ -33,6 +46,8 @@ lingshu-websocket = { path = "../websocket" }
 lingshu-tenant = { path = "../tenant" }
 lingshu-evaluator = { path = "../evaluator" }
 lingshu-federation = { path = "../federation" }
+lingshu-vault = { path = "../vault" }
+lingshu-tee = { path = "../tee" }
 
 async-trait.workspace = true
 serde.workspace = true
@@ -45,13 +60,14 @@ tracing-subscriber.workspace = true
 thiserror.workspace = true
 clap = { version = "4", features = ["derive"] }
 dirs = "6"
+dotenvy = "0.15"
 mime_guess = "2"
 base64 = "0.22"
 
 # HTTP API server
-axum = { version = "0.8", features = ["ws", "json", "multipart"] }
-tower = "0.5"
-tower-http = { version = "0.6", features = [
+axum = { version = "0.7", features = ["ws", "json", "multipart"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = [
     "fs","cors", "trace"] }
 futures = "0.3"
 tokio-stream = "0.1"
@@ -59,8 +75,13 @@ bytes = "1"
 async-stream = "0.3"
 hyper = { version = "1", features = ["server", "http1"] }
 sysinfo = "0.33"
-hyper-util = { version = "0.1", features = ["tokio", "server-auto"] }
-http-body-util = "0.1"
+
+# ── CLI / TUI 依赖 ──
+ratatui = { version = "0.29", features = ["all-widgets"] }
+crossterm = { version = "0.28", features = ["event-stream"] }
+anyhow = "1"
+walkdir = "2"
+fuzzy-matcher = "0.3"
 
 [build-dependencies]
 tonic-build = "0.12"

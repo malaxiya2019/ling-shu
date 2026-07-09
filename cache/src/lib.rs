@@ -23,7 +23,7 @@ use async_trait::async_trait;
 use lingshu_core::{LsError, LsResult};
 use serde::{de::DeserializeOwned, Serialize};
 use std::fmt::Debug;
-use std::time::Duration;
+use std::sync::Arc;
 
 pub use memory::InMemoryCache;
 
@@ -65,7 +65,7 @@ pub struct CacheStats {
 /// 缓存层 — 提供类型安全的 get/set 操作.
 #[derive(Debug, Clone)]
 pub struct CacheLayer {
-    backend: Box<dyn CacheBackend>,
+    backend: Arc<dyn CacheBackend>,
     key_prefix: String,
 }
 
@@ -73,13 +73,13 @@ impl CacheLayer {
     /// 使用 In-Memory 后端创建缓存层.
     pub fn in_memory() -> Self {
         Self {
-            backend: Box::new(InMemoryCache::new()),
+            backend: Arc::new(InMemoryCache::new()),
             key_prefix: String::new(),
         }
     }
 
     /// 使用指定后端创建缓存层.
-    pub fn new(backend: Box<dyn CacheBackend>) -> Self {
+    pub fn new(backend: Arc<dyn CacheBackend>) -> Self {
         Self {
             backend,
             key_prefix: String::new(),
@@ -343,17 +343,6 @@ pub mod memcached_backend {
 
 // ── String helper ─────────────────────────────────────────────────
 
-impl<T: AsRef<str>> AsRef<str> for String {
-    fn as_ref(&self) -> &str {
-        self.as_str()
-    }
-}
-impl AsRef<str> for (&str, &str) {
-    fn as_ref(&self) -> &str {
-        self.0
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -425,7 +414,7 @@ mod tests {
         let result = redis_backend::RedisCache::connect("redis://127.0.0.1:6379").await;
         // May fail if Redis is not running, but shouldn't panic
         if let Ok(cache) = result {
-            let backend: Box<dyn CacheBackend> = Box::new(cache);
+            let backend: Arc<dyn CacheBackend> = Arc::new(cache);
             let layer = CacheLayer::new(backend);
             layer.set("test", &"redis-ok", 10).await.unwrap();
         }

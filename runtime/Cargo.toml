@@ -20,7 +20,7 @@ tokio.workspace = true
 tracing.workspace = true
 
 # ── Optional external integrations ──
-chidori = { git = "https://github.com/ThousandBirdsInc/chidori.git", optional = true }
+chidori = { path = "/data/data/com.termux/files/home/chidori-fork/crates/chidori", optional = true }
 
 [features]
 chidori = ["dep:chidori"]

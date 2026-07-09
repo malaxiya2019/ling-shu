@@ -8,6 +8,7 @@ use serde::Serialize;
 use std::sync::Arc;
 
 #[derive(Serialize)]
+#[allow(dead_code)]
 pub struct HealthResponse {
     pub status: String,
     pub version: String,
@@ -16,6 +17,7 @@ pub struct HealthResponse {
 }
 
 #[derive(Serialize)]
+#[allow(dead_code)]
 pub struct HealthCheckItem {
     pub name: String,
     pub healthy: bool,
@@ -23,6 +25,7 @@ pub struct HealthCheckItem {
 }
 
 /// GET /v1/health — 系统健康检查
+#[allow(dead_code)]
 pub async fn health_handler(State(state): State<Arc<AppState>>) -> Json<HealthResponse> {
     let runtime = &state.runtime;
     let config = &runtime.config;
@@ -90,6 +93,7 @@ pub async fn health_handler(State(state): State<Arc<AppState>>) -> Json<HealthRe
 }
 
 /// Axum route definition for Health module
+#[allow(dead_code)]
 pub fn health_routes() -> axum::Router<Arc<AppState>> {
     axum::Router::new()
         .route("/v1/health", axum::routing::get(health_handler))

@@ -180,6 +180,11 @@ impl McpServer {
         server
     }
 
+    /// 返回已注册工具列表 (名称).
+    pub fn list_tools(&self) -> Vec<String> {
+        self.tools.iter().map(|t| t.info().name.clone()).collect()
+    }
+
     /// 设置进度通知发送器 — 用于将进度通知桥接到 SSE/WebSocket
     pub fn set_progress_sender(
         &self,

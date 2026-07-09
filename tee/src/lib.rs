@@ -34,7 +34,7 @@ pub use encrypted_memory::*;
 pub use policy::*;
 
 use lingshu_core::LsResult;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 /// TEE 平台类型.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -67,7 +67,7 @@ pub struct TeeSystem {
     pub sgx: Option<Arc<SgxManager>>,
     pub tdx: Option<Arc<TdxManager>>,
     pub encrypted_memory: Arc<EncryptedMemoryRegion>,
-    pub policy_engine: Arc<TeePolicyEngine>,
+    pub policy_engine: Arc<RwLock<TeePolicyEngine>>,
 }
 
 impl TeeSystem {
@@ -88,7 +88,7 @@ impl TeeSystem {
         };
 
         let encrypted_memory = Arc::new(EncryptedMemoryRegion::new());
-        let policy_engine = Arc::new(TeePolicyEngine::default());
+        let policy_engine = Arc::new(RwLock::new(TeePolicyEngine::default()));
 
         tracing::info!(platform = ?platform, "TEE system initialized");
 

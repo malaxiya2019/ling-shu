@@ -45,6 +45,7 @@ use std::sync::Arc;
 ///
 /// 遵循 OpenHands FastAPI + MCP router 模式:
 /// 每个模块独立定义路由，由本函数聚合.
+#[allow(dead_code)]
 pub fn build_app_router() -> Router<Arc<AppState>> {
     Router::new()
         .merge(health::health_routes())
@@ -58,11 +59,7 @@ pub fn build_app_router() -> Router<Arc<AppState>> {
         .merge(mcp::mcp_routes())
 }
 
-/// 构建完整路由 — 应用共享状态 + 合并 full.rs 遗留路由.
-///
-/// 替代 `full::build_router()`.
+/// 构建完整路由 — 应用共享状态，直接使用 full::build_router (已包含所有路由).
 pub fn build_router(state: Arc<AppState>) -> Router {
-    build_app_router()
-        .merge(full::build_router(state.clone()))
-        .with_state(state)
+    full::build_router(state)
 }

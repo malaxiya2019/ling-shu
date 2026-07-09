@@ -46,3 +46,12 @@ docs/output/
 tmp/
 *.tmp
 AGENTS.md
+.env
+
+# ── Backup files ──
+*.bak
+*.pdf
+cargo_patch.py
+
+# ── Node.js ──
+node_modules/

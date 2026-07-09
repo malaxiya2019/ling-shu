@@ -22,6 +22,18 @@ pub enum LlmProvider {
     Llmkit,
     #[serde(rename = "llamacpp")]
     Llamacpp,
+    /// DeepSeek (OpenAI 兼容接口)
+    #[serde(rename = "deepseek")]
+    DeepSeek,
+    /// 阿里千问 Qwen (OpenAI 兼容接口)
+    #[serde(rename = "qwen")]
+    Qwen,
+    /// 智谱 GLM (OpenAI 兼容接口)
+    #[serde(rename = "zhipu")]
+    Zhipu,
+    /// 百度文心 ERNIE (OpenAI 兼容接口)
+    #[serde(rename = "baidu")]
+    Baidu,
 }
 
 impl LlmProvider {
@@ -37,6 +49,10 @@ impl LlmProvider {
                 "mock" => Some(Self::Mock),
                 "llmkit" => Some(Self::Llmkit),
                 "llamacpp" => Some(Self::Llamacpp),
+                "deepseek" => Some(Self::DeepSeek),
+                "qwen" => Some(Self::Qwen),
+                "zhipu" => Some(Self::Zhipu),
+                "baidu" => Some(Self::Baidu),
                 _ => None,
             })
             .unwrap_or(Self::Openai)
@@ -50,6 +66,10 @@ impl LlmProvider {
             Self::Mock => "mock",
             Self::Llmkit => "llmkit",
             Self::Llamacpp => "llamacpp",
+            Self::DeepSeek => "deepseek",
+            Self::Qwen => "qwen",
+            Self::Zhipu => "zhipu",
+            Self::Baidu => "baidu",
         }
     }
 }
@@ -70,6 +90,8 @@ pub struct LsConfig {
     pub llm: LlmConfig,
     pub storage: StorageConfig,
     pub database: DatabaseConfig,
+    pub extra: std::collections::HashMap<String, serde_json::Value>,
+    pub mode: Option<String>,
 }
 
 // ── 各模块配置 ──────────────────────────────────────
@@ -335,6 +357,10 @@ fn apply_env_overrides(config: &mut LsConfig) {
             "groq" => config.llm.provider = LlmProvider::Groq,
             "mock" => config.llm.provider = LlmProvider::Mock,
             "llmkit" => config.llm.provider = LlmProvider::Llmkit,
+            "deepseek" => config.llm.provider = LlmProvider::DeepSeek,
+            "qwen" => config.llm.provider = LlmProvider::Qwen,
+            "zhipu" => config.llm.provider = LlmProvider::Zhipu,
+            "baidu" => config.llm.provider = LlmProvider::Baidu,
             _ => {}
         }
     }
@@ -346,10 +372,27 @@ fn apply_env_overrides(config: &mut LsConfig) {
             "groq" => config.llm.provider = LlmProvider::Groq,
             "mock" => config.llm.provider = LlmProvider::Mock,
             "llmkit" => config.llm.provider = LlmProvider::Llmkit,
+            "deepseek" => config.llm.provider = LlmProvider::DeepSeek,
+            "qwen" => config.llm.provider = LlmProvider::Qwen,
+            "zhipu" => config.llm.provider = LlmProvider::Zhipu,
+            "baidu" => config.llm.provider = LlmProvider::Baidu,
             _ => {}
         }
     }
     // API 密钥仅通过环境变量注入
+    // DeepSeek / 千问 / 智谱 / 文心 密钥通过各自环境变量设置
+    if let Ok(key) = std::env::var("DEEPSEEK_API_KEY") {
+        config.llm.api_key = Some(key);
+    }
+    if let Ok(key) = std::env::var("QWEN_API_KEY") {
+        config.llm.api_key = Some(key);
+    }
+    if let Ok(key) = std::env::var("ZHIPU_API_KEY") {
+        config.llm.api_key = Some(key);
+    }
+    if let Ok(key) = std::env::var("BAIDU_API_KEY") {
+        config.llm.api_key = Some(key);
+    }
     if let Ok(key) = std::env::var("OPENAI_API_KEY") {
         config.llm.api_key = Some(key);
     }
@@ -384,9 +427,6 @@ fn apply_env_overrides(config: &mut LsConfig) {
 }
 
 impl LsConfig {
-    pub fn load() -> LsResult<Self> {
-        ConfigLoader::load_default()
-    }
 
     pub fn load_for_env(env: &str) -> LsResult<Self> {
         let env: Environment = env.parse().unwrap_or(Environment::Dev);
@@ -478,7 +518,7 @@ storage:
         with_clean_env(|| {
             std::env::set_var("LS_LLM_DEFAULT_MODEL", "o3-mini");
             std::env::set_var("LS_RUNTIME_MAX_CONCURRENT_TASKS", "99");
-            let cfg = LsConfig::load().unwrap();
+            let cfg = LsConfig::load_for_env("").unwrap();
             assert_eq!(cfg.llm.default_model, "o3-mini");
             assert_eq!(cfg.runtime.max_concurrent_tasks, 99);
         });

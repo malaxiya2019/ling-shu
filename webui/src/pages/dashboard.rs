@@ -171,7 +171,6 @@ pub fn dashboard() -> Html {
                 </div>
             </div>
 
-            { /* Styles from shared styles.css */ }
         </div>
     }
 }

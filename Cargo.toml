@@ -3,6 +3,8 @@ resolver = "2"
 members = [
     "plugins/beef-plugin",
     "plugins/watch-plugin",
+    "plugins/code-sandbox-plugin",
+    "plugins/rag-plugin",
     "tests",
     "app",
     "core",
@@ -33,6 +35,7 @@ members = [
     "tee",
     "circuit-breaker",
     "benches",
+    "channel",
 ]
 [workspace.package]
 version = "3.0.0"
@@ -46,6 +49,7 @@ serde_yaml = "0.9"
 async-trait = "0.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sha1 = "0.10"
 uuid = { version = "1", features = ["v4", "v7", "serde"] }
 chrono = { version = "0.4", features = ["serde", "clock"] }
 tokio = { version = "1", features = ["full"] }
@@ -58,3 +62,6 @@ prost = "0.13"
 futures = "0.3"
 [profile.release]
 opt-level = 3
+
+[patch.crates-io]
+sqlx-sqlite = { path = "crates/sqlx-sqlite-fork" }

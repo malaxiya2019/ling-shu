@@ -1,0 +1,21 @@
+[package]
+name = "lingshu-rag-plugin"
+version = "1.0.0"
+edition.workspace = true
+description = "Retrieval-Augmented Generation plugin — document chunking, embedding & semantic search"
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+lingshu-core = { path = "../../core" }
+lingshu-traits = { path = "../../traits" }
+
+text-splitter = "0.32"
+async-trait.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+uuid.workspace = true

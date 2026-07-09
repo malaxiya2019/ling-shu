@@ -24,6 +24,10 @@ pub mod agent_default;
 pub mod memory_sqlite;
 #[cfg(feature = "openai")]
 pub mod tools;
+#[cfg(feature = "otel")]
+pub mod traced_llm;
+#[cfg(feature = "otel")]
+pub use traced_llm::TracedLlm;
 pub mod workflow;
 
 pub mod embedding_openai;

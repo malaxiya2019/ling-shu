@@ -1,0 +1,132 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # --- Build Linux x86_64 ---
+  release-x86_64:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Install trunk (WebUI)
+        run: |
+          wget -qO- https://github.com/trunk-rs/trunk/releases/download/v0.21.8/trunk-x86_64-unknown-linux-gnu.tar.gz | tar xz -C /usr/local/bin
+      - name: Build WebUI WASM
+        run: cd webui && trunk build --release
+      - name: Build release binary
+        run: cargo build --release -p lingshu
+      - name: Package binary
+        run: |
+          mkdir -p dist/lingshu
+          cp target/release/lingshu dist/lingshu/
+          cp -r webui/dist dist/lingshu/webui/
+          cp .env.example README.md LICENSE dist/lingshu/
+          cd dist
+          tar czf ../lingshu-x86_64-unknown-linux-gnu.tar.gz lingshu/
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lingshu-x86_64-linux
+          path: lingshu-x86_64-unknown-linux-gnu.tar.gz
+
+  # --- Build Linux ARM64 (cross) ---
+  release-aarch64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-linux-gnu
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cross-compilation deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+      - name: Build with cross
+        run: |
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \
+            cargo build --release -p lingshu --target aarch64-unknown-linux-gnu
+      - name: Package binary
+        run: |
+          mkdir -p dist/lingshu
+          cp target/aarch64-unknown-linux-gnu/release/lingshu dist/lingshu/
+          cp .env.example README.md LICENSE dist/lingshu/
+          cd dist
+          tar czf ../lingshu-aarch64-unknown-linux-gnu.tar.gz lingshu/
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lingshu-aarch64-linux
+          path: lingshu-aarch64-unknown-linux-gnu.tar.gz
+
+  # --- Build Termux (Android aarch64) ---
+  release-termux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      - uses: Swatinem/rust-cache@v2
+      - name: Install Android NDK
+        run: |
+          wget -q https://dl.google.com/android/repository/android-ndk-r27-linux.zip
+          unzip -q android-ndk-r27-linux.zip
+          echo "NDK_HOME=$PWD/android-ndk-r27" >> $GITHUB_ENV
+      - name: Build for Termux
+        run: |
+          export PATH="$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
+          export CC_aarch64_linux_android=aarch64-linux-android21-clang
+          export AR_aarch64_linux_android=llvm-ar
+          cargo build --release -p lingshu --target aarch64-linux-android
+        env:
+          CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER: aarch64-linux-android21-clang
+      - name: Package binary
+        run: |
+          mkdir -p dist/lingshu
+          cp target/aarch64-linux-android/release/lingshu dist/lingshu/
+          cp .env.example README.md LICENSE dist/lingshu/
+          cd dist
+          tar czf ../lingshu-aarch64-linux-android.tar.gz lingshu/
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lingshu-termux-aarch64
+          path: lingshu-aarch64-linux-android.tar.gz
+
+  # --- Create GitHub Release ---
+  create-release:
+    needs: [release-x86_64, release-aarch64, release-termux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Lingshu ${{ github.ref_name }}
+          body_path: CHANGELOG.md
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/**/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

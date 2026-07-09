@@ -69,6 +69,11 @@ impl ConnectionManager {
         }
     }
 
+    /// 返回当前活跃连接数.
+    pub fn active_connections(&self) -> usize {
+        self.by_session.try_read().map(|m| m.len()).unwrap_or(0)
+    }
+
     /// Register a new connection
     pub async fn register(&self, conn: Connection) {
         let session_id = conn.session_id.clone();

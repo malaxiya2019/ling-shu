@@ -160,3 +160,25 @@ bench-report:
 bench-compare:
 	cargo bench --package lingshu-benchmarks -- --save-baseline current
 	@echo "📊 Run again after changes, then: cargo bench -- --load-baseline current --baseline previous"
+
+# ── Run ──
+
+run:
+	cargo run -p lingshu
+
+run-repl:
+	cargo run -p lingshu -- --repl
+
+run-prod:
+	cargo run --release -p lingshu -- -e prod --addr 0.0.0.0:8080
+
+# ── 一键启动 (推荐) ──
+
+start:
+	./start.sh
+
+start-quick:
+	./start.sh --quick
+
+start-repl:
+	./start.sh --repl

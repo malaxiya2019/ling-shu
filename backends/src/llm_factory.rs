@@ -31,6 +31,10 @@ pub fn build_raw(config: &LlmConfig) -> Box<dyn Llm> {
         LlmProvider::Mock => build_mock(config),
         LlmProvider::Llmkit => build_llmkit(config),
         LlmProvider::Llamacpp => build_llamacpp(config),
+        LlmProvider::DeepSeek => build_deepseek(config),
+        LlmProvider::Qwen => build_qwen(config),
+        LlmProvider::Zhipu => build_zhipu(config),
+        LlmProvider::Baidu => build_baidu(config),
     }
 }
 
@@ -197,8 +201,8 @@ fn build_llmkit(config: &LlmConfig) -> Box<dyn Llm> {
                 "deepseek" => std::env::var("DEEPSEEK_API_KEY").ok(),
                 "ollama" => Some("ollama".into()), // Ollama doesn't need a real key
                 "bedrock" | "vertex" => std::env::var("AWS_ACCESS_KEY_ID").ok(),
-                _ => std::env::var("LLMKIT_API_KEY")
-                    .or_else(|_| std::env::var("API_KEY").ok()),
+                _ => std::env::var("LLMKIT_API_KEY").ok()
+                    .or_else(|| std::env::var("API_KEY").ok()),
             }
         });
     match api_key {
@@ -208,11 +212,18 @@ fn build_llmkit(config: &LlmConfig) -> Box<dyn Llm> {
                 config.llmkit_provider,
                 config.default_model
             );
-            Box::new(crate::LlmkitLlm::new(
+            let rt = tokio::runtime::Handle::current();
+            match rt.block_on(crate::LlmkitLlm::new(
                 &config.llmkit_provider,
                 &key,
                 &config.default_model,
-            ))
+            )) {
+                Ok(llm) => Box::new(llm),
+                Err(e) => {
+                    tracing::error!("Failed to create llmkit client: {e}");
+                    build_mock(config)
+                }
+            }
         }
         None => {
             tracing::warn!(
@@ -247,6 +258,142 @@ fn build_llamacpp(config: &LlmConfig) -> Box<dyn Llm> {
 #[cfg(not(feature = "llamacpp"))]
 fn build_llamacpp(_config: &LlmConfig) -> Box<dyn Llm> {
     tracing::warn!("'llamacpp' feature not enabled, falling back");
+    build_fallback()
+}
+
+
+
+// ── Chinese LLM Providers (OpenAI 兼容接口) ─────────
+
+#[cfg(feature = "openai")]
+/// DeepSeek — 通过 OpenAI 兼容接口
+fn build_deepseek(config: &LlmConfig) -> Box<dyn Llm> {
+    let api_key = config
+        .api_key
+        .clone()
+        .or_else(|| std::env::var("DEEPSEEK_API_KEY").ok());
+    match api_key {
+        Some(key) => {
+            tracing::info!(
+                "llm: using DeepSeek provider (model: {})",
+                config.default_model
+            );
+            Box::new(crate::OpenAiLlm::new(
+                key,
+                &config.default_model,
+                Some("https://api.deepseek.com/v1".into()),
+            ))
+        }
+        None => {
+            tracing::warn!("DEEPSEEK_API_KEY not set for 'deepseek' provider, falling back to Mock");
+            build_mock(config)
+        }
+    }
+}
+
+#[cfg(feature = "openai")]
+/// 阿里千问 Qwen — 通过 OpenAI 兼容接口
+fn build_qwen(config: &LlmConfig) -> Box<dyn Llm> {
+    let api_key = config
+        .api_key
+        .clone()
+        .or_else(|| std::env::var("QWEN_API_KEY").ok())
+        .or_else(|| std::env::var("DASHSCOPE_API_KEY").ok());
+    match api_key {
+        Some(key) => {
+            tracing::info!(
+                "llm: using Qwen provider (model: {})",
+                config.default_model
+            );
+            Box::new(crate::OpenAiLlm::new(
+                key,
+                &config.default_model,
+                Some("https://dashscope.aliyuncs.com/compatible-mode/v1".into()),
+            ))
+        }
+        None => {
+            tracing::warn!("QWEN_API_KEY not set for 'qwen' provider, falling back to Mock");
+            build_mock(config)
+        }
+    }
+}
+
+#[cfg(feature = "openai")]
+/// 智谱 GLM — 通过 OpenAI 兼容接口
+fn build_zhipu(config: &LlmConfig) -> Box<dyn Llm> {
+    let api_key = config
+        .api_key
+        .clone()
+        .or_else(|| std::env::var("ZHIPU_API_KEY").ok());
+    match api_key {
+        Some(key) => {
+            tracing::info!(
+                "llm: using Zhipu GLM provider (model: {})",
+                config.default_model
+            );
+            Box::new(crate::OpenAiLlm::new(
+                key,
+                &config.default_model,
+                Some("https://open.bigmodel.cn/api/paas/v4".into()),
+            ))
+        }
+        None => {
+            tracing::warn!("ZHIPU_API_KEY not set for 'zhipu' provider, falling back to Mock");
+            build_mock(config)
+        }
+    }
+}
+
+#[cfg(feature = "openai")]
+/// 百度文心 ERNIE — 通过 OpenAI 兼容接口
+fn build_baidu(config: &LlmConfig) -> Box<dyn Llm> {
+    let api_key = config
+        .api_key
+        .clone()
+        .or_else(|| std::env::var("BAIDU_API_KEY").ok());
+    match api_key {
+        Some(key) => {
+            tracing::info!(
+                "llm: using Baidu ERNIE provider (model: {})",
+                config.default_model
+            );
+            // 百度千帆需要 access_token 或 API Key
+            // OpenAI 兼容端点: https://qianfan.baidubce.com/v2
+            Box::new(crate::OpenAiLlm::new(
+                key,
+                &config.default_model,
+                Some("https://qianfan.baidubce.com/v2".into()),
+            ))
+        }
+        None => {
+            tracing::warn!("BAIDU_API_KEY not set for 'baidu' provider, falling back to Mock");
+            build_mock(config)
+        }
+    }
+}
+
+
+#[cfg(not(feature = "openai"))]
+fn build_deepseek(_config: &LlmConfig) -> Box<dyn Llm> {
+    tracing::warn!("'openai' feature not enabled (needed for deepseek), falling back");
+    build_fallback()
+}
+
+#[cfg(not(feature = "openai"))]
+fn build_qwen(_config: &LlmConfig) -> Box<dyn Llm> {
+    tracing::warn!("'openai' feature not enabled (needed for qwen), falling back");
+    build_fallback()
+}
+
+#[cfg(not(feature = "openai"))]
+fn build_zhipu(_config: &LlmConfig) -> Box<dyn Llm> {
+    tracing::warn!("'openai' feature not enabled (needed for zhipu), falling back");
+    build_fallback()
+}
+
+#[cfg(not(feature = "openai"))]
+fn build_baidu(_config: &LlmConfig) -> Box<dyn Llm> {
+    tracing::warn!("'openai' feature not enabled (needed for baidu), falling back");
     build_fallback()
 }
 

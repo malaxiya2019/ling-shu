@@ -43,6 +43,11 @@ impl AgentManager {
         }
     }
 
+    /// 返回当前活跃 agent 数量.
+    pub fn active_agent_count(&self) -> usize {
+        self.agents.try_read().map(|g| g.len()).unwrap_or(0)
+    }
+
     /// 设置 Plugin EventBus（运行时注入，&self 安全）.
     pub async fn set_event_bus(&self, event_bus: Arc<lingshu_plugin::event::EventBus>) {
         *self.plugin_event_bus.write().await = Some(event_bus);
@@ -370,4 +375,45 @@ mod tests {
         .await;
         assert_eq!(mgr.count().await, 1);
     }
+}
+
+// ── Agent 执行追踪 ─────────────────────────────────────
+
+/// 使用 OTel GenAI span 包裹 agent 执行。
+///
+/// 返回 `(agent_output, span)` 以允许调用方进一步记录 span 属性。
+pub async fn traced_agent_run(
+    agent: &mut dyn lingshu_traits::agent::Agent,
+    ctx: LsContext,
+    input: serde_json::Value,
+    agent_name: &str,
+) -> LsResult<lingshu_traits::agent::AgentOutput> {
+    let span = tracing::info_span!(
+        "gen_ai",
+        gen_ai.operation.name = "agent.run",
+        gen_ai.agent.name = agent_name,
+        trace_id = %ctx.trace_id,
+        session_id = %ctx.session_id,
+    );
+    let _guard = span.enter();
+    let start = std::time::Instant::now();
+
+    let result = agent.run(ctx, input).await;
+
+    let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+    match &result {
+        Ok(output) => {
+            tracing::debug!(
+                duration_ms,
+                agent_id = %output.agent_id,
+                status = ?output.status,
+                "Agent run completed",
+            );
+        }
+        Err(e) => {
+            tracing::warn!(duration_ms, error = %e, "Agent run failed");
+        }
+    }
+
+    result
 }

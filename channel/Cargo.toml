@@ -1,0 +1,34 @@
+[package]
+name = "lingshu-channel"
+version.workspace = true
+edition.workspace = true
+description = "Lingshu Message Channel — 多平台消息通道抽象与适配器"
+
+[dependencies]
+lingshu-core = { path = "../core" }
+lingshu-traits = { path = "../traits" }
+lingshu-mcp = { path = "../mcp", features = ["rmcp"] }
+
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["rt", "macros", "sync", "time"] }
+reqwest = { version = "0.12", features = ["json"], optional = true }
+tokio-tungstenite = { version = "0.24", features = ["native-tls"], optional = true }
+futures-util = { version = "0.3", optional = true }
+sha1 = { workspace = true }
+digest = "0.10"
+
+[features]
+default = ["mcp-bridge"]
+mcp-bridge = ["lingshu-mcp/rmcp"]
+telegram = ["dep:reqwest"]
+feishu = ["dep:reqwest"]
+qq = ["dep:reqwest", "dep:tokio-tungstenite", "dep:futures-util"]
+wechat = ["dep:reqwest"]
+
+[dev-dependencies]

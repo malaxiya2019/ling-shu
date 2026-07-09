@@ -183,8 +183,8 @@ impl Tool for CalculatorTool {
         self.validate(&input)?;
         let expression = input["expression"].as_str().unwrap();
 
-        // 使用 meval crate 进行安全求值
-        let result = meval::eval_str(expression).map_err(|e| {
+        // 使用内置表达式求值
+        let result = eval_expression(expression).map_err(|e| {
             LsError::Internal(format!("failed to evaluate expression '{expression}': {e}"))
         })?;
 
@@ -294,4 +294,290 @@ mod tests {
             .await;
         assert!(result.is_err());
     }
+
+    // ── 表达式求值器单元测试 ──
+    #[test]
+    fn test_eval_basic_arithmetic() {
+        let r = eval_expression("1 + 2 * 3").unwrap();
+        assert!((r - 7.0).abs() < 1e-10, "1+2*3 = 7, got {r}");
+    }
+
+    #[test]
+    fn test_eval_parentheses() {
+        let r = eval_expression("(1 + 2) * 3").unwrap();
+        assert!((r - 9.0).abs() < 1e-10, "(1+2)*3 = 9, got {r}");
+    }
+
+    #[test]
+    fn test_eval_power() {
+        let r = eval_expression("2 ^ 10").unwrap();
+        assert!((r - 1024.0).abs() < 1e-10, "2^10 = 1024, got {r}");
+    }
+
+    #[test]
+    fn test_eval_sqrt() {
+        let r = eval_expression("sqrt(16)").unwrap();
+        assert!((r - 4.0).abs() < 1e-10, "sqrt(16) = 4, got {r}");
+    }
+
+    #[test]
+    fn test_eval_sin_pi_over_2() {
+        let r = eval_expression("sin(pi / 2)").unwrap();
+        assert!((r - 1.0).abs() < 1e-10, "sin(pi/2) = 1, got {r}");
+    }
+
+    #[test]
+    fn test_eval_ln_e() {
+        let r = eval_expression("ln(e)").unwrap();
+        assert!((r - 1.0).abs() < 1e-10, "ln(e) = 1, got {r}");
+    }
+
+    #[test]
+    fn test_eval_abs() {
+        let r = eval_expression("abs(-10)").unwrap();
+        assert!((r - 10.0).abs() < 1e-10, "abs(-10) = 10, got {r}");
+    }
+
+    #[test]
+    fn test_eval_modulo() {
+        let r = eval_expression("10 % 3").unwrap();
+        assert!((r - 1.0).abs() < 1e-10, "10%3 = 1, got {r}");
+    }
+
+    #[test]
+    fn test_eval_round() {
+        let r = eval_expression("round(1.5)").unwrap();
+        assert!((r - 2.0).abs() < 1e-10, "round(1.5) = 2, got {r}");
+    }
+
+    #[test]
+    fn test_eval_error_incomplete_expr() {
+        assert!(eval_expression("1+").is_err(), "1+ should error");
+    }
+
+    #[test]
+    fn test_eval_error_unmatched_paren() {
+        assert!(eval_expression("(").is_err(), "( should error");
+    }
+
+    #[test]
+    fn test_eval_error_sqrt_no_arg() {
+        assert!(eval_expression("sqrt(").is_err(), "sqrt( should error");
+    }
+
+    #[test]
+    fn test_eval_error_unknown_symbol() {
+        assert!(eval_expression("abc").is_err(), "abc should error");
+    }
+}
+
+// ── 简易数学表达式求值 ─────────────────────────────
+
+/// 简易表达式求值器，替换 meval crate。
+/// 支持基本算术 +, -, *, /, ^, % 和函数 sin, cos, tan, sqrt, log, ln, abs, floor, ceil, round, exp, max, min。
+fn eval_expression(expr: &str) -> Result<f64, String> {
+    let expr = expr.trim();
+    if expr.is_empty() {
+        return Err("empty expression".into());
+    }
+    let chars: Vec<char> = expr.chars().collect();
+    let mut pos = 0;
+    let result = parse_expr(&chars, &mut pos)?;
+    skip_whitespace(&chars, &mut pos);
+    if pos < chars.len() {
+        return Err(format!("unexpected character '{}' at position {}", chars[pos], pos));
+    }
+    Ok(result)
+}
+
+fn skip_whitespace(chars: &[char], pos: &mut usize) {
+    while *pos < chars.len() && chars[*pos].is_ascii_whitespace() {
+        *pos += 1;
+    }
+}
+
+fn parse_number(chars: &[char], pos: &mut usize) -> Result<f64, String> {
+    skip_whitespace(chars, pos);
+    let start = *pos;
+    
+    // Check for named constants
+    if *pos < chars.len() && chars[*pos].is_ascii_alphabetic() {
+        while *pos < chars.len() && (chars[*pos].is_ascii_alphanumeric() || chars[*pos] == '_') {
+            *pos += 1;
+        }
+        let name: String = chars[start..*pos].iter().collect();
+        return match name.as_str() {
+            "pi" => Ok(std::f64::consts::PI),
+            "e" => Ok(std::f64::consts::E),
+            "inf" => Ok(f64::INFINITY),
+            "nan" => Ok(f64::NAN),
+            _ => Err(format!("unknown identifier '{}'", name)),
+        };
+    }
+    
+    if *pos < chars.len() && chars[*pos] == '-' {
+        *pos += 1;
+        let val = parse_number(chars, pos)?;
+        return Ok(-val);
+    }
+    if *pos < chars.len() && chars[*pos] == '+' {
+        *pos += 1;
+        return parse_number(chars, pos);
+    }
+    
+    if *pos >= chars.len() || !(chars[*pos].is_ascii_digit() || chars[*pos] == '.') {
+        return Err(format!("expected number at position {}", start));
+    }
+    
+    while *pos < chars.len() && (chars[*pos].is_ascii_digit() || chars[*pos] == '.') {
+        *pos += 1;
+    }
+    let num_str: String = chars[start..*pos].iter().collect();
+    num_str.parse::<f64>().map_err(|e| format!("invalid number '{}': {}", num_str, e))
+}
+
+fn parse_function(chars: &[char], pos: &mut usize) -> Result<f64, String> {
+    skip_whitespace(chars, pos);
+    
+    if *pos >= chars.len() {
+        return Err("unexpected end of expression".into());
+    }
+    
+    // Check if it's a function call (letters followed by '(')
+    if chars[*pos].is_ascii_alphabetic() {
+        let start = *pos;
+        while *pos < chars.len() && (chars[*pos].is_ascii_alphanumeric() || chars[*pos] == '_') {
+            *pos += 1;
+        }
+        let name: String = chars[start..*pos].iter().collect();
+        skip_whitespace(chars, pos);
+        
+        if *pos < chars.len() && chars[*pos] == '(' {
+            // It's a function call
+            *pos += 1; // skip '('
+            let arg = parse_expr(chars, pos)?;
+            skip_whitespace(chars, pos);
+            if *pos >= chars.len() || chars[*pos] != ')' {
+                return Err(format!("expected ')' after function argument at position {}", *pos));
+            }
+            *pos += 1; // skip ')'
+            
+            return match name.as_str() {
+                "sin" => Ok(arg.sin()),
+                "cos" => Ok(arg.cos()),
+                "tan" => Ok(arg.tan()),
+                "asin" => Ok(arg.asin()),
+                "acos" => Ok(arg.acos()),
+                "atan" => Ok(arg.atan()),
+                "sqrt" => Ok(arg.sqrt()),
+                "log" => Ok(arg.log10()),
+                "ln" => Ok(arg.ln()),
+                "abs" => Ok(arg.abs()),
+                "floor" => Ok(arg.floor()),
+                "ceil" => Ok(arg.ceil()),
+                "round" => Ok(arg.round()),
+                "exp" => Ok(arg.exp()),
+                "sinh" => Ok(arg.sinh()),
+                "cosh" => Ok(arg.cosh()),
+                "tanh" => Ok(arg.tanh()),
+                "rad" => Ok(arg.to_radians()),
+                "deg" => Ok(arg.to_degrees()),
+                _ => Err(format!("unknown function '{}'", name)),
+            };
+        } else {
+            // It's a named constant or variable
+            return match name.as_str() {
+                "pi" => Ok(std::f64::consts::PI),
+                "e" => Ok(std::f64::consts::E),
+                "inf" => Ok(f64::INFINITY),
+                _ => Err(format!("unknown identifier '{}'", name)),
+            };
+        }
+    }
+    
+    if chars[*pos] == '(' {
+        *pos += 1; // skip '('
+        let result = parse_expr(chars, pos)?;
+        skip_whitespace(chars, pos);
+        if *pos >= chars.len() || chars[*pos] != ')' {
+            return Err(format!("expected ')' at position {}", *pos));
+        }
+        *pos += 1; // skip ')'
+        return Ok(result);
+    }
+    
+    parse_number(chars, pos)
+}
+
+// Power (right-associative)
+fn parse_power(chars: &[char], pos: &mut usize) -> Result<f64, String> {
+    let mut left = parse_function(chars, pos)?;
+    skip_whitespace(chars, pos);
+    while *pos < chars.len() && chars[*pos] == '^' {
+        *pos += 1; // skip '^'
+        let right = parse_power(chars, pos)?;
+        left = left.powf(right);
+        skip_whitespace(chars, pos);
+    }
+    Ok(left)
+}
+
+// Unary minus and plus
+fn parse_unary(chars: &[char], pos: &mut usize) -> Result<f64, String> {
+    skip_whitespace(chars, pos);
+    if *pos >= chars.len() {
+        return Err("unexpected end of expression".into());
+    }
+    if chars[*pos] == '-' {
+        *pos += 1;
+        let val = parse_unary(chars, pos)?;
+        return Ok(-val);
+    }
+    if chars[*pos] == '+' {
+        *pos += 1;
+        return parse_unary(chars, pos);
+    }
+    parse_power(chars, pos)
+}
+
+// Multiplication, division, modulo
+fn parse_term(chars: &[char], pos: &mut usize) -> Result<f64, String> {
+    let mut left = parse_unary(chars, pos)?;
+    skip_whitespace(chars, pos);
+    while *pos < chars.len() && (chars[*pos] == '*' || chars[*pos] == '/' || chars[*pos] == '%') {
+        let op = chars[*pos];
+        *pos += 1;
+        let right = parse_unary(chars, pos)?;
+        left = match op {
+            '*' => left * right,
+            '/' => {
+                if right == 0.0 {
+                    return Err("division by zero".into());
+                }
+                left / right
+            }
+            '%' => left % right,
+            _ => unreachable!(),
+        };
+        skip_whitespace(chars, pos);
+    }
+    Ok(left)
+}
+
+// Addition and subtraction
+fn parse_expr(chars: &[char], pos: &mut usize) -> Result<f64, String> {
+    let mut left = parse_term(chars, pos)?;
+    skip_whitespace(chars, pos);
+    while *pos < chars.len() && (chars[*pos] == '+' || chars[*pos] == '-') {
+        let op = chars[*pos];
+        *pos += 1;
+        let right = parse_term(chars, pos)?;
+        left = match op {
+            '+' => left + right,
+            '-' => left - right,
+            _ => unreachable!(),
+        };
+        skip_whitespace(chars, pos);
+    }
+    Ok(left)
 }

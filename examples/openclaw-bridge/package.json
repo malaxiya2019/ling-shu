@@ -1,0 +1,19 @@
+{
+  "name": "openclaw-bridge",
+  "version": "1.0.0",
+  "description": "MCP Bridge Server — connects lingshu to OpenClaw-style messaging channels",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "tsx": "^4.19.0",
+    "@types/node": "^22.0.0"
+  }
+}

@@ -132,7 +132,7 @@ fn row_to_value(row: &rusqlite::Row) -> rusqlite::Result<Value> {
 }
 
 /// 统计集合中记录总数.
-fn count_collection(conn: &rusqlite::Connection, collection: &str) -> rusqlite::Result<u64> {
+fn count_collection(conn: &rusqlite::Connection, collection: &str) -> rusqlite::Result<i64> {
     conn.query_row(
         "SELECT COUNT(*) FROM documents WHERE collection = ?1",
         params![collection],
@@ -144,8 +144,8 @@ fn count_collection(conn: &rusqlite::Connection, collection: &str) -> rusqlite::
 fn query_collection(
     conn: &rusqlite::Connection,
     collection: &str,
-    page: u64,
-    page_size: u64,
+    page: i64,
+    page_size: i64,
 ) -> rusqlite::Result<Vec<Value>> {
     let offset = (page.saturating_sub(1)) * page_size;
     let mut stmt = conn.prepare(
@@ -212,20 +212,20 @@ impl Database for SqliteDatabase {
         pagination: Pagination,
     ) -> LsResult<PaginatedResult> {
         let conn = self.conn.lock().await;
-        let total = count_collection(&conn, collection)
+        let total: i64 = count_collection(&conn, collection)
             .map_err(|e| LsError::Internal(format!("query count failed: {e}")))?;
 
-        let total_pages = total.div_ceil(pagination.page_size.max(1));
+        let total_pages = (total + pagination.page_size.max(1) as i64 - 1) / pagination.page_size.max(1) as i64;
 
-        let items = query_collection(&conn, collection, pagination.page, pagination.page_size)
+        let items = query_collection(&conn, collection, pagination.page as i64, pagination.page_size as i64)
             .map_err(|e| LsError::Internal(format!("query failed: {e}")))?;
 
         Ok(PaginatedResult {
             items,
-            total,
+            total: total as u64,
             page: pagination.page,
             page_size: pagination.page_size,
-            total_pages,
+            total_pages: total_pages as u64,
         })
     }
 

@@ -18,8 +18,9 @@
 //! bridge.serve_stdio().await.unwrap();
 //! ```
 
-use lingshu_core::{LsContext, LsResult};
-use lingshu_traits::tool::{Tool, ToolInfo, ToolParam};
+use lingshu_core::{LsContext, LsResult, LsId};
+use axum::{Router, routing, extract::State};
+use lingshu_traits::tool::{Tool};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -50,6 +51,7 @@ impl From<&str> for McpMethod {
 /// JSON-RPC 请求.
 #[derive(Debug, Clone, serde::Deserialize)]
 struct JsonRpcRequest {
+#[allow(dead_code)]
     jsonrpc: String,
     method: String,
     #[serde(default)]
@@ -159,14 +161,14 @@ impl McpServerBridge {
                     "description": info.description,
                     "inputSchema": {
                         "type": "object",
-                        "properties": info.params.iter().map(|p| {
+                        "properties": info.parameters.iter().map(|p| {
                             (p.name.clone(), serde_json::json!({
                                 "type": p.param_type,
                                 "description": p.description,
                                 "required": p.required,
                             }))
                         }).collect::<serde_json::Map<_, _>>(),
-                        "required": info.params.iter()
+                        "required": info.parameters.iter()
                             .filter(|p| p.required)
                             .map(|p| p.name.clone())
                             .collect::<Vec<_>>(),
@@ -186,7 +188,7 @@ impl McpServerBridge {
         let tools = self.tools.read().await;
         match tools.get(name) {
             Some(tool) => {
-                let ctx = LsContext::default();
+                let ctx = LsContext::with_session(LsId::new());
                 match tool.execute(ctx, arguments).await {
                     Ok(result) => json_rpc_result(
                         id,
@@ -257,15 +259,15 @@ impl McpServerBridge {
             tools: self.tools.clone(),
         });
 
-        let app = axum::Router::new()
-            .route("/mcp", axum::routing::post(handle_mcp_post))
+        let app = Router::new()
+            .route("/mcp", routing::post(handle_mcp_post))
             .with_state(bridge);
 
         let listener = tokio::net::TcpListener::bind(addr)
             .await
             .map_err(|e| lingshu_core::LsError::Plugin(format!("MCP HTTP bind failed: {e}")))?;
 
-        axum::serve(listener, app)
+        axum::serve(listener, app.into_make_service())
             .await
             .map_err(|e| lingshu_core::LsError::Plugin(format!("MCP HTTP serve failed: {e}")))?;
 
@@ -275,7 +277,7 @@ impl McpServerBridge {
 
 /// axum handler for MCP POST requests.
 async fn handle_mcp_post(
-    axum::Extension(bridge): axum::Extension<Arc<McpServerBridge>>,
+    State(bridge): State<Arc<McpServerBridge>>,
     body: String,
 ) -> String {
     bridge.handle_request(&body).await

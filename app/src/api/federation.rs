@@ -3,7 +3,6 @@
 //! ✅ 已完成迁移 (从 full.rs)
 
 use crate::api::AppState;
-use axum::{Json, extract::State};
 use std::sync::Arc;
 
 pub use crate::api::full::{
@@ -11,6 +10,7 @@ pub use crate::api::full::{
 };
 
 /// Axum route definition for Federation module
+#[allow(dead_code)]
 pub fn federation_routes() -> axum::Router<Arc<AppState>> {
     axum::Router::new()
         .route("/v1/federation/status", axum::routing::get(federation_status_handler))

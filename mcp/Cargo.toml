@@ -21,11 +21,12 @@ lingshu-credentials = { path = "../credentials" }
 rmcp = { version = "0.1", optional = true }
 reqwest = { version = "0.12", features = ["json"], optional = true }
 tokio-tungstenite = { version = "0.24", optional = true }
+axum = { version = "0.7", features = ["macros"], optional = true }
 
 [features]
 default = []
 # 启用 rmcp 标准 MCP 协议支持 (Service + Client)
-rmcp = ["dep:rmcp", "dep:reqwest", "dep:tokio-tungstenite"]
+rmcp = ["dep:rmcp", "dep:reqwest", "dep:tokio-tungstenite", "dep:axum"]
 
 [dev-dependencies]
 tempfile = "3.5"

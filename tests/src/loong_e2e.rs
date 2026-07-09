@@ -3,7 +3,7 @@
 //! 验证 LoongAdapter 的 Agent 创建、执行和生命周期管理。
 //! 注意：loong feature 启用时运行真实逻辑，否则验证桩。
 
-use lingshu_core::{LsContext, LsError, LsId};
+use lingshu_core::{LsError, LsId};
 use lingshu_orchestrator::loong_adapter::{LoongAdapter, LoongAgentConfig};
 use lingshu_orchestrator::registry::AgentRegistry;
 use std::sync::Arc;
@@ -44,7 +44,7 @@ async fn test_loong_create_agent() {
                 "agent should be in the list"
             );
         }
-        Err(LsError::Unsupported(_)) => {
+        Err(LsError::NotImplemented(_)) => {
             // 桩模式
             let agents = adapter.list_agents().await;
             assert!(agents.is_empty());
@@ -58,7 +58,7 @@ async fn test_loong_create_agent() {
 #[tokio::test]
 async fn test_loong_run_agent() {
     let adapter = LoongAdapter::new();
-    let agent_id = LsId::new();
+    let _agent_id = LsId::new();
 
     // 先创建 agent
     let config = LoongAgentConfig {
@@ -83,13 +83,13 @@ async fn test_loong_run_agent() {
                     // 即使是 feature 模式，真实执行也可能因缺少 loong runtime 而失败
                     // 只要不 panic 且错误不是 Unsupported 即可
                     assert!(
-                        !matches!(e, LsError::Unsupported(_)),
+                        !matches!(e, LsError::NotImplemented(_)),
                         "expected non-unsupported error in feature mode"
                     );
                 }
             }
         }
-        Err(LsError::Unsupported(_)) => {
+        Err(LsError::NotImplemented(_)) => {
             // 桩模式
             return;
         }
@@ -106,7 +106,7 @@ async fn test_loong_stop_agent() {
         Ok(()) => {
             // 停止不存在的 agent 应成功（幂等）
         }
-        Err(LsError::Unsupported(_)) => {
+        Err(LsError::NotImplemented(_)) => {
             // 桩模式
         }
         Err(e) => panic!("unexpected error: {e}"),
@@ -136,7 +136,7 @@ async fn test_loong_with_registry() {
             assert_eq!(info.name, "reg-agent");
             assert_eq!(info.tags.get("source").map(|s| s.as_str()), Some("loong"));
         }
-        Err(LsError::Unsupported(_)) => {
+        Err(LsError::NotImplemented(_)) => {
             // 桩模式：registry 应仍为空
             assert_eq!(registry.count().await, 0);
         }

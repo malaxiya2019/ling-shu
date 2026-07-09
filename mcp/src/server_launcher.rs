@@ -60,6 +60,7 @@ pub struct McpServerManager {
 
 struct McpServerProcess {
     child: Option<std::process::Child>,
+#[allow(dead_code)]
     url: String,
 }
 
@@ -181,8 +182,8 @@ impl McpServerManager {
 impl Drop for McpServerManager {
     fn drop(&mut self) {
         // 同步停止所有子进程 (简化处理)
-        if let Ok(processes) = self.processes.try_read() {
-            for (_, mut process) in processes.iter() {
+        if let Ok(mut processes) = self.processes.try_write() {
+            for (_, process) in processes.iter_mut() {
                 if let Some(ref mut child) = process.child {
                     let _ = child.kill();
                 }

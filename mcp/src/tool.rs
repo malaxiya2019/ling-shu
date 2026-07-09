@@ -1,6 +1,7 @@
 //! MCP Tool Adapter — 将 lingshu-traits::Tool 包装为 MCP 格式
 //!
 //! 提供工具信息转换、标准执行、以及支持进度回调的扩展执行。
+use tracing::Instrument;
 
 use crate::types::{McpContent, McpTool, ProgressContext, ToolsCallResult};
 use lingshu_traits::tool::{Tool, ToolInfo};
@@ -44,7 +45,15 @@ pub async fn execute_tool_to_mcp(
     ctx: lingshu_core::LsContext,
     args: Value,
 ) -> ToolsCallResult {
-    match tool.execute(ctx, args).await {
+    let tool_name = tool.info().name.clone();
+    let span = tracing::info_span!(
+        "gen_ai",
+        gen_ai.operation.name = "tool.call",
+        gen_ai.tool.name = %tool_name,
+        trace_id = %ctx.trace_id,
+        session_id = %ctx.session_id,
+    );
+    match tool.execute(ctx, args).instrument(span).await {
         Ok(result) => {
             let text = if result.is_object() || result.is_array() {
                 serde_json::to_string_pretty(&result).unwrap_or_default()
@@ -93,7 +102,15 @@ pub async fn execute_tool_to_mcp_with_progress(
         ctx
     };
 
-    let result = match tool.execute(ctx, args).await {
+    let tool_name = tool.info().name.clone();
+    let span = tracing::info_span!(
+        "gen_ai",
+        gen_ai.operation.name = "tool.call",
+        gen_ai.tool.name = %tool_name,
+        trace_id = %ctx.trace_id,
+        session_id = %ctx.session_id,
+    );
+    let result = match tool.execute(ctx, args).instrument(span).await {
         Ok(result) => {
             // 报告 100% 完成
             if let Some(ref p) = progress {

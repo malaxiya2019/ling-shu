@@ -248,14 +248,14 @@ impl AutoAgentsOrchestrator {
         _llm_endpoint: &str,
         _api_key: &str,
     ) -> LsResult<()> {
-        Err(LsError::Unsupported(
+        Err(LsError::NotImplemented(
             "autoagents feature not enabled".into(),
         ))
     }
 
     /// 创建编队.
     pub async fn create_crew(&self, _config: CrewConfig) -> LsResult<()> {
-        Err(LsError::Unsupported(
+        Err(LsError::NotImplemented(
             "autoagents feature not enabled".into(),
         ))
     }
@@ -267,7 +267,7 @@ impl AutoAgentsOrchestrator {
         _task: serde_json::Value,
         _ctx: &LsContext,
     ) -> LsResult<DelegationResult> {
-        Err(LsError::Unsupported(
+        Err(LsError::NotImplemented(
             "autoagents feature not enabled".into(),
         ))
     }
@@ -279,7 +279,7 @@ impl AutoAgentsOrchestrator {
         _name: &str,
         _capabilities: Vec<&str>,
     ) -> LsResult<()> {
-        Err(LsError::Unsupported(
+        Err(LsError::NotImplemented(
             "autoagents feature not enabled".into(),
         ))
     }
@@ -313,7 +313,7 @@ mod tests {
     async fn test_autoagents_noop_stub() {
         let orch = AutoAgentsOrchestrator::new(OrchestratorConfig::default());
         let err = orch
-            .delegate_react("test", serde_json::json!({"task": "x"}), &LsContext::default()LsContext::with_session(LsId::new()))
+            .delegate_react("test", serde_json::json!({"task": "x"}), &LsContext::with_session(LsId::new()))
             .await;
         if cfg!(not(feature = "autoagents")) {
             assert!(err.is_err());

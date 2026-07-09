@@ -115,4 +115,3 @@ impl AttestationProvider for TdxManager {
         Ok(quote_hex == expected)
     }
 }
-ATTESTOF

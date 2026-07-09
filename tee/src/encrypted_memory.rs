@@ -2,6 +2,7 @@
 //!
 //! AES-256-GCM 内存级加密, 保护敏感数据在内存中的保密性.
 
+use std::hash::Hasher;
 use lingshu_core::LsResult;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
