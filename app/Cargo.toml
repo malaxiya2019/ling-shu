@@ -25,7 +25,7 @@ lingshu-config = { path = "../config" }
 lingshu-storage = { path = "../storage" }
 lingshu-database = { path = "../database" }
 lingshu-observability = { path = "../observability", features = ["otel", "metrics", "http"] }
-lingshu-backends = { path = "../backends", features = ["otel", "llmkit", "openai"] }
+lingshu-backends = { path = "../backends", features = ["otel", "llmkit", "openai", "vector-store-qdrant"] }
 lingshu-plugin = { path = "../plugin" }
 lingshu-beef-plugin = { path = "../plugins/beef-plugin" }
 lingshu-watch-plugin = { path = "../plugins/watch-plugin" }

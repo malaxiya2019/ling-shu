@@ -453,7 +453,7 @@ const greet = (name: string) => `Hi ${name}`;
         let result = extractor.extract(content, "typescript");
         assert_eq!(result.functions.len(), 2); // hello + greet arrow
         assert_eq!(result.classes.len(), 1);
-        assert!(result.imports.len() >= 1);
+        assert!(!result.imports.is_empty());
     }
 
     #[test]

@@ -38,3 +38,6 @@ temp-env = "0.3"
 axum = { version = "0.7", features = ["json"] }
 reqwest = { version = "0.12", features = ["json"] }
 tokio-util.workspace = true
+
+[features]
+chidori = []

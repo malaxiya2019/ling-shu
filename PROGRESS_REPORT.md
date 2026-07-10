@@ -1,6 +1,6 @@
 # Lingshu — 项目进度报告
 
-> 生成日期: 2026-07-08
+> 生成日期: 2026-07-10
 
 ---
 
@@ -194,7 +194,7 @@
 | Secrets Vault | ✅ | HashiCorp Vault 集成: KV v2, 动态 Secret, Transit 加解密, Lease 管理 |
 | TEE 支持 | ✅ | Intel SGX/TDX 远程证明 + 加密内存区域 + 策略引擎, tee/ crate + API
 
-### v3.4 — 生态系统 ✅ (最新完成)
+### v3.4 — 生态系统 ✅
 | 组件 | 状态 | 说明 |
 |------|------|------|
 | OpenHands 集成 | ✅ | api/ 模块化重构: health/metrics/auth/chat/agents/plugins/mcp/federation/eval 9 模块 |
@@ -202,3 +202,23 @@
 | chidori Durable Execution | ✅ | checkpointing 持久化恢复 (feature-gated) |
 | Plugin 市场 WebUI | ✅ | 在线浏览/搜索/安装/卸载/热加载, 完整 marketplace 集成 |
 | Criterion Benchmark | ✅ | 全局基准测试套件: 10+ crate, 15+ 场景, HTML 报告
+
+### v3.5 — 配置与质量提升 ✅
+| 组件 | 状态 | 说明 |
+|------|------|------|
+| start.sh 增强 | ✅ | 691行, 支持 --china/--quick/--repl/--doctor/--update/--with-openclaw 子命令 |
+| WebUI 自动构建 | ✅ | start.sh 自动检测 trunk/wasm32 编译 WebUI |
+| Web Search 插件 | ✅ | DuckDuckGo 免费搜索, 无需 API Key |
+| Tauri 桌面端 | ✅ | Tauri v2 跨平台桌面脚手架 |
+| CI/CD 增强 | ✅ | release/bench/coverage/docker/build-deps 五套 CI 流水线 |
+| Clippy 全面清理 | ✅ | 分级别 lint 配置, correctness/complexity/perf/style 全开 |
+
+### v3.6 — 通道与向量存储扩展 ✅ (最新完成)
+| 组件 | 状态 | 说明 |
+|------|------|------|
+| Discord 通道插件 | ✅ | 原生 Rust 实现: Bot REST API 发送/接收/回复消息 |
+| FastEmbed 本地嵌入 | ✅ | ONNX 运行时本地嵌入, 零外部 API 依赖 (feature-gated: fastembed) |
+| Qdrant 向量数据库 | ✅ | 高性能向量搜索后端, 支持集合管理/CRUD/搜索 (feature-gated: vector-store-qdrant) |
+| 生产压测脚本 | ✅ | k6 + shell 双重压测: 并发/延迟/资源监控完整覆盖 |
+| Criterion 基准测试扩展 | ✅ | 16 场景覆盖 core/cache/memory/security/database/json 等 |
+| 通道注册集成 | ✅ | Discord 自动注册至 ChannelRegistry, 按环境变量 DISCORD_BOT_TOKEN 条件激活 |

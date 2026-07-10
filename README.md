@@ -256,20 +256,19 @@ cp .env.example .env
 
 ## Features
 
-- **Modular Design**: 28 workspace crates with clean dependency graph
+- **Modular Design**: 33+ workspace crates with clean dependency graph
 - **Async-First**: Built on Tokio for high concurrency
-- **Pluggable Backends**: OpenAI, Anthropic, Groq for LLMs; SQLite, PostgreSQL for storage
+- **Pluggable Backends**: OpenAI, Anthropic, Groq, DeepSeek, Qwen for LLMs; SQLite, PostgreSQL, Qdrant for vector storage; FastEmbed for local embedding
 - **Production Ready**: Tracing, metrics, health checks, graceful shutdown
 - **Security**: RBAC/ABAC permissions, JWT auth, Ed25519 service-to-service auth, encrypted credential vault
 - **Observability**: OpenTelemetry integration, Prometheus metrics, structured logging
 - **Agent Evaluation**: Built-in evaluation framework with test suites, metrics, and regression detection
 - **Federation**: Cross-cluster agent execution with discovery, heartbeats, and state replication
 - **Admin UI**: WASM-based management panel (Yew) + server-rendered fallback
-- **Multi-Channel**: Native Telegram / 飞书 / QQ / 微信 (公众号) integration
 - **OpenClaw Compatible**: MCP bridge for OpenClaw ecosystem channels
-- **Edge-Optimized**: Termux (Android) support, China network mode (`--china`), low-memory operation
+- **Multi-Channel**: Native Telegram / Discord / 飞书 / QQ / 微信 (公众号) integration
 
-## Docker
+- **Edge-Optimized**: Termux (Android) support, China network mode (`--china`), low-memory operation, feature-gated components
 
 ```bash
 # Build
@@ -314,6 +313,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/malaxiya2019/ling-shu/main/s
 | 15 — Evaluation | v2.6 | ✅ | Agent eval framework, regression |
 | 16 — Federation | v2.7 | ✅ | Cross-cluster communication, replication |
 | 17 — WebUI | v2.7 | ✅ | WASM admin panel, auth, SSR fallback |
+| 18 — v3.x | v3.3-v3.6 | ✅ | Multi-Tenant, Audit Dashboard, Vault, TEE, Discord, Qdrant, FastEmbed, Desktop App, CI/CD |
 
 ## Development
 

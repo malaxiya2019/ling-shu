@@ -424,7 +424,7 @@ mod tests {
     #[tokio::test]
     async fn test_agent_initial_state() {
         // Just verify creation - full tests below
-        assert!(true);
+        
     }
 
     fn make_agent() -> DefaultAgent {

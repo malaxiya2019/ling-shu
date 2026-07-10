@@ -243,7 +243,7 @@ mod tests {
 
         let id = LsId::new();
         let doc = MultimodalDocument {
-            id: id.clone(),
+            id,
             title: "Test".into(),
             text: "test content".into(),
             images: vec![],

@@ -143,6 +143,7 @@ impl WeChatChannel {
     }
 
     /// 解析微信传入的 XML 消息。
+    #[allow(dead_code)]
     fn strip_cdata(s: &str) -> String {
         if s.starts_with("<![CDATA[") && s.ends_with("]]>") {
             s[9..s.len()-3].to_string()

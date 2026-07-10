@@ -141,7 +141,7 @@ mod tests {
     fn dummy_entry(path: &str, lang: &str, cat: FileCategory) -> FileEntry {
         FileEntry {
             path: path.to_string(),
-            name: path.split('/').last().unwrap_or(path).to_string(),
+            name: path.split('/').next_back().unwrap_or(path).to_string(),
             extension: path.rsplit('.').next().unwrap_or("").to_string(),
             language: lang.to_string(),
             size_lines: 10,
@@ -190,7 +190,7 @@ mod tests {
     #[test]
     fn test_generate_with_children() {
         let generator = GraphGenerator::new();
-        let _entries = vec![dummy_entry("src/lib.rs", "rust", FileCategory::Code)];
+        let _entries = [dummy_entry("src/lib.rs", "rust", FileCategory::Code)];
         // Create a temp file with Rust code so extractor finds functions
         let dir = tempfile::TempDir::new().unwrap();
         let file_path = dir.path().join("src/lib.rs");

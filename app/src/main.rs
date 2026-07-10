@@ -299,6 +299,20 @@ impl LingshuRuntime {
                 tracing::info!("channel registered: wechat");
             }
 
+            // Discord (环境变量: DISCORD_BOT_TOKEN)
+            #[cfg(feature = "discord")]
+            if let Ok(_token) = std::env::var("DISCORD_BOT_TOKEN") {
+                let ch = Arc::new(
+                    lingshu_channel::DiscordChannel::new()
+                        .unwrap_or_else(|e| {
+                            tracing::warn!(error = %e, "failed to create Discord channel");
+                            panic!("DiscordChannel::new() failed: {e}")
+                        }),
+                );
+                reg.register(ch).await;
+                tracing::info!("channel registered: discord");
+            }
+
             reg
         };
 

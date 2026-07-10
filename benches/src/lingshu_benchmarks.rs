@@ -25,7 +25,7 @@ use std::time::Duration;
 fn bench_id_generation(c: &mut Criterion) {
     let mut group = c.benchmark_group("core");
     group.bench_function("uuid_v4", |b| {
-        b.iter(|| LsId::new())
+        b.iter(LsId::new)
     });
     group.finish();
 }
