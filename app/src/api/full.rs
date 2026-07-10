@@ -4736,6 +4736,7 @@ mod tests {
             autoagents: None,
             loong_adapter: None,
             channel_registry: std::sync::Arc::new(lingshu_channel::registry::ChannelRegistry::new()),
+            agent_runtime: None,
         });
         let health_registry = Arc::new(lingshu_observability::health::HealthRegistry::new(
             "lingshu-test",

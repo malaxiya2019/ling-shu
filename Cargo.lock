@@ -6474,6 +6474,7 @@ dependencies = [
  "lingshu-tenant",
  "lingshu-traits",
  "lingshu-vault",
+ "lingshu-voice",
  "lingshu-watch-plugin",
  "lingshu-websocket",
  "mime_guess",
@@ -6523,6 +6524,7 @@ dependencies = [
  "lingshu-eventbus",
  "lingshu-observability",
  "lingshu-runtime",
+ "lingshu-tool",
  "lingshu-traits",
  "llmkit",
  "qdrant-client",
@@ -6917,6 +6919,7 @@ dependencies = [
  "chrono",
  "lingshu-core",
  "lingshu-credentials",
+ "lingshu-runtime",
  "lingshu-traits",
  "lingshu-websocket",
  "reqwest 0.12.28",
@@ -7124,8 +7127,10 @@ name = "lingshu-runtime"
 version = "3.0.0"
 dependencies = [
  "async-trait",
+ "axum 0.7.9",
  "chidori",
  "chrono",
+ "futures",
  "lingshu-core",
  "lingshu-eventbus",
  "lingshu-observability",
@@ -7136,6 +7141,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tower 0.5.3",
  "tracing",
  "uuid",
 ]
@@ -7311,6 +7317,25 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "lingshu-voice"
+version = "3.0.0"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "chrono",
+ "lingshu-core",
+ "lingshu-tool",
+ "lingshu-traits",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tempfile",
  "tokio",
  "tracing",
  "uuid",

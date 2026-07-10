@@ -10,20 +10,14 @@
 //! - `checkpoint` — 工作流快照持久化与恢复
 //! - `planner` — 工作流规划器（从步骤列表自动构建 DAG）
 //! - `registry` — 工作流注册表（管理多个工作流的注册与执行）
-//!
-//! ## 使用方法
-//! ```rust,ignore
-//! let mut wf = Workflow::new("my-workflow");
-//! let node_a = wf.add_node("step_a", |ctx| async { Ok(json!({"result": "A"})) });
-//! let node_b = wf.add_node("step_b", |ctx| async { Ok(json!({"result": "B"})) });
-//! wf.add_edge(node_a, node_b).unwrap(); // B 依赖 A
-//! let result = wf.execute(ctx).await.unwrap();
-//! ```
+//! - `workflow_tools` — Agent 可调用的工作流工具（execute_workflow, list_workflows）
 
 pub mod checkpoint;
 pub mod dag;
 pub mod planner;
 pub mod registry;
+pub mod workflow_tools;
+pub mod workflow_access;
 
 pub use checkpoint::{
     CheckpointManager, CheckpointStore, InMemoryCheckpointStore, WorkflowCheckpoint,
@@ -36,3 +30,4 @@ pub use dag::{
 };
 pub use planner::{PlannedWorkflow, Planner, SimplePlanner, WorkflowStep};
 pub use registry::{WorkflowRegistry, WorkflowRegistryEntry};
+pub use workflow_tools::{WorkflowExecuteTool, ListWorkflowsTool, register_workflow_tools};

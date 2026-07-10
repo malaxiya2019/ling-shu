@@ -450,3 +450,54 @@ pub async fn beef_restart() -> Result<BeefActionResponse, String> {
 pub async fn beef_hooks() -> Result<BeefHooksResponse, String> {
     get_json::<BeefHooksResponse>("/v1/security/beef/hooks").await
 }
+
+// ── Runtime API types (v4.0+) ─────────────────────────
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct RuntimeStatusResponse {
+    pub state: String,
+    pub agent_count: usize,
+    pub session_count: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct AgentSummaryItem {
+    pub agent_id: String,
+    pub name: String,
+    pub status: String,
+    #[serde(default)]
+    pub created_at: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct AgentListResponse {
+    pub agents: Vec<AgentSummaryItem>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SessionInfoItem {
+    pub session_id: String,
+    #[serde(default)]
+    pub state: Option<String>,
+    #[serde(default)]
+    pub created_at: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SessionListResponse {
+    pub sessions: Vec<SessionInfoItem>,
+}
+
+// ── Runtime API calls ─────────────────────────────────
+
+pub async fn get_runtime_status() -> Result<RuntimeStatusResponse, String> {
+    get_json::<RuntimeStatusResponse>("/api/v1/runtime/status").await
+}
+
+pub async fn get_agents() -> Result<AgentListResponse, String> {
+    get_json::<AgentListResponse>("/api/v1/agents").await
+}
+
+pub async fn get_sessions() -> Result<SessionListResponse, String> {
+    get_json::<SessionListResponse>("/api/v1/sessions").await
+}

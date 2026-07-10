@@ -18,6 +18,8 @@ pub mod scheduler;
 pub mod storage;
 pub mod tool;
 pub mod vector_store;
+pub mod voice;
+pub use voice::*;
 
 pub use agent::*;
 pub use database::*;

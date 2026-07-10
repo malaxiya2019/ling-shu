@@ -7,6 +7,7 @@ description = "Lingshu MCP (Model Context Protocol) — 协议类型、工具适
 [dependencies]
 lingshu-core = { path = "../core" }
 lingshu-traits = { path = "../traits" }
+lingshu-runtime = { path = "../runtime", optional = true }
 
 async-trait.workspace = true
 serde.workspace = true
@@ -24,6 +25,7 @@ tokio-tungstenite = { version = "0.24", optional = true }
 axum = { version = "0.7", features = ["macros"], optional = true }
 
 [features]
+agent-runtime = ["dep:lingshu-runtime"]
 default = []
 # 启用 rmcp 标准 MCP 协议支持 (Service + Client)
 rmcp = ["dep:rmcp", "dep:reqwest", "dep:tokio-tungstenite", "dep:axum"]

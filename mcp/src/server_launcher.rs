@@ -248,5 +248,22 @@ pub fn default_server_configs() -> HashMap<String, McpServerConfig> {
         },
     );
 
+    // OmniVoice Studio — 本地语音合成 & 识别 (MCP 模式)
+    configs.insert(
+        "omnivoice".into(),
+        McpServerConfig {
+            command: "python".into(),
+            args: vec![
+                "-m".into(),
+                "backend.mcp_server".into(),
+            ],
+            env: HashMap::from([
+                ("OMNIVOICE_API_URL".into(), "http://localhost:3900".into()),
+            ]),
+            url: None,
+            auto_start: false,
+        },
+    );
+
     configs
 }

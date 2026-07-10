@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [4.0.0] - 2026-07-10
+
+### Added
+- v4.2.3 — Runtime 操作指标接入
+  - `lingshu-observability`: 新增 `ls_agent_count` (gauge), `ls_tool_calls_total` (counter), `ls_session_count` (gauge) 三个 Prometheus 指标
+  - `RuntimeMetricsCollector`: 结构体封装，提供线程安全的指标更新方法 (agent_count/session_count → gauge, inc_tool_calls → counter)
+  - `RuntimeOtelMetrics`: OpenTelemetry Meter API 注册对应仪表 (`ls.runtime.agent_count` gauge, `ls.runtime.tool_calls` counter, `ls.runtime.session_count` gauge)
+  - `lingshu-runtime` ApiHandler: 内置 `RuntimeMetricsCollector` + 可选 `RuntimeOtelMetrics`，在 handle_agent/handle_session/handle_tool/handle_runtime 中自动记录指标
+- v4.2.4 — RBAC 权限控制
+  - `lingshu-runtime`: `api::permissions` 模块定义每个 API 端点权限常量 (格式: `ls.runtime.{domain}.{action}`)
+  - `AuthLayer` (tower Layer 中间件): JWT Bearer Token 验证 + PermissionChecker 权限校验
+  - `AuthContext`: 注入到 axum 请求扩展，handler 可提取认证上下文
+  - 路由级权限映射: `route_permission()` 函数做路径→权限匹配，对 `/health` 跳过认证
+  - HTTP 状态码: 401 (无令牌/验证失败) / 403 (权限不足)
+
+  - ling-shu MCP 客户端: `server_launcher.rs` 添加 `omnivoice` 默认 MCP 服务器配置
+  - `start.sh`: 新增 `--with-omnivoice` 标志，自动侧车启动 OmniVoice 后端 (FastAPI)
+  - `.env.example`: 新增 7 个 OmniVoice 环境变量 (OMNIVOICE_API_URL / TTS_BACKEND / ASR_BACKEND 等)
+
+### Changed
+- `runtime/Cargo.toml`: `tower` 依赖从 0.4 升级到 0.5 (匹配 axum 0.7), 新增 `otel` feature (→ lingshu-observability/otel)
+- `observability/src/otel.rs`: `.init()` → `.build()` 适配 opentelemetry 0.27 API
 ## [3.6.0] - 2026-07-10
 
 ### Added

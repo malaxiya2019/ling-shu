@@ -50,6 +50,8 @@
 //! ```
 
 pub mod credential_tools;
+#[cfg(feature = "agent-runtime")]
+pub mod agent_tools;
 pub mod server;
 pub mod tool;
 pub mod types;

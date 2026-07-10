@@ -39,6 +39,7 @@ members = [
     "circuit-breaker",
     "benches",
     "channel",
+    "voice",
     "desktop",
 ]
 [workspace.package]

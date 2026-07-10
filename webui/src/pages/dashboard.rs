@@ -1,4 +1,7 @@
-use crate::api::client::{self, HealthResponse, PluginListResponse, VersionInfo};
+use crate::api::client::{
+    self, AgentListResponse, HealthResponse, PluginListResponse, RuntimeStatusResponse,
+    SessionListResponse, VersionInfo,
+};
 use crate::components::status_card::StatusCard;
 use crate::i18n::use_lang;
 use yew::prelude::*;
@@ -8,6 +11,9 @@ struct DashboardData {
     health: Option<HealthResponse>,
     version: Option<VersionInfo>,
     plugins: Option<PluginListResponse>,
+    runtime_status: Option<RuntimeStatusResponse>,
+    agents: Option<AgentListResponse>,
+    sessions: Option<SessionListResponse>,
     error: String,
 }
 
@@ -22,10 +28,13 @@ pub fn dashboard() -> Html {
         use_effect_with((), move |_| {
             wasm_bindgen_futures::spawn_local(async move {
                 let mut d = DashboardData::default();
+
+                // 健康检查
                 match client::get_health().await {
                     Ok(h) => d.health = Some(h),
                     Err(e) => d.error = e,
                 }
+                // 版本信息
                 match client::get_version().await {
                     Ok(v) => d.version = Some(v),
                     Err(e) => {
@@ -37,6 +46,7 @@ pub fn dashboard() -> Html {
                         };
                     }
                 }
+                // 插件列表
                 match client::get_plugins().await {
                     Ok(p) => d.plugins = Some(p),
                     Err(e) => {
@@ -48,6 +58,43 @@ pub fn dashboard() -> Html {
                         };
                     }
                 }
+                // Runtime 状态（agent/session 计数）
+                match client::get_runtime_status().await {
+                    Ok(rs) => d.runtime_status = Some(rs),
+                    Err(e) => {
+                        let err = d.error.clone();
+                        d.error = if err.is_empty() {
+                            format!("runtime: {e}")
+                        } else {
+                            format!("{err}; runtime: {e}")
+                        };
+                    }
+                }
+                // Agent 列表
+                match client::get_agents().await {
+                    Ok(a) => d.agents = Some(a),
+                    Err(e) => {
+                        let err = d.error.clone();
+                        d.error = if err.is_empty() {
+                            format!("agents: {e}")
+                        } else {
+                            format!("{err}; agents: {e}")
+                        };
+                    }
+                }
+                // 会话列表
+                match client::get_sessions().await {
+                    Ok(s) => d.sessions = Some(s),
+                    Err(e) => {
+                        let err = d.error.clone();
+                        d.error = if err.is_empty() {
+                            format!("sessions: {e}")
+                        } else {
+                            format!("{err}; sessions: {e}")
+                        };
+                    }
+                }
+
                 data.set(d);
             });
             || ()
@@ -69,6 +116,35 @@ pub fn dashboard() -> Html {
             _ => ("warn", strings.dash_degraded, "—".to_string(), "—".to_string()),
         };
 
+    // Runtime 状态
+    let runtime_state = data
+        .runtime_status
+        .as_ref()
+        .map(|rs| rs.state.as_str())
+        .unwrap_or("—");
+    let is_running = runtime_state == "Running";
+
+    // Agent 统计
+    let agent_count = data
+        .runtime_status
+        .as_ref()
+        .map(|rs| rs.agent_count)
+        .or_else(|| data.agents.as_ref().map(|a| a.agents.len()))
+        .unwrap_or(0);
+
+    let agent_status = if agent_count > 0 { "ok" } else { "warn" };
+
+    // 会话统计
+    let session_count = data
+        .runtime_status
+        .as_ref()
+        .map(|rs| rs.session_count)
+        .or_else(|| data.sessions.as_ref().map(|s| s.sessions.len()))
+        .unwrap_or(0);
+
+    let session_status = if session_count > 0 { "ok" } else { "warn" };
+
+    // 插件统计
     let plugin_count = data.plugins.as_ref().map(|p| p.total).unwrap_or(0);
     let active_plugins = data
         .plugins
@@ -82,6 +158,9 @@ pub fn dashboard() -> Html {
         .unwrap_or(0);
 
     let active_label = strings.dash_active_count.replace("{}", &active_plugins.to_string());
+
+    // Runtime 状态标签
+    let runtime_label = if is_running { "Running" } else { runtime_state };
 
     html! {
         <div class="page">
@@ -104,26 +183,57 @@ pub fn dashboard() -> Html {
                     icon={Some("🏷️".to_string())}
                 />
                 <StatusCard
+                    title={"Runtime".to_string()}
+                    value={runtime_label.to_string()}
+                    status={Some(if is_running { "ok" } else { "warn" }.to_string())}
+                    icon={Some("⚙️".to_string())}
+                />
+                <StatusCard
+                    title={strings.dash_agents.to_string()}
+                    value={agent_count.to_string()}
+                    status={Some(agent_status.to_string())}
+                    icon={Some("🤖".to_string())}
+                />
+                <StatusCard
+                    title={strings.dash_active_sessions.to_string()}
+                    value={session_count.to_string()}
+                    status={Some(session_status.to_string())}
+                    icon={Some("👤".to_string())}
+                />
+                <StatusCard
                     title={strings.dash_plugins.to_string()}
                     value={plugin_count.to_string()}
                     status={Some("ok".to_string())}
                     icon={Some("🧩".to_string())}
                     subtitle={Some(active_label)}
                 />
-                <StatusCard
-                    title={strings.dash_active_sessions.to_string()}
-                    value={"—".to_string()}
-                    status={Some("ok".to_string())}
-                    icon={Some("👤".to_string())}
-                />
-                <StatusCard
-                    title={strings.dash_agents.to_string()}
-                    value={"—".to_string()}
-                    status={Some("ok".to_string())}
-                    icon={Some("🤖".to_string())}
-                />
             </div>
 
+            // Agent 迷你列表
+            if let Some(ref agents_resp) = data.agents {
+                if !agents_resp.agents.is_empty() {
+                    <div class="section">
+                        <h2>{ "🤖 Agents" }</h2>
+                        <div class="plugin-mini-list">
+                            { for agents_resp.agents.iter().map(|a| {
+                                let is_running = a.status == "Running" || a.status == "Idle";
+                                let status_class = if is_running { "p-status-on" } else { "p-status-off" };
+                                let badge_class = if is_running { "p-badge p-badge-on" } else { "p-badge p-badge-off" };
+                                html! {
+                                    <div class="plugin-mini-item">
+                                        <span class={status_class}></span>
+                                        <span class="p-name">{ &a.name }</span>
+                                        <span class="p-version" style="font-size:0.75rem;">{ &a.agent_id[..8] }{"…"}</span>
+                                        <span class={badge_class}>{ &a.status }</span>
+                                    </div>
+                                }
+                            }) }
+                        </div>
+                    </div>
+                }
+            }
+
+            // 已安装插件列表
             if plugin_count > 0 {
                 <div class="section">
                     <h2>{ strings.dash_installed_plugins }</h2>

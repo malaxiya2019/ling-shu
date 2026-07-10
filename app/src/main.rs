@@ -2,13 +2,13 @@
 //! 🚀 Lingshu Agent System — 主二进制入口
 //!
 //! 用法:
-//!   lingshu                  启动 HTTP API 服务 (默认 :8080)
 //!   lingshu --repl           启动交互式 REPL
 //!   lingshu -e prod          生产模式
 //!   lingshu --addr 0.0.0.0:8080
 
 mod api;
 
+use lingshu_runtime::agent_runtime::AgentRuntime;
 use clap::Parser;
 use std::io::Write;
 use std::sync::Arc;
@@ -115,6 +115,9 @@ pub struct LingshuRuntime {
     pub loong_adapter: Option<std::sync::Arc<lingshu_orchestrator::LoongAdapter>>,
     /// 通道注册表 — 多平台消息通道.
     pub channel_registry: Arc<ChannelRegistry>,
+
+    /// v4.0 Agent Runtime — 新一代 Agent 运行时.
+    pub agent_runtime: Option<AgentRuntime>,
 }
 
 impl LingshuRuntime {
@@ -316,6 +319,14 @@ impl LingshuRuntime {
             reg
         };
 
+        // ── v4.0 Agent Runtime ──
+        let agent_rt_config = lingshu_runtime::agent_runtime::AgentRuntimeConfig {
+            name: "lingshu".into(),
+            session_ttl_seconds: config.runtime.session_ttl_seconds,
+            ..Default::default()
+        };
+        let agent_runtime = lingshu_runtime::agent_runtime::AgentRuntime::new(agent_rt_config).await?;
+        tracing::info!("agent runtime (v4.0) initialized");
         let runtime = Self {
             lifecycle,
             start_time: std::time::Instant::now(),
@@ -330,6 +341,7 @@ impl LingshuRuntime {
             root_ctx,
             tool_registry,
             agent_manager,
+            agent_runtime: Some(agent_runtime),
             memory_manager: lingshu_memory::SessionMemoryManager::default(),
             mcp_server: {
                 let mut mcp_server = lingshu_mcp::McpServer::new();
@@ -468,6 +480,11 @@ impl LingshuRuntime {
             .map_err(|e| LsError::Internal(format!("lifecycle stop failed: {e}")))?;
 
         // 优雅关闭联邦服务
+        // 优雅关闭 Agent Runtime
+        if let Some(ref rt) = self.agent_runtime {
+            let _ = rt.shutdown().await;
+            info!("agent runtime shut down");
+        }
         self.federation.stop().await;
 
         info!("lingshu runtime shut down gracefully");
@@ -760,6 +777,11 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
         .federation
         .set_event_bus(plugin_event_bus.clone())
         .await;
+    // 启动 Agent Runtime (v4.0)
+    if let Some(ref rt) = runtime.agent_runtime {
+        rt.start().await?;
+        info!("agent runtime (v4.0) started");
+    }
     let state = Arc::new(AppState {
         runtime: runtime.clone(),
         plugin_event_bus: plugin_event_bus.clone(),

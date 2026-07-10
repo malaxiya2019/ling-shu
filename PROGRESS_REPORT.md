@@ -184,6 +184,47 @@
      └──────────┘       └──────────┘       └──────────┘
 ```
 
+
+### v4.2.3 — Runtime 指标接入 ✅
+| 组件 | 状态 | 说明 |
+|------|------|------|
+| `ls_agent_count` (Prometheus Gauge) | ✅ | 当前 Agent 数量，ApiHandler handle_agent/handle_runtime 自动更新 |
+| `ls_tool_calls_total` (Prometheus Counter) | ✅ | 工具调用累计次数 (labels: tool_name, status)，handle_tool 自动记录 |
+| `ls_session_count` (Prometheus Gauge) | ✅ | 当前活跃会话数，handle_session/handle_runtime 自动更新 |
+| `RuntimeMetricsCollector` | ✅ | 线程安全的 Prometheus 指标封装，提供 set_agent_count/inc_tool_calls/set_session_count 方法 |
+| `RuntimeOtelMetrics` | ✅ | OpenTelemetry Meter API 注册仪表，与 Prometheus 双写 (`#[cfg(feature = "otel")]`) |
+
+### v4.2.4 — RBAC 权限控制 ✅
+| 组件 | 状态 | 说明 |
+|------|------|------|
+| `api::permissions` 模块 | ✅ | 定义 17 个权限常量，格式 `ls.runtime.{domain}.{action}` (agent/session/tool/workflow/runtime 五域) |
+| `AuthLayer` 中间件 | ✅ | tower Layer: Bearer Token 提取 → JWT 验证 → PermissionChecker 权限校验 → AuthContext 注入 |
+| `route_permission()` | ✅ | 路径→权限映射函数，支持精确匹配 + 前缀匹配，对 `/health` 跳过认证 |
+| `AuthContext` | ✅ | 注入 axum 请求扩展，handler 通过 `extract_auth_context()` 提取 (回退匿名) |
+| RBAC 测试 | ✅ | 72 个单元测试全部通过，含 `test_health_check_no_auth` (无需认证) + `test_auth_required_for_protected_route` (401 拒绝) |
+
+
+### v4.2.5 — OmniVoice Studio 语音引擎集成 ✅
+| 组件 | 状态 | 说明 |
+|------|------|------|
+| `start.sh --with-omnivoice` | ✅ | 侧车启动 OmniVoice FastAPI 后端，自动检测依赖，健康检查等待 |
+| MCP 服务器配置 | ✅ | `server_launcher.rs` 预置 `omnivoice` MCP server config (python -m backend.mcp_server) |
+| 环境变量 | ✅ | `.env.example` 新增 7 个 OmniVoice 配置项 (API URL / TTS/ASR 后端选择) |
+| `/v1/audio/speech` (TTS) | ✅ | OpenAI 兼容 TTS 端点，Agent 可直接调用文本→语音 |
+| `/v1/audio/transcriptions` (STT) | ✅ | OpenAI 兼容语音识别端点，实现语音→文本 |
+| `/ws/tts` (流式 TTS) | ✅ | WebSocket 实时语音流，<100ms 首音延迟 |
+| MCP 工具 (`generate_speech`) | ✅ | Agent 通过 MCP 协议调用语音合成 |
+| 646 种语言支持 | ✅ | 零样本声音克隆，覆盖全球主要语言 |
+
+### v4.2.6 — 多模态语音 Tool (计划中)
+| 组件 | 状态 | 说明 |
+|------|------|------|
+| `lingshu-voice` crate | 📋 | 新建 crate: Rust HTTP 客户端封装 OmniVoice API |
+| `TtsProvider` trait | 📋 | 在 `lingshu-traits` 中定义文本→语音抽象接口 |
+| `SttProvider` trait | 📋 | 在 `lingshu-traits` 中定义语音→文本抽象接口 |
+| Agent TTS 工具 | 📋 | Agent 可调用 `say` 工具输出语音回复 |
+| Agent STT 工具 | 📋 | Agent 可调用 `listen` 工具接收语音输入 |
+
 ## 4. 下一阶段计划
 
 ### v3.3 — 企业特性 ✅ (最新完成)

@@ -49,6 +49,7 @@ lingshu-evaluator = { path = "../evaluator" }
 lingshu-federation = { path = "../federation" }
 lingshu-vault = { path = "../vault" }
 lingshu-tee = { path = "../tee" }
+lingshu-voice = { path = "../voice" }
 
 async-trait.workspace = true
 serde.workspace = true

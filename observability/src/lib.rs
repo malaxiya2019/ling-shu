@@ -20,6 +20,8 @@ pub use span::*;
 pub use tracing::*;
 #[cfg(feature = "otel")]
 pub use genai::*;
+#[cfg(feature = "otel")]
+pub use otel::RuntimeOtelMetrics;
 
 use lingshu_config::env::Environment;
 

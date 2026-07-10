@@ -40,6 +40,7 @@ show_help() {
   --update            拉取最新代码并重新编译
   --china             中国网络优化: 跳过国外站点检测，使用国内镜像
   --with-openclaw     集成 OpenClaw MCP 通道网关 (需要 Node.js)
+  --with-omnivoice    集成 OmniVoice Studio 本地语音引擎 (需要 Python 3.11)
   --help              显示此帮助
 
 首次运行:
@@ -59,6 +60,7 @@ show_help() {
   ./start.sh --addr 0.0.0.0:8080    开放网络访问
   ./start.sh --china                 使用中国网络优化模式
   ./start.sh --with-openclaw        集成 OpenClaw 消息通道
+  ./start.sh --with-omnivoice       集成 OmniVoice Studio 语音引擎
 HELP
     exit 0
 }
@@ -71,6 +73,7 @@ DOCTOR=false
 UPDATE=false
 CHINA=false
 WITH_OPENCLAW=false
+WITH_OMNIVOICE=false
 ADDR="127.0.0.1:8080"
 ENV="dev"
 
@@ -83,6 +86,7 @@ while [[ $# -gt 0 ]]; do
         --update)     UPDATE=true; shift ;;
         --china)      CHINA=true; shift ;;
         --with-openclaw) WITH_OPENCLAW=true; shift ;;
+        --with-omnivoice) WITH_OMNIVOICE=true; shift ;;
         --addr)       ADDR="$2"; shift 2 ;;
         --env)        ENV="$2"; shift 2 ;;
         --help|-h)    show_help ;;
@@ -669,6 +673,59 @@ if $WITH_OPENCLAW; then
         warn "Node.js 未安装，跳过 OpenClaw Bridge"
     fi
 fi
+# ── 6b. OmniVoice Studio ──
+if $WITH_OMNIVOICE; then
+    if command -v python3 &>/dev/null; then
+        OMNIVOICE_DIR="$(dirname "$0")/../OmniVoice-Studio"
+        # Also check relative to project root
+        if [[ ! -d "$OMNIVOICE_DIR" ]]; then
+            OMNIVOICE_DIR="$SCRIPT_DIR/OmniVoice-Studio"
+        fi
+        if [[ -d "$OMNIVOICE_DIR" ]]; then
+            info "🎤 启动 OmniVoice Studio 语音引擎..."
+            export OMNIVOICE_API_PORT=3900
+            cd "$OMNIVOICE_DIR" || { warn "OmniVoice-Studio 目录不存在: $OMNIVOICE_DIR"; exit 1; }
+            # 检查 Python 虚拟环境
+            OMNIVOICE_VENV="$OMNIVOICE_DIR/.venv"
+            if [[ -f "$OMNIVOICE_VENV/bin/activate" ]]; then
+                source "$OMNIVOICE_VENV/bin/activate"
+            fi
+            # 检查依赖
+            if ! python3 -c "import fastapi" 2>/dev/null; then
+                warn "OmniVoice 依赖未安装，尝试安装..."
+                python3 -m pip install -r backend/requirements.txt 2>/dev/null || \
+                    python3 -m pip install fastapi uvicorn pydantic httpx 2>/dev/null || \
+                    warn "OmniVoice 依赖安装失败，跳过"
+            fi
+            if python3 -c "import fastapi" 2>/dev/null; then
+                # 启动 OmniVoice 后端 (后台进程)
+                cd "$OMNIVOICE_DIR" && python3 -m uvicorn backend.main:app --host 127.0.0.1 --port $OMNIVOICE_API_PORT &
+                OMNIVOICE_PID=$!
+                # 等待健康检查就绪
+                for i in {1..30}; do
+                    if curl -sf http://127.0.0.1:$OMNIVOICE_API_PORT/health > /dev/null 2>&1; then
+                        ok "OmniVoice Studio 已启动 (PID: $OMNIVOICE_PID, 端口: $OMNIVOICE_API_PORT)"
+                        break
+                    fi
+                    sleep 1
+                done
+                if ! kill -0 $OMNIVOICE_PID 2>/dev/null; then
+                    warn "OmniVoice Studio 启动失败，请检查依赖"
+                fi
+                cd "$SCRIPT_DIR" || true
+            else
+                warn "FastAPI 未安装，跳过 OmniVoice Studio"
+                cd "$SCRIPT_DIR" || true
+            fi
+        else
+            warn "OmniVoice-Studio 目录不存在: $OMNIVOICE_DIR"
+            info "请先克隆: git clone https://github.com/debpalash/OmniVoice-Studio.git"
+        fi
+    else
+        warn "Python3 未安装，跳过 OmniVoice Studio"
+    fi
+fi
+
 
 EXTRA_ARGS=""
 $REPL && EXTRA_ARGS="$EXTRA_ARGS --repl"

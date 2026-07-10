@@ -1,0 +1,23 @@
+[package]
+name = "lingshu-voice"
+version.workspace = true
+edition.workspace = true
+description = "Lingshu Voice — 多模态语音合成/识别 HTTP 客户端"
+
+[dependencies]
+lingshu-core = { path = "../core" }
+lingshu-traits = { path = "../traits" }
+lingshu-tool = { path = "../tool" }
+
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tracing.workspace = true
+tokio = { workspace = true, features = ["sync"] }
+reqwest = { version = "0.12", features = ["json", "multipart"] }
+base64 = "0.22"
+
+[dev-dependencies]
+tempfile = "3.5"
