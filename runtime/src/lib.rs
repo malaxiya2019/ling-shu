@@ -36,6 +36,7 @@ pub mod task_scheduler;
 pub mod task_queue;
 pub mod cron_scheduler;
 
+pub mod multi_agent;
 // chidori_recovery 始终注册模块（内部通过 cfg 隔离实现和桩）
 pub mod chidori_recovery;
 
