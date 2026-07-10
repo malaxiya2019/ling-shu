@@ -171,6 +171,7 @@ mod tests {
                     required: true,
                     param_type: "string".into(),
                 }],
+            ..Default::default()
             }
         }
 

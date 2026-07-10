@@ -30,6 +30,7 @@ impl Tool for CurrentTimeTool {
                     param_type: "string".into(),
                 },
             ],
+        ..Default::default()
         }
     }
 
@@ -151,6 +152,7 @@ impl Tool for CalculatorTool {
                     param_type: "string".into(),
                 },
             ],
+        ..Default::default()
         }
     }
 

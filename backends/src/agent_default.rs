@@ -313,7 +313,7 @@ impl Agent for DefaultAgent {
                         // Execute tool
                         let result = {
                             let registry = self.tools.read().await;
-                            registry.execute(&ctx, &tool_call.function.name, args).await
+                            registry.execute(&ctx, &tool_call.function.name, args, None).await
                         };
 
                         let result_content = match result {

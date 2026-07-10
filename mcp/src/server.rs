@@ -526,6 +526,7 @@ impl Tool for McpStatusTool {
                     param_type: "string".into(),
                 },
             ],
+        ..Default::default()
         }
     }
 
@@ -602,6 +603,7 @@ mod tests {
                     required: true,
                     param_type: "string".into(),
                 }],
+            ..Default::default()
             }
         }
 
@@ -637,6 +639,7 @@ mod tests {
                         param_type: "number".into(),
                     },
                 ],
+            ..Default::default()
             }
         }
 

@@ -35,6 +35,7 @@ impl Tool for HttpGetTool {
                     param_type: "object".into(),
                 },
             ],
+        ..Default::default()
         }
     }
 
@@ -156,6 +157,7 @@ impl Tool for HttpPostTool {
                     param_type: "object".into(),
                 },
             ],
+        ..Default::default()
         }
     }
 

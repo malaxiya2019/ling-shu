@@ -72,6 +72,7 @@ impl Tool for CredentialListTool {
                 required: false,
                 param_type: "string".into(),
             }],
+        ..Default::default()
         }
     }
 
@@ -172,6 +173,7 @@ impl Tool for CredentialCreateTool {
                     param_type: "boolean".into(),
                 },
             ],
+        ..Default::default()
         }
     }
 
@@ -266,6 +268,7 @@ impl Tool for CredentialGetTool {
                 required: true,
                 param_type: "string".into(),
             }],
+        ..Default::default()
         }
     }
 
@@ -313,6 +316,7 @@ impl Tool for CredentialDeleteTool {
                 required: true,
                 param_type: "string".into(),
             }],
+        ..Default::default()
         }
     }
 
@@ -362,6 +366,7 @@ impl Tool for CredentialValidateTool {
                 required: true,
                 param_type: "string".into(),
             }],
+        ..Default::default()
         }
     }
 
@@ -447,6 +452,7 @@ impl Tool for CredentialUpdateTool {
                     param_type: "string".into(),
                 },
             ],
+        ..Default::default()
         }
     }
 

@@ -73,6 +73,7 @@ impl Tool for CodeAnalysisTool {
                     param_type: "number".into(),
                 },
             ],
+        ..Default::default()
         }
     }
 

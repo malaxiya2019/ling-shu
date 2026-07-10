@@ -28,6 +28,7 @@ members = [
     "ratelimit", "billing", "audit", "prompt",
     "knowledge-graph", "code-analyzer", "credentials",
     "evaluator",
+    "tool",
     "federation",
     "webui",
     "llm-router",

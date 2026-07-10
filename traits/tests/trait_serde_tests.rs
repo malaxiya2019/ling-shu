@@ -162,6 +162,8 @@ fn test_tool_call_record() {
         duration_ms: 42,
         success: true,
         timestamp: chrono::Utc::now(),
+        caller: None,
+        error: None,
     };
     assert!(rec.success);
     assert_eq!(rec.duration_ms, 42);

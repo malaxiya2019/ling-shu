@@ -147,6 +147,7 @@ impl McpClient {
                 name: t.name,
                 description: t.description,
                 parameters: vec![],
+            ..Default::default()
             })
             .collect())
     }

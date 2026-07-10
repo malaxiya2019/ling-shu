@@ -1530,7 +1530,7 @@ async fn handle_non_streaming_chat(
                         .tool_registry
                         .read()
                         .await
-                        .execute(&ctx, &tool_call.function.name, args)
+                        .execute_unchecked(&ctx, &tool_call.function.name, args)
                         .await;
 
                     let result_content = match tool_result {

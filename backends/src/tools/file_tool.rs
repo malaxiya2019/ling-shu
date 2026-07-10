@@ -58,6 +58,7 @@ impl Tool for FileReadTool {
                 required: true,
                 param_type: "string".into(),
             }],
+        ..Default::default()
         }
     }
 
@@ -168,6 +169,7 @@ impl Tool for FileWriteTool {
                     param_type: "string".into(),
                 },
             ],
+        ..Default::default()
         }
     }
 
@@ -288,6 +290,7 @@ impl Tool for ListDirTool {
                     param_type: "boolean".into(),
                 },
             ],
+        ..Default::default()
         }
     }
 

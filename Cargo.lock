@@ -7130,6 +7130,7 @@ dependencies = [
  "lingshu-observability",
  "lingshu-plugin",
  "lingshu-security",
+ "lingshu-tool",
  "lingshu-traits",
  "serde",
  "serde_json",
@@ -7260,6 +7261,22 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-util",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "lingshu-tool"
+version = "3.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "lingshu-core",
+ "lingshu-traits",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
  "tracing",
  "uuid",
 ]

@@ -1,0 +1,17 @@
+[package]
+name = "lingshu-tool"
+version.workspace = true
+edition.workspace = true
+description = "LSTool — Tool Runtime: Registry, Permission, Sandbox, Execution"
+
+[dependencies]
+lingshu-core = { path = "../core" }
+lingshu-traits = { path = "../traits" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tokio = { workspace = true, features = ["sync", "time"] }
+tracing.workspace = true
+thiserror.workspace = true

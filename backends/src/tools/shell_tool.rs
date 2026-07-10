@@ -77,6 +77,7 @@ impl Tool for ShellTool {
                     param_type: "string".into(),
                 },
             ],
+        ..Default::default()
         }
     }
 
