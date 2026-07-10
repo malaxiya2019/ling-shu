@@ -4734,7 +4734,7 @@ mod tests {
             chidori_recovery: None,
             autoagents: None,
             loong_adapter: None,
-            otel_guard: None,
+            channel_registry: std::sync::Arc::new(lingshu_channel::registry::ChannelRegistry::new()),
         });
         let health_registry = Arc::new(lingshu_observability::health::HealthRegistry::new(
             "lingshu-test",

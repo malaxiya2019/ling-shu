@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.6.0] - 2026-07-10
+
+### Added
+- Discord 通道插件 (`channel/src/discord.rs`): 原生 Rust 实现, 支持 Bot REST API 发送/接收消息
+- FastEmbed 本地嵌入模型 (`backends/src/embedding_fastembed.rs`): 基于 ONNX 运行时, 零 API 依赖
+- Qdrant 高性能向量数据库 (`backends/src/vector_store_qdrant.rs`): 高并发向量搜索后端
+- 生产压测脚本 (`scripts/stress_test.sh` + `scripts/stress_test_k6.js`): 并发/延迟/资源监控
+- Criterion 基准测试扩展: 16 个场景覆盖 core/cache/memory/security/database/json 等组件
+- 基准测试错误修复: 变量名冲突、类型名不匹配、API 签名纠正 (18 处编译错误修复)
+- `Makefile` 新增目标: `docs`, `docs-serve`, `docs-clean`, `lint`, `lint-fix`, `check-all`
+
+### Changed
+- `app/Cargo.toml`: 默认 features 新增 `discord` 通道支持
+- `channel/Cargo.toml`: 新增 `discord` feature (依赖 reqwest)
+- `backends/Cargo.toml`: 新增 `fastembed` + `vector-store-qdrant` feature
+- `backends/src/lib.rs`: 注册 FastEmbed 和 Qdrant 模块导出
+- `channel/src/lib.rs`: 注册 Discord 通道模块
+
+### Fixed
+- `benches/src/lingshu_benchmarks.rs`: 修复 18 处编译错误 (变量名冲突去除、类型名纠正、API 签名适配)
+- `app/src/api/full.rs`: 移除已删除的 `otel_guard` 字段引用, 添加 `channel_registry` 字段
+- `plugins/rag-plugin/src/lib.rs`: 移除与 beef-plugin 冲突的 `create_plugin` 符号导出
+- `channel/src/wechat.rs`: 修复 XML 解析未处理 CDATA 导致测试失败的问题
+- `channel/src/wechat.rs`: 新增 `strip_cdata` 辅助函数, 正确剥离 CDATA 包裹内容
+
 ## [3.5.0] - 2026-07-09
 
 ### Added

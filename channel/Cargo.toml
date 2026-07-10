@@ -30,5 +30,6 @@ telegram = ["dep:reqwest"]
 feishu = ["dep:reqwest"]
 qq = ["dep:reqwest", "dep:tokio-tungstenite", "dep:futures-util"]
 wechat = ["dep:reqwest"]
+discord = ["dep:reqwest"]
 
 [dev-dependencies]

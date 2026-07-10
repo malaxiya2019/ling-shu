@@ -143,6 +143,14 @@ impl WeChatChannel {
     }
 
     /// 解析微信传入的 XML 消息。
+    fn strip_cdata(s: &str) -> String {
+        if s.starts_with("<![CDATA[") && s.ends_with("]]>") {
+            s[9..s.len()-3].to_string()
+        } else {
+            s.to_string()
+        }
+    }
+
     fn parse_wechat_xml(xml: &str) -> LsResult<InboundEvent> {
         // 简易 XML 解析 — 提取关键字段
         let extract = |tag: &str| -> Option<String> {
@@ -151,7 +159,12 @@ impl WeChatChannel {
             xml.find(&open).and_then(|start| {
                 let content_start = start + open.len();
                 xml[content_start..].find(&close).map(|end| {
-                    xml[content_start..content_start + end].to_string()
+                    let raw = &xml[content_start..content_start + end];
+                    if raw.starts_with("<![CDATA[") && raw.ends_with("]]>") {
+                        raw[9..raw.len()-3].to_string()
+                    } else {
+                        raw.to_string()
+                    }
                 })
             })
         };

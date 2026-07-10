@@ -182,3 +182,49 @@ start-quick:
 
 start-repl:
 	./start.sh --repl
+
+# ── 压测 (Stress Test) ─────────────────────────
+
+stress:
+	./scripts/stress_test.sh
+
+stress-full:
+	./scripts/stress_test.sh http://localhost:8080 60 20
+
+stress-k6:
+	k6 run scripts/stress_test_k6.js
+
+stress-k6-full:
+	BASE_URL=http://localhost:8080 k6 run scripts/stress_test_k6.js
+
+# ── 文档 ──
+
+docs:
+	cd book && mdbook build
+
+docs-serve:
+	cd book && mdbook serve --open
+
+docs-clean:
+	cd book && mdbook clean
+
+# ── 代码质量 ──
+
+lint:
+	cargo fmt --all --check
+	cargo clippy --all-targets --all-features
+
+lint-fix:
+	cargo fmt --all
+	cargo clippy --fix --all-targets --all-features --allow-dirty
+
+# ── 全量检查 ──
+
+check-all: lint test bench
+	@echo "✅ 全部检查通过"
+
+# ── 清理 ──
+
+clean-all: clean
+	rm -rf target/criterion
+	rm -rf plugins/*/target

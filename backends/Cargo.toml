@@ -23,6 +23,10 @@ mock = []
 vector-store-sqlite = ["dep:rusqlite"]
 # VectorStore: PostgreSQL 持久化
 vector-store-pg = ["dep:sqlx"]
+# FastEmbed: 本地嵌入模型 (ONNX运行时，零API依赖)
+fastembed = ["dep:fastembed"]
+# VectorStore: Qdrant 高性能向量数据库
+vector-store-qdrant = ["dep:qdrant-client"]
 
 [dependencies]
 lingshu-core = { path = "../core" }
@@ -42,6 +46,8 @@ llmkit = { version = "0.1", optional = true, features = ["openai-compatible", "d
 reqwest = { version = "0.12", features = ["json", "stream"], optional = true }
 futures-util = { version = "0.3", optional = true }
 rusqlite = { version = "0.39", features = ["bundled", "uuid"], optional = true }
+fastembed = { version = "5", optional = true }
+qdrant-client = { version = "1.18", optional = true }
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "chrono", "uuid"], optional = true }
 
 [dev-dependencies]

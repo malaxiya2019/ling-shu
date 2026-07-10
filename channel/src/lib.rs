@@ -49,6 +49,8 @@ pub mod qq;
 
 #[cfg(feature = "wechat")]
 pub mod wechat;
+#[cfg(feature = "discord")]
+pub mod discord;
 
 // ── 类型重导出 ─────────────────────────────────────
 
@@ -69,5 +71,7 @@ pub use qq::QqChannel;
 
 #[cfg(feature = "wechat")]
 pub use wechat::WeChatChannel;
+#[cfg(feature = "discord")]
+pub use discord::DiscordChannel;
 pub mod session_store;
 pub mod router;

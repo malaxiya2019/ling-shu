@@ -5,7 +5,7 @@ edition.workspace = true
 description = "Lingshu Agent System — main binary entry point"
 
 [features]
-default = ["telegram", "feishu", "qq", "wechat"]
+default = ["telegram", "feishu", "qq", "wechat", "discord"]
 chidori = []
 autoagents = []
 loong = []
@@ -13,6 +13,7 @@ telegram = ["lingshu-channel/telegram"]
 feishu = ["lingshu-channel/feishu"]
 qq = ["lingshu-channel/qq"]
 wechat = ["lingshu-channel/wechat"]
+discord = ["lingshu-channel/discord"]
 
 [dependencies]
 lingshu-core = { path = "../core" }
@@ -36,7 +37,7 @@ lingshu-ratelimit = { path = "../ratelimit" }
 lingshu-billing = { path = "../billing" }
 lingshu-audit = { path = "../audit" }
 lingshu-prompt = { path = "../prompt" }
-lingshu-channel = { path = "../channel", features = ["telegram", "feishu", "qq"] }
+lingshu-channel = { path = "../channel", features = ["telegram", "feishu", "qq", "wechat", "discord"] }
 lingshu-mcp = { path = "../mcp" }
 lingshu-knowledge-graph = { path = "../knowledge-graph" }
 lingshu-code-analyzer = { path = "../code-analyzer" }

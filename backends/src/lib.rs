@@ -7,6 +7,7 @@
 //! - `mock` — 零依赖模拟引擎 (默认启用)
 //! - `vector-store-sqlite` — SQLite 持久化向量存储
 //! - `vector-store-pg` — PostgreSQL 持久化向量存储
+//! - `vector-store-qdrant` — Qdrant 高性能向量数据库
 //!
 //! ## LLM 提供商
 //! - `openai` — OpenAI Chat Completions (GPT-4, GPT-4o, etc.)
@@ -18,6 +19,7 @@
 //! - `in_memory` — 基于余弦相似度的纯内存实现
 //! - `sqlite` — 基于 SQLite 的持久化向量存储 (feature: `vector-store-sqlite`)
 //! - `pg` — 基于 PostgreSQL 的持久化向量存储 (feature: `vector-store-pg`)
+//! - `qdrant` — 基于 Qdrant 的高性能向量数据库 (feature: `vector-store-qdrant`)
 
 pub mod agent_default;
 #[cfg(feature = "vector-store-sqlite")]
@@ -31,6 +33,8 @@ pub use traced_llm::TracedLlm;
 pub mod workflow;
 
 pub mod embedding_openai;
+#[cfg(feature = "fastembed")]
+pub mod embedding_fastembed;
 pub mod knowledge_mem;
 #[cfg(feature = "llmkit")]
 pub mod llm_llmkit;
@@ -46,6 +50,8 @@ pub mod vector_memory;
 pub mod vector_store_mem;
 #[cfg(feature = "vector-store-pg")]
 pub mod vector_store_pg;
+#[cfg(feature = "vector-store-qdrant")]
+pub mod vector_store_qdrant;
 #[cfg(feature = "mock")]
 #[cfg(feature = "vector-store-sqlite")]
 pub mod vector_store_sqlite;
@@ -53,6 +59,8 @@ pub mod vector_store_sqlite;
 pub use agent_default::{AgentConfig, DefaultAgent};
 #[cfg(feature = "openai")]
 pub use embedding_openai::OpenAiEmbedding;
+#[cfg(feature = "fastembed")]
+pub use embedding_fastembed::FastEmbedBackend;
 pub use knowledge_mem::InMemoryKnowledge;
 #[cfg(feature = "anthropic")]
 pub use llm_anthropic::AnthropicLlm;
@@ -70,5 +78,7 @@ pub use vector_memory::VectorMemory;
 pub use vector_store_mem::InMemoryVectorStore;
 #[cfg(feature = "vector-store-pg")]
 pub use vector_store_pg::PgVector;
+#[cfg(feature = "vector-store-qdrant")]
+pub use vector_store_qdrant::QdrantVector;
 #[cfg(feature = "vector-store-sqlite")]
 pub use vector_store_sqlite::SQLiteVector;
