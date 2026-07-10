@@ -1,29 +1,30 @@
 apiVersion: v2
 name: lingshu
-description: LingShu Agent System — Production-grade AI agent orchestration platform
+description: Lingshu Agent Runtime — 生产级 AI Agent 运行平台
 type: application
-version: 3.0.0
-appVersion: "3.0.0"
+version: 4.1.0
+appVersion: "4.1.0"
+
 keywords:
-  - lingshu
   - agent
+  - runtime
   - ai
-  - workflow
   - llm
-  - rag
-  - federation
-  - multi-agent
-home: https://github.com/malaxiya2019/ling-shu
-sources:
-  - https://github.com/malaxiya2019/ling-shu
+  - workflow
+
+home: https://github.com/lingshu/agent-runtime
 maintainers:
-  - name: LingShu Team
-    email: dev@lingshu.local
-annotations:
-  artifacthub.io/changes: |
-    - "Enhanced: Federation multi-replica support with StatefulSet, HubSpoke topology, and SRV discovery"
-    - "Added: PodDisruptionBudget for high-availability deployments"
-    - "Added: ServiceMonitor for Prometheus integration"
-    - "Added: Configurable federation topology, discovery, and replication strategy"
-    - "Enhanced: Comprehensive values.yaml documentation"
-  artifacthub.io/category: ai-machine-learning
+  - name: Lingshu Team
+    email: team@lingshu.ai
+
+dependencies:
+  - name: postgresql
+    version: ~15.5.0
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+    alias: postgresql
+  - name: redis
+    version: ~19.6.0
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
+    alias: redis

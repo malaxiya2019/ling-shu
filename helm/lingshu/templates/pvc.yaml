@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "lingshu.fullname" . }}-data
+  name: {{ include "lingshu.fullname" . }}-pvc
   labels:
     {{- include "lingshu.labels" . | nindent 4 }}
 spec:

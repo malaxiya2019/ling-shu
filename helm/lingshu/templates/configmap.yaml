@@ -1,34 +1,19 @@
-{{- $fullname := include "lingshu.fullname" . -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ $fullname }}-config
+  name: {{ include "lingshu.fullname" . }}-config
   labels:
     {{- include "lingshu.labels" . | nindent 4 }}
 data:
-  LS_ENV: {{ .Values.env.LS_ENV | quote }}
-  LS_LOG_LEVEL: {{ .Values.env.LS_LOG_LEVEL | quote }}
-  LS_CLUSTER_ADDR: {{ .Values.env.LS_CLUSTER_ADDR | quote }}
-  {{- if .Values.federation.enabled }}
-  LS_FEDERATION_PORT: {{ .Values.federation.port | quote }}
-  LS_FEDERATION_ENABLED: "true"
-  LS_CLUSTER_NAME: {{ .Values.federation.clusterName | quote }}
-  LS_FEDERATION_TOPOLOGY: {{ .Values.federation.topology | quote }}
-  LS_FEDERATION_DISCOVERY: {{ .Values.federation.discovery | quote }}
-  LS_REPLICATION_STRATEGY: {{ .Values.federation.replicationStrategy | quote }}
-  LS_FEDERATION_HEARTBEAT_INTERVAL: {{ .Values.federation.heartbeat.intervalSeconds | quote }}
-  LS_FEDERATION_HEARTBEAT_TIMEOUT: {{ .Values.federation.heartbeat.timeoutSeconds | quote }}
-  LS_FEDERATION_MAX_MSG_SIZE: {{ .Values.federation.maxMessageSize | quote }}
-  LS_CLUSTER_SEED: "{{ $fullname }}-federation"
-  LS_NODE_ROLE: {{ .Values.federation.nodeRole | quote }}
-  {{- end }}
-  {{- if .Values.pluginMarket.enabled }}
-  LS_PLUGIN_MARKET_ENABLED: "true"
-  LS_PLUGIN_INSTALL_DIR: {{ .Values.pluginMarket.installDir | quote }}
-  LS_PLUGIN_AUTO_DISCOVER: {{ .Values.pluginMarket.autoDiscover | quote }}
-  LS_PLUGIN_REFRESH_INTERVAL: {{ .Values.pluginMarket.refreshInterval | quote }}
-  LS_PLUGIN_MAX_PLUGINS: {{ .Values.pluginMarket.maxPlugins | quote }}
-  {{- end }}
-  {{- range $key, $val := .Values.extraEnv }}
-  {{ $key }}: {{ $val | quote }}
-  {{- end }}
+  config.toml: |
+    [server]
+    addr = "0.0.0.0:8080"
+
+    [log]
+    level = "{{ .Values.env.LS_LOG_LEVEL }}"
+
+    [database]
+    url = "postgres://lingshu:lingshu_prod@{{ include "lingshu.fullname" . }}-postgresql:5432/lingshu"
+
+    [redis]
+    url = "redis://:redis_prod@{{ include "lingshu.fullname" . }}-redis-master:6379/0"

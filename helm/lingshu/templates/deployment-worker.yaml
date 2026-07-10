@@ -1,0 +1,36 @@
+{{- if .Values.worker.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lingshu.fullname" . }}-worker
+  labels:
+    {{- include "lingshu.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  replicas: {{ .Values.worker.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "lingshu.workerSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "lingshu.workerSelectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: lingshu-worker
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["worker"]
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 9090
+              name: metrics
+          env:
+            - name: LS_ENV
+              value: {{ .Values.env.LS_ENV }}
+            - name: LS_LOG_LEVEL
+              value: {{ .Values.env.LS_LOG_LEVEL }}
+          resources:
+            {{- toYaml .Values.resources.worker | nindent 12 }}
+{{- end }}

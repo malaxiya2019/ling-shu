@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lingshu.fullname" . }}-server
+  labels:
+    {{- include "lingshu.labels" . | nindent 4 }}
+    app.kubernetes.io/component: server
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "lingshu.serverSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "lingshu.serverSelectorLabels" . | nindent 8 }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+    spec:
+      containers:
+        - name: lingshu
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 9090
+              name: metrics
+          env:
+            - name: LS_ENV
+              value: {{ .Values.env.LS_ENV }}
+            - name: LS_LOG_LEVEL
+              value: {{ .Values.env.LS_LOG_LEVEL }}
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "lingshu.fullname" . }}-secrets
+                  key: openai-api-key
+                  optional: true
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "lingshu.fullname" . }}-secrets
+                  key: anthropic-api-key
+                  optional: true
+            - name: LINGSHU_CREDENTIAL_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "lingshu.fullname" . }}-secrets
+                  key: master-key
+                  optional: true
+            - name: LS_CLUSTER_ADDR
+              value: "0.0.0.0:9090"
+            - name: LS_CLUSTER_SEED
+              value: "{{ include "lingshu.fullname" . }}-server:9090"
+          resources:
+            {{- toYaml .Values.resources.server | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/lingshu
+            - name: config
+              mountPath: /etc/lingshu/config
+              readOnly: true
+      volumes:
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "lingshu.fullname" . }}-pvc
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: config
+          configMap:
+            name: {{ include "lingshu.fullname" . }}-config

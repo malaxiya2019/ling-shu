@@ -45,7 +45,7 @@ pub mod chidori_recovery;
 // v3.x 核心
 pub use agent_manager::{AgentManager, AgentSummary};
 pub use lifecycle::{LifecycleManager, LifecycleState};
-pub use recovery::{FaultEvent, FaultLevel, RecoveryManager, RecoveryResult, RecoveryStrategy};
+pub use recovery::{AutoRecoveryEngine, AutoRecoveryPolicy, ComponentHealth, FaultEvent, FaultLevel, HealthStatus, RecoveryManager, RecoveryResult, RecoveryStrategy};
 pub use scheduler::{InternalScheduler, ScheduledTask, TaskState};
 pub use session::{SessionInfo, SessionManager, SessionState};
 pub use tool_registry::ToolRegistry;

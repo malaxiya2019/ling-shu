@@ -16,23 +16,19 @@
 {{- end }}
 
 {{- define "lingshu.labels" -}}
-helm.sh/chart: {{ include "lingshu.name" . }}-{{ .Chart.Version | replace "+" "_" }}
-{{ include "lingshu.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
+helm.sh/chart: {{ include "lingshu.name" . }}-{{ .Chart.Version }}
+app.kubernetes.io/name: {{ include "lingshu.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/version: {{ .Chart.AppVersion }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
-{{- define "lingshu.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "lingshu.name" . }}
+{{- define "lingshu.serverSelectorLabels" -}}
+app.kubernetes.io/name: {{ include "lingshu.name" . }}-server
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
-{{- define "lingshu.serviceAccountName" -}}
-{{- if .Values.serviceAccount.name }}
-{{- .Values.serviceAccount.name }}
-{{- else }}
-{{- include "lingshu.fullname" . }}
-{{- end }}
+{{- define "lingshu.workerSelectorLabels" -}}
+app.kubernetes.io/name: {{ include "lingshu.name" . }}-worker
+app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
