@@ -7031,6 +7031,7 @@ dependencies = [
  "hex",
  "libloading 0.8.9",
  "lingshu-core",
+ "lingshu-tool",
  "lingshu-traits",
  "notify 7.0.0",
  "reqwest 0.12.28",

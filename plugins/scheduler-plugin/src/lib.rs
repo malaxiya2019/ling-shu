@@ -90,6 +90,7 @@ impl SchedulerPlugin {
                 },
             ],
             min_api_version: Some("1.0.0".into()),
+        ..Default::default()
         };
 
         Self {

@@ -331,7 +331,11 @@ mod tests {
             Ok(())
         }
         async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> { Ok(input) }
+    
+    fn duplicate(&self) -> Box<dyn Tool> {
+        Box::new(EchoTool)
     }
+}
 
     struct FileTool;
     #[async_trait]
@@ -352,6 +356,7 @@ mod tests {
                 },
             }
         }
+        fn duplicate(&self) -> Box<dyn Tool> { Box::new(FileTool) }
         fn validate(&self, _input: &Value) -> LsResult<()> { Ok(()) }
         async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> { Ok(input) }
     }

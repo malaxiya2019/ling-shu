@@ -2943,6 +2943,7 @@ pub async fn plugin_install_handler(
         entry_point: None,
         permissions: req.permissions.unwrap_or_default(),
         min_api_version: Some("1.0.0".into()),
+    ..Default::default()
     };
 
     let plugin_id = lingshu_core::LsId::new();

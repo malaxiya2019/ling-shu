@@ -1,10 +1,13 @@
-//! 🧩 Lingshu Plugin Runtime (Phase 8 + v3.0)
+//! 🧩 Lingshu Plugin Runtime (v3.8)
 //!
 //! 提供插件注册、加载、沙箱隔离与生命周期管理能力。
+//! 集成 ToolRegistry，支持插件自动注册工具。
 //!
 //! ## 核心组件
 //!
-//! - [`PluginRegistry`] — 线程安全的插件注册中心
+//! - [`PluginRegistry`] — 线程安全的插件注册中心，集成工具自动注册
+//! - [`ToolCache`] — 插件工具实例缓存
+//! - [`CapabilityChecker`] — 插件能力声明与检查
 //! - [`loader::PluginLoader`] — 静态/动态插件加载器
 //! - [`sandbox::check_permission`] — 权限检查沙箱
 
@@ -34,21 +37,147 @@ use std::sync::Arc;
 
 use chrono::Utc;
 use lingshu_core::{LsContext, LsError, LsId, LsResult};
-use lingshu_traits::plugin::{Plugin, PluginInfo, PluginStatus};
+use lingshu_traits::plugin::{
+    Capability, Plugin, PluginInfo, PluginManifest, PluginStatus,
+};
 use tokio::sync::RwLock;
+use lingshu_tool::ToolRegistry;
 use tracing::info;
 
-/// 插件注册中心 — 线程安全的插件存储与生命周期管理.
+// ── ToolCache ───────────────────────────────────────
+
+/// 工具缓存 — 缓存从插件获取的工具实例，避免重复创建.
+pub struct ToolCache {
+    /// 工具名称 → 工具实例.
+    cache: Arc<RwLock<HashMap<String, Box<dyn lingshu_traits::tool::Tool>>>>,
+}
+
+impl ToolCache {
+    /// 创建空的工具缓存.
+    pub fn new() -> Self {
+        Self {
+            cache: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+
+    /// 获取缓存的工具.
+    pub async fn get(&self, name: &str) -> Option<Box<dyn lingshu_traits::tool::Tool>> {
+        self.cache.read().await.get(name).map(|t| t.duplicate())
+    }
+
+    /// 插入工具到缓存.
+    pub async fn insert(&self, name: String, tool: Box<dyn lingshu_traits::tool::Tool>) {
+        self.cache.write().await.insert(name, tool);
+    }
+
+    /// 批量插入工具.
+    pub async fn extend(
+        &self,
+        tools: Vec<(String, Box<dyn lingshu_traits::tool::Tool>)>,
+    ) {
+        let mut cache = self.cache.write().await;
+        for (name, tool) in tools {
+            cache.insert(name, tool);
+        }
+    }
+
+    /// 移除缓存的工具.
+    pub async fn remove(&self, name: &str) -> Option<Box<dyn lingshu_traits::tool::Tool>> {
+        self.cache.write().await.remove(name)
+    }
+
+    /// 清空缓存.
+    pub async fn clear(&self) {
+        self.cache.write().await.clear();
+    }
+
+    /// 缓存中的工具数量.
+    pub async fn count(&self) -> usize {
+        self.cache.read().await.len()
+    }
+
+    /// 获取所有缓存的工具名称.
+    pub async fn keys(&self) -> Vec<String> {
+        self.cache.read().await.keys().cloned().collect()
+    }
+}
+
+impl Default for ToolCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ── CapabilityChecker ───────────────────────────────
+
+/// 能力检查器 — 检查插件是否具备指定能力.
+pub struct CapabilityChecker;
+
+impl CapabilityChecker {
+    /// 检查插件是否具备指定能力.
+    pub fn has_capability(manifest: &PluginManifest, capability: &str) -> bool {
+        manifest.capabilities.iter().any(|c| c.name == capability)
+    }
+
+    /// 获取插件的所有能力名称.
+    pub fn capabilities(manifest: &PluginManifest) -> Vec<String> {
+        manifest.capabilities.iter().map(|c| c.name.clone()).collect()
+    }
+
+    /// 检查插件是否具备所有指定能力.
+    pub fn require_capabilities(
+        manifest: &PluginManifest,
+        required: &[&str],
+    ) -> LsResult<()> {
+        for cap in required {
+            if !Self::has_capability(manifest, cap) {
+                return Err(LsError::Plugin(format!(
+                    "plugin '{}' missing required capability '{}'",
+                    manifest.name, cap
+                )));
+            }
+        }
+        Ok(())
+    }
+
+    /// 检查两个插件的版本约束是否兼容.
+    pub fn check_compat(
+        provider: &Capability,
+        consumer_version: &str,
+    ) -> LsResult<()> {
+        if let Some(ref req_str) = provider.version_req {
+            let req = semver::VersionReq::parse(req_str)
+                .map_err(|e| LsError::Plugin(format!("invalid version req '{}': {e}", req_str)))?;
+            let ver = semver::Version::parse(consumer_version)
+                .map_err(|e| LsError::Plugin(format!("invalid version '{}': {e}", consumer_version)))?;
+            if !req.matches(&ver) {
+                return Err(LsError::Plugin(format!(
+                    "capability '{}' requires version '{}', consumer is '{}'",
+                    provider.name, req_str, consumer_version
+                )));
+            }
+        }
+        Ok(())
+    }
+}
+
+// ── PluginRegistry ──────────────────────────────────
+
+/// 插件注册中心 — 线程安全的插件存储、生命周期管理，集成工具自动注册.
 pub struct PluginRegistry {
     plugins: Arc<RwLock<HashMap<LsId, RegistryEntry>>>,
     event_bus: Arc<event::EventBus>,
+    /// 可选的 ToolRegistry 引用（用于工具自动注册）.
+    tool_registry: Option<Arc<ToolRegistry>>,
+    /// 工具缓存.
+    tool_cache: Arc<ToolCache>,
 }
 
 /// 注册中心中的插件条目.
 struct RegistryEntry {
     pub info: PluginInfo,
     pub plugin: Box<dyn Plugin>,
-    pub _lib: Option<libloading::Library>, // 保持动态库不被卸载
+    pub _lib: Option<libloading::Library>,
 }
 
 impl PluginRegistry {
@@ -57,14 +186,9 @@ impl PluginRegistry {
         Self {
             plugins: Arc::new(RwLock::new(HashMap::new())),
             event_bus: Arc::new(event::EventBus::new()),
+            tool_registry: None,
+            tool_cache: Arc::new(ToolCache::new()),
         }
-    }
-
-    /// 返回已注册的插件 ID 列表.
-    pub fn plugins(&self) -> Vec<lingshu_core::LsId> {
-        self.plugins.try_read()
-            .map(|map| map.keys().cloned().collect())
-            .unwrap_or_default()
     }
 
     /// 使用指定 EventBus 创建插件注册中心.
@@ -72,7 +196,15 @@ impl PluginRegistry {
         Self {
             plugins: Arc::new(RwLock::new(HashMap::new())),
             event_bus,
+            tool_registry: None,
+            tool_cache: Arc::new(ToolCache::new()),
         }
+    }
+
+    /// 关联 ToolRegistry — 插件注册时会自动注册声明的工具.
+    pub fn with_tool_registry(mut self, tool_registry: Arc<ToolRegistry>) -> Self {
+        self.tool_registry = Some(tool_registry);
+        self
     }
 
     /// 获取 EventBus 引用.
@@ -80,7 +212,17 @@ impl PluginRegistry {
         &self.event_bus
     }
 
-    /// 注册一个插件 (静态或动态).
+    /// 获取工具缓存引用.
+    pub fn tool_cache(&self) -> &Arc<ToolCache> {
+        &self.tool_cache
+    }
+
+    /// 获取 ToolRegistry 引用（如果有）.
+    pub fn tool_registry(&self) -> Option<&Arc<ToolRegistry>> {
+        self.tool_registry.as_ref()
+    }
+
+    /// 注册一个插件 (静态或动态)，自动注册工具.
     pub async fn register(
         &self,
         plugin: Box<dyn Plugin>,
@@ -88,6 +230,16 @@ impl PluginRegistry {
     ) -> LsResult<LsId> {
         let mut info = plugin.info();
         let plugin_id = info.plugin_id;
+        let plugin_name = info.manifest.name.clone();
+
+        // ── ToolProvider 工具收集（在插入 map 前进行，避免所有权问题）──
+        let provider_tools: Option<Vec<Box<dyn lingshu_traits::tool::Tool>>> = 
+            if self.tool_registry.is_some() {
+                plugin.as_tool_provider().map(|p| p.provided_tools())
+            } else {
+                None
+            };
+
         let mut map = self.plugins.write().await;
 
         if map.contains_key(&plugin_id) {
@@ -99,7 +251,6 @@ impl PluginRegistry {
 
         info.status = PluginStatus::Installed;
         info.loaded_at = Some(Utc::now());
-        let plugin_name = info.manifest.name.clone();
 
         map.insert(
             plugin_id,
@@ -110,7 +261,28 @@ impl PluginRegistry {
             },
         );
 
-        info!(plugin_id = %plugin_id, "plugin registered");
+        info!(plugin_id = %plugin_id, name = %plugin_name, "plugin registered");
+
+        // ── ToolProvider 自动注册 ──
+        if let Some(ref treg) = self.tool_registry {
+            if let Some(tools) = provider_tools {
+                if !tools.is_empty() {
+                    let tool_names: Vec<String> = tools.iter().map(|t| t.info().name.clone()).collect();
+                    info!(
+                        plugin = %plugin_name,
+                        tools = ?tool_names,
+                        "auto-registering plugin tools"
+                    );
+                    for tool in tools {
+                        let tool_name = tool.info().name.clone();
+                        // 使用 duplicate() 克隆工具，一份注册到 Registry，一份缓存
+                        treg.register(tool.duplicate()).await;
+                        self.tool_cache.insert(tool_name, tool).await;
+                    }
+                }
+            }
+        }
+
         self.event_bus
             .publish(&event::Event::new(
                 event::EventType::PluginInstalled,
@@ -142,6 +314,15 @@ impl PluginRegistry {
             .filter(|e| {
                 e.info.manifest.name.contains(query) || e.info.plugin_id.to_string().contains(query)
             })
+            .map(|e| e.info.clone())
+            .collect()
+    }
+
+    /// 按能力过滤插件.
+    pub async fn list_by_capability(&self, capability: &str) -> Vec<PluginInfo> {
+        let map = self.plugins.read().await;
+        map.values()
+            .filter(|e| CapabilityChecker::has_capability(&e.info.manifest, capability))
             .map(|e| e.info.clone())
             .collect()
     }
@@ -239,12 +420,21 @@ impl PluginRegistry {
         Ok(())
     }
 
-    /// 卸载插件.
+    /// 卸载插件（同时卸载自动注册的工具）.
     pub async fn unregister(&self, plugin_id: &LsId) -> LsResult<()> {
         let mut map = self.plugins.write().await;
         let removed = map
             .remove(plugin_id)
             .ok_or_else(|| LsError::PluginNotFound(plugin_id.to_string()))?;
+
+        // 从 ToolRegistry 注销工具
+        if let Some(ref treg) = self.tool_registry {
+            for decl in &removed.info.manifest.tools {
+                treg.unregister(&decl.name).await;
+                self.tool_cache.remove(&decl.name).await;
+            }
+        }
+
         info!(plugin_id = %plugin_id, "plugin unregistered");
         self.event_bus.publish(
             &event::Event::new(
@@ -344,6 +534,12 @@ impl PluginRegistry {
         }
         Ok(ids)
     }
+
+    /// 检查插件名称是否已注册.
+    pub async fn is_name_registered(&self, name: &str) -> bool {
+        let map = self.plugins.read().await;
+        map.values().any(|e| e.info.manifest.name == name)
+    }
 }
 
 // ── StaticPlugin ────────────────────────────────────
@@ -435,6 +631,28 @@ mod tests {
             entry_point: None,
             permissions: vec![],
             min_api_version: None,
+            ..PluginManifest::default()
+        };
+        let info = PluginInfo {
+            plugin_id: LsId::new(),
+            manifest,
+            status: PluginStatus::Installed,
+            loaded_at: None,
+        };
+        Box::new(TestPlugin { info })
+    }
+
+    fn make_plugin_with_caps(name: &str, capabilities: Vec<&str>) -> Box<dyn Plugin> {
+        let manifest = PluginManifest {
+            name: name.into(),
+            description: "test plugin".into(),
+            plugin_type: "static".into(),
+            capabilities: capabilities.into_iter().map(|c| Capability {
+                name: c.into(),
+                description: None,
+                version_req: None,
+            }).collect(),
+            ..PluginManifest::default()
         };
         let info = PluginInfo {
             plugin_id: LsId::new(),
@@ -464,15 +682,9 @@ mod tests {
         let registry = PluginRegistry::new();
         let manifest = PluginManifest {
             name: "dup".into(),
-            version: "1.0.0".into(),
             description: "dup plugin".into(),
-            author: None,
-            homepage: None,
-            license: None,
             plugin_type: "static".into(),
-            entry_point: None,
-            permissions: vec![],
-            min_api_version: None,
+            ..PluginManifest::default()
         };
         let info = PluginInfo {
             plugin_id: LsId::new(),
@@ -555,5 +767,95 @@ mod tests {
         let results = registry.search("plugin").await;
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].manifest.name, "alpha-plugin");
+    }
+
+    #[tokio::test]
+    async fn test_list_by_capability() {
+        let registry = PluginRegistry::new();
+        registry
+            .register(make_plugin_with_caps("llm-helper", vec!["llm", "search"]), None)
+            .await
+            .unwrap();
+        registry
+            .register(make_plugin_with_caps("data-tool", vec!["storage"]), None)
+            .await
+            .unwrap();
+
+        let llm_plugins = registry.list_by_capability("llm").await;
+        assert_eq!(llm_plugins.len(), 1);
+        assert_eq!(llm_plugins[0].manifest.name, "llm-helper");
+
+        let storage_plugins = registry.list_by_capability("storage").await;
+        assert_eq!(storage_plugins.len(), 1);
+        assert_eq!(storage_plugins[0].manifest.name, "data-tool");
+    }
+
+    #[tokio::test]
+    async fn test_list_by_version() {
+        let registry = PluginRegistry::new();
+        registry
+            .register(make_plugin("v1-plugin"), None)
+            .await
+            .unwrap();
+
+        // 所有插件版本都是 1.0.0
+        let results = registry.list_by_version(">=1.0.0").await;
+        assert_eq!(results.len(), 1);
+
+        let no_match = registry.list_by_version(">=2.0.0").await;
+        assert!(no_match.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_capability_checker() {
+        let manifest = PluginManifest {
+            name: "test".into(),
+            description: "test".into(),
+            plugin_type: "static".into(),
+            capabilities: vec![
+                Capability { name: "llm".into(), description: None, version_req: None },
+                Capability { name: "search".into(), description: None, version_req: None },
+            ],
+            ..PluginManifest::default()
+        };
+
+        assert!(CapabilityChecker::has_capability(&manifest, "llm"));
+        assert!(!CapabilityChecker::has_capability(&manifest, "storage"));
+        assert!(CapabilityChecker::require_capabilities(&manifest, &["llm", "search"]).is_ok());
+        assert!(CapabilityChecker::require_capabilities(&manifest, &["llm", "storage"]).is_err());
+    }
+
+    #[tokio::test]
+    async fn test_tool_cache() {
+        let cache = ToolCache::new();
+        assert_eq!(cache.count().await, 0);
+
+        use async_trait::async_trait;
+        use lingshu_traits::tool::{Tool, ToolInfo, ToolParam};
+
+        struct EchoTool;
+        #[async_trait]
+        impl Tool for EchoTool {
+            fn info(&self) -> ToolInfo {
+                ToolInfo::new("echo", "Echo tool", vec![ToolParam {
+                    name: "msg".into(), description: "msg".into(),
+                    required: true, param_type: "string".into(),
+                }])
+            }
+            fn validate(&self, _input: &serde_json::Value) -> LsResult<()> { Ok(()) }
+            async fn execute(&self, _ctx: LsContext, input: serde_json::Value) -> LsResult<serde_json::Value> { Ok(input) }
+    fn duplicate(&self) -> Box<dyn Tool> { Box::new(EchoTool) }
+        }
+
+        cache.insert("echo".into(), Box::new(EchoTool)).await;
+        assert_eq!(cache.count().await, 1);
+        assert!(cache.keys().await.contains(&"echo".to_string()));
+
+        let cached = cache.get("echo").await;
+        assert!(cached.is_some());
+        assert_eq!(cached.unwrap().info().name, "echo");
+
+        cache.remove("echo").await;
+        assert_eq!(cache.count().await, 0);
     }
 }

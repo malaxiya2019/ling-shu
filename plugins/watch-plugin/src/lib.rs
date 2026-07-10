@@ -109,6 +109,7 @@ impl WatchPlugin {
                 },
             ],
             min_api_version: Some("1.0.0".into()),
+        ..Default::default()
         };
 
         let info = PluginInfo {

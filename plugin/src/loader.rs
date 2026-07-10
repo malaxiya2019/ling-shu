@@ -136,6 +136,7 @@ mod tests {
             entry_point: None,
             permissions: vec![],
             min_api_version: Some("0.9.0".into()),
+        ..Default::default()
         };
         let info = PluginInfo {
             plugin_id: LsId::new(),

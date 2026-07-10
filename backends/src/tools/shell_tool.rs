@@ -186,7 +186,10 @@ impl Tool for ShellTool {
             "elapsed_ms": elapsed.as_millis(),
         }))
     }
-}
+
+    fn duplicate(&self) -> Box<dyn Tool> {
+        Box::new(ShellTool { allowed_commands: self.allowed_commands.clone(), max_output_bytes: self.max_output_bytes, default_timeout_secs: self.default_timeout_secs })
+    }}
 
 #[cfg(test)]
 mod tests {

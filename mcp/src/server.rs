@@ -578,6 +578,9 @@ impl Tool for McpStatusTool {
 
         Ok(result)
     }
+    fn duplicate(&self) -> Box<dyn lingshu_traits::Tool> {
+        Box::new(McpStatusTool { tracker: self.tracker.clone() })
+    }
 }
 
 // ── 测试 ────────────────────────────────────────────
@@ -614,7 +617,11 @@ mod tests {
         async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> {
             Ok(input)
         }
+    
+    fn duplicate(&self) -> Box<dyn Tool> {
+        Box::new(EchoTool)
     }
+}
 
     struct AddTool;
 
@@ -658,6 +665,7 @@ mod tests {
             let b = input.get("b").and_then(|v| v.as_f64()).unwrap_or(0.0);
             Ok(serde_json::json!({ "result": a + b }))
         }
+        fn duplicate(&self) -> Box<dyn lingshu_traits::Tool> { Box::new(AddTool) }
     }
 
     #[tokio::test]

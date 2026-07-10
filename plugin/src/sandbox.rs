@@ -62,6 +62,7 @@ mod tests {
                 actions: vec!["invoke".into()],
             }],
             min_api_version: Some("1.0.0".into()),
+        ..Default::default()
         }
     }
 

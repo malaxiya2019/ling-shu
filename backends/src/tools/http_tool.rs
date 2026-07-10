@@ -113,7 +113,10 @@ impl Tool for HttpGetTool {
             "body_size_bytes": body.len(),
         }))
     }
-}
+
+    fn duplicate(&self) -> Box<dyn Tool> {
+        Box::new(HttpGetTool)
+    }}
 
 /// HTTP POST 请求工具.
 pub struct HttpPostTool;
@@ -256,7 +259,10 @@ impl Tool for HttpPostTool {
             "body_size_bytes": body.len(),
         }))
     }
-}
+
+    fn duplicate(&self) -> Box<dyn Tool> {
+        Box::new(HttpPostTool)
+    }}
 
 #[cfg(test)]
 mod tests {

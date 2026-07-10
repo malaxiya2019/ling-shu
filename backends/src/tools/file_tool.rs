@@ -89,7 +89,10 @@ impl Tool for FileReadTool {
             "size_bytes": content.len(),
         }))
     }
-}
+
+    fn duplicate(&self) -> Box<dyn Tool> {
+        Box::new(FileReadTool { allowed_base: self.allowed_base.clone() })
+    }}
 
 /// 写入文件内容.
 pub struct FileWriteTool {
@@ -219,7 +222,10 @@ impl Tool for FileWriteTool {
             "status": "written",
         }))
     }
-}
+
+    fn duplicate(&self) -> Box<dyn Tool> {
+        Box::new(FileWriteTool { allowed_base: self.allowed_base.clone() })
+    }}
 
 /// 列出目录内容.
 pub struct ListDirTool {
@@ -385,7 +391,10 @@ impl Tool for ListDirTool {
             "recursive": recursive,
         }))
     }
-}
+
+    fn duplicate(&self) -> Box<dyn Tool> {
+        Box::new(ListDirTool { allowed_base: self.allowed_base.clone() })
+    }}
 
 #[cfg(test)]
 mod tests {

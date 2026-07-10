@@ -184,7 +184,11 @@ mod tests {
             tokio::time::sleep(Duration::from_millis(10)).await;
             Ok(input)
         }
+    
+    fn duplicate(&self) -> Box<dyn lingshu_traits::tool::Tool> {
+        Box::new(FastTool)
     }
+}
 
     struct SlowTool;
     #[async_trait]
@@ -198,7 +202,11 @@ mod tests {
             tokio::time::sleep(Duration::from_millis(200)).await;
             Ok(serde_json::json!({"done": true}))
         }
+    
+    fn duplicate(&self) -> Box<dyn lingshu_traits::tool::Tool> {
+        Box::new(SlowTool)
     }
+}
 
     #[tokio::test]
     async fn test_fast_tool_executes() {
@@ -235,7 +243,11 @@ mod tests {
             }
             fn validate(&self, _input: &Value) -> LsResult<()> { Ok(()) }
             async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> { Ok(input) }
-        }
+        
+    fn duplicate(&self) -> Box<dyn lingshu_traits::tool::Tool> {
+        Box::new(UnsafeTool)
+    }
+}
 
         let sandbox = ToolSandbox::new().with_strict(true);
         let tool = UnsafeTool;

@@ -364,6 +364,7 @@ impl WebSearchPlugin {
                 actions: vec!["http".into()],
             }],
             min_api_version: Some("1.0.0".into()),
+        ..Default::default()
         };
 
         Self {

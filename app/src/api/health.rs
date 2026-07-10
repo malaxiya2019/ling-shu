@@ -43,7 +43,7 @@ pub async fn health_handler(State(state): State<Arc<AppState>>) -> Json<HealthRe
     });
 
     // Plugin registry
-    let plugin_count = state.plugin_registry.plugins().len();
+    let plugin_count = state.plugin_registry.count().await;
     checks.push(HealthCheckItem {
         name: "plugins".into(),
         healthy: true,

@@ -59,6 +59,7 @@ pub extern "C" fn create_plugin() -> Box<dyn Plugin> {
             actions: vec!["info".into(), "warn".into()],
         }],
         min_api_version: Some("1.0.0".into()),
+    ..Default::default()
     };
 
     let info = PluginInfo {

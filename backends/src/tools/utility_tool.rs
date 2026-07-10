@@ -132,7 +132,10 @@ impl Tool for CurrentTimeTool {
             "format": format,
         }))
     }
-}
+
+    fn duplicate(&self) -> Box<dyn Tool> {
+        Box::new(CurrentTimeTool)
+    }}
 
 /// 计算器工具 (安全的数学表达式求值).
 pub struct CalculatorTool;
@@ -196,7 +199,10 @@ impl Tool for CalculatorTool {
             "result_type": if result.fract() == 0.0 { "integer" } else { "float" },
         }))
     }
-}
+
+    fn duplicate(&self) -> Box<dyn Tool> {
+        Box::new(CalculatorTool)
+    }}
 
 // ── 简易数学表达式求值 ─────────────────────────────
 

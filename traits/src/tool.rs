@@ -242,4 +242,7 @@ pub trait Tool: Send + Sync + 'static {
 
     /// 执行工具调用.
     async fn execute(&self, ctx: LsContext, input: Value) -> LsResult<Value>;
+
+    /// 克隆工具实例（用于缓存返回）.
+    fn duplicate(&self) -> Box<dyn Tool>;
 }
