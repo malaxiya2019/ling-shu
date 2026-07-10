@@ -294,18 +294,18 @@
 > 目标：从"功能完整"到"生产可靠"，聚焦稳定性、调度、持久化、自动恢复。
 
 ### P0 — Agent Task Scheduler（核心）
-- [ ] Job Queue — 基于内存/SQLite 的任务队列
-- [ ] Background Worker — 后台任务执行器
-- [ ] Retry + Timeout — 重试策略 + 超时控制
-- [ ] Cancel — 任务取消（优雅停止）
-- [ ] Cron 调度 — 定时触发 Agent
+- [x] Job Queue — 基于内存/SQLite 的任务队列
+- [x] Background Worker — 后台任务执行器
+- [x] Retry + Timeout — 重试策略 + 超时控制
+- [x] Cancel — 任务取消（优雅停止）
+- [x] Cron 调度 — 定时触发 Agent
 
 ### P0 — Memory 真正落地
-- [ ] SQLite Store — 持久化内存/会话数据
-- [ ] Qdrant Vector Search — 语义搜索集成
-- [ ] Long-term Memory — 长期记忆（跨会话）
-- [ ] Session Memory — 会话级上下文管理
-- [ ] Memory Summarization — 记忆摘要/压缩
+- [x] SQLite Store — 持久化内存/会话数据
+- [x] Qdrant Vector Search — 语义搜索集成（已有）
+- [x] Long-term Memory — 长期记忆（跨会话 Consolidation）
+- [x] Session Memory — 会话级上下文管理（已有）+ SQLite 持久化
+- [x] Memory Summarization — 记忆摘要/压缩（LLM 驱动）
 
 ### P1 — Workflow Engine 增强
 - [ ] DAG 条件节点 — if/else 分支
