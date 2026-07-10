@@ -263,3 +263,77 @@
 | 生产压测脚本 | ✅ | k6 + shell 双重压测: 并发/延迟/资源监控完整覆盖 |
 | Criterion 基准测试扩展 | ✅ | 16 场景覆盖 core/cache/memory/security/database/json 等 |
 | 通道注册集成 | ✅ | Discord 自动注册至 ChannelRegistry, 按环境变量 DISCORD_BOT_TOKEN 条件激活 |
+
+---
+## 5. v4.0 整体评估（里程碑）
+
+| 维度 | 评分 | 说明 |
+|------|------|------|
+| 架构设计 | ★★★★★ (9.5/10) | Runtime/MCP/Voice/Workflow/Observability 职责清晰 |
+| 模块化 | ★★★★★ (9/10) | 功能模块独立 crates，feature-gated |
+| 可扩展性 | ★★★★★ (9.5/10) | Provider 接口 (Tts/Stt/LLM/VectorStore) 便于扩展 |
+| 生产可用性 | ★★★★☆ (7.5/10) | 架构就绪，仍需真实场景打磨 |
+| 文档完整度 | ★★★★☆ (8.5/10) | CHANGELOG + PROGRESS_REPORT + 代码文档 |
+
+### v4.0 已具备能力
+- ✅ Runtime 生命周期管理 (LifecycleManager)
+- ✅ Agent Factory (LsAgentFactory)
+- ✅ Agent Pool (复用池)
+- ✅ Agent Pipeline (5 阶段流水线)
+- ✅ Memory Pipeline (存储时间线)
+- ✅ REST API (axum + JWT RBAC)
+- ✅ MCP Tool (7 个 Agent Runtime 工具)
+- ✅ Workflow Tool (执行/列表)
+- ✅ Voice Tool (TTS/STT)
+- ✅ Dashboard (WebUI 状态展示)
+- ✅ Metrics (Prometheus + OTel 双写)
+- ✅ RBAC (17 权限常量 + AuthLayer)
+
+## 6. 下一阶段路线图 — v4.1 "Production Runtime"
+
+> 目标：从"功能完整"到"生产可靠"，聚焦稳定性、调度、持久化、自动恢复。
+
+### P0 — Agent Task Scheduler（核心）
+- [ ] Job Queue — 基于内存/SQLite 的任务队列
+- [ ] Background Worker — 后台任务执行器
+- [ ] Retry + Timeout — 重试策略 + 超时控制
+- [ ] Cancel — 任务取消（优雅停止）
+- [ ] Cron 调度 — 定时触发 Agent
+
+### P0 — Memory 真正落地
+- [ ] SQLite Store — 持久化内存/会话数据
+- [ ] Qdrant Vector Search — 语义搜索集成
+- [ ] Long-term Memory — 长期记忆（跨会话）
+- [ ] Session Memory — 会话级上下文管理
+- [ ] Memory Summarization — 记忆摘要/压缩
+
+### P1 — Workflow Engine 增强
+- [ ] DAG 条件节点 — if/else 分支
+- [ ] 循环节点 — for/while 循环
+- [ ] 并行节点 — fan-out/fan-in
+- [ ] Human Approval — 人工审批节点
+- [ ] Sub-workflow — 子工作流嵌套
+
+### P1 — 多 Agent 协作
+- [ ] Planner — 任务规划 Agent
+- [ ] Executor — 执行 Agent
+- [ ] Reviewer — 代码/内容审查 Agent
+- [ ] Router — 任务路由 Agent
+- [ ] Critic — 批评/改进 Agent
+- [ ] 结果聚合 — 多 Agent 输出合并
+
+### P2 — 生产能力
+- [ ] Docker 镜像 — 多阶段构建
+- [ ] Docker Compose — 一键部署
+- [ ] Helm Chart — Kubernetes 部署
+- [ ] CI/CD — 自动测试 + 构建 + 发布
+- [ ] Benchmark — 压测基准
+- [ ] Auto Recovery — 崩溃自动恢复
+
+### v4.1 不做的
+- ❌ 不新增独立模块/crate
+- ❌ 不新增 Provider 接口
+- ❌ 不新增 MCP Tool
+- ❌ 不新增 WebUI 页面
+
+> 聚焦原则：v4.1 只做一件事——**让 Agent 真正稳定、高效地运行**。
