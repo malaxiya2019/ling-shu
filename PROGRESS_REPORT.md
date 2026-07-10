@@ -308,27 +308,27 @@
 - [x] Memory Summarization — 记忆摘要/压缩（LLM 驱动）
 
 ### P1 — Workflow Engine 增强
-- [ ] DAG 条件节点 — if/else 分支
-- [ ] 循环节点 — for/while 循环
-- [ ] 并行节点 — fan-out/fan-in
-- [ ] Human Approval — 人工审批节点
-- [ ] Sub-workflow — 子工作流嵌套
+- [x] DAG 条件节点 — if/else 分支
+- [x] 循环节点 — for/while 循环
+- [x] 并行节点 — fan-out/fan-in
+- [x] Human Approval — 人工审批节点
+- [x] Sub-workflow — 子工作流嵌套
 
 ### P1 — 多 Agent 协作
-- [ ] Planner — 任务规划 Agent
-- [ ] Executor — 执行 Agent
-- [ ] Reviewer — 代码/内容审查 Agent
-- [ ] Router — 任务路由 Agent
-- [ ] Critic — 批评/改进 Agent
-- [ ] 结果聚合 — 多 Agent 输出合并
+- [x] Planner — 任务规划 Agent
+- [x] Executor — 执行 Agent
+- [x] Reviewer — 代码/内容审查 Agent
+- [x] Router — 任务路由 Agent
+- [x] Critic — 批评/改进 Agent
+- [x] 结果聚合 — 多 Agent 输出合并
 
 ### P2 — 生产能力
-- [ ] Docker 镜像 — 多阶段构建
-- [ ] Docker Compose — 一键部署
-- [ ] Helm Chart — Kubernetes 部署
-- [ ] CI/CD — 自动测试 + 构建 + 发布
-- [ ] Benchmark — 压测基准
-- [ ] Auto Recovery — 崩溃自动恢复
+- [x] Docker 镜像 — 多阶段构建
+- [x] Docker Compose — 一键部署
+- [x] Helm Chart — Kubernetes 部署
+- [x] CI/CD — 自动测试 + 构建 + 发布
+- [x] Benchmark — 压测基准
+- [x] Auto Recovery — 崩溃自动恢复
 
 ### v4.1 不做的
 - ❌ 不新增独立模块/crate
