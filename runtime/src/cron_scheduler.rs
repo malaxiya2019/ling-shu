@@ -275,7 +275,7 @@ fn find_next_match(
 
     // 最多搜索 2 年
     for _ in 0..(365 * 2 * 24 * 60) {
-        candidate = candidate + TimeDelta::minutes(1);
+        candidate += TimeDelta::minutes(1);
 
         let c_min = candidate.minute() as i32;
         let c_hour = candidate.hour() as i32;
@@ -311,7 +311,7 @@ fn find_next_match_multi(
 
     // 最多搜索 2 年
     for _ in 0..(365 * 2 * 24 * 3600) {
-        candidate = candidate + TimeDelta::seconds(1);
+        candidate += TimeDelta::seconds(1);
 
         let c_sec = candidate.second() as u8;
         let c_min = candidate.minute() as u8;
@@ -327,10 +327,7 @@ fn find_next_match_multi(
         let match_month = months.contains(&c_month) || months.is_empty();
         let match_wday = days_of_week.contains(&c_wday) || days_of_week.is_empty();
         // 如果 dom 和 dow 都设置了，满足任一即可
-        let day_ok = (days_of_month.is_empty() && days_of_week.is_empty())
-            || (days_of_month.is_empty() && match_wday)
-            || (days_of_week.is_empty() && match_day)
-            || (match_day || match_wday);
+        let day_ok = match_day || match_wday;
 
         if match_sec && match_min && match_hour && day_ok && match_month {
             return Some(candidate);
@@ -348,6 +345,7 @@ fn find_next_match_multi(
 struct CronEntry {
     name: String,
     schedule: CronSchedule,
+    #[allow(dead_code)]
     job: Box<dyn Job>,
     enabled: bool,
     last_run: Option<DateTime<Utc>>,
@@ -476,7 +474,7 @@ impl CronManager {
                     .filter(|(_, e)| e.enabled)
                     .filter(|(_, e)| {
                         let next = e.schedule.next_occurrence(e.last_run);
-                        next.map_or(false, |n| n <= now)
+                        next.is_some_and(|n| n <= now)
                     })
                     .map(|(name, _)| name.clone())
                     .collect()

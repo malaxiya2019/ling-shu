@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [4.2.7] - 2026-07-11
+
+### Added
+- **压测脚本增强**: `scripts/stress_test.sh` 新增 `--long` (24h/72h 长时间稳定性测试)、`--endpoints` (API 端点覆盖测试)、`--memory` (内存泄漏检测) 三种模式
+- **k6 压测脚本增强**: `scripts/stress_test_k6.js` 支持 5 种场景 (standard/endurance/spike/smoke/endpoints)，覆盖 11 个 API 类别
+- **Benchmark 基线脚本**: `scripts/benchmark_baseline.sh` 测量启动时间、空闲/负载内存、吞吐量 (RPS)、延迟分布 (P50/P75/P90/P95/P99/P99.9)
+- **API 文档完善**: `docs/src/rest-api.md` 重写为 183 行，覆盖 14 类别、100+ 端点
+- **部署文档完善**: `docs/src/deployment.md` 更新 Docker/K8s/Helm 部署指南
+- **Benchmark 套件**: `benches/src/lingshu_benchmarks.rs` 覆盖 10+ crate、16 场景
+
+### Changed
+- `scripts/stress_test.sh`: 从 329 行扩展至 ~550 行，新增长时间稳定性测试、端点覆盖、内存泄漏检测
+- `scripts/stress_test_k6.js`: 从单场景扩展至 5 场景，支持阈值配置和多种端点组合
+- `PROGRESS_REPORT.md`: v4.2.6 标记为已完成，v4.2.7 LTS 项全部更新
+
+### Fixed
+- 全工作空间 Clippy 零警告 (observability/loki, runtime/*, tool/permission, memory/*, backends/*)
+- 修复 runtime/cron_scheduler 逻辑 bug (布尔表达式错误)
+- 修复多处 redundant import、derivable_impls、new_without_default 警告
+
 ## [4.0.0] - 2026-07-10
 
 ### Added

@@ -3,29 +3,26 @@
 //! 支持在工作流中嵌套执行另一个工作流。
 //! 子工作流可以引用已注册的工作流，也可以动态创建。
 
-use async_trait::async_trait;
+
 use lingshu_core::{LsContext, LsId, LsResult};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
-use tracing::{debug, info, warn};
+use tracing::info;
 
-use super::dag::{NodeOutput, WorkflowDag};
+
 
 /// 子工作流执行策略
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SubWorkflowStrategy {
     /// 同步等待子工作流完成
+    #[default]
     Sync,
     /// 异步触发，不等待结果
     Async,
 }
 
-impl Default for SubWorkflowStrategy {
-    fn default() -> Self {
-        Self::Sync
-    }
-}
+
 
 /// 子工作流配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -86,7 +83,7 @@ impl SubWorkflowExecutor {
         config: &SubWorkflowConfig,
         input: Value,
     ) -> LsResult<SubWorkflowResult> {
-        let start = std::time::Instant::now();
+        let _start = std::time::Instant::now();
 
         match config.strategy {
             SubWorkflowStrategy::Sync => {
@@ -136,7 +133,7 @@ impl SubWorkflowExecutor {
             ));
         };
 
-        let mut dag = dag.unwrap();
+        let dag = dag.unwrap();
         let workflow_input = config.input_mapping.clone().unwrap_or(input);
 
         info!(
@@ -152,7 +149,7 @@ impl SubWorkflowExecutor {
         Ok(SubWorkflowResult {
             sub_workflow_id: result.workflow_id,
             success: result.success,
-            output: result.node_results.last().map(|r| r.output.clone()).flatten(),
+            output: result.node_results.last().and_then(|r| r.output.clone()),
             error: if result.success { None } else { Some("workflow failed".to_string()) },
             duration_ms,
         })

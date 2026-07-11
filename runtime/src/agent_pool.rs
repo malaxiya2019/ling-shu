@@ -97,7 +97,7 @@ impl AgentHandle {
     }
 
     /// 获取 Agent 引用.
-    pub fn agent(&self) -> &Box<dyn Agent> {
+    pub fn agent(&self) -> &dyn Agent {
         self.agent.as_ref().expect("agent already returned")
     }
 

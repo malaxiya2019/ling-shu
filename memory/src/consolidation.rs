@@ -58,7 +58,7 @@ pub enum Importance {
 }
 
 impl Importance {
-    pub fn from_str(s: &str) -> Self {
+    pub fn from_str_name(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "critical" | "关键" => Self::Critical,
             "high" | "高" => Self::High,
@@ -252,7 +252,7 @@ fn importance_from_metadata(metadata: &serde_json::Value) -> Importance {
     metadata
         .get("importance")
         .and_then(|v| v.as_str())
-        .map(Importance::from_str)
+        .map(Importance::from_str_name)
         .unwrap_or(Importance::Medium)
 }
 
@@ -377,11 +377,11 @@ mod tests {
 
     #[test]
     fn test_importance_from_str() {
-        assert_eq!(Importance::from_str("critical"), Importance::Critical);
-        assert_eq!(Importance::from_str("high"), Importance::High);
-        assert_eq!(Importance::from_str("medium"), Importance::Medium);
-        assert_eq!(Importance::from_str("low"), Importance::Low);
-        assert_eq!(Importance::from_str("unknown"), Importance::Medium);
+        assert_eq!(Importance::from_str_name("critical"), Importance::Critical);
+        assert_eq!(Importance::from_str_name("high"), Importance::High);
+        assert_eq!(Importance::from_str_name("medium"), Importance::Medium);
+        assert_eq!(Importance::from_str_name("low"), Importance::Low);
+        assert_eq!(Importance::from_str_name("unknown"), Importance::Medium);
     }
 
     #[test]

@@ -32,11 +32,7 @@ pub enum CallerRole {
     SuperAdmin,
 }
 
-impl Default for CallerRole {
-    fn default() -> Self {
-        Self::Anonymous
-    }
-}
+
 
 impl PartialOrd for CallerRole {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {

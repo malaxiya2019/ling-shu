@@ -62,6 +62,12 @@ pub struct InMemoryAgentStore {
 
 impl InMemoryAgentStore {
     pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl Default for InMemoryAgentStore {
+    fn default() -> Self {
         Self {
             agents: Arc::new(RwLock::new(HashMap::new())),
         }

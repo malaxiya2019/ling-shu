@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
-use tracing::{info, warn};
+use tracing::warn;
 
 /// Loki 日志推送配置.
 #[derive(Debug, Clone)]
@@ -117,7 +117,7 @@ impl LokiClient {
     pub async fn push_log(&self, line: String) {
         let mut buffer = self.buffer.lock().await;
         buffer.push(LokiEntry {
-            ts: chrono::Utc::now().timestamp_nanos(),
+            ts: chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0),
             line,
         });
 
@@ -138,7 +138,7 @@ impl LokiClient {
 
     /// 刷新缓冲区 (强制推送).
     pub async fn flush(&self) -> LsResult<()> {
-        let batch = {
+        let batch: Vec<LokiEntry> = {
             let mut buffer = self.buffer.lock().await;
             buffer.drain(..).collect()
         };

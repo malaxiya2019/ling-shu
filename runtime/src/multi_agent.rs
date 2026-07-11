@@ -36,7 +36,7 @@
 //! ```
 
 use async_trait::async_trait;
-use lingshu_core::{LsContext, LsId, LsResult};
+use lingshu_core::{LsContext, LsResult};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
@@ -175,6 +175,7 @@ pub trait AgentCapability: Send + Sync {
 
 /// 基于 LLM 的默认 Planner
 pub struct DefaultPlanner {
+    #[allow(dead_code)]
     name: String,
     llm: Option<Arc<dyn lingshu_traits::llm::Llm>>,
     model: String,
@@ -540,7 +541,7 @@ mod tests {
         assert_eq!(agent.name(), "test");
         assert_eq!(agent.role(), AgentRole::Executor);
 
-        let ctx = LsContext::with_session(LsId::new());
+        let ctx = LsContext::with_session(lingshu_core::LsId::new());
         let task = SubTask {
             id: "1".to_string(),
             name: "test".to_string(),
@@ -557,7 +558,7 @@ mod tests {
     #[tokio::test]
     async fn test_default_planner_no_llm() {
         let planner = DefaultPlanner::new("planner", None);
-        let ctx = LsContext::with_session(LsId::new());
+        let ctx = LsContext::with_session(lingshu_core::LsId::new());
         let tasks = planner.plan(&ctx, "do something", &Value::Null).await.unwrap();
         assert_eq!(tasks.len(), 1);
         assert_eq!(tasks[0].name, "execute");
@@ -574,7 +575,7 @@ mod tests {
             MockAgent::new("reviewer", AgentRole::Reviewer, serde_json::json!("approved"))
         ));
 
-        let ctx = LsContext::with_session(LsId::new());
+        let ctx = LsContext::with_session(lingshu_core::LsId::new());
         let request = MultiAgentRequest {
             goal: "test task".to_string(),
             context: Value::Null,
@@ -586,7 +587,7 @@ mod tests {
         let result = orchestrator.execute(&ctx, request).await.unwrap();
         assert!(result.success);
         assert_eq!(result.goal, "test task");
-        assert!(result.duration_ms >= 0);
+        // duration_ms is u64, always >= 0
     }
 
     #[tokio::test]
@@ -602,7 +603,7 @@ mod tests {
         ));
         orchestrator = orchestrator.with_max_iterations(2);
 
-        let ctx = LsContext::with_session(LsId::new());
+        let ctx = LsContext::with_session(lingshu_core::LsId::new());
         let request = MultiAgentRequest {
             goal: "test".to_string(),
             context: Value::Null,
@@ -621,7 +622,7 @@ mod tests {
     async fn test_orchestrator_no_agents() {
         let planner = DefaultPlanner::new("planner", None);
         let orchestrator = MultiAgentOrchestrator::new(planner);
-        let ctx = LsContext::with_session(LsId::new());
+        let ctx = LsContext::with_session(lingshu_core::LsId::new());
         let request = MultiAgentRequest {
             goal: "test".to_string(),
             context: Value::Null,

@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 
 /// 审批状态
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -83,6 +83,7 @@ pub struct ApprovalRequest {
 
 impl ApprovalRequest {
     /// 创建新的审批请求
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         workflow_id: LsId,
         workflow_name: &str,

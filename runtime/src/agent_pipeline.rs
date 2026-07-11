@@ -304,7 +304,7 @@ impl PipelineStage for PostProcessStage {
         for msg in pipeline_ctx.messages.iter().rev() {
             if msg.role == LlmRole::Assistant {
                 // Check if this message has tool calls — if so, not final
-                let has_tool_calls = msg.tool_calls.as_ref().map_or(false, |c| !c.is_empty());
+                let has_tool_calls = msg.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
                 if !has_tool_calls {
                     return Ok(StageAction::SkipToOutput(Value::String(msg.content.clone())));
                 }
@@ -515,7 +515,7 @@ impl AgentPipeline {
 
             // Check if last message has tool calls — if not, we have final output
             if let Some(last_msg) = pipeline_ctx.messages.last() {
-                let has_tool_calls = last_msg.tool_calls.as_ref().map_or(false, |c| !c.is_empty());
+                let has_tool_calls = last_msg.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
                 if !has_tool_calls && last_msg.role == LlmRole::Assistant {
                     return Ok(AgentOutput {
                         agent_id: pipeline_ctx.agent_id,

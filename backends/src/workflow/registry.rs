@@ -20,13 +20,19 @@ pub struct WorkflowRegistry {
     checkpoint_manager: Option<Arc<CheckpointManager>>,
 }
 
-impl WorkflowRegistry {
-    /// 创建新的工作流注册表.
-    pub fn new() -> Self {
+impl Default for WorkflowRegistry {
+    fn default() -> Self {
         Self {
             workflows: Arc::new(RwLock::new(HashMap::new())),
             checkpoint_manager: None,
         }
+    }
+}
+
+impl WorkflowRegistry {
+    /// 创建新的工作流注册表.
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// 设置 CheckpointManager.

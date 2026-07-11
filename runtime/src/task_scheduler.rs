@@ -287,6 +287,7 @@ struct JobState {
     started_at: Option<DateTime<Utc>>,
     completed_at: Option<DateTime<Utc>>,
     retry_count: u32,
+    #[allow(dead_code)]
     priority: u8,
     cancel_token: CancellationToken,
     completion_tx: watch::Sender<JobStatus>,
@@ -481,7 +482,7 @@ impl TaskSchedulerInner {
                         {
                             let mut states = self.job_states.write().await;
                             if let Some(state) = states.get_mut(&job_id) {
-                                state.retry_count = (attempt + 1) as u32;
+                                state.retry_count = attempt + 1;
                             }
                         }
 
@@ -681,7 +682,7 @@ impl TaskScheduler {
             .filter(|s| {
                 filter_status
                     .as_ref()
-                    .map_or(true, |f| &s.status == f)
+                    .is_none_or(|f| &s.status == f)
             })
             .map(|s| JobSummary {
                 job_id: s.id.to_string(),

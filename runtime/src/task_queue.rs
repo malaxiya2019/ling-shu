@@ -86,6 +86,12 @@ pub struct InMemoryJobQueue {
 
 impl InMemoryJobQueue {
     pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl Default for InMemoryJobQueue {
+    fn default() -> Self {
         Self {
             heap: RwLock::new(BinaryHeap::new()),
             by_id: RwLock::new(HashMap::new()),

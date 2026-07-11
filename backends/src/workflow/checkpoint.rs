@@ -63,6 +63,12 @@ pub struct InMemoryCheckpointStore {
 
 impl InMemoryCheckpointStore {
     pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl Default for InMemoryCheckpointStore {
+    fn default() -> Self {
         Self {
             store: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
         }

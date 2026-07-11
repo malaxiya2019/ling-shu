@@ -1,66 +1,55 @@
-# ── Rust ──
-target/
-
-# ── IDE / Editor ──
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-Thumbs.db
-
-# ── Environment ──
-.env
-.env.local
-*.env.local
-
-# ── Build artifacts ──
-*.o
-*.so
-*.dylib
-*.exe
-*.dll
-*.rlib
-*.rmeta
-
-# ── Logs ──
-*.log
-/var/log/lingshu/
-
-# ── Data / Storage ──
-data/
-*.db
-*.sqlite
-/var/lib/lingshu/
-
-# ── Config overrides ──
-config/local.yaml
-config/*.local.*
-
-# ── Generated docs ──
-docs/build/
-docs/output/
-
-# ── Temporary files ──
-tmp/
-*.tmp
-AGENTS.md
-.env
-
-# ── Backup files ──
-*.bak
-*.pdf
-cargo_patch.py
-
-# ── Node.js ──
-node_modules/
 
 # =============================================================================
 # openclaw-bridge (MCP 通道网关)
-# =============================================================================
+# ── Backup files ──
+# ── Build artifacts ──
+# ── Config overrides ──
+# ── Data / Storage ──
+# ── Environment ──
+# ── Generated docs ──
+# ── IDE / Editor ──
+# ── Logs ──
+# ── Node.js ──
+# ── Rust ──
+# ── Temporary files ──
+*.bak
+*.db
+*.dll
+*.dylib
+*.env.local
+*.exe
+*.log
+*.o
+*.pdf
+*.rlib
+*.rmeta
+*.so
+*.sqlite
+*.swo
+*.swp
+*.tmp
+*~
+.DS_Store
+.env
+.env.local
+.idea/
+.vscode/
+/var/lib/lingshu/
+/var/log/lingshu/
+AGENTS.md
+Thumbs.db
+benchmark_results_*/
+book/
+cargo_patch.py
+config/*.local.*
+config/local.yaml
+data/
+desktop/gen/
+docs/build/
+docs/output/
+examples/openclaw-bridge/config.json
 examples/openclaw-bridge/dist/
 examples/openclaw-bridge/node_modules/
-examples/openclaw-bridge/config.json
-desktop/gen/
-book/
+node_modules/
+target/
+tmp/

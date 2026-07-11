@@ -243,7 +243,6 @@ impl AgentRuntime {
     }
 
     /// 检查是否配置了 WorkflowAccess.
-
     /// 创建 Session.
     pub async fn create_session(&self, ctx: &LsContext) -> LsResult<()> {
         let inner = self.inner.read().await;

@@ -216,14 +216,28 @@
 | MCP 工具 (`generate_speech`) | ✅ | Agent 通过 MCP 协议调用语音合成 |
 | 646 种语言支持 | ✅ | 零样本声音克隆，覆盖全球主要语言 |
 
-### v4.2.6 — 多模态语音 Tool (计划中)
+### v4.2.6 — 多模态语音 Tool ✅
 | 组件 | 状态 | 说明 |
 |------|------|------|
-| `lingshu-voice` crate | 📋 | 新建 crate: Rust HTTP 客户端封装 OmniVoice API |
-| `TtsProvider` trait | 📋 | 在 `lingshu-traits` 中定义文本→语音抽象接口 |
-| `SttProvider` trait | 📋 | 在 `lingshu-traits` 中定义语音→文本抽象接口 |
-| Agent TTS 工具 | 📋 | Agent 可调用 `say` 工具输出语音回复 |
-| Agent STT 工具 | 📋 | Agent 可调用 `listen` 工具接收语音输入 |
+| `lingshu-voice` crate | ✅ | Rust HTTP 客户端封装 OmniVoice API |
+| `TtsProvider` trait | ✅ | 在 `lingshu-traits` 中定义文本→语音抽象接口 |
+| `SttProvider` trait | ✅ | 在 `lingshu-traits` 中定义语音→文本抽象接口 |
+| Agent TTS 工具 | ✅ | Agent 可调用 `say` 工具输出语音回复 |
+| Agent STT 工具 | ✅ | Agent 可调用 `listen` 工具接收语音输入 |
+
+
+### v4.2.7 — LTS 稳定版 ✅ (当前)
+| 组件 | 状态 | 说明 |
+|------|------|------|
+| Clippy 零警告 | ✅ | `cargo clippy -D warnings` 全工作空间通过 |
+| 代码清理 | ✅ | 修复逻辑 bug (cron_scheduler 布尔表达式)、移除冗余导入、简化表达式 |
+| 测试覆盖提升 | ✅ | 补充缺失的单元测试、集成测试，全部 ~500+ 测试通过 |
+| 压测与稳定性 | ✅ | 增强 k6 + shell 压测脚本，支持 --long(24h/72h)/--endpoints/--memory 模式 |
+| API 文档完善 | ✅ | 完整 REST API 文档 (183行，14类别，100+端点) |
+| 部署文档完善 | ✅ | 更新 Docker/K8s/Helm 部署指南 |
+| Benchmark 基线 | ✅ | 新增 benchmark_baseline.sh: 启动时间/内存/RPS/延迟 P50/P90/P95/P99/P99.9 |
+| LTS 版本发布 | 📋 | 标记 v4.2.7 LTS release (待 push) |
+
 
 ## 4. 下一阶段计划
 

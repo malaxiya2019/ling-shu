@@ -305,6 +305,7 @@ impl WorkflowDag {
     }
 
     /// 添加节点 (完整配置).
+    #[allow(clippy::too_many_arguments)]
     pub fn add_node_full(
         &mut self,
         name: impl Into<String>,
@@ -828,7 +829,7 @@ impl WorkflowDag {
             .filter(|id| {
                 self.adj_list
                     .get(id)
-                    .map_or(true, |edges| edges.is_empty())
+                    .is_none_or(|edges| edges.is_empty())
             })
             .copied()
             .collect()

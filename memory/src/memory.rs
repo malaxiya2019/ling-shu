@@ -376,7 +376,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_summary_empty() {
-        let ctx = LsContext::with_session(lingshu_core::LsId::new());
+        let _ctx = LsContext::with_session(lingshu_core::LsId::new());
         let mem = DefaultMemory::new("test-session", MemoryConfig::default());
         let summary = mem.get_summary().await.unwrap();
         assert!(summary.is_none());

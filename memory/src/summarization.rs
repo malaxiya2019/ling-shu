@@ -26,25 +26,22 @@
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use lingshu_core::{LsContext, LsId, LsResult};
+use lingshu_core::{LsContext, LsResult};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{debug, info};
 
 /// 摘要压缩策略
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SummarizationStrategy {
     /// 增量式：追加新摘要到已有摘要之上
+    #[default]
     Incremental,
     /// 重写式：丢弃旧摘要，基于全部内容重新生成
     Rewrite,
 }
 
-impl Default for SummarizationStrategy {
-    fn default() -> Self {
-        Self::Incremental
-    }
-}
+
 
 /// 记忆摘要
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -371,7 +368,7 @@ mod tests {
     #[tokio::test]
     async fn test_summarize_empty() {
         let summarizer = MemorySummarizer::default();
-        let ctx = LsContext::with_session(LsId::new());
+        let ctx = LsContext::with_session(lingshu_core::LsId::new());
         let result = summarizer.summarize(&ctx, "s1", &[], None).await.unwrap();
         assert!(result.is_none());
     }
@@ -379,7 +376,7 @@ mod tests {
     #[tokio::test]
     async fn test_summarize_no_llm() {
         let summarizer = MemorySummarizer::default();
-        let ctx = LsContext::with_session(LsId::new());
+        let ctx = LsContext::with_session(lingshu_core::LsId::new());
         let items = vec![MemoryItem::new("s1", "user", "hello")];
         let result = summarizer.summarize(&ctx, "s1", &items, None).await.unwrap();
         assert!(result.is_none());
@@ -397,7 +394,7 @@ mod tests {
 
         let summarizer = MemorySummarizer::default()
             .with_llm(Arc::new(MockLlm));
-        let ctx = LsContext::with_session(LsId::new());
+        let ctx = LsContext::with_session(lingshu_core::LsId::new());
         let items = vec![
             MemoryItem::new("s1", "user", "今天天气怎么样？"),
             MemoryItem::new("s1", "assistant", "今天天气很好。"),
@@ -427,7 +424,7 @@ mod tests {
             ..Default::default()
         }).with_llm(Arc::new(MockLlm));
 
-        let ctx = LsContext::with_session(LsId::new());
+        let ctx = LsContext::with_session(lingshu_core::LsId::new());
 
         let base_summary = MemorySummary::new(
             "s1",
