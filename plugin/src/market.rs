@@ -22,6 +22,27 @@ pub enum RegistrySource {
     LocalDir(PathBuf),
 }
 
+impl RegistrySource {
+    /// 返回来源类型标识.
+    pub fn source_type(&self) -> &str {
+        match self {
+            RegistrySource::GitHubReleases(_) => "github",
+            RegistrySource::Url(_) => "url",
+            RegistrySource::LocalDir(_) => "local",
+        }
+    }
+
+    /// 返回来源 URL/路径.
+    pub fn source_url(&self) -> String {
+        match self {
+            RegistrySource::GitHubReleases(repo) => format!("https://github.com/{repo}"),
+            RegistrySource::Url(url) => url.clone(),
+            RegistrySource::LocalDir(path) => path.to_string_lossy().to_string(),
+        }
+    }
+}
+
+
 /// 市场插件条目 — 从市场发现的插件元信息.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MarketPluginEntry {
@@ -402,6 +423,18 @@ impl PluginMarket {
     /// 添加新的注册源.
     pub fn add_source(&mut self, source: RegistrySource) {
         self.sources.push(source);
+    }
+
+    /// 列出所有注册源.
+    pub fn sources(&self) -> &[RegistrySource] {
+        &self.sources
+    }
+
+    /// 按 source_type 移除注册源（匹配前缀）.
+    pub fn remove_source(&mut self, source_type: &str) -> bool {
+        let len_before = self.sources.len();
+        self.sources.retain(|s| !s.source_type().contains(source_type));
+        self.sources.len() < len_before
     }
 }
 

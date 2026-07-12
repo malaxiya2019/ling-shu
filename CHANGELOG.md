@@ -22,8 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `GET /v1/billing/quota/:user_id` — 用户配额查询
   - `POST /v1/billing/usage` — 记录用量
 - **路由系统增强**: 新模块路由 (billing/discovery) 注册至 `build_router`，全工作空间编译通过
+- **Plugin Marketplace API 增强**:
+  - 新增 `GET /v1/plugins/market/list` — 列出市场本地插件
+  - 新增 `DELETE /v1/plugins/market/sources/:source_type` — 移除市场源
+  - 增强 `market_sources_handler` 返回真实注册源数据
+- **Billing 后端存储**: 全局内存存储 (`std::sync::LazyLock`)，真实跟踪按模型/用户的用量数据
+- **企业 E2E 测试**: 新增 `scripts/enterprise_test.sh` (5类别14项测试)
 
 ### Changed
+- `plugin/src/market.rs`: `RegistrySource` 新增 `source_type()`/`source_url()`; `PluginMarket` 新增 `sources()`/`remove_source()`
+- `app/src/api/billing.rs`: 重写为完整内存存储实现，含 2 个单元测试
+- `app/src/api/full.rs`: 新增 `market_list_handler`, `market_remove_source_handler` 和路由
 - `app/src/api/full.rs`: `build_router` 新增 Agent Lifecycle / Billing / Discovery 路由
 - `app/src/api/mod.rs`: 注册 billing 和 discovery 模块
 - `traits/src/agent.rs`: `Agent` trait 新增 `restart()` 和 `update_config()`（默认返回 Err(Unsupported)）

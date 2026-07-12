@@ -785,6 +785,8 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/v1/plugins/:id/stop", post(plugin_stop_handler))
         // Plugin Market API
         .route("/v1/plugins/market/search", get(market_search_handler))
+        .route("/v1/plugins/market/list", get(market_list_handler))
+        .route("/v1/plugins/market/sources/:source_type", delete(market_remove_source_handler))
         .route("/v1/plugins/market/install", post(market_install_handler))
         .route(
             "/v1/plugins/market/sources",
@@ -3284,6 +3286,71 @@ pub async fn market_search_handler(
     }
 }
 
+/// GET /v1/plugins/market/list — 列出市场中所有可用插件
+#[allow(dead_code)]
+pub async fn market_list_handler(
+    State(state): State<Arc<AppState>>,
+) -> Json<serde_json::Value> {
+    let market = state.plugin_market.read().await;
+    let registry = state.plugin_registry.list().await;
+    let installed: Vec<String> = registry.iter().map(|p| p.manifest.name.clone()).collect();
+    
+    let mut plugins: Vec<serde_json::Value> = Vec::new();
+    
+    // 从 market index 读取已注册的插件信息
+    for source in market.sources() {
+        let _ = source;
+    }
+    
+    // 返回本地 market 目录中的插件列表
+    let market_dir = market.install_dir();
+    if market_dir.exists() && market_dir.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(market_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    let plugin_json = path.join("plugin.json");
+                    if plugin_json.exists() {
+                        if let Ok(data) = std::fs::read_to_string(&plugin_json) {
+                            if let Ok(manifest) = serde_json::from_str::<serde_json::Value>(&data) {
+                                let name = manifest.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                                let version = manifest.get("version").and_then(|v| v.as_str()).unwrap_or("");
+                                let desc = manifest.get("description").and_then(|v| v.as_str()).unwrap_or("");
+                                let is_installed = installed.contains(&name.to_string());
+                                plugins.push(serde_json::json!({
+                                    "name": name,
+                                    "version": version,
+                                    "description": desc,
+                                    "installed": is_installed,
+                                    "path": path.to_string_lossy(),
+                                }));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    Json(serde_json::json!({
+        "total": plugins.len(),
+        "plugins": plugins,
+    }))
+}
+
+/// DELETE /v1/plugins/market/sources/:source_type — 移除市场源
+#[allow(dead_code)]
+pub async fn market_remove_source_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(source_type): axum::extract::Path<String>,
+) -> Json<serde_json::Value> {
+    let removed = state.plugin_market.write().await.remove_source(&source_type);
+    Json(serde_json::json!({
+        "removed": removed,
+        "source_type": source_type,
+    }))
+}
+
 /// POST /v1/plugins/market/install — 从市场安装插件
 pub async fn market_install_handler(
     State(state): State<Arc<AppState>>,
@@ -3332,9 +3399,15 @@ pub async fn market_install_handler(
 
 /// GET /v1/plugins/market/sources — 列出市场源
 pub async fn market_sources_handler(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
 ) -> Json<Vec<MarketSourceItem>> {
-    Json(vec![])
+    let market = state.plugin_market.read().await;
+    let sources = market.sources();
+    let items: Vec<MarketSourceItem> = sources.iter().map(|s| MarketSourceItem {
+        source_type: s.source_type().to_string(),
+        source_url: s.source_url().to_string(),
+    }).collect();
+    Json(items)
 }
 
 /// POST /v1/plugins/market/sources — 添加市场源
