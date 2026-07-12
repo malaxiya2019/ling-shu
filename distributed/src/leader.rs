@@ -223,4 +223,83 @@ mod tests {
         assert_eq!(leader.leader_id, "leader-1");
         assert_eq!(leader.term, 1);
     }
+
+    // ── 补充测试: ReceiveHeartbeat ──────────────────
+
+    #[tokio::test]
+    async fn test_receive_heartbeat_stale_term_ignored() {
+        let cluster = Arc::new(RwLock::new(ClusterState::new(ClusterConfig::default())));
+        let election = LeaderElection::new(LeaderElectionConfig::default(), cluster.clone());
+
+        election.receive_heartbeat("leader-1", "addr", 5).await;
+        assert_eq!(election.current_leader().unwrap().term, 5);
+
+        election.receive_heartbeat("leader-2", "addr", 3).await;
+        let leader = election.current_leader().unwrap();
+        assert_eq!(leader.leader_id, "leader-1");
+        assert_eq!(leader.term, 5);
+    }
+
+    #[tokio::test]
+    async fn test_receive_heartbeat_newer_term_updates() {
+        let cluster = Arc::new(RwLock::new(ClusterState::new(ClusterConfig::default())));
+        let election = LeaderElection::new(LeaderElectionConfig::default(), cluster.clone());
+
+        election.receive_heartbeat("leader-1", "addr1", 3).await;
+        assert_eq!(election.current_leader().unwrap().term, 3);
+
+        election.receive_heartbeat("leader-2", "addr2", 10).await;
+        let leader = election.current_leader().unwrap();
+        assert_eq!(leader.leader_id, "leader-2");
+        assert_eq!(leader.term, 10);
+        assert_eq!(leader.leader_addr, "addr2");
+    }
+
+    #[tokio::test]
+    async fn test_heartbeat_updates_cluster_leader_state() {
+        let cluster = Arc::new(RwLock::new(ClusterState::new(ClusterConfig::default())));
+        let election = LeaderElection::new(LeaderElectionConfig::default(), cluster.clone());
+
+        assert!(cluster.read().await.leader_state().is_none());
+        election.receive_heartbeat("leader-1", "addr:8000", 1).await;
+
+        let cluster_guard = cluster.read().await;
+        let cluster_leader = cluster_guard.leader_state();
+        assert!(cluster_leader.is_some());
+        assert_eq!(cluster_leader.unwrap().leader_id, "leader-1");
+    }
+
+    #[tokio::test]
+    async fn test_start_election_increments_term() {
+        let cluster = Arc::new(RwLock::new(ClusterState::new(ClusterConfig::default())));
+        let election = LeaderElection::new(LeaderElectionConfig::default(), cluster.clone());
+
+        election.start_election().await;
+        let state = election.state().read().await;
+        assert_eq!(state.current_term, 1);
+        assert!(state.voted_for.is_some());
+        assert!(!state.is_election_running);
+    }
+
+    #[test]
+    fn test_leader_election_config_default() {
+        let config = LeaderElectionConfig::default();
+        assert_eq!(config.election_timeout, Duration::from_secs(5));
+        assert_eq!(config.heartbeat_interval, Duration::from_secs(1));
+        assert_eq!(config.node_priority, 100);
+    }
+
+    #[test]
+    fn test_leader_state_serialization() {
+        let state = LeaderState {
+            leader_id: "node-1".into(),
+            leader_addr: "127.0.0.1:8080".into(),
+            term: 3,
+            last_seen: 1000,
+        };
+        let json = serde_json::to_string(&state).unwrap();
+        let deserialized: LeaderState = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.leader_id, "node-1");
+        assert_eq!(deserialized.term, 3);
+    }
 }
