@@ -6921,6 +6921,7 @@ dependencies = [
  "async-trait",
  "bincode",
  "chrono",
+ "criterion",
  "dashmap",
  "fastrand",
  "futures",

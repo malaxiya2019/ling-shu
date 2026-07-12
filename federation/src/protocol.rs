@@ -206,16 +206,19 @@ impl ProtocolError {
 // ── 消息编解码 ────────────────────────────────────
 
 /// 将联邦消息序列化为 JSON 字符串.
+/// 编码联邦消息为 JSON 字符串.
 pub fn encode_message(msg: &FederationMessage) -> Result<String, String> {
     serde_json::to_string(msg).map_err(|e| format!("encode failed: {e}"))
 }
 
 /// 从 JSON 字符串反序列化联邦消息.
+/// 从 JSON 字符串解码联邦消息.
 pub fn decode_message(data: &str) -> Result<FederationMessage, String> {
     serde_json::from_str(data).map_err(|e| format!("decode failed: {e}"))
 }
 
 /// 帧编码：在 JSON 消息前附加 4 字节长度头.
+/// 编码联邦消息为长度前缀帧 (length-prefixed frame).
 pub fn encode_frame(msg: &FederationMessage) -> Result<Vec<u8>, String> {
     let json = encode_message(msg)?;
     let json_bytes = json.as_bytes();
@@ -227,6 +230,7 @@ pub fn encode_frame(msg: &FederationMessage) -> Result<Vec<u8>, String> {
 }
 
 /// 帧解码：从带长度头的字节流中提取消息.
+/// 从字节流解码长度前缀帧，返回 (消息, 已消耗字节数).
 pub fn decode_frame(data: &[u8]) -> Result<(FederationMessage, usize), String> {
     if data.len() < 4 {
         return Err("frame too short: missing length header".into());

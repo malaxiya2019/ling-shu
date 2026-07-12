@@ -54,6 +54,7 @@ impl Default for MemoryStateBackend {
 }
 
 impl MemoryStateBackend {
+    /// 创建新的内存状态后端.
     pub fn new() -> Self {
         Self {
             data: Arc::new(RwLock::new(HashMap::new())),
@@ -99,6 +100,7 @@ pub struct StateReplicator {
 }
 
 impl StateReplicator {
+    /// 创建状态复制器.
     pub fn new(link_mgr: Arc<LinkManager>, backend: Arc<dyn StateBackend>) -> Self {
         Self {
             link_mgr,

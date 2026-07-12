@@ -34,9 +34,13 @@ pub trait DiscoveryBackend: Send + Sync {
 /// 发现到的原始节点信息.
 #[derive(Debug, Clone)]
 pub struct DiscoveredNode {
+    /// 节点标识.
     pub id: String,
+    /// 节点名称.
     pub name: String,
+    /// 节点连接地址列表.
     pub addrs: Vec<SocketAddr>,
+    /// 额外元数据.
     pub metadata: std::collections::HashMap<String, String>,
 }
 
@@ -48,6 +52,7 @@ pub struct StaticDiscovery {
 }
 
 impl StaticDiscovery {
+    /// 创建静态发现实例.
     pub fn new(seeds: Vec<SocketAddr>) -> Self {
         Self { seeds }
     }
@@ -89,6 +94,7 @@ pub struct DnsDiscovery {
 }
 
 impl DnsDiscovery {
+    /// 创建 DNS 发现实例.
     pub fn new(domain: &str, service: &str) -> Self {
         Self {
             domain: domain.to_string(),

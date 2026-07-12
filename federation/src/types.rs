@@ -35,6 +35,7 @@ pub enum FederationTopology {
 }
 
 impl FederationTopology {
+    /// 返回拓扑类型的静态字符串表示.
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Mesh => "mesh",
@@ -157,6 +158,7 @@ pub struct Capability {
 }
 
 impl Capability {
+    /// 创建新的能力声明.
     pub fn new(id: &str, name: &str, cap_type: CapabilityType) -> Self {
         Self {
             id: id.to_string(),

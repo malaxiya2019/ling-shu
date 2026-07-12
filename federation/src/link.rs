@@ -46,6 +46,7 @@ pub struct LinkManager {
 }
 
 impl LinkManager {
+    /// 创建连接管理器.
     pub fn new(local_id: LsId, local_name: &str, config: FederationConfig) -> Self {
         let (tx, rx) = mpsc::unbounded_channel();
         Self {
@@ -62,10 +63,12 @@ impl LinkManager {
         }
     }
 
+    /// 获取链路事件接收器.
     pub fn take_event_rx(&self) -> Option<mpsc::UnboundedReceiver<LinkEvent>> {
         self.event_rx.try_write().ok()?.take()
     }
 
+    /// 启动联邦服务器监听（TCP 端口绑定 + 连接接受循环）.
     pub async fn start_server(&self) -> LsResult<()> {
         let addr = self.config.listen_addr;
         let listener = TcpListener::bind(addr)
@@ -129,6 +132,7 @@ impl LinkManager {
         self.cancel_token.cancel();
     }
 
+    /// 连接到指定联邦节点.
     pub async fn connect(&self, node: &FederationNode) -> LsResult<()> {
         let target_id = node.cluster_id.to_string();
         let addr = match node.addrs.first() {
@@ -172,6 +176,7 @@ impl LinkManager {
         .await
     }
 
+    /// 连接到所有已注册节点.
     pub async fn connect_all(&self) {
         let nodes = self.nodes.read().await.clone();
         for node in nodes.values() {
@@ -186,6 +191,7 @@ impl LinkManager {
         }
     }
 
+    /// 向指定集群发送联邦消息.
     pub fn send(&self, cluster_id: &str, msg: FederationMessage) -> bool {
         if let Some(tx) = self
             .connections
@@ -199,6 +205,7 @@ impl LinkManager {
         }
     }
 
+    /// 广播消息到所有已连接节点.
     pub fn broadcast(&self, msg: FederationMessage) {
         let conns = self.connections.try_read();
         if let Ok(conns) = conns {
@@ -210,12 +217,14 @@ impl LinkManager {
         }
     }
 
+    /// 注册一个联邦节点.
     pub async fn register_node(&self, node: FederationNode) {
         let id = node.cluster_id.to_string();
         let mut nodes = self.nodes.write().await;
         nodes.insert(id, node);
     }
 
+    /// 获取所有在线节点列表.
     pub async fn online_nodes(&self) -> Vec<FederationNode> {
         let nodes = self.nodes.read().await;
         nodes
@@ -226,6 +235,7 @@ impl LinkManager {
     }
 
     #[allow(dead_code)]
+    /// 获取指定集群的能力列表.
     pub async fn node_capabilities(
         &self,
         cluster_id: &str,
@@ -233,6 +243,7 @@ impl LinkManager {
         self.capabilities.read().await.get(cluster_id).cloned()
     }
 
+    /// 获取所有链路信息.
     pub async fn all_links(&self) -> Vec<FederationLink> {
         self.links.read().await.values().cloned().collect()
     }

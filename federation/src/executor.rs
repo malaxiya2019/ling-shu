@@ -31,6 +31,7 @@ pub struct RemoteExecutor {
 }
 
 impl RemoteExecutor {
+    /// 创建远程执行器.
     pub fn new(link_mgr: Arc<LinkManager>) -> Self {
         Self {
             link_mgr,
@@ -138,6 +139,7 @@ pub struct RemoteDiscovery {
 }
 
 impl RemoteDiscovery {
+    /// 创建远端发现实例.
     pub fn new(link_mgr: Arc<LinkManager>) -> Self {
         Self { link_mgr }
     }
