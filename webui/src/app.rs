@@ -34,6 +34,7 @@ fn app_inner() -> Html {
         Page::Plugins => html! { <Plugins /> },
         Page::Security => html! { <Security /> },
         Page::Benchmark => html! { <Benchmark /> },
+        Page::Tenant => html! { <TenantDashboard /> },
     };
 
     html! {

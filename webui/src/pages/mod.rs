@@ -6,6 +6,7 @@ pub mod federation;
 pub mod metrics;
 pub mod plugins;
 pub mod security;
+pub mod tenant;
 
 pub use audit::AuditDashboard;
 pub use benchmark::Benchmark;
@@ -15,6 +16,7 @@ pub use federation::Federation;
 pub use metrics::Metrics;
 pub use plugins::Plugins;
 pub use security::Security;
+pub use tenant::TenantDashboard;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Page {
@@ -26,4 +28,5 @@ pub enum Page {
     Plugins,
     Security,
     Benchmark,
+    Tenant,
 }

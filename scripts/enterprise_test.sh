@@ -123,6 +123,25 @@ check_body "GET /v1/plugins/market/sources — 市场源列表" \
 
 echo ""
 
+
+# ── 5. 多租户 ───────────────────────────────────────
+echo "━━━ 5. Multi-Tenant ━━━"
+
+# 5.1 组织列表
+check_body "GET /v1/tenant/orgs — 组织列表" 
+  GET "/v1/tenant/orgs" "id"
+
+# 5.2 创建组织
+check_body "POST /v1/tenant/orgs — 创建组织" 
+  POST "/v1/tenant/orgs" "id" 
+  -H "Content-Type: application/json" 
+  -d '{"name":"Test Org","slug":"test-org","description":"E2E test org"}'
+
+# 5.3 租户统计
+check_body "GET /v1/tenant/stats — 租户统计" 
+  GET "/v1/tenant/stats" "total_orgs"
+
+echo ""
 # ── 5. 系统健康 ─────────────────────────────────────
 echo "━━━ 5. System Health ━━━"
 

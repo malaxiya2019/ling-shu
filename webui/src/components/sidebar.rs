@@ -45,6 +45,10 @@ pub fn sidebar(props: &SidebarProps) -> Html {
         let cb = props.on_navigate.clone();
         Callback::from(move |_| cb.emit(Page::Benchmark))
     };
+    let on_click_tenant = {
+        let cb = props.on_navigate.clone();
+        Callback::from(move |_| cb.emit(Page::Tenant))
+    };
 
     let dash_class = if matches!(props.active_page, Page::Dashboard) { "active" } else { "" };
     let audit_class = if matches!(props.active_page, Page::Audit) { "active" } else { "" };
@@ -54,6 +58,7 @@ pub fn sidebar(props: &SidebarProps) -> Html {
     let plugins_class = if matches!(props.active_page, Page::Plugins) { "active" } else { "" };
     let security_class = if matches!(props.active_page, Page::Security) { "active" } else { "" };
     let bench_class = if matches!(props.active_page, Page::Benchmark) { "active" } else { "" };
+    let tenant_class = if matches!(props.active_page, Page::Tenant) { "active" } else { "" };
 
     // Sidebar language switcher
     let is_zh = matches!(lang.locale, Locale::Zh);
@@ -106,6 +111,11 @@ pub fn sidebar(props: &SidebarProps) -> Html {
                 <li>
                     <a class={plugins_class} onclick={on_click_plugins}>
                         <span class="nav-icon">{ "🧩" }</span><span>{ strings.nav_plugins }</span>
+                    </a>
+                </li>
+                <li>
+                    <a class={tenant_class} onclick={on_click_tenant}>
+                        <span class="nav-icon">{ "🏢" }</span><span>{ strings.nav_tenant }</span>
                     </a>
                 </li>
                 <li>

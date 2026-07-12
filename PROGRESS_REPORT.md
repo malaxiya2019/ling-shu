@@ -251,8 +251,8 @@
 | Plugin Marketplace API 增强 | ✅ | market_list/remove_source 端点, RegistrySource source_type/source_url 方法 |
 | Billing 内存存储 | ✅ | 全局 LazyLock 内存存储, 按模型/用户统计, 成本估算 |
 | 企业 E2E 测试脚本 | ✅ | scripts/enterprise_test.sh (138行, 5类别, 14项测试) |
-| 多租户 Dashboard | 🔄 | WebUI 页面增强 (进行中) |
-| Web Console | ⏳ | 管理控制台 (规划中) |
+| 多租户 Dashboard WebUI | ✅ | Tenant 页面 (547行): 组织列表/详情/项目/用户, 侧边栏导航 |
+| Web Console | 🔄 | 管理控制台 (进行中) |
 | 全量端到端测试增强 | ⏳ | 更多企业场景压测 (规划中) |
 
 

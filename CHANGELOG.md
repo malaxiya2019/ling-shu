@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Billing 后端存储**: 全局内存存储 (`std::sync::LazyLock`)，真实跟踪按模型/用户的用量数据
 - **企业 E2E 测试**: 新增 `scripts/enterprise_test.sh` (5类别14项测试)
 
+- **多租户 Dashboard WebUI**: 新增 Tenant 页面 (547行): 组织列表/详情/项目/用户视图, 侧边栏导航, 国际化支持
+- **企业 E2E 测试增强**: enterprise_test.sh 新增 6 类别 17 项测试
+
 ### Changed
 - `plugin/src/market.rs`: `RegistrySource` 新增 `source_type()`/`source_url()`; `PluginMarket` 新增 `sources()`/`remove_source()`
 - `app/src/api/billing.rs`: 重写为完整内存存储实现，含 2 个单元测试
