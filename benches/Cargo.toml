@@ -21,10 +21,14 @@ lingshu-tee = { path = "../tee" }
 lingshu-security = { path = "../security" }
 lingshu-database = { path = "../database" }
 lingshu-config = { path = "../config" }
-criterion = { version = "0.5", features = ["html_reports"] }
+lingshu-swarm = { path = "../swarm" }
+lingshu-distributed = { path = "../distributed" }
+lingshu-autonomy = { path = "../autonomy" }
+criterion = { version = "0.5", features = ["html_reports", "async_futures"] }
 tokio = { workspace = true, features = ["rt", "macros"] }
 serde_json.workspace = true
 serde.workspace = true
+chrono.workspace = true
 
 [[bench]]
 name = "lingshu_benchmarks"

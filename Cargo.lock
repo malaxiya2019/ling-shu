@@ -6583,12 +6583,15 @@ dependencies = [
 name = "lingshu-benchmarks"
 version = "3.0.0"
 dependencies = [
+ "chrono",
  "criterion",
  "lingshu-audit",
+ "lingshu-autonomy",
  "lingshu-cache",
  "lingshu-config",
  "lingshu-core",
  "lingshu-database",
+ "lingshu-distributed",
  "lingshu-evaluator",
  "lingshu-federation",
  "lingshu-mcp",
@@ -6596,6 +6599,7 @@ dependencies = [
  "lingshu-orchestrator",
  "lingshu-runtime",
  "lingshu-security",
+ "lingshu-swarm",
  "lingshu-tee",
  "lingshu-tenant",
  "lingshu-vault",
