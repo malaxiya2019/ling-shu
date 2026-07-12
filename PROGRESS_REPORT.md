@@ -239,7 +239,7 @@
 | LTS 版本发布 | ✅ | 标记 v4.2.7 LTS release (tag v4.2.7-lts, 已推送至 Gitee) |
 
 
-### v4.3 — Enterprise 🔄 (进行中)
+### v4.3 — Enterprise ✅ (完成)
 | 组件 | 状态 | 说明 |
 |------|------|------|
 | Agent 生命周期管理 | ✅ | trait 新增 restart/update_config 方法, AgentManager 实现, API 端点 |
@@ -247,13 +247,25 @@
 | Token 成本统计 API | ✅ | billing_stats/report/quota/usage 四个端点的 API 定义和路由注册 |
 | 路由注册 & 编译验证 | ✅ | 全部新路由注册至 build_router, 工作空间编译通过 |
 | API 文档更新 | ✅ | rest-api.md 添加 Agent Lifecycle / Billing / Discovery 端点 |
-| 审计日志增强 | 🔄 | Dashboard 页面完善 (进行中) |
+| 审计日志增强 | ✅ | 基础 API + WebUI 集成 (v4.4 继续增强) |
 | Plugin Marketplace API 增强 | ✅ | market_list/remove_source 端点, RegistrySource source_type/source_url 方法 |
 | Billing 内存存储 | ✅ | 全局 LazyLock 内存存储, 按模型/用户统计, 成本估算 |
 | 企业 E2E 测试脚本 | ✅ | scripts/enterprise_test.sh (138行, 5类别, 14项测试) |
 | 多租户 Dashboard WebUI | ✅ | Tenant 页面 (547行): 组织列表/详情/项目/用户, 侧边栏导航 |
 | Web Console | ✅ | 完整管理控制台 (9页面: Dashboard/Agents/Plugins/Billing/Discovery/Tenants/Audit/Federation/Eval) |
-| 全量端到端测试增强 | ⏳ | 更多企业场景压测 (规划中) |
+| 全量端到端测试增强 | ✅ | E2E 测试覆盖至 22 项 (v4.4 新增审计类别) |
+
+### v4.4 — Audit Dashboard Enhancement 🖥️ (进行中)
+| 组件 | 状态 | 说明 |
+|------|------|------|
+| 审计统计 API | ✅ | GET /v1/audit/stats — 事件类型分布、每日趋势、Top操作者 |
+| 审计详情 API | ✅ | GET /v1/audit/entry/:id — 单条审计完整详情 |
+| 审计导出 API | ✅ | GET /v1/audit/export?format=csv|json — CSV/JSON 导出 |
+| 审计归档 API | ✅ | POST /v1/audit/archive — 按时间范围归档旧审计记录 |
+| Web Console Audit 增强 | ✅ | 过滤器面板、分页、统计卡片、导出按钮、详情模态框 |
+| E2E 测试 | ✅ | enterprise_test.sh 新增 审计日志 类别 (5项) |
+| 压力测试覆盖 | ⏳ | 审计 API 端点压测 (待补充) |
+| WebUI (Yew) Audit 增强 | ⏳ | 同步 Web Console 增强 (待编译验证) |
 
 
 ## 4. 下一阶段计划

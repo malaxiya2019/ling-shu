@@ -6,6 +6,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [4.4.0] - 2026-07-12
+
+### Added
+- **审计日志 Dashboard 完善** (v4.4):
+  - `GET /v1/audit/stats` — 审计统计（事件类型分布、每日趋势、Top操作者）
+  - `GET /v1/audit/entry/:id` — 单条审计详情
+  - `GET /v1/audit/export?format=csv|json` — 审计日志 CSV/JSON 导出
+  - `POST /v1/audit/archive` — 按时间范围归档旧审计记录
+- **Web Console 审计页面增强**:
+  - 过滤器面板 (event_type / actor / result / 时间范围)
+  - 分页支持 (上一页/下一页/跳页)
+  - 统计卡片 (事件类型分布)
+  - 导出按钮 (JSON/CSV)
+  - 详情模态框（点击行展开完整信息）
+- **E2E 测试扩展**:
+  - enterprise_test.sh 新增 6. 审计日志 类别（5项测试: query/stats/export-csv/export-json/archive）
+
+### Changed
+- `app/src/api/full.rs`: 新增 4 个审计 API handler + 路由注册
+- `app/src/api/full.rs`: Web Console renderAudit() 完整重写（+CSS 模态框/分页/字段面板样式）
+- `app/src/api/full.rs`: audit_query_handler 修复 total 使用 count() 获取正确总匹配数
+- `scripts/enterprise_test.sh`: 从 17 项扩展至 22 项测试
+
+### Fixed
+- 修复 audit_query_handler 中分页后 total 计数不正确的问题
+- 修复 esc_csv 函数转义逻辑
+
 ## [4.3.0] - 2026-07-12
 
 ### Added
