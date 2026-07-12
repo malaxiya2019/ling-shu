@@ -255,7 +255,7 @@
 | Web Console | ✅ | 完整管理控制台 (9页面: Dashboard/Agents/Plugins/Billing/Discovery/Tenants/Audit/Federation/Eval) |
 | 全量端到端测试增强 | ✅ | E2E 测试覆盖至 22 项 (v4.4 新增审计类别) |
 
-### v4.4 — Audit Dashboard Enhancement 🖥️ (进行中)
+### v4.4 — Audit Dashboard Enhancement 🖥️ ✅ (完成)
 | 组件 | 状态 | 说明 |
 |------|------|------|
 | 审计统计 API | ✅ | GET /v1/audit/stats — 事件类型分布、每日趋势、Top操作者 |
@@ -266,6 +266,17 @@
 | E2E 测试 | ✅ | enterprise_test.sh 新增 审计日志 类别 (5项) |
 | 压力测试覆盖 | ⏳ | 审计 API 端点压测 (待补充) |
 | WebUI (Yew) Audit 增强 | ⏳ | 同步 Web Console 增强 (待编译验证) |
+
+### v4.5 — Agent 热更新 + 审计压力测试 🔄 (进行中)
+| 组件 | 状态 | 说明 |
+|------|------|------|
+| Hot Reload Status API | ✅ | GET /v1/plugins/hot-reload/status — 监控器状态查询 |
+| Web Console Hot Reload 页面 | ✅ | 状态卡片、启动/停止控制、能力表 |
+| 审计端点压测覆盖 | ✅ | stress_test.sh 新增 审计 端点类别 (4个端点) |
+| 热重载 E2E 测试 | ✅ | enterprise_test.sh 新增 7. 热重载 (3项) |
+| E2E 测试总量 | ✅ | 25 项 (17→22→25) |
+| 审计日志 SQLite 持久化 | ⏳ | AuditLogStore SQLite 实现 (待开发) |
+| Yew WebUI 审计同步 | ⏳ | 同步 Web Console 审计增强 (待编译验证) |
 
 
 ## 4. 下一阶段计划

@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [4.5.0] - 2026-07-12
+
+### Added
+- **Agent 热更新 API** (v4.5):
+  - `GET /v1/plugins/hot-reload/status` — 热重载监控器状态（running/capabilities）
+  - Web Console 新增 🔄 Hot Reload 页面（状态卡片、启动/停止控制、能力列表）
+  - 侧边栏新增 Hot Reload 导航链接
+- **测试增强**:
+  - `scripts/stress_test.sh`: 新增 审计 端点类别（4端点）+ 热重载类别（1端点）
+  - `scripts/enterprise_test.sh`: 新增 7. 热重载 类别（3项）
+  - E2E 测试总量扩展至 25 项（17→22→25）
+
+### Changed
+- `app/src/api/full.rs`: 新增 hot_reload_status_handler + 路由注册
+- `app/src/api/full.rs`: Web Console 新增 renderHotReload() + startHotReload()/stopHotReload()
+- `scripts/stress_test.sh`: 新增 endpoints_audit/endpoints_hotreload 类别数组
+- `scripts/enterprise_test.sh`: 新增 7. Hot Reload 测试类别
+
 ## [4.4.0] - 2026-07-12
 
 ### Added
