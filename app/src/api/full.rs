@@ -470,81 +470,109 @@ async fn swagger_ui_handler() -> Html<&'static str> {
 </body>
 </html>"##)
 }
-/// Server-rendered admin dashboard page.
-/// Fetches live data from REST API via JavaScript.
+/// Server-rendered Web Console (v4.3 Enterprise).
+/// 完整的 AJAX 管理面板，无需 wasm 编译。
 async fn admin_handler() -> Html<String> {
     Html(r##"<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lingshu Admin Dashboard</title>
+  <title>Lingshu Web Console</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0d1117; color: #c9d1d9; font-size: 14px; }
     #app { display: flex; min-height: 100vh; }
-    .sidebar { width: 240px; background: #161b22; border-right: 1px solid #30363d; padding: 1.2rem 0; flex-shrink: 0; }
-    .sidebar .logo { padding: 0 1.5rem 1rem; border-bottom: 1px solid #30363d; margin-bottom: 0.5rem; font-size: 1.1rem; font-weight: 700; color: #58a6ff; }
-    .sidebar nav a { display: block; padding: 0.6rem 1.5rem; color: #8b949e; text-decoration: none; transition: background 0.15s; }
-    .sidebar nav a:hover, .sidebar nav a.active { background: #1f2937; color: #c9d1d9; }
-    .main { flex: 1; padding: 2rem; }
-    h1 { font-size: 1.5rem; margin-bottom: 1.5rem; color: #c9d1d9; }
-    .cards { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
-    .card { background: #161b22; border-radius: 8px; padding: 1rem 1.2rem; min-width: 160px; border-left: 3px solid #58a6ff; }
-    .card.ok { border-left-color: #3fb950; }
-    .card.warn { border-left-color: #d29922; }
-    .card.err { border-left-color: #f85149; }
-    .card .lbl { font-size: 0.75rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.04em; }
-    .card .val { font-size: 1.5rem; font-weight: 700; margin-top: 0.3rem; }
-    .card .sub { font-size: 0.8rem; color: #6e7681; margin-top: 0.2rem; }
-    .section { margin: 2rem 0; }
-    .section h2 { font-size: 1.1rem; color: #c9d1d9; margin-bottom: 0.8rem; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #21262d; }
-    th { color: #58a6ff; font-size: 0.8rem; text-transform: uppercase; }
+    .sidebar { width: 220px; background: #161b22; border-right: 1px solid #30363d; padding: 1rem 0; flex-shrink: 0; overflow-y: auto; }
+    .sidebar .logo { padding: 0 1.2rem 0.8rem; border-bottom: 1px solid #30363d; margin-bottom: 0.3rem; font-size: 1.1rem; font-weight: 700; color: #58a6ff; display: flex; align-items: center; gap: 0.4rem; }
+    .sidebar .logo small { font-size: 0.65rem; color: #6e7681; font-weight: 400; margin-left: auto; }
+    .sidebar nav a { display: flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1.2rem; color: #8b949e; text-decoration: none; font-size: 0.85rem; transition: background 0.12s; border-left: 2px solid transparent; }
+    .sidebar nav a:hover { background: #1c2128; color: #c9d1d9; }
+    .sidebar nav a.active { background: #1c2128; color: #e6edf3; border-left-color: #58a6ff; font-weight: 600; }
+    .sidebar .divider { border-top: 1px solid #21262d; margin: 0.5rem 1.2rem; }
+    .main { flex: 1; padding: 1.5rem 2rem; overflow-y: auto; max-height: 100vh; }
+    h1 { font-size: 1.4rem; margin-bottom: 1.2rem; color: #e6edf3; font-weight: 600; }
+    h2 { font-size: 1.1rem; margin: 1.5rem 0 0.8rem; color: #c9d1d9; }
+    .cards { display: flex; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .card { background: #161b22; border-radius: 8px; padding: 0.8rem 1rem; min-width: 140px; flex: 1; border: 1px solid #30363d; }
+    .card .lbl { font-size: 0.7rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.04em; }
+    .card .val { font-size: 1.3rem; font-weight: 700; margin-top: 0.2rem; }
+    .card .sub { font-size: 0.78rem; color: #6e7681; margin-top: 0.15rem; }
+    .section { margin: 1.2rem 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #21262d; }
+    th { color: #58a6ff; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
     td { color: #c9d1d9; }
-    code { background: #161b22; padding: 0.15em 0.4em; border-radius: 3px; font-size: 0.85em; }
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; }
-    .badge.online { background: #23863633; color: #3fb950; }
-    .badge.offline { background: #f8514933; color: #f85149; }
-    .badge.degraded { background: #d2992233; color: #d29922; }
-    .error-box { background: #f8514933; color: #f85149; padding: 0.5rem 1rem; border-radius: 6px; margin-bottom: 1rem; }
-    .topo-svg { display: block; margin: 1rem auto; max-width: 400px; }
-    .legend { display: flex; justify-content: center; gap: 1rem; margin-top: 0.5rem; font-size: 0.8rem; color: #8b949e; }
-    .legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
-    #loading { text-align: center; padding: 3rem; color: #6e7681; }
-    .error-detail { margin-top: 1rem; padding: 0.5rem; background: #161b22; border-radius: 6px; color: #8b949e; font-family: monospace; }
+    tr:hover td { background: #161b22; }
+    code { background: #1c2128; padding: 0.15em 0.4em; border-radius: 3px; font-size: 0.85em; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 500; }
+    .badge.ok, .badge.active, .badge.online, .badge.healthy, .badge.running { background: #23863633; color: #3fb950; }
+    .badge.warn, .badge.paused { background: #d2992233; color: #d29922; }
+    .badge.err, .badge.offline, .badge.error { background: #f8514933; color: #f85149; }
+    .badge.info { background: #1f6feb33; color: #58a6ff; }
+    .error-box { background: #f8514922; color: #f85149; padding: 0.5rem 1rem; border-radius: 6px; margin-bottom: 0.8rem; border: 1px solid #f8514933; }
+    .info-box { background: #1f6feb22; color: #58a6ff; padding: 0.5rem 1rem; border-radius: 6px; margin-bottom: 0.8rem; border: 1px solid #1f6feb33; }
+    #loading { text-align: center; padding: 3rem; color: #6e7681; font-size: 0.9rem; }
+    .actions { display: flex; gap: 0.4rem; }
+    .btn { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.78rem; cursor: pointer; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; transition: border-color 0.12s; }
+    .btn:hover { border-color: #58a6ff; }
+    .btn-danger { border-color: #f8514933; color: #f85149; }
+    .btn-danger:hover { border-color: #f85149; }
+    .btn-primary { background: #238636; border-color: #2ea043; color: #fff; }
+    .btn-primary:hover { background: #2ea043; }
+    .filter-bar { display: flex; gap: 0.5rem; margin-bottom: 0.8rem; flex-wrap: wrap; align-items: center; }
+    .filter-bar input, .filter-bar select { background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; padding: 0.3rem 0.6rem; font-size: 0.83rem; }
+    .filter-bar input:focus { border-color: #58a6ff; outline: none; }
+    pre.dump { background: #161b22; padding: 0.8rem; border-radius: 6px; font-size: 0.78rem; overflow-x: auto; color: #8b949e; }
+    .tt { color: #8b949e; font-family: monospace; font-size: 0.8rem; }
+    .empty { text-align: center; padding: 3rem; color: #6e7681; }
+    .remote { color: #58a6ff; }
   </style>
 </head>
 <body>
   <div id="app">
     <div class="sidebar">
-      <div class="logo">⚡ Lingshu</div>
+      <div class="logo">⚡ Lingshu<small>v4.3</small></div>
       <nav>
-        <a href='#' class="active" data-page="dashboard">📊 Dashboard</a>
-        <a href='#' data-page="federation">🌐 Federation</a>
-        <a href='#' data-page="eval">📋 Eval Reports</a>
+        <a href="#" class="active" data-page="dashboard">📊 Dashboard</a>
+        <a href="#" data-page="agents">🤖 Agents</a>
+        <a href="#" data-page="plugins">🧩 Plugins</a>
+        <a href="#" data-page="billing">💰 Billing</a>
+        <div class="divider"></div>
+        <a href="#" data-page="discovery">🔍 MCP Discovery</a>
+        <a href="#" data-page="tenants">🏢 Tenants</a>
+        <a href="#" data-page="audit">📋 Audit</a>
+        <div class="divider"></div>
+        <a href="#" data-page="federation">🌐 Federation</a>
+        <a href="#" data-page="eval">📋 Eval</a>
         <a href="/docs">📖 API Docs</a>
       </nav>
     </div>
     <div class="main" id="main-content">
-      <div id="loading"><p>Loading...</p></div>
+      <div id="loading"><p>⏳ Loading...</p></div>
     </div>
   </div>
 
   <script>
     (function() {
       const main = document.getElementById('main-content');
-      const navLinks = document.querySelectorAll('.sidebar nav a');
+      const navLinks = document.querySelectorAll('.sidebar nav a[data-page]');
 
       async function loadPage(page) {
-        navLinks.forEach(a => a.classList.remove('active'));
-        navLinks.forEach(a => { if (a.dataset.page === page) a.classList.add('active'); });
-        main.innerHTML = '<div id="loading"><p>Loading...</p></div>';
+        history.replaceState(null, '', '/admin?page=' + page);
+        navLinks.forEach(a => { a.classList.toggle('active', a.dataset.page === page); });
+        main.innerHTML = '<div id="loading"><p>⏳ Loading...</p></div>';
         try {
           if (page === 'dashboard') await renderDashboard();
+          else if (page === 'agents') await renderAgents();
+          else if (page === 'plugins') await renderPlugins();
+          else if (page === 'billing') await renderBilling();
+          else if (page === 'discovery') await renderDiscovery();
+          else if (page === 'tenants') await renderTenants();
+          else if (page === 'audit') await renderAudit();
           else if (page === 'federation') await renderFederation();
           else if (page === 'eval') await renderEval();
+          else await renderDashboard();
         } catch(e) {
           main.innerHTML = '<div class="error-box">⚠ Error: ' + e.message + '</div>';
         }
@@ -552,29 +580,292 @@ async fn admin_handler() -> Html<String> {
 
       async function api(path) {
         const r = await fetch(path);
-        if (!r.ok) throw new Error(path + ' returned ' + r.status);
+        if (!r.ok) { let txt; try { txt = await r.text(); } catch(e) { txt = r.status; } throw new Error(r.status + ' ' + txt.substring(0,80)); }
         return r.json();
       }
 
-      function card(label, value, status, subtitle) {
-        return '<div class="card ' + (status||'ok') + '"><div class="lbl">' + label + '</div><div class="val">' + value + '</div>' +
-          (subtitle ? '<div class="sub">' + subtitle + '</div>' : '') + '</div>';
+      function card(label, value, opts) {
+        opts = opts || {};
+        const cls = opts.cls || 'ok';
+        return '<div class="card"><div class="lbl">' + label + '</div><div class="val">' + value + '</div>' +
+          (opts.sub ? '<div class="sub">' + opts.sub + '</div>' : '') + '</div>';
       }
 
+      function badge(text) {
+        if (!text) return '<span class="badge">—</span>';
+        const cls = text.toString().toLowerCase();
+        return '<span class="badge ' + cls + '">' + text + '</span>';
+      }
+
+      function esc(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      }
+
+      function fmtTime(t) {
+        if (!t) return '—';
+        return t.substring(0,19).replace('T',' ');
+      }
+
+      // ── Dashboard ──────────────────────────────────
       async function renderDashboard() {
-        let [health, version] = await Promise.all([
+        let [health, ver, agents, billing] = await Promise.all([
           api('/health').catch(() => null),
-          api('/version').catch(() => null)
+          api('/version').catch(() => null),
+          api('/v1/agents').catch(() => []),
+          api('/v1/billing/stats').catch(() => null),
         ]);
-        let status = health && health.status === 'ok' ? 'ok' : 'warn';
-        main.innerHTML =
-          '<h1>📊 Dashboard</h1>' +
-          '<div class="cards">' +
-            card('System Status', status === 'ok' ? 'Healthy' : 'Degraded', status, health ? health.uptime : '—') +
-            card('Version', version ? version.version : '—', 'ok') +
-          '</div>';
+        let status = health && health.status === 'ok' ? 'ok' : health ? 'warn' : 'err';
+        let st = health ? health.status || 'unknown' : 'unreachable';
+        let agentCount = Array.isArray(agents) ? agents.length : 0;
+        let totalTokens = billing ? (billing.total_tokens || 0).toLocaleString() : '—';
+        let html = '<h1>📊 Dashboard</h1><div class="cards">' +
+          card('System', badge(st), { cls: status, sub: health ? 'up ' + (health.uptime_secs || health.uptime || '?') + 's' : '' }) +
+          card('Version', ver ? ver.version : '—') +
+          card('Agents', agentCount) +
+          card('Total Tokens', totalTokens) +
+        '</div>';
+        html += '<div class="section"><h2>🔌 Services</h2><table><thead><tr><th>Service</th><th>Status</th><th>Detail</th></tr></thead><tbody>';
+        if (health && health.services) {
+          for (const [svc, st] of Object.entries(health.services)) {
+            let s = typeof st === 'object' ? (st.status || st.ok || 'unknown') : st;
+            html += '<tr><td>' + esc(svc) + '</td><td>' + badge(s) + '</td><td class="tt">' + esc(JSON.stringify(st).substring(0,100)) + '</td></tr>';
+          }
+        } else {
+          html += '<tr><td colspan="3" class="empty" style="padding:1rem">No service details</td></tr>';
+        }
+        html += '</tbody></table></div>';
+        main.innerHTML = html;
       }
 
+      // ── Agents ─────────────────────────────────────
+      async function renderAgents() {
+        let agents = await api('/v1/agents').catch(() => []);
+        let html = '<h1>🤖 Agents</h1>';
+        let list = Array.isArray(agents) ? agents : (agents.agents || agents.data || []);
+        if (list.length === 0) {
+          html += '<div class="empty"><p>No agents running.</p></div>';
+        } else {
+          html += '<table><thead><tr><th>ID</th><th>Status</th><th>Model</th><th>Task</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
+          for (const a of list) {
+            let aid = a.agent_id || a.id || '?';
+            let st = a.status || 'unknown';
+            html += '<tr><td><code>' + esc(aid.substring(0,12)) + '</code></td><td>' + badge(st) +
+              '</td><td>' + esc(a.model || '—') + '</td><td>' + esc((a.task || a.description || '').substring(0,40)) +
+              '</td><td class="tt">' + fmtTime(a.created_at || a.created) +
+              '</td><td class="actions">' +
+              '<button class="btn" onclick="action('restart','' + aid + '')">↻</button>' +
+              '<button class="btn" onclick="action('pause','' + aid + '')">⏸</button>' +
+              '<button class="btn btn-danger" onclick="action('delete','' + aid + '')">✕</button>' +
+              '</td></tr>';
+          }
+          html += '</tbody></table>';
+        }
+        html += '<div class="section"><h2>🚀 Run Agent</h2>' +
+          '<div class="filter-bar"><input id="agent-task" placeholder="Task description..." style="width:300px">' +
+          '<button class="btn btn-primary" onclick="runAgent()">▶ Run</button></div></div>';
+        main.innerHTML = html;
+      }
+
+      window.action = async function(cmd, id) {
+        try {
+          const endpoints = { restart: 'POST /v1/agent/' + id + '/restart', pause: 'POST /v1/agent/' + id + '/pause', cancel: 'POST /v1/agent/' + id + '/cancel', delete: 'DELETE /v1/agent/' + id };
+          const ep = endpoints[cmd];
+          if (!ep) return alert('Unknown cmd: ' + cmd);
+          const [method, path] = ep.split(' ');
+          const r = await fetch(path, { method: method });
+          if (!r.ok) { let t = await r.text(); alert('Error: ' + t.substring(0,100)); }
+          else { renderAgents(); }
+        } catch(e) { alert(e.message); }
+      };
+
+      window.runAgent = async function() {
+        const task = document.getElementById('agent-task').value;
+        if (!task) return alert('Enter a task');
+        try {
+          await fetch('/v1/agent/run', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({task:task}) });
+          document.getElementById('agent-task').value = '';
+          renderAgents();
+        } catch(e) { alert(e.message); }
+      };
+
+      // ── Plugins ────────────────────────────────────
+      async function renderPlugins() {
+        let [list, market] = await Promise.all([
+          api('/v1/plugins').catch(() => []),
+          api('/v1/plugins/market/list').catch(() => null),
+        ]);
+        let html = '<h1>🧩 Plugins</h1><div class="cards">' +
+          card('Installed', Array.isArray(list) ? list.length : (list.plugins ? list.plugins.length : 0)) +
+          card('Market', market ? (market.total || 0) : '—') +
+        '</div>';
+        // Installed plugins
+        let plugins = Array.isArray(list) ? list : (list.plugins || []);
+        if (plugins.length > 0) {
+          html += '<div class="section"><h2>📦 Installed</h2><table><thead><tr><th>Name</th><th>Version</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+          for (const p of plugins) {
+            let pname = p.name || p.manifest?.name || '?';
+            let pver = p.version || p.manifest?.version || '—';
+            let pst = p.status || 'unknown';
+            html += '<tr><td>' + esc(pname) + '</td><td>' + esc(pver) + '</td><td>' + badge(pst) +
+              '</td><td class="actions">' +
+              '<button class="btn" onclick="fetch('/v1/plugins/' + p.id + '/start',{method:'POST'}).then(()=>renderPlugins())">▶</button>' +
+              '<button class="btn" onclick="fetch('/v1/plugins/' + p.id + '/stop',{method:'POST'}).then(()=>renderPlugins())">⏹</button>' +
+              '</td></tr>';
+          }
+          html += '</tbody></table></div>';
+        } else {
+          html += '<div class="info-box">ℹ No plugins installed.</div>';
+        }
+        html += '<div class="section"><h2>🔍 Search Market</h2>' +
+          '<div class="filter-bar"><input id="market-q" placeholder="Search plugins..." style="width:250px">' +
+          '<button class="btn" onclick="searchMarket()">🔍 Search</button></div>' +
+          '<div id="market-results"></div></div>';
+        main.innerHTML = html;
+      }
+
+      window.searchMarket = async function() {
+        const q = document.getElementById('market-q').value;
+        const el = document.getElementById('market-results');
+        el.innerHTML = '⏳ Searching...';
+        try {
+          let data = await api('/v1/plugins/market/search?q=' + encodeURIComponent(q));
+          let pl = data.plugins || [];
+          if (pl.length === 0) { el.innerHTML = '<p class="empty">No results.</p>'; return; }
+          let html = '<table><thead><tr><th>Name</th><th>Version</th><th>Description</th></tr></thead><tbody>';
+          for (const p of pl) {
+            html += '<tr><td>' + esc(p.name) + '</td><td>' + esc(p.version) + '</td><td class="tt">' + esc(p.description.substring(0,80)) + '</td></tr>';
+          }
+          html += '</tbody></table>';
+          el.innerHTML = html;
+        } catch(e) { el.innerHTML = '<div class="error-box">' + e.message + '</div>'; }
+      };
+
+      // ── Billing ────────────────────────────────────
+      async function renderBilling() {
+        let stats = await api('/v1/billing/stats').catch(() => null);
+        let html = '<h1>💰 Token Cost & Billing</h1>';
+        if (stats) {
+          let costIn = (stats.total_input_tokens || 0) * 0.002 / 1000;
+          let costOut = (stats.total_output_tokens || 0) * 0.008 / 1000;
+          html += '<div class="cards">' +
+            card('Total Requests', (stats.total_requests || 0).toLocaleString()) +
+            card('Input Tokens', (stats.total_input_tokens || 0).toLocaleString()) +
+            card('Output Tokens', (stats.total_output_tokens || 0).toLocaleString()) +
+            card('Est. Cost', '$' + (costIn + costOut).toFixed(4), { sub: 'GPT-3.5 rate' }) +
+          '</div>';
+          if (stats.per_model && stats.per_model.length > 0) {
+            html += '<div class="section"><h2>📊 Per Model</h2><table><thead><tr><th>Model</th><th>Requests</th><th>Input Tokens</th><th>Output Tokens</th><th>Total Tokens</th></tr></thead><tbody>';
+            for (const m of stats.per_model) {
+              html += '<tr><td><code>' + esc(m.model) + '</code></td><td>' + (m.requests || 0) + '</td><td>' + (m.input_tokens || 0).toLocaleString() +
+                '</td><td>' + (m.output_tokens || 0).toLocaleString() + '</td><td>' + (m.total_tokens || 0).toLocaleString() + '</td></tr>';
+            }
+            html += '</tbody></table></div>';
+          }
+        } else {
+          html += '<div class="empty"><p>Billing stats unavailable. Try recording some usage first.</p></div>';
+        }
+        html += '<div class="section"><h2>📝 Record Usage</h2>' +
+          '<div class="filter-bar">' +
+          'User: <input id="bu-user" value="test-user" style="width:120px">' +
+          'Model: <input id="bu-model" value="gpt-4" style="width:100px">' +
+          'In: <input id="bu-in" value="100" style="width:60px">' +
+          'Out: <input id="bu-out" value="50" style="width:60px">' +
+          '<button class="btn btn-primary" onclick="recordUsage()">➕ Record</button></div></div>';
+        main.innerHTML = html;
+      }
+
+      window.recordUsage = async function() {
+        const body = {
+          user_id: document.getElementById('bu-user').value,
+          model: document.getElementById('bu-model').value,
+          input_tokens: parseInt(document.getElementById('bu-in').value) || 0,
+          output_tokens: parseInt(document.getElementById('bu-out').value) || 0,
+        };
+        try {
+          await fetch('/v1/billing/usage', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+          renderBilling();
+        } catch(e) { alert(e.message); }
+      };
+
+      // ── Discovery ──────────────────────────────────
+      async function renderDiscovery() {
+        let [servers, health] = await Promise.all([
+          api('/v1/discovery/servers').catch(() => null),
+          api('/v1/discovery/health').catch(() => null),
+        ]);
+        let html = '<h1>🔍 MCP Discovery</h1><div class="cards">' +
+          card('Servers', servers ? (servers.total || servers.servers?.length || 0) : '—') +
+          card('Discovery', health ? badge(health.status || 'healthy') : badge('unknown')) +
+        '</div>';
+        let srvList = servers ? (servers.servers || []) : [];
+        if (srvList.length > 0) {
+          html += '<div class="section"><h2>📡 Discovered Servers</h2><table><thead><tr><th>Name</th><th>Type</th><th>Endpoint</th><th>Status</th></tr></thead><tbody>';
+          for (const s of srvList) {
+            html += '<tr><td>' + esc(s.name || '?') + '</td><td>' + esc(s.type || s.discovery_type || '—') +
+              '</td><td><code>' + esc(s.endpoint || s.url || '—') + '</code></td><td>' + badge(s.status || 'unknown') + '</td></tr>';
+          }
+          html += '</tbody></table></div>';
+        } else {
+          html += '<div class="info-box">ℹ No MCP servers discovered yet.</div>';
+        }
+        if (health) {
+          html += '<div class="section"><h2>⚕️ Health</h2><pre class="dump">' + esc(JSON.stringify(health, null, 2)) + '</pre></div>';
+        }
+        main.innerHTML = html;
+      }
+
+      // ── Tenants ────────────────────────────────────
+      async function renderTenants() {
+        let [orgs, stats] = await Promise.all([
+          api('/v1/tenant/orgs').catch(() => []),
+          api('/v1/tenant/stats').catch(() => null),
+        ]);
+        let html = '<h1>🏢 Multi-Tenant</h1><div class="cards">' +
+          card('Orgs', stats ? stats.total_orgs : (Array.isArray(orgs) ? orgs.length : 0)) +
+          card('Projects', stats ? stats.total_projects : '—') +
+          card('Users', stats ? stats.total_users : '—') +
+          card('Active', stats ? stats.active_orgs : '—') +
+        '</div>';
+        let orgList = Array.isArray(orgs) ? orgs : [];
+        if (orgList.length > 0) {
+          html += '<div class="section"><h2>🏢 Organizations</h2><table><thead><tr><th>Name</th><th>Slug</th><th>Status</th><th>Settings</th></tr></thead><tbody>';
+          for (const o of orgList) {
+            let s = o.settings || {};
+            html += '<tr><td><strong>' + esc(o.name) + '</strong></td><td><code>' + esc(o.slug) + '</code></td><td>' + badge(o.status || 'active') +
+              '</td><td class="tt">P:' + (s.max_projects||'—') + ' U:' + (s.max_users||'—') + '</td></tr>';
+          }
+          html += '</tbody></table></div>';
+        } else {
+          html += '<div class="empty"><p>No organizations yet.</p></div>';
+        }
+        main.innerHTML = html;
+      }
+
+      // ── Audit ──────────────────────────────────────
+      async function renderAudit() {
+        let audit = await api('/v1/audit/logs?limit=100').catch(() => null);
+        let html = '<h1>📋 Audit Log</h1>';
+        if (audit) {
+          let entries = audit.entries || [];
+          html += '<div class="cards">' + card('Total', audit.total || entries.length) + card('Displayed', entries.length) + '</div>';
+          if (entries.length > 0) {
+            html += '<div class="section"><table><thead><tr><th>Time</th><th>Type</th><th>Event</th><th>Actor</th><th>Result</th><th>Detail</th></tr></thead><tbody>';
+            for (const e of entries) {
+              html += '<tr><td class="tt">' + fmtTime(e.timestamp) + '</td><td>' + badge(e.event_type) + '</td><td>' + esc(e.event_name||'') +
+                '</td><td>' + esc(e.actor||'') + '</td><td>' + badge(e.result||'') +
+                '</td><td class="tt">' + esc((e.detail||'').substring(0,60)) + '</td></tr>';
+            }
+            html += '</tbody></table></div>';
+          } else {
+            html += '<div class="empty"><p>No audit entries.</p></div>';
+          }
+        } else {
+          html += '<div class="empty"><p>Audit log unavailable.</p></div>';
+        }
+        main.innerHTML = html;
+      }
+
+      // ── Federation (保留原实现) ────────────────────
       async function renderFederation() {
         let [status, nodes] = await Promise.all([
           api('/v1/federation/status').catch(() => null),
@@ -582,85 +873,59 @@ async fn admin_handler() -> Html<String> {
         ]);
         let html = '<h1>🌐 Federation</h1><div class="cards">';
         if (status) {
-          html += card('Status', status.enabled ? 'Enabled' : 'Disabled', status.enabled ? 'ok' : 'warn');
-          html += card('Nodes', status.node_count, 'ok');
-          html += card('Uptime', status.uptime_secs + 's', 'ok');
-        } else {
-          html += card('Status', 'Unavailable', 'err');
-        }
+          html += card('Status', status.enabled ? 'Enabled' : 'Disabled', { cls: status.enabled ? 'ok' : 'warn' });
+          html += card('Nodes', status.node_count || 0);
+          html += card('Peers', Array.isArray(nodes) ? nodes.length : 0);
+        } else { html += card('Status', 'Unavailable', { cls: 'err' }); }
         html += '</div>';
-
-        if (nodes.length > 0) {
-          const cx = 200, cy = 200, r = 130;
-          let svg = '<svg viewBox="0 0 400 400" class="topo-svg">';
-          nodes.forEach((n, i) => {
-            const angle = 2 * Math.PI * i / nodes.length;
-            const x = cx + r * Math.cos(angle);
-            const y = cy + r * Math.sin(angle);
-            svg += '<line x1="' + cx + '" y1="' + cy + '" x2="' + x + '" y2="' + y + '" stroke="#30363d" stroke-width="2"/>';
-          });
-          svg += '<circle cx="' + cx + '" cy="' + cy + '" r="18" fill="#1f6feb"/>';
-          svg += '<text x="' + cx + '" y="' + cy + '" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="10" font-weight="bold">hub</text>';
-          nodes.forEach((n, i) => {
-            const angle = 2 * Math.PI * i / nodes.length;
-            const x = cx + r * Math.cos(angle);
-            const y = cy + r * Math.sin(angle);
-            const fill = n.status === 'online' ? '#238636' : n.status === 'offline' ? '#f85149' : '#d29922';
-            svg += '<circle cx="' + x + '" cy="' + y + '" r="16" fill="' + fill + '"/>';
-            svg += '<text x="' + x + '" y="' + y + '" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="8" font-weight="bold">' +
-              n.name.substring(0, 4) + '</text>';
-          });
-          svg += '</svg>';
-          svg += '<div class="legend"><span><span class="dot" style="background:#238636"></span> Online</span>' +
-            '<span><span class="dot" style="background:#d29922"></span> Degraded</span>' +
-            '<span><span class="dot" style="background:#f85149"></span> Offline</span></div>';
-          html += '<div class="section"><h2>📋 Peer Nodes</h2>' + svg + '</div>';
-
-          html += '<table><thead><tr><th>Name</th><th>Address</th><th>Status</th><th>Capabilities</th></tr></thead><tbody>';
-          nodes.forEach(n => {
-            html += '<tr><td>' + n.name + '</td><td><code>' + n.addr + '</code></td>' +
-              '<td><span class="badge ' + n.status + '">' + n.status + '</span></td>' +
-              '<td>' + (n.capabilities || []).join(', ') + '</td></tr>';
-          });
-          html += '</tbody></table>';
+        if (Array.isArray(nodes) && nodes.length > 0) {
+          html += '<div class="section"><h2>📋 Peers</h2><table><thead><tr><th>Name</th><th>Address</th><th>Status</th><th>Capabilities</th></tr></thead><tbody>';
+          for (const n of nodes) {
+            html += '<tr><td>' + esc(n.name||'') + '</td><td><code>' + esc(n.addr||n.address||'') + '</code></td><td>' + badge(n.status||'') +
+              '</td><td class="tt">' + esc((n.capabilities||[]).join(', ')) + '</td></tr>';
+          }
+          html += '</tbody></table></div>';
         }
         main.innerHTML = html;
       }
 
+      // ── Eval (保留原实现) ──────────────────────────
       async function renderEval() {
         let result = await api('/v1/eval/result').catch(() => null);
-        let html = '<h1>📋 Evaluation Reports</h1>';
+        let html = '<h1>📋 Evaluation</h1>';
         if (result) {
-          const st = (result.status === 'passed' || result.status === 'success') ? 'ok' : result.status === 'failed' ? 'err' : 'warn';
+          let st = (result.status === 'passed' || result.status === 'success') ? 'ok' : result.status === 'failed' ? 'err' : 'warn';
           html += '<div class="cards">' +
-            card('Score', result.score.toFixed(2), st) +
-            card('Status', result.status, st) +
-            card('Eval ID', result.id, 'ok') +
-            card('Timestamp', result.timestamp, 'ok') +
+            card('Score', result.score != null ? result.score.toFixed(2) : '—', { cls: st }) +
+            card('Status', result.status || '—', { cls: st }) +
+            card('ID', result.id ? result.id.substring(0,8) : '—') +
           '</div>';
           if (result.metrics && Object.keys(result.metrics).length > 0) {
             html += '<div class="section"><h2>📈 Metrics</h2><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>';
             for (const [k, v] of Object.entries(result.metrics)) {
-              html += '<tr><td>' + k + '</td><td style="font-family:monospace;color:#3fb950">' + v.toFixed(4) + '</td></tr>';
+              html += '<tr><td>' + esc(k) + '</td><td style="font-family:monospace;color:#3fb950">' + (typeof v === 'number' ? v.toFixed(4) : v) + '</td></tr>';
             }
             html += '</tbody></table></div>';
           }
         } else {
-          html += '<p style="color:#8b949e;">No evaluation results available yet.</p>';
+          html += '<div class="empty"><p>No evaluation results.</p></div>';
         }
         main.innerHTML = html;
       }
 
+      // ── Init ───────────────────────────────────────
       navLinks.forEach(a => {
         a.addEventListener('click', function(e) { e.preventDefault(); loadPage(this.dataset.page); });
       });
-      loadPage('dashboard');
+      // Restore page from URL
+      const params = new URLSearchParams(window.location.search);
+      const initialPage = params.get('page') || 'dashboard';
+      loadPage(initialPage);
     })();
   </script>
 </body>
 </html>"##.to_string())
-}
-// ── Webhook Handlers ──────────────────────────────────────
+}// ── Webhook Handlers ──────────────────────────────────────
 
 /// POST /v1/channels/feishu/webhook — 飞书事件回调
 /// 接收飞书开放平台事件订阅回调，自动解析为 InboundEvent。
