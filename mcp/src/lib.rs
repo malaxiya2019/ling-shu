@@ -50,6 +50,7 @@
 //! ```
 
 pub mod credential_tools;
+pub mod discovery;
 #[cfg(feature = "agent-runtime")]
 pub mod agent_tools;
 pub mod server;

@@ -213,6 +213,51 @@ impl AgentManager {
         Ok(())
     }
 
+    /// 重启 Agent.
+    pub async fn restart(&self, agent_id: &LsId, ctx: &LsContext) -> LsResult<()> {
+        let mut agents = self.agents.write().await;
+        let entry = agents
+            .get_mut(agent_id)
+            .ok_or_else(|| lingshu_core::LsError::NotFound(format!("agent {agent_id}")))?;
+        let name = entry.name.clone();
+        entry.agent.restart(ctx.clone()).await?;
+        entry.status = entry.agent.status(ctx.clone()).await?;
+        info!(agent_id = %agent_id, status = ?entry.status, "agent restarted");
+        self.emit_event(
+            lingshu_plugin::event::EventType::AgentStarted,
+            agent_id,
+            &name,
+            serde_json::json!({"status": "restarted"}),
+        )
+        .await;
+        Ok(())
+    }
+
+    /// 热更新 Agent 配置.
+    pub async fn update_config(
+        &self,
+        agent_id: &LsId,
+        ctx: &LsContext,
+        config: serde_json::Value,
+    ) -> LsResult<()> {
+        let mut agents = self.agents.write().await;
+        let entry = agents
+            .get_mut(agent_id)
+            .ok_or_else(|| lingshu_core::LsError::NotFound(format!("agent {agent_id}")))?;
+        let name = entry.name.clone();
+        entry.agent.update_config(ctx.clone(), config.clone()).await?;
+        entry.status = entry.agent.status(ctx.clone()).await?;
+        info!(agent_id = %agent_id, status = ?entry.status, "agent config updated");
+        self.emit_event(
+            lingshu_plugin::event::EventType::AgentCreated,
+            agent_id,
+            &name,
+            serde_json::json!({"status": "config_updated", "config": config}),
+        )
+        .await;
+        Ok(())
+    }
+
     /// Agent 数量.
     pub async fn count(&self) -> usize {
         self.agents.read().await.len()

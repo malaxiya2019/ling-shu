@@ -6,6 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [4.3.0] - 2026-07-12
+
+### Added
+- **Agent 生命周期管理** (v4.3 Enterprise):
+  - Agent trait 新增 `restart()` 和 `update_config()` 方法（带默认实现，不破坏现有代码）
+  - AgentManager 新增 `restart()`、`update_config()` 方法
+  - API: `POST /v1/agent/:id/restart`, `POST /v1/agent/:id/update`, `DELETE /v1/agent/:id`
+- **MCP Server 自动发现** (v4.3 Enterprise):
+  - `McpDiscovery` 引擎支持 Static/DNS-SRV/mDNS/HTTP/Manual 五种发现源
+  - API: `GET /v1/discovery/servers`, `GET /v1/discovery/health`
+- **Token 成本统计 API** (v4.3 Enterprise):
+  - `GET /v1/billing/stats` — 全局用量统计
+  - `GET /v1/billing/report/:user_id` — 用户成本报告
+  - `GET /v1/billing/quota/:user_id` — 用户配额查询
+  - `POST /v1/billing/usage` — 记录用量
+- **路由系统增强**: 新模块路由 (billing/discovery) 注册至 `build_router`，全工作空间编译通过
+
+### Changed
+- `app/src/api/full.rs`: `build_router` 新增 Agent Lifecycle / Billing / Discovery 路由
+- `app/src/api/mod.rs`: 注册 billing 和 discovery 模块
+- `traits/src/agent.rs`: `Agent` trait 新增 `restart()` 和 `update_config()`（默认返回 Err(Unsupported)）
+- `core/src/error.rs`: 新增 `LsError::Unsupported(String)` 变体
+- `runtime/src/agent_manager.rs`: 新增 `restart()`、`update_config()` 方法
+- `docs/src/rest-api.md`: 新增 Agent Lifecycle / Billing / Discovery 端点文档
+
+### Fixed
+- 修复 `full.rs` 中 `build_router` 缺少 delete method import
+- 修复 `billing.rs` 和 `discovery.rs` 中 unused variable warnings
+
 ## [4.2.7] - 2026-07-11
 
 ### Added

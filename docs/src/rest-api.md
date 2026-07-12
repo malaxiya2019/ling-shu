@@ -42,6 +42,9 @@ LingShu 提供丰富的 REST API，分为以下类别：
 | POST | `/v1/agents/:id/pause` | 暂停 Agent |
 | POST | `/v1/agents/:id/resume` | 恢复 Agent |
 | POST | `/v1/agents/:id/cancel` | 取消 Agent |
+| POST | `/v1/agent/:id/restart` | 🔄 重启 Agent (v4.3 Enterprise) |
+| POST | `/v1/agent/:id/update` | 🔄 热更新 Agent 配置 (v4.3 Enterprise) |
+| DELETE | `/v1/agent/:id` | 🗑️ 删除 Agent (v4.3 Enterprise) |
 
 ## Chat & LLM
 
@@ -124,6 +127,12 @@ LingShu 提供丰富的 REST API，分为以下类别：
 | POST | `/v1/mcp` | MCP JSON-RPC 方法调用 |
 | GET | `/v1/mcp/tools` | MCP 工具列表 |
 | GET | `/v1/mcp/ui` | MCP 管理界面 |
+| GET | `/v1/billing/stats` | 💰 Token 用量统计 (v4.3 Enterprise) |
+| GET | `/v1/billing/report/:user_id` | 💰 用户成本报告 (v4.3 Enterprise) |
+| GET | `/v1/billing/quota/:user_id` | 💰 用户配额查询 (v4.3 Enterprise) |
+| POST | `/v1/billing/usage` | 💰 记录用量 (v4.3 Enterprise) |
+| GET | `/v1/discovery/servers` | 🔍 MCP 服务器发现列表 (v4.3 Enterprise) |
+| GET | `/v1/discovery/health` | 🔍 MCP 发现健康状态 (v4.3 Enterprise) |
 
 ## 租户 (Multi-Tenant)
 

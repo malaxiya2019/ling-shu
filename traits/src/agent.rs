@@ -57,6 +57,18 @@ pub trait Agent: Send + Sync + 'static {
 
     /// 查询当前状态.
     async fn status(&self, ctx: LsContext) -> LsResult<AgentStatus>;
+
+    /// 重启 Agent（默认实现返回不支持错误）.
+    async fn restart(&mut self, ctx: LsContext) -> LsResult<()> {
+        let _ = ctx;
+        Err(LsError::Unsupported("restart not implemented".into()))
+    }
+
+    /// 热更新 Agent 配置（默认实现返回不支持错误）.
+    async fn update_config(&mut self, ctx: LsContext, config: serde_json::Value) -> LsResult<()> {
+        let _ = (ctx, config);
+        Err(LsError::Unsupported("update_config not implemented".into()))
+    }
 }
 
 // ── Blanket impl: Box<dyn Agent> 也实现 Agent ──────
@@ -86,5 +98,11 @@ impl<T: Agent + ?Sized> Agent for Box<T> {
     }
     async fn status(&self, ctx: LsContext) -> LsResult<AgentStatus> {
         (**self).status(ctx).await
+    }
+    async fn restart(&mut self, ctx: LsContext) -> LsResult<()> {
+        (**self).restart(ctx).await
+    }
+    async fn update_config(&mut self, ctx: LsContext, config: serde_json::Value) -> LsResult<()> {
+        (**self).update_config(ctx, config).await
     }
 }

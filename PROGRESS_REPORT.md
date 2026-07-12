@@ -239,6 +239,23 @@
 | LTS 版本发布 | ✅ | 标记 v4.2.7 LTS release (tag v4.2.7-lts, 已推送至 Gitee) |
 
 
+### v4.3 — Enterprise 🔄 (进行中)
+| 组件 | 状态 | 说明 |
+|------|------|------|
+| Agent 生命周期管理 | ✅ | trait 新增 restart/update_config 方法, AgentManager 实现, API 端点 |
+| MCP Server 自动发现 | ✅ | McpDiscovery 引擎 (Static/DNS-SRV/mDNS/HTTP/Manual), API 端点 |
+| Token 成本统计 API | ✅ | billing_stats/report/quota/usage 四个端点的 API 定义和路由注册 |
+| 路由注册 & 编译验证 | ✅ | 全部新路由注册至 build_router, 工作空间编译通过 |
+| API 文档更新 | ✅ | rest-api.md 添加 Agent Lifecycle / Billing / Discovery 端点 |
+| 审计日志增强 | 🔄 | Dashboard 页面完善 (进行中) |
+| Plugin Marketplace 完善 | 🔄 | 市场 API 集成增强 (进行中) |
+| 多租户 Dashboard | 🔄 | WebUI 页面增强 (进行中) |
+| Web Console | ⏳ | 管理控制台 (
+进行中) |
+| 压力测试覆盖 | ⏳ | 企业场景压测脚本 (规划中) |
+| 全量端到端测试 | ⏳ | 企业功能 E2E 测试 (规划中) |
+
+
 ## 4. 下一阶段计划
 
 ### v3.3 — 企业特性 ✅ (最新完成)

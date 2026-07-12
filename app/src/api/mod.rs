@@ -31,6 +31,8 @@ pub mod health;
 pub mod mcp;
 pub mod metrics;
 pub mod plugins;
+pub mod billing;
+pub mod discovery;
 
 // ── Shared State ────────────────────────────────────
 
@@ -57,6 +59,8 @@ pub fn build_app_router() -> Router<Arc<AppState>> {
         .merge(eval::eval_routes())
         .merge(plugins::plugin_routes())
         .merge(mcp::mcp_routes())
+        .merge(billing::billing_routes())
+        .merge(discovery::discovery_routes())
 }
 
 /// 构建完整路由 — 应用共享状态，直接使用 full::build_router (已包含所有路由).

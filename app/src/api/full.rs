@@ -20,7 +20,7 @@ use axum::{
     http::{header, Method, StatusCode},
     response::Redirect,
     response::{Html, Json},
-    routing::{get, post},
+    routing::{delete, get, post},
     Router,
 };
 use lingshu_evaluator;
@@ -757,6 +757,10 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/v1/agents/:id/pause", post(agent_pause_handler))
         .route("/v1/agents/:id/resume", post(agent_resume_handler))
         .route("/v1/agents/:id/cancel", post(agent_cancel_handler))
+        // Agent Lifecycle Management (v4.3 Enterprise)
+        .route("/v1/agent/:id/restart", post(agent_restart_handler))
+        .route("/v1/agent/:id/update", post(agent_update_handler))
+        .route("/v1/agent/:id", delete(agent_delete_handler))
         .route("/ws", get(ws_handler))
         // v2 Real-time API
         .route("/v2/chat/stream", get(v2_chat_stream_handler))
@@ -870,6 +874,14 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         // Channel Webhook API
         .route("/v1/channels/feishu/webhook", post(feishu_webhook_handler))
         .route("/v1/channels/qq/webhook", post(qq_webhook_handler))
+        // Billing API (v4.3 Enterprise — Token Cost)
+        .route("/v1/billing/stats", get(crate::api::billing::billing_stats_handler))
+        .route("/v1/billing/report/:user_id", get(crate::api::billing::billing_report_handler))
+        .route("/v1/billing/quota/:user_id", get(crate::api::billing::billing_quota_handler))
+        .route("/v1/billing/usage", post(crate::api::billing::record_usage_handler))
+        // Discovery API (v4.3 Enterprise — MCP Auto-Discovery)
+        .route("/v1/discovery/servers", get(crate::api::discovery::discovery_list_handler))
+        .route("/v1/discovery/health", get(crate::api::discovery::discovery_health_handler))
         // API Documentation
         .route("/docs", get(docs_handler))
         .route("/docs/openapi.json", get(openapi_json_handler))
@@ -2818,6 +2830,122 @@ pub async fn agent_cancel_handler(
     ));
     Ok(Json(
         json!({"status": "cancelled", "agent_id": agent_id.to_string()}),
+    ))
+}
+
+/// POST /v1/agents/:id/restart — 重启 Agent
+pub async fn agent_restart_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let agent_id: LsId = id.parse().map_err(|_| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "invalid agent id"})),
+        )
+    })?;
+
+    let ctx = LsContext::with_session(LsId::new());
+    state
+        .runtime
+        .agent_manager
+        .restart(&agent_id, &ctx)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(json!({"error": format!("{e}")})),
+            )
+        })?;
+
+    state.sse_broadcaster.publish(SseEvent::new(
+        "agent.state_change",
+        json!({
+            "agent_id": agent_id.to_string(),
+            "state": "restarted",
+        }),
+    ));
+    Ok(Json(
+        json!({"status": "restarted", "agent_id": agent_id.to_string()}),
+    ))
+}
+
+/// POST /v1/agent/:id/update — 热更新 Agent 配置
+#[derive(Deserialize)]
+pub struct AgentConfigUpdateReq {
+    pub config: serde_json::Value,
+}
+
+pub async fn agent_update_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+    Json(req): Json<AgentConfigUpdateReq>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let agent_id: LsId = id.parse().map_err(|_| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "invalid agent id"})),
+        )
+    })?;
+
+    let ctx = LsContext::with_session(LsId::new());
+    state
+        .runtime
+        .agent_manager
+        .update_config(&agent_id, &ctx, req.config)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(json!({"error": format!("{e}")})),
+            )
+        })?;
+
+    state.sse_broadcaster.publish(SseEvent::new(
+        "agent.state_change",
+        json!({
+            "agent_id": agent_id.to_string(),
+            "state": "config_updated",
+        }),
+    ));
+    Ok(Json(
+        json!({"status": "config_updated", "agent_id": agent_id.to_string()}),
+    ))
+}
+
+/// DELETE /v1/agent/:id — 删除 Agent
+pub async fn agent_delete_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let agent_id: LsId = id.parse().map_err(|_| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "invalid agent id"})),
+        )
+    })?;
+
+    state
+        .runtime
+        .agent_manager
+        .remove(&agent_id)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(json!({"error": format!("{e}")})),
+            )
+        })?;
+
+    state.sse_broadcaster.publish(SseEvent::new(
+        "agent.state_change",
+        json!({
+            "agent_id": agent_id.to_string(),
+            "state": "deleted",
+        }),
+    ));
+    Ok(Json(
+        json!({"status": "deleted", "agent_id": agent_id.to_string()}),
     ))
 }
 

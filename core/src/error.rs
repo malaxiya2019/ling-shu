@@ -21,6 +21,9 @@ pub enum LsError {
     #[error("not implemented: {0}")]
     NotImplemented(String),
 
+    #[error("unsupported operation: {0}")]
+    Unsupported(String),
+
     #[error("timeout: {0}")]
     Timeout(String),
 
