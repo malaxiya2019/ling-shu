@@ -1,0 +1,11 @@
+[package]
+name = "lingshu-example-swarm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lingshu-core = { path = "../../core" }
+lingshu-swarm = { path = "../../swarm" }
+tokio = { workspace = true, features = ["rt", "macros"] }
+serde_json.workspace = true
+chrono.workspace = true

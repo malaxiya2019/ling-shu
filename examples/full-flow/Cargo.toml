@@ -1,0 +1,13 @@
+[package]
+name = "lingshu-example-full-flow"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lingshu-core = { path = "../../core" }
+lingshu-swarm = { path = "../../swarm" }
+lingshu-distributed = { path = "../../distributed" }
+lingshu-autonomy = { path = "../../autonomy" }
+tokio = { workspace = true, features = ["rt", "macros", "time"] }
+serde_json.workspace = true
+chrono.workspace = true

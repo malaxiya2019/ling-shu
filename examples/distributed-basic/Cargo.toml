@@ -1,0 +1,11 @@
+[package]
+name = "lingshu-example-distributed"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lingshu-core = { path = "../../core" }
+lingshu-distributed = { path = "../../distributed" }
+tokio = { workspace = true, features = ["rt", "macros", "time"] }
+serde_json.workspace = true
+chrono.workspace = true

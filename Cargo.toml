@@ -43,6 +43,10 @@ members = [
     "channel",
     "voice",
     "desktop",
+    "examples/swarm-basic",
+    "examples/distributed-basic",
+    "examples/autonomy-basic",
+    "examples/full-flow",
 ]
 [workspace.package]
 version = "3.0.0"
