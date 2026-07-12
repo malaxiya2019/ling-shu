@@ -30,6 +30,8 @@ members = [
     "evaluator",
     "tool",
     "federation",
+    "swarm",
+    "autonomy",
     "webui",
     "llm-router",
     "cache",

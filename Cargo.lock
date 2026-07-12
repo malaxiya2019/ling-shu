@@ -6512,6 +6512,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "lingshu-autonomy"
+version = "3.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "futures",
+ "lingshu-core",
+ "lingshu-distributed",
+ "lingshu-eventbus",
+ "lingshu-observability",
+ "lingshu-swarm",
+ "lingshu-traits",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "lingshu-backends"
 version = "3.0.0"
 dependencies = [
@@ -7195,6 +7216,30 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "lingshu-swarm"
+version = "5.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "futures",
+ "lingshu-core",
+ "lingshu-distributed",
+ "lingshu-eventbus",
+ "lingshu-federation",
+ "lingshu-orchestrator",
+ "lingshu-runtime",
+ "lingshu-traits",
+ "rand 0.8.6",
+ "serde",
+ "serde_json",
+ "serde_yaml",
  "thiserror 2.0.18",
  "tokio",
  "tracing",

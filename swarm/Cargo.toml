@@ -1,0 +1,35 @@
+[package]
+name = "lingshu-swarm"
+version = "5.0.0"
+edition = "2021"
+description = "AgentSwarm — 群体智能协作引擎 (v5.0)"
+license.workspace = true
+
+[dependencies]
+lingshu-core = { path = "../core" }
+lingshu-traits = { path = "../traits" }
+lingshu-runtime = { path = "../runtime" }
+lingshu-orchestrator = { path = "../orchestrator" }
+lingshu-eventbus = { path = "../eventbus" }
+lingshu-distributed = { path = "../distributed" }
+lingshu-federation = { path = "../federation", optional = true }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+rand = "0.8"
+
+[features]
+default = []
+federation = ["dep:lingshu-federation"]
+
+[lib]
+name = "lingshu_swarm"
+path = "src/lib.rs"

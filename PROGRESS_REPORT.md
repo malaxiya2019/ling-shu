@@ -391,3 +391,41 @@
 - ❌ 不新增 WebUI 页面
 
 > 聚焦原则：v4.1 只做一件事——**让 Agent 真正稳定、高效地运行**。
+
+### v5.0 — 下一代 Runtime (AgentSwarm + 分布式调度器 + 自治 Runtime)
+
+| 组件 | 状态 | 说明 |
+|------|------|------|
+| `swarm` — AgentSwarm 群体智能引擎 | ✅ v5.0.1 | 6 种协作策略 (Voting/Consensus/Hierarchical/Democratic/Bidding/Hybrid) |
+| `swarm` — 通信通道 | ✅ | 广播/点对点/组播 |
+| `swarm` — 涌现专长引擎 | ✅ | 动态 Agent 专业分化 + 共享群体记忆 |
+| `swarm` — 动态拓扑 | ✅ | Star/Mesh/Ring/Tree/Dynamic 自适应切换 |
+| `swarm` — 协调器 | ✅ | 任务分解 → 竞标 → Agent 选择 → 执行 → 评估 → 自适应 |
+| `swarm` — 性能指标 | ✅ | P50/P90/P99 延迟采集 |
+| `swarm` — 集成测试 | ✅ | 62 个单元测试全部通过 |
+| `distributed` — 分布式调度器 | ✅ v5.0.2 | 跨节点 Agent 任务调度与负载均衡 |
+| `distributed` — 调度策略 | ✅ | LeastTasks/RoundRobin/Weighted/ConsistentHash/LocalFirst/Adaptive 6 种策略 |
+| `distributed` — 节点负载 | ✅ | 综合负载评分 (pending/active/failure/CPU/memory) |
+| `distributed` — 健康检查 | ✅ | 自动心跳检测、超时节点清理 |
+| `distributed` — 故障转移 | ✅ | 自动检测失败节点并触发重调度 |
+| `distributed` — 集成测试 | ✅ | 32 个单元测试全部通过 |
+| `autonomy` — 经验存储 | ✅ v5.0.3 | 7 种经验类型、严重等级、标签、自动裁剪 |
+| `autonomy` — 经验摘要 | ✅ | 按 Agent/类型/等级统计成功率和耗时 |
+| `autonomy` — 自我反思引擎 | ✅ | 检测重复失败模式、性能退化、效率机会、协作改进 |
+| `autonomy` — 反思洞察 | ✅ | 8 种洞察类型，优先级 + 置信度评分，改进建议 |
+| `autonomy` — 健康评分 | ✅ | 综合成功率、优先级惩罚、失败量计算 |
+| `autonomy` — 自我进化引擎 | ✅ | 10 种进化动作 (参数/策略/行为/重试/超时/验证/协作/资源/学习) |
+| `autonomy` — 进化计划 | ✅ | 基于洞察自动生成、优先级排序、自动应用 |
+| `autonomy` — 进化参数 | ✅ | AgentParameters (temperature/tokens/timeout/retries) 可进化 |
+| `autonomy` — 冷却与回滚 | ✅ | 进化冷却、自动回滚阈值 |
+| `autonomy` — AutonomyEngine 顶层入口 | ✅ | 单步自治周期: 存储经验 → 反思 → 进化 |
+| `autonomy` — 集成测试 | ✅ | 18 个单元测试全部通过 |
+
+## 2. 测试统计
+
+| 测试套件 | 测试数 | 通过率 |
+|----------|--------|--------|
+| v5.0 AgentSwarm (`lingshu-swarm`) | 62 | 100% |
+| v5.0 分布式调度器 (`lingshu-distributed`) | 32 | 100% |
+| v5.0 自治 Runtime (`lingshu-autonomy`) | 18 | 100% |
+| **v5.0 总计** | **112** | **100%** |

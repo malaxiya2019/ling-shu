@@ -1,0 +1,22 @@
+[package]
+name = "lingshu-autonomy"
+version.workspace = true
+edition.workspace = true
+description = "LSAutonomy — Autonomous Runtime: self-reflection, self-evolution, experience management"
+
+[dependencies]
+lingshu-core = { path = "../core" }
+lingshu-traits = { path = "../traits" }
+lingshu-eventbus = { path = "../eventbus" }
+lingshu-observability = { path = "../observability" }
+lingshu-distributed = { path = "../distributed" }
+lingshu-swarm = { path = "../swarm" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+futures.workspace = true
