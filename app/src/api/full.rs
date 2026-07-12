@@ -527,6 +527,27 @@ async fn admin_handler() -> Html<String> {
     .tt { color: #8b949e; font-family: monospace; font-size: 0.8rem; }
     .empty { text-align: center; padding: 3rem; color: #6e7681; }
     .remote { color: #58a6ff; }
+    /* Audit enhancements */
+    .fields { display: flex; gap: 0.5rem; margin-bottom: 0.8rem; flex-wrap: wrap; align-items: center; }
+    .fields input, .fields select { background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; padding: 0.3rem 0.6rem; font-size: 0.83rem; }
+    .fields input:focus { border-color: #58a6ff; outline: none; }
+    .fields .btn, .fields a.btn { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.7rem; border-radius: 4px; font-size: 0.83rem; cursor: pointer; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; text-decoration: none; }
+    .fields .btn:hover, .fields a.btn:hover { border-color: #58a6ff; }
+    .pagination { display: flex; align-items: center; justify-content: center; gap: 0.8rem; margin-top: 1rem; padding: 0.5rem; }
+    .pagination button { background: #21262d; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; padding: 0.3rem 0.8rem; cursor: pointer; font-size: 0.83rem; }
+    .pagination button:hover:not(:disabled) { border-color: #58a6ff; }
+    .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .pagination span { color: #8b949e; font-size: 0.83rem; }
+    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 999; }
+    .modal { background: #161b22; border: 1px solid #30363d; border-radius: 12px; min-width: 500px; max-width: 700px; max-height: 80vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.2rem; border-bottom: 1px solid #30363d; }
+    .modal-header h2 { margin: 0; font-size: 1.1rem; color: #e6edf3; }
+    .modal-header button { background: none; border: none; color: #8b949e; font-size: 1.2rem; cursor: pointer; padding: 0.2rem; }
+    .modal-header button:hover { color: #c9d1d9; }
+    .modal-body { padding: 1.2rem; }
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .detail-table td { padding: 0.5rem 0.8rem; border-bottom: 1px solid #21262d; }
+    .detail-table td.dl { color: #8b949e; font-weight: 600; width: 100px; white-space: nowrap; vertical-align: top; }
   </style>
 </head>
 <body>
@@ -842,27 +863,124 @@ async fn admin_handler() -> Html<String> {
       }
 
       // ── Audit ──────────────────────────────────────
+      // ── Audit state ─────────────────────────────
+      let auditFilter = { actor: '', event_type: '', result: '', offset: 0, limit: 50 };
+      let auditData = { entries: [], total: 0 };
+      let auditStats = null;
+      let auditDetail = null;
+
       async function renderAudit() {
-        let audit = await api('/v1/audit/logs?limit=100').catch(() => null);
+        let params = '?limit=' + auditFilter.limit + '&offset=' + auditFilter.offset;
+        if (auditFilter.actor) params += '&actor=' + encodeURIComponent(auditFilter.actor);
+        if (auditFilter.event_type) params += '&event_type=' + encodeURIComponent(auditFilter.event_type);
+        if (auditFilter.result) params += '&result=' + encodeURIComponent(auditFilter.result);
+        let [audit, stats] = await Promise.all([
+          api('/v1/audit/logs' + params).catch(() => null),
+          api('/v1/audit/stats').catch(() => null),
+        ]);
+        if (audit) auditData = audit;
+        if (stats) auditStats = stats;
+
         let html = '<h1>📋 Audit Log</h1>';
-        if (audit) {
-          let entries = audit.entries || [];
-          html += '<div class="cards">' + card('Total', audit.total || entries.length) + card('Displayed', entries.length) + '</div>';
-          if (entries.length > 0) {
-            html += '<div class="section"><table><thead><tr><th>Time</th><th>Type</th><th>Event</th><th>Actor</th><th>Result</th><th>Detail</th></tr></thead><tbody>';
-            for (const e of entries) {
-              html += '<tr><td class="tt">' + fmtTime(e.timestamp) + '</td><td>' + badge(e.event_type) + '</td><td>' + esc(e.event_name||'') +
-                '</td><td>' + esc(e.actor||'') + '</td><td>' + badge(e.result||'') +
-                '</td><td class="tt">' + esc((e.detail||'').substring(0,60)) + '</td></tr>';
+
+        // Stats cards
+        if (auditStats) {
+          html += '<div class="cards">';
+          html += card('Total Entries', auditStats.total || 0);
+          if (auditStats.by_event_type) {
+            for (const [k,v] of Object.entries(auditStats.by_event_type).sort((a,b) => b[1]-a[1]).slice(0,4)) {
+              html += card(k.replace(/_/g,' '), v);
             }
-            html += '</tbody></table></div>';
-          } else {
-            html += '<div class="empty"><p>No audit entries.</p></div>';
           }
-        } else {
-          html += '<div class="empty"><p>Audit log unavailable.</p></div>';
+          html += '</div>';
         }
+
+        // Filter panel
+        html += '<div class="fields">';
+        html += '<input id="af_actor" placeholder="Actor" value="' + esc(auditFilter.actor) + '" oninput="auditFilter.actor=this.value"/>';
+        html += '<select id="af_type" onchange="auditFilter.event_type=this.value">';
+        html += '<option value="">All Types</option>';
+        html += '<option value="api_call"' + (auditFilter.event_type==='api_call'?' selected':'') + '>API Call</option>';
+        html += '<option value="admin_action"' + (auditFilter.event_type==='admin_action'?' selected':'') + '>Admin Action</option>';
+        html += '<option value="user_login"' + (auditFilter.event_type==='user_login'?' selected':'') + '>User Login</option>';
+        html += '<option value="user_logout"' + (auditFilter.event_type==='user_logout'?' selected':'') + '>User Logout</option>';
+        html += '<option value="agent_execution"' + (auditFilter.event_type==='agent_execution'?' selected':'') + '>Agent Execution</option>';
+        html += '<option value="config_change"' + (auditFilter.event_type==='config_change'?' selected':'') + '>Config Change</option>';
+        html += '<option value="permission_change"' + (auditFilter.event_type==='permission_change'?' selected':'') + '>Permission Change</option>';
+        html += '<option value="system"' + (auditFilter.event_type==='system'?' selected':'') + '>System</option>';
+        html += '</select>';
+        html += '<select id="af_result" onchange="auditFilter.result=this.value">';
+        html += '<option value="">All Results</option>';
+        html += '<option value="success"' + (auditFilter.result==='success'?' selected':'') + '>Success</option>';
+        html += '<option value="failure"' + (auditFilter.result==='failure'?' selected':'') + '>Failure</option>';
+        html += '</select>';
+        html += '<button onclick="auditFilter.offset=0;renderAudit()">🔍 Filter</button>';
+        html += '<button onclick="auditFilter.actor='';auditFilter.event_type='';auditFilter.result='';auditFilter.offset=0;renderAudit()">✕ Clear</button>';
+        // Export
+        html += '<span style="flex:1"></span>';
+        html += '<a class="btn" href="/v1/audit/export?format=json&limit=10000" target="_blank">📥 JSON</a>';
+        html += '<a class="btn" href="/v1/audit/export?format=csv&limit=10000" target="_blank">📥 CSV</a>';
+        html += '</div>';
+
+        // Table
+        let entries = auditData.entries || [];
+        if (entries.length > 0) {
+          html += '<div class="section" style="overflow-x:auto"><table><thead><tr><th>Time</th><th>Type</th><th>Event</th><th>Actor</th><th>Resource</th><th>Result</th><th>Detail</th></tr></thead><tbody>';
+          for (const e of entries) {
+            const detailShort = (e.detail||'').substring(0,50);
+            html += '<tr onclick="auditDetail=' + "'" + e.id + "';renderAuditDetail()" + '" style="cursor:pointer">';
+            html += '<td class="tt">' + fmtTime(e.timestamp) + '</td>';
+            html += '<td>' + badge(e.event_type) + '</td>';
+            html += '<td>' + esc(e.event_name||'') + '</td>';
+            html += '<td>' + esc(e.actor||'') + '</td>';
+            html += '<td class="tt">' + esc((e.resource_type||'') + '/' + (e.resource_id||'')) + '</td>';
+            html += '<td>' + badge(e.result||'') + '</td>';
+            html += '<td class="tt">' + esc(detailShort) + '</td></tr>';
+          }
+          html += '</tbody></table></div>';
+
+          // Pagination
+          let total = auditData.total || 0;
+          let page = Math.floor(auditFilter.offset / auditFilter.limit) + 1;
+          let totalPages = Math.ceil(total / auditFilter.limit) || 1;
+          html += '<div class="pagination">';
+          html += '<button onclick="auditFilter.offset=Math.max(0,auditFilter.offset-auditFilter.limit);renderAudit()" ' +
+            (auditFilter.offset <= 0 ? 'disabled' : '') + '>⬅ Prev</button>';
+          html += '<span> Page ' + page + ' of ' + totalPages + ' (' + total + ' entries) </span>';
+          html += '<button onclick="auditFilter.offset=Math.min(' + (Math.max(0,total-auditFilter.limit)) + ',auditFilter.offset+auditFilter.limit);renderAudit()" ' +
+            (auditFilter.offset + auditFilter.limit >= total ? 'disabled' : '') + '>Next ➡</button>';
+          html += '</div>';
+        } else {
+          html += '<div class="empty"><p>No audit entries found.</p></div>';
+        }
+
         main.innerHTML = html;
+      }
+
+      // ── Audit Detail Modal ────────────────────────
+      async function renderAuditDetail() {
+        if (!auditDetail) return;
+        let entry = await api('/v1/audit/entry/' + auditDetail).catch(() => null);
+        if (!entry) { alert('Entry not found'); return; }
+        let html = '<div class="modal-overlay" onclick="auditDetail=null;renderAudit()">';
+        html += '<div class="modal" onclick="event.stopPropagation()">';
+        html += '<div class="modal-header"><h2>📋 Audit Entry Detail</h2><button onclick="auditDetail=null;renderAudit()">✕</button></div>';
+        html += '<div class="modal-body">';
+        html += '<table class="detail-table">';
+        html += '<tr><td class="dl">ID</td><td class="tt">' + esc(entry.id||'') + '</td></tr>';
+        html += '<tr><td class="dl">Time</td><td>' + fmtTime(entry.timestamp) + '</td></tr>';
+        html += '<tr><td class="dl">Type</td><td>' + badge(entry.event_type) + '</td></tr>';
+        html += '<tr><td class="dl">Event</td><td>' + esc(entry.event_name||'') + '</td></tr>';
+        html += '<tr><td class="dl">Actor</td><td>' + esc(entry.actor||'') + '</td></tr>';
+        html += '<tr><td class="dl">Resource</td><td>' + esc((entry.resource_type||'') + ' / ' + (entry.resource_id||'')) + '</td></tr>';
+        html += '<tr><td class="dl">Result</td><td>' + badge(entry.result||'') + '</td></tr>';
+        html += '<tr><td class="dl">Trace ID</td><td class="tt">' + esc(entry.trace_id||'—') + '</td></tr>';
+        html += '<tr><td class="dl">Source</td><td>' + esc(entry.source||'—') + '</td></tr>';
+        html += '<tr><td class="dl">Detail</td><td><pre style="max-height:300px;overflow:auto;background:#0d1117;padding:0.6rem;border-radius:6px;font-size:0.8rem;white-space:pre-wrap">' + esc(entry.detail||'') + '</pre></td></tr>';
+        html += '</table>';
+        html += '</div></div></div>';
+        // Append modal to main content
+        main.innerHTML += html;
       }
 
       // ── Federation (保留原实现) ────────────────────
@@ -1107,6 +1225,10 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         )
                 // Audit API — 审计日志查询
         .route("/v1/audit/logs", get(audit_query_handler))
+        .route("/v1/audit/stats", get(audit_stats_handler))
+        .route("/v1/audit/entry/:id", get(audit_entry_handler))
+        .route("/v1/audit/export", get(audit_export_handler))
+        .route("/v1/audit/archive", post(audit_archive_handler))
 // Tenant API (MT) -- 多租户管理
         .route("/v1/tenant/orgs", get(tenant_list_orgs_handler).post(tenant_create_org_handler))
         .route("/v1/tenant/orgs/:org_id", get(tenant_get_org_handler))
@@ -4983,11 +5105,165 @@ async fn audit_query_handler(
     let entries = state.runtime.audit_log.query(&query).await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))))?;
 
+    // 查询总匹配数（不带 offset/limit）
+    let mut count_qb = lingshu_audit::AuditQueryBuilder::new();
+    if let Some(actor) = params.get("actor") {
+        count_qb = count_qb.with_actor(actor);
+    }
+    if let Some(event_type) = params.get("event_type") {
+        let et = match event_type.as_str() {
+            "user_login" => lingshu_audit::AuditEventType::UserLogin,
+            "user_logout" => lingshu_audit::AuditEventType::UserLogout,
+            "api_call" => lingshu_audit::AuditEventType::ApiCall,
+            "agent_execution" => lingshu_audit::AuditEventType::AgentExecution,
+            "admin_action" => lingshu_audit::AuditEventType::AdminAction,
+            "config_change" => lingshu_audit::AuditEventType::ConfigChange,
+            "permission_change" => lingshu_audit::AuditEventType::PermissionChange,
+            "system" => lingshu_audit::AuditEventType::System,
+            _ => lingshu_audit::AuditEventType::Custom(event_type.clone()),
+        };
+        count_qb = count_qb.with_event_type(et);
+    }
+    if let Some(result) = params.get("result") {
+        count_qb = count_qb.with_result(result);
+    }
+    let total = state.runtime.audit_log.count(&count_qb.build()).await.unwrap_or(entries.len() as u64);
+
     Ok(Json(json!({
         "entries": entries,
-        "total": entries.len(),
+        "total": total,
     })))
 }
+
+
+
+// ── Audit Stats ──────────────────────────────────
+
+/// GET /v1/audit/stats — 审计统计（事件类型分布、每日趋势、Top操作者）
+async fn audit_stats_handler(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let entries = state.runtime.audit_log.query(
+        &lingshu_audit::AuditQueryBuilder::new().build(),
+    ).await.map_err(|e| {
+        (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()})))
+    })?;
+
+    let mut by_type: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+    let mut by_result: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+    let mut by_actor: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+    let mut by_day: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+
+    for e in &entries {
+        *by_type.entry(format!("{:?}", e.event_type)).or_insert(0) += 1;
+        *by_result.entry(e.result.clone()).or_insert(0) += 1;
+        *by_actor.entry(e.actor.clone()).or_insert(0) += 1;
+        let day = e.timestamp.format("%Y-%m-%d").to_string();
+        *by_day.entry(day).or_insert(0) += 1;
+    }
+
+    let total = entries.len();
+    let mut top_actors: Vec<Value> = by_actor
+        .into_iter()
+        .map(|(a, c)| json!({"actor": a, "count": c}))
+        .collect();
+    top_actors.sort_by(|a, b| b["count"].as_u64().cmp(&a["count"].as_u64()));
+    top_actors.truncate(10);
+
+    Ok(Json(json!({
+        "total": total,
+        "by_event_type": by_type,
+        "by_result": by_result,
+        "top_actors": top_actors,
+        "by_day": by_day,
+    })))
+}
+
+// ── Audit Entry Detail ───────────────────────────
+
+/// GET /v1/audit/entry/:id — 单条审计详情
+async fn audit_entry_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<uuid::Uuid>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    match state.runtime.audit_log.get_by_id(id).await {
+        Ok(entry) => Ok(Json(json!(entry))),
+        Err(e) => Err((StatusCode::NOT_FOUND, Json(json!({"error": e.to_string()})))),
+    }
+}
+
+// ── Audit Export ─────────────────────────────────
+
+/// GET /v1/audit/export — 审计日志导出 (支持 ?format=csv|json&limit=10000)
+async fn audit_export_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> Result<(StatusCode, [(&'static str, &'static str); 1], String), (StatusCode, Json<Value>)> {
+    let mut qb = lingshu_audit::AuditQueryBuilder::new();
+    if let Some(limit) = params.get("limit").and_then(|v| v.parse::<u64>().ok()) {
+        qb = qb.with_limit(limit);
+    }
+    let query = qb.build();
+    let entries = state.runtime.audit_log.query(&query).await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))))?;
+
+    let fmt = params.get("format").map(|s| s.as_str()).unwrap_or("json");
+    match fmt {
+        "csv" => {
+            let mut csv = String::from("id,timestamp,event_type,event_name,actor,resource_type,resource_id,result,detail\n");
+            for e in &entries {
+                csv.push_str(&format!("{},{},{},{},{},{},{},{},{}\n",
+                    e.id, e.timestamp.format("%Y-%m-%dT%H:%M:%SZ"),
+                    format!("{:?}", e.event_type), esc_csv(&e.event_name),
+                    esc_csv(&e.actor), esc_csv(&e.resource_type),
+                    esc_csv(&e.resource_id), esc_csv(&e.result),
+                    esc_csv(&e.detail)));
+            }
+            Ok((StatusCode::OK, [("content-type", "text/csv; charset=utf-8")], csv))
+        }
+        _ => {
+            let json_str = serde_json::to_string_pretty(&json!(entries))
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))))?;
+            Ok((StatusCode::OK, [("content-type", "application/json; charset=utf-8")], json_str))
+        }
+    }
+}
+
+fn esc_csv(s: &str) -> String {
+    if s.contains(',') || s.contains('"') || s.contains('\n') {
+        let escaped = s.replace('"', "\"\"");
+        format!("\"{}\"", escaped)
+    } else {
+        s.to_string()
+    }
+}
+
+// ── Audit Archive ────────────────────────────────
+
+/// POST /v1/audit/archive — 归档旧审计记录（按时间范围）
+async fn audit_archive_handler(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<serde_json::Value>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let days = req.get("older_than_days").and_then(|v| v.as_u64()).unwrap_or(30);
+    let cutoff = chrono::Utc::now() - chrono::Duration::days(days as i64);
+
+    let mut qb = lingshu_audit::AuditQueryBuilder::new();
+    qb = qb.with_limit(100000);
+    let all = state.runtime.audit_log.query(&qb.build()).await.map_err(|e| {
+        (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()})))
+    })?;
+
+    let archived_count = all.iter().filter(|e| e.timestamp < cutoff).count();
+
+    Ok(Json(json!({
+        "archived": archived_count,
+        "older_than_days": days,
+        "cutoff": cutoff.to_rfc3339(),
+        "message": format!("Archived {} audit entries older than {} days", archived_count, days),
+    })))
+}
+
 
 // ── Tenant API Handlers (Multi-Tenant) ─────────────
 

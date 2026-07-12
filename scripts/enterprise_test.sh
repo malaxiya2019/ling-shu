@@ -142,6 +142,26 @@ check_body "GET /v1/tenant/stats — 租户统计"
   GET "/v1/tenant/stats" "total_orgs"
 
 echo ""
+# ── 6. 审计日志 ────────────────────────────────────
+echo "━━━ 6. Audit Log ━━━"
+
+# 6.1 查询审计日志
+check_body "GET /v1/audit/logs — 查询审计日志"   GET "/v1/audit/logs" "entries"
+
+# 6.2 审计统计
+check_body "GET /v1/audit/stats — 审计统计"   GET "/v1/audit/stats" "total"
+
+# 6.3 审计导出 (JSON)
+check_body "GET /v1/audit/export — 审计导出 JSON"   GET "/v1/audit/export" "id"
+
+# 6.4 审计导出 (CSV)
+check "GET /v1/audit/export?format=csv — 审计导出 CSV"   GET "/v1/audit/export?format=csv" "200"
+
+# 6.5 审计归档
+check_body "POST /v1/audit/archive — 审计归档"   POST "/v1/audit/archive" "archived"   -H "Content-Type: application/json"   -d '{"older_than_days": 90}'
+
+echo ""
+
 # ── 5. 系统健康 ─────────────────────────────────────
 echo "━━━ 5. System Health ━━━"
 
