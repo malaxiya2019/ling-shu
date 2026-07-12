@@ -60,7 +60,7 @@ async fn main() {
         let entry = ExperienceEntry::new(
             "agent-alpha",
             ExperienceType::TaskExecution,
-            &format!("成功完成任务 #{}", i + 1),
+            format!("成功完成任务 #{}", i + 1),
             "任务执行成功",
             ExperienceOutcome::Success,
         )
@@ -78,7 +78,7 @@ async fn main() {
         let entry = ExperienceEntry::new(
             "agent-alpha",
             ExperienceType::TaskExecution,
-            &format!("任务 #{} 执行超时", i + 1),
+            format!("任务 #{} 执行超时", i + 1),
             "任务执行超时，需要重试",
             ExperienceOutcome::Failure("timeout".into()),
         )

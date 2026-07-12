@@ -134,7 +134,7 @@ async fn main() {
             version: 1,
             updated_at: chrono::Utc::now().timestamp(),
         };
-        autonomy.evolution_engine.register_agent(*name, params).await;
+        autonomy.evolution_engine.register_agent(name, params).await;
     }
     println!("   ✅ Autonomy: 4 个 Agent 参数已注册");
 
@@ -153,7 +153,7 @@ async fn main() {
     );
     let result1 = scheduler.submit_task(task1).await;
     match &result1 {
-        Ok(r) => println!("   📋 调度: {} → {}", "Q3 销售数据分析", r.assigned_node_id),
+        Ok(r) => println!("   📋 调度: Q3 销售数据分析 → {}", r.assigned_node_id),
         Err(e) => println!("   ❌ 调度失败: {}", e),
     }
 
@@ -180,7 +180,7 @@ async fn main() {
     .with_priority(8);
     let result2 = scheduler.submit_task(task2).await;
     match &result2 {
-        Ok(r) => println!("   📋 调度: {} → {}", "Q4 营销策略规划", r.assigned_node_id),
+        Ok(r) => println!("   📋 调度: Q4 营销策略规划 → {}", r.assigned_node_id),
         Err(e) => println!("   ❌ 调度失败: {}", e),
     }
 
@@ -206,7 +206,7 @@ async fn main() {
     .with_priority(10);
     let result3 = scheduler.submit_task(task3).await;
     match &result3 {
-        Ok(r) => println!("   📋 调度: {} → {}", "生产环境部署 v5.0", r.assigned_node_id),
+        Ok(r) => println!("   📋 调度: 生产环境部署 v5.0 → {}", r.assigned_node_id),
         Err(e) => println!("   ❌ 调度失败: {}", e),
     }
 
