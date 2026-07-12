@@ -30,6 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **企业 E2E 测试**: 新增 `scripts/enterprise_test.sh` (5类别14项测试)
 
 - **多租户 Dashboard WebUI**: 新增 Tenant 页面 (547行): 组织列表/详情/项目/用户视图, 侧边栏导航, 国际化支持
+- **Web Console 管理控制台** (v4.3 Enterprise):
+  - `GET /admin` 服务端渲染 HTML+JS 控制台 (25202 字符)
+  - 9 页面: Dashboard / Agents / Plugins / Billing / MCP Discovery / Tenants / Audit / Federation / Eval
+  - 支持 URL 状态恢复 (`/admin?page=xxx`)
+  - 暗色主题, 服务端渲染, 零 wasm 依赖
 - **企业 E2E 测试增强**: enterprise_test.sh 新增 6 类别 17 项测试
 
 ### Changed
