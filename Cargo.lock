@@ -6869,6 +6869,52 @@ dependencies = [
 ]
 
 [[package]]
+name = "lingshu-example-autonomy"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "lingshu-autonomy",
+ "lingshu-core",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "lingshu-example-distributed"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "lingshu-core",
+ "lingshu-distributed",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "lingshu-example-full-flow"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "lingshu-autonomy",
+ "lingshu-core",
+ "lingshu-distributed",
+ "lingshu-swarm",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "lingshu-example-swarm"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "lingshu-core",
+ "lingshu-swarm",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "lingshu-federation"
 version = "3.0.0"
 dependencies = [
