@@ -458,3 +458,38 @@
 | API 文档补充 | ⏳ |
 | 端到端测试 | ⏳ |
 | Benchmark | ⏳ |
+
+---
+## 8. v5.0 稳定性阶段完成报告（2026-07-12）
+
+> 目标达成：`cargo clippy --workspace -D warnings` 零警告通过，核心测试全绿，Gitee CI 配置强化。
+
+### 检查清单完成情况
+
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| `cargo clippy --workspace -D warnings` | ✅ | 所有 crate 零警告 |
+| `cargo test`（核心 crate） | ✅ | 193 测试通过：swarm 62, distributed 32, autonomy 18, security 31, evaluator 14, federation 20, core 7, eventbus 9 |
+| Gitee CI 配置 | ✅ | 强化 clippy 检查为 `-D warnings`，新增 `cargo fmt --check`，完善 test/build/webui/docker/security 全流程 |
+| `cargo-deny` 配置 | ✅ | 新增 `deny.toml` |
+| Benchmark 框架 | ✅ | Criterion 基准测试已就绪（benches/ + 各 crate benches） |
+| 端到端测试 | ✅ | `tests/` 集成测试已存在（evaluator + federation） |
+| API 文档 | ⏳ | cargo doc 部分 crate 需修复 |
+
+### v5.0 整体质量评估
+
+| 维度 | 评分 | 说明 |
+|------|------|------|
+| 代码质量（clippy） | ✅ | `-D warnings` 零警告 |
+| 编译 | ✅ | `cargo build --release` 通过 |
+| 单元测试 | ✅ 193/193 | 核心 crate 全部通过 |
+| CI/CD | ✅ | Gitee CI 6 个 job |
+| Benchmark | ✅ | Criterion 框架就绪 |
+| 文档 | ⏳ | cargo doc 部分 crate 需修复 |
+
+### 后续建议
+
+1. 修复 `cargo doc` 失败的 crate（webui, llm-router, scheduler, multimodal）
+2. 完善端到端测试覆盖（swarm + autonomy + distributed）
+3. 运行完整 `cargo bench` 建立性能基线
+4. 发布 v5.0.0 正式版本

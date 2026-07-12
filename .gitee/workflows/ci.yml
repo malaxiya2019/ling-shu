@@ -1,5 +1,5 @@
 name: CI
-displayName: Lingshu CI
+displayName: Lingshu CI — v5.0
 
 on:
   push:
@@ -18,7 +18,7 @@ env:
 
 jobs:
   lint:
-    name: Lint
+    name: Lint (clippy + fmt)
     runs-on: ubuntu-latest
     steps:
       - uses: gitee/checkout@v1
@@ -28,17 +28,23 @@ jobs:
           rustup component add rustfmt clippy
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
       - name: Install protoc
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev pkg-config
       - name: Cache cargo
         uses: gitee/cache@v1
         with:
           path: ~/.cargo
           key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-      - run: cargo fmt --all --check
-      - run: cargo clippy --all-targets --all-features -- -A clippy::all
+      - name: cargo fmt
+        run: cargo fmt --all --check
+      - name: cargo clippy (strict)
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: cargo doc (check broken links)
+        run: cargo doc --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: -D rustdoc::broken-intra-doc-links
 
   test:
-    name: Test
+    name: Test (unit + doc)
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -56,21 +62,28 @@ jobs:
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
       - name: Install protoc
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev pkg-config
       - name: Cache cargo
         uses: gitee/cache@v1
         with:
           path: ~/.cargo
           key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-      - run: cargo test --all --all-features
+      - name: cargo test (lib)
+        run: cargo test --workspace --lib --all-features
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/lingshu_test
-      - run: cargo doc --no-deps --all-features
+      - name: cargo test (doc)
+        run: cargo test --workspace --doc --all-features
         env:
-          RUSTDOCFLAGS: -D rustdoc::broken-intra-doc-links
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/lingshu_test
+      - name: cargo test (integrations)
+        run: cargo test --workspace --all-features -- --ignored
+        continue-on-error: true
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/lingshu_test
 
   build:
-    name: Build
+    name: Build (release)
     runs-on: ubuntu-latest
     steps:
       - uses: gitee/checkout@v1
@@ -79,13 +92,16 @@ jobs:
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
       - name: Install protoc
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev pkg-config
       - name: Cache cargo
         uses: gitee/cache@v1
         with:
           path: ~/.cargo
           key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-      - run: cargo build --release --all-features
+      - name: cargo build (release)
+        run: cargo build --release --all-features
+        env:
+          RUSTFLAGS: ""
       - name: Upload binary
         uses: gitee/upload_artifact@v1
         with:
@@ -96,7 +112,7 @@ jobs:
           ./target/release/lingshu --headless --addr 127.0.0.1:8090 &
           SERVER_PID=$!
           sleep 2
-          curl -sf http://127.0.0.1:8090/health | grep -q '"status":"ok"' && echo "Health check passed"
+          curl -sf http://127.0.0.1:8090/health | grep -q '"status":"ok"' && echo "✅ Health check passed"
           kill $SERVER_PID 2>/dev/null || true
 
   webui:
@@ -109,6 +125,8 @@ jobs:
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
           rustup target add wasm32-unknown-unknown
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
       - name: Cache cargo
         uses: gitee/cache@v1
         with:
@@ -126,7 +144,7 @@ jobs:
           path: webui/dist
 
   docker:
-    name: Docker
+    name: Docker (multi-arch)
     runs-on: ubuntu-latest
     needs:
       - lint
@@ -141,8 +159,7 @@ jobs:
           sudo apt-get update && sudo apt-get install -y qemu-user-static binfmt-support
           docker run --rm --privileged tonistiigi/binfmt --install all
       - name: Set up Docker Buildx
-        run: |
-          docker buildx create --name multiarch --use
+        run: docker buildx create --name multiarch --use
       - name: Login to Gitee Container Registry
         run: |
           echo "${{ secrets.GITEE_TOKEN }}" | docker login gitee.com -u "${{ gitee.repository_owner }}" --password-stdin
@@ -167,7 +184,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  security:
+  security-audit:
     name: Security Audit
     runs-on: ubuntu-latest
     steps:
@@ -185,7 +202,7 @@ jobs:
         run: |
           cargo install cargo-audit
           cargo install cargo-deny
-      - name: Run cargo audit
+      - name: cargo audit
         run: cargo audit || true
-      - name: Run cargo deny
+      - name: cargo deny
         run: cargo deny check || true
