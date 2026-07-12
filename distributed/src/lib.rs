@@ -12,7 +12,7 @@ pub mod scheduler;
 pub mod store;
 
 pub use cache::{CacheConfig, CacheEntry, DistributedCache};
-pub use cluster::{ClusterConfig, ClusterNode, ClusterState, NodeRole, NodeStatus};
+pub use cluster::{Cluster, ClusterConfig, ClusterNode, ClusterState, NodeRole, NodeStatus};
 pub use leader::{LeaderElection, LeaderElectionConfig, LeaderState};
 pub use queue::{DistributedQueue, QueueConfig, QueueMessage};
 pub use scheduler::*;

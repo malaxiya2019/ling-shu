@@ -18,6 +18,11 @@ pub(crate) mod chidori_e2e;
 pub(crate) mod autoagents_e2e;
 
 #[cfg(test)]
+
+// v5.0 跨 crate 端到端测试
+#[cfg(test)]
+pub(crate) mod swarm_autonomy_distributed_e2e;
+#[cfg(test)]
 pub(crate) mod loong_e2e;
 
 #[cfg(test)]

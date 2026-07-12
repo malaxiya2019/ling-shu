@@ -26,6 +26,10 @@ lingshu-credentials = { path = "../credentials" }
 lingshu-evaluator = { path = "../evaluator" }
 lingshu-federation = { path = "../federation" }
 lingshu-orchestrator = { path = "../orchestrator" }
+# v5.0 — Swarm / Distributed / Autonomy
+lingshu-swarm = { path = "../swarm" }
+lingshu-distributed = { path = "../distributed" }
+lingshu-autonomy = { path = "../autonomy" }
 async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
