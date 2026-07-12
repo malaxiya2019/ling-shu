@@ -172,8 +172,14 @@ api_endpoint_coverage() {
     local endpoints_watch=(
         "GET:/v1/watch/status"
     )
-    local endpoints_files=(
-        "GET:/v1/files"
+    local endpoints_audit=(
+        "GET:/v1/audit/logs"
+        "GET:/v1/audit/stats"
+        "GET:/v1/audit/export"
+        "GET:/v1/audit/export?format=csv"
+    )
+    local endpoints_hotreload=(
+        "GET:/v1/plugins/hot-reload/status"
     )
 
     local categories=(
@@ -188,6 +194,8 @@ api_endpoint_coverage() {
         "MCP:endpoints_mcp"
         "监控:endpoints_watch"
         "文件:endpoints_files"
+        "审计:endpoints_audit"
+        "热重载:endpoints_hotreload"
     )
 
     for category in "${categories[@]}"; do

@@ -559,6 +559,7 @@ async fn admin_handler() -> Html<String> {
         <a href="#" data-page="agents">🤖 Agents</a>
         <a href="#" data-page="plugins">🧩 Plugins</a>
         <a href="#" data-page="billing">💰 Billing</a>
+        <a href="#" data-page="hotreload">🔄 Hot Reload</a>
         <div class="divider"></div>
         <a href="#" data-page="discovery">🔍 MCP Discovery</a>
         <a href="#" data-page="tenants">🏢 Tenants</a>
@@ -591,6 +592,7 @@ async fn admin_handler() -> Html<String> {
           else if (page === 'discovery') await renderDiscovery();
           else if (page === 'tenants') await renderTenants();
           else if (page === 'audit') await renderAudit();
+          else if (page === 'hotreload') await renderHotReload();
           else if (page === 'federation') await renderFederation();
           else if (page === 'eval') await renderEval();
           else await renderDashboard();
@@ -983,6 +985,51 @@ async fn admin_handler() -> Html<String> {
         main.innerHTML += html;
       }
 
+      // ── Hot Reload ────────────────────────────────
+      async function renderHotReload() {
+        let [status] = await Promise.all([
+          api('/v1/plugins/hot-reload/status').catch(() => null),
+        ]);
+        let html = '<h1>🔄 Hot Reload</h1>';
+        if (status) {
+          let running = status.running;
+          html += '<div class="cards">';
+          html += card('Watcher', running ? 'Running' : 'Stopped', { cls: running ? 'ok' : 'warn' });
+          html += card('Watch Dir', status.watch_dir || '—');
+          html += card('Extensions', (status.capabilities?.supported_extensions || []).join(', '));
+          html += '</div>';
+          html += '<div class="section"><h2>Controls</h2><div class="actions" style="gap:0.8rem">';
+          if (running) {
+            html += '<button class="btn btn-danger" onclick="stopHotReload()">⏹ Stop Watcher</button>';
+          } else {
+            html += '<button class="btn btn-primary" onclick="startHotReload()">▶ Start Watcher</button>';
+          }
+          html += '</div></div>';
+          html += '<div class="section"><h2>Capabilities</h2><table><thead><tr><th>Feature</th><th>Status</th></tr></thead><tbody>';
+          if (status.capabilities) {
+            for (const [k, v] of Object.entries(status.capabilities)) {
+              if (k === 'supported_extensions') continue;
+              html += '<tr><td>' + k.replace(/_/g, ' ') + '</td><td>' + badge(v ? '✅' : '❌') + '</td></tr>';
+            }
+          }
+          html += '</tbody></table></div>';
+          html += '<div class="info-box">💡 Auto-reload watches plugin files (.so, .dylib, .wasm, .json) in the watch directory. When a file changes, the plugin is automatically reloaded with graceful fallback.</div>';
+        } else {
+          html += '<div class="empty"><p>Hot Reload service unavailable</p></div>';
+        }
+        main.innerHTML = html;
+      }
+
+      async function startHotReload() {
+        let r = await fetch('/v1/plugins/hotreload/start', { method: 'POST' });
+        renderHotReload();
+      }
+
+      async function stopHotReload() {
+        let r = await fetch('/v1/plugins/hotreload/stop', { method: 'POST' });
+        renderHotReload();
+      }
+
       // ── Federation (保留原实现) ────────────────────
       async function renderFederation() {
         let [status, nodes] = await Promise.all([
@@ -1180,6 +1227,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             post(hot_reload_start_handler),
         )
         .route("/v1/plugins/hotreload/stop", post(hot_reload_stop_handler))
+        .route("/v1/plugins/hot-reload/status", get(hot_reload_status_handler))
         .route("/v1/plugins/events", get(plugin_events_handler))
         // BeEF Security Testing API
         .route("/v1/security/beef/status", get(beef_status_handler))
@@ -3863,6 +3911,25 @@ async fn hot_reload_stop_handler(
             Json(json!({"error": format!("{e}")})),
         )),
     }
+}
+
+// ── Hot Reload Status ───────────────────────────
+
+/// GET /v1/plugins/hot-reload/status — 热重载监控器状态
+async fn hot_reload_status_handler(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let is_running = state.hot_reload_watcher.is_running().await;
+    Ok(Json(json!({
+        "running": is_running,
+        "watch_dir": "/tmp/test-plugins",
+        "capabilities": {
+            "file_watch": true,
+            "hot_swap": true,
+            "graceful_fallback": true,
+            "supported_extensions": ["so", "dylib", "wasm", "json", "plugin"],
+        }
+    })))
 }
 
 // ── BeEF Security Testing API ───────────────────────

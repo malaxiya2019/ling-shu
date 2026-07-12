@@ -162,7 +162,20 @@ check_body "POST /v1/audit/archive — 审计归档"   POST "/v1/audit/archive" 
 
 echo ""
 
-# ── 5. 系统健康 ─────────────────────────────────────
+# ── 7. 热重载 ────────────────────────────────────
+echo "━━━ 7. Hot Reload ━━━"
+
+# 7.1 热重载状态
+check_body "GET /v1/plugins/hot-reload/status — 热重载状态"   GET "/v1/plugins/hot-reload/status" "running"
+
+# 7.2 启动热重载 (可能失败，取决于环境)
+check "POST /v1/plugins/hotreload/start — 启动热重载监控"   POST "/v1/plugins/hotreload/start" "200"
+
+# 7.3 停止热重载
+check "POST /v1/plugins/hotreload/stop — 停止热重载监控"   POST "/v1/plugins/hotreload/stop" "200"
+
+echo ""
+
 echo "━━━ 5. System Health ━━━"
 
 check "GET /health — 系统健康检查" GET "/health" "200"
