@@ -100,9 +100,9 @@ impl EmergentSpecialization {
     /// 注册或更新 Agent
     pub async fn register_agent(&self, agent: &SwarmAgent) {
         let mut profiles = self.profiles.write().await;
-        if !profiles.contains_key(&agent.id) {
+        profiles.entry(agent.id).or_insert_with(|| {
             let profile = AgentProfile {
-                agent_id: agent.id.clone(),
+                agent_id: agent.id,
                 name: agent.name.clone(),
                 role_performance: HashMap::new(),
                 optimal_role: agent.role,
@@ -110,9 +110,9 @@ impl EmergentSpecialization {
                 task_history: VecDeque::with_capacity(100),
                 learning_rate: 0.3,
             };
-            profiles.insert(agent.id.clone(), profile);
             debug!("registered profile for agent '{}'", agent.name);
-        }
+            profile
+        });
     }
 
     /// 记录任务执行结果，更新 Agent 画像
@@ -196,12 +196,12 @@ impl EmergentSpecialization {
                 continue;
             }
 
-            if let Some(ref current) = current_perf {
+            if let Some(current) = current_perf {
                 if perf.success_rate > current.success_rate + self.improvement_threshold {
                     // 建议切换！
                     let from_role = profile.optimal_role;
                     return Some(RoleSwitch {
-                        agent_id: agent_id.clone(),
+                        agent_id: *agent_id,
                         from_role,
                         to_role: role,
                         reason: format!(
@@ -290,7 +290,7 @@ impl SwarmMemory {
 
     /// 记录任务结果
     pub async fn record_result(&self, _task: &SwarmTask, result: &SwarmTaskResult) {
-        self.outcomes.write().await.insert(_task.id.clone(), result.clone());
+        self.outcomes.write().await.insert(_task.id, result.clone());
 
         // 检测模式：连续失败
         let outcomes = self.outcomes.read().await;
@@ -338,7 +338,7 @@ impl SwarmMemory {
     pub async fn get_recent_results(&self, count: usize) -> Vec<SwarmTaskResult> {
         let outcomes = self.outcomes.read().await;
         let mut results: Vec<SwarmTaskResult> = outcomes.values().cloned().collect();
-        results.sort_by(|a, b| b.completed_at.cmp(&a.completed_at));
+        results.sort_by_key(|b| std::cmp::Reverse(b.completed_at));
         results.truncate(count);
         results
     }
@@ -386,7 +386,7 @@ mod tests {
         let agent = SwarmAgent::new("test-agent", SwarmAgentRole::Executor);
         es.register_agent(&agent).await;
 
-        let result = create_test_result(agent.id.clone(), true, 0.9);
+        let result = create_test_result(agent.id, true, 0.9);
         es.record_execution(&agent.id, "test-task", SwarmAgentRole::Executor, &result).await;
 
         let profile = es.get_profile(&agent.id).await.unwrap();
@@ -405,13 +405,13 @@ mod tests {
 
         // 作为 Executor 表现差
         for _ in 0..3 {
-            let result = create_test_result(agent.id.clone(), false, 0.2);
+            let result = create_test_result(agent.id, false, 0.2);
             es.record_execution(&agent.id, "bad-task", SwarmAgentRole::Executor, &result).await;
         }
 
         // 作为 Validator 表现好（假设在其他角色下记录了高性能）
         for _ in 0..3 {
-            let result = create_test_result(agent.id.clone(), true, 0.95);
+            let result = create_test_result(agent.id, true, 0.95);
             es.record_execution(&agent.id, "good-task", SwarmAgentRole::Validator, &result).await;
         }
 

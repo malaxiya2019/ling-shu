@@ -340,7 +340,7 @@ impl ReflectionEngine {
         }
 
         for f in failures.iter().take(5) {
-            insight = insight.clone().add_experience(f.id.clone());
+            insight = insight.clone().add_experience(f.id);
         }
 
         Some(insight)
@@ -519,7 +519,7 @@ impl ReflectionEngine {
             score -= 0.1;
         }
 
-        score.max(0.0).min(1.0)
+        score.clamp(0.0, 1.0)
     }
 
     /// 获取最近的洞察

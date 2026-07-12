@@ -428,7 +428,7 @@ impl DistScheduler {
             .unwrap_or(0);
 
         Ok(DistScheduleResult {
-            task_id: task.id.clone(),
+            task_id: task.id,
             assigned_node_id: node_id,
             node_addr,
             is_local,
@@ -692,7 +692,7 @@ impl DistScheduler {
     pub async fn get_all_loads(&self) -> Vec<NodeLoad> {
         let loads = self.node_loads.read().await;
         let mut result: Vec<NodeLoad> = loads.values().cloned().collect();
-        result.sort_by(|a, b| b.is_online.cmp(&a.is_online));
+        result.sort_by_key(|b| std::cmp::Reverse(b.is_online));
         result
     }
 

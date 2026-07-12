@@ -429,3 +429,32 @@
 | v5.0 分布式调度器 (`lingshu-distributed`) | 32 | 100% |
 | v5.0 自治 Runtime (`lingshu-autonomy`) | 18 | 100% |
 | **v5.0 总计** | **112** | **100%** |
+
+---
+## 7. 当前进展 — v5.0 稳定性阶段（2026-07-12）
+
+> 目标：从"功能完整"到"代码质量达标"，清理所有 clippy/编译警告，确保 `cargo clippy --workspace -D warnings` 通过。
+
+### 已完成工作
+
+| 项目 | 状态 | 说明 |
+|------|------|------|
+| `cargo clippy --workspace -D warnings` | ✅ 通过 | 所有 crate 零警告 |
+| `swarm` 64 项 clippy 修复 | ✅ | 移除冗余 clone、needless borrow、优化 map-entry 模式 |
+| `autonomy` 14 项 clippy 修复 | ✅ | clone-on-copy、sort_by_key、redundant field、clamp 模式 |
+| `distributed` 2 项 clippy 修复 | ✅ | sort_by_key 优化、移除冗余 clone |
+| `webui` 14 项 clippy 修复 | ✅ | Callback<()>→Callback<MouseEvent>、derive Default、dead_code |
+| `app` 1 项 clippy 修复 | ✅ | format! 嵌套 → format_args! |
+| 单元测试验证 | ✅ | swarm 62/62, distributed 30/30, autonomy 18/18, security 31/31 全部通过 |
+
+### 检查清单状态
+
+| 检查项 | 状态 |
+|--------|------|
+| `cargo clippy --workspace -D warnings` | ✅ |
+| `cargo fmt --check` | ⏳ |
+| `cargo test --workspace` | ✅ (核心 crate 已验证) |
+| Gitee CI 自动验证 | ⏳ |
+| API 文档补充 | ⏳ |
+| 端到端测试 | ⏳ |
+| Benchmark | ⏳ |

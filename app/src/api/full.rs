@@ -5281,7 +5281,7 @@ async fn audit_export_handler(
             for e in &entries {
                 csv.push_str(&format!("{},{},{},{},{},{},{},{},{}\n",
                     e.id, e.timestamp.format("%Y-%m-%dT%H:%M:%SZ"),
-                    format!("{:?}", e.event_type), esc_csv(&e.event_name),
+                    format_args!("{:?}", e.event_type), esc_csv(&e.event_name),
                     esc_csv(&e.actor), esc_csv(&e.resource_type),
                     esc_csv(&e.resource_id), esc_csv(&e.result),
                     esc_csv(&e.detail)));

@@ -168,7 +168,7 @@ impl SwarmEngine {
                 )));
         }
 
-        let agent_id = agent.id.clone();
+        let agent_id = agent.id;
         state.agents.push(agent.clone());
         info!("agent '{}' added to swarm '{}'", agent.name, state.name);
 
@@ -293,7 +293,7 @@ impl SwarmEngine {
     pub async fn get_metrics(&self) -> SwarmMetrics {
         let state = self.state.read().await;
         self.metrics
-            .metrics(state.id.clone(), &state)
+            .metrics(state.id, &state)
             .await
     }
 
@@ -304,7 +304,7 @@ impl SwarmEngine {
         let _topology_stats = self.topology.stats().await;
 
         SwarmSummary {
-            swarm_id: state.id.clone(),
+            swarm_id: state.id,
             name: state.name.clone(),
             strategy: state.strategy,
             topology: state.topology,
@@ -427,7 +427,7 @@ mod tests {
         engine.start().await.unwrap();
 
         let agent = SwarmAgent::new("removable", SwarmAgentRole::Executor);
-        let agent_id = agent.id.clone();
+        let agent_id = agent.id;
         engine.add_agent(agent).await.unwrap();
 
         assert_eq!(engine.state().await.agent_count(), 1);

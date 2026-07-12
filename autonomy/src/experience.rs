@@ -365,7 +365,7 @@ impl ExperienceStore {
             *tag_count.entry(tag).or_insert(0) += 1;
         }
         let mut common_failure_tags: Vec<(String, u64)> = tag_count.into_iter().collect();
-        common_failure_tags.sort_by(|a, b| b.1.cmp(&a.1));
+        common_failure_tags.sort_by_key(|b| std::cmp::Reverse(b.1));
         common_failure_tags.truncate(10);
 
         let last_exp = entries.last().map(|e| e.timestamp).unwrap_or(0);

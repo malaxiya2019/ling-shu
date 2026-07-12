@@ -4,7 +4,7 @@ use crate::components::sidebar::Sidebar;
 use crate::i18n::LanguageProvider;
 use crate::pages::{
     AuditDashboard, Benchmark, Dashboard, EvalReports, Federation, Metrics, Page, Plugins,
-    Security,
+    Security, TenantDashboard,
 };
 
 #[function_component(App)]

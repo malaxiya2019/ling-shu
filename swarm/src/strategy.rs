@@ -503,7 +503,7 @@ impl SwarmDecisionStrategy for BiddingStrategy {
         // 注意：返回的 Agent 信息只能从 bid 构建，因为 agents 可能在远程
         // 这里返回 None，由 Coordinator 根据 agent_id 查找完整 Agent
         Ok(best.map(|b| SwarmAgent {
-            id: b.agent_id.clone(),
+            id: b.agent_id,
             name: b.agent_name.clone(),
             role: SwarmAgentRole::Executor,
             alternative_roles: Vec::new(),

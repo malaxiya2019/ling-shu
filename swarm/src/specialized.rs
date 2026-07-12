@@ -86,7 +86,7 @@ impl AnalystAgent {
                 priority: task.priority,
                 max_bidders: task.max_bidders,
                 depends_on: if i > 0 {
-                    vec![subtasks[i - 1].id.clone()]
+                    vec![subtasks[i - 1].id]
                 } else {
                     Vec::new()
                 },
@@ -136,7 +136,7 @@ impl SpecializedAgent for AnalystAgent {
 
         let completed_at = chrono::Utc::now().timestamp_millis();
         Ok(SwarmTaskResult {
-            task_id: task.id.clone(),
+            task_id: task.id,
             agent_id: LsId::new(),
             agent_name: self.name.clone(),
             output: analysis,
@@ -200,7 +200,7 @@ impl SpecializedAgent for CreatorAgent {
 
         let completed_at = chrono::Utc::now().timestamp_millis();
         Ok(SwarmTaskResult {
-            task_id: task.id.clone(),
+            task_id: task.id,
             agent_id: LsId::new(),
             agent_name: self.name.clone(),
             output,
@@ -285,7 +285,7 @@ impl SpecializedAgent for ValidatorAgent {
         let completed_at = chrono::Utc::now().timestamp_millis();
 
         Ok(SwarmTaskResult {
-            task_id: task.id.clone(),
+            task_id: task.id,
             agent_id: LsId::new(),
             agent_name: self.name.clone(),
             output: serde_json::json!({
@@ -373,7 +373,7 @@ impl SpecializedAgent for NegotiatorAgent {
         });
         let completed_at = chrono::Utc::now().timestamp_millis();
         Ok(SwarmTaskResult {
-            task_id: task.id.clone(),
+            task_id: task.id,
             agent_id: LsId::new(),
             agent_name: self.name.clone(),
             output,
@@ -462,7 +462,7 @@ impl SpecializedAgent for ObserverAgent {
 
         let completed_at = chrono::Utc::now().timestamp_millis();
         Ok(SwarmTaskResult {
-            task_id: task.id.clone(),
+            task_id: task.id,
             agent_id: LsId::new(),
             agent_name: self.name.clone(),
             output: report,
@@ -524,7 +524,7 @@ impl SpecializedAgent for TesterAgent {
 
         let completed_at = chrono::Utc::now().timestamp_millis();
         Ok(SwarmTaskResult {
-            task_id: task.id.clone(),
+            task_id: task.id,
             agent_id: LsId::new(),
             agent_name: self.name.clone(),
             output,

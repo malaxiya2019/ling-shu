@@ -87,9 +87,9 @@ impl TopologyManager {
         let (level, parent) = Self::calculate_hierarchy(&agent.id, all_agents, topology);
 
         nodes.insert(
-            agent.id.clone(),
+            agent.id,
             TopologyNode {
-                agent_id: agent.id.clone(),
+                agent_id: agent.id,
                 neighbors,
                 level,
                 parent,
@@ -142,9 +142,9 @@ impl TopologyManager {
             let neighbors = Self::calculate_neighbors(&agent.id, agents, new_topology);
             let (level, parent) = Self::calculate_hierarchy(&agent.id, agents, new_topology);
             nodes.insert(
-                agent.id.clone(),
+                agent.id,
                 TopologyNode {
-                    agent_id: agent.id.clone(),
+                    agent_id: agent.id,
                     neighbors,
                     level,
                     parent,
@@ -200,16 +200,16 @@ impl TopologyManager {
             true
         } else {
             let mut visited = HashSet::new();
-            let mut stack = vec![nodes.keys().next().unwrap().clone()];
+            let mut stack = vec![nodes.keys().next().copied().unwrap()];
             while let Some(id) = stack.pop() {
                 if visited.contains(&id) {
                     continue;
                 }
-                visited.insert(id.clone());
+                visited.insert(id);
                 if let Some(node) = nodes.get(&id) {
                     for neighbor in &node.neighbors {
                         if !visited.contains(neighbor) {
-                            stack.push(neighbor.clone());
+                            stack.push(*neighbor);
                         }
                     }
                 }
@@ -235,7 +235,7 @@ impl TopologyManager {
     // ── 辅助方法 ──
 
     fn calculate_neighbors(agent_id: &LsId, agents: &[SwarmAgent], topology: SwarmTopology) -> Vec<LsId> {
-        let other_ids: Vec<LsId> = agents.iter().filter(|a| a.id != *agent_id).map(|a| a.id.clone()).collect();
+        let other_ids: Vec<LsId> = agents.iter().filter(|a| a.id != *agent_id).map(|a| a.id).collect();
 
         match topology {
             SwarmTopology::Mesh => other_ids, // 全连接
@@ -245,7 +245,7 @@ impl TopologyManager {
                     if center.id == *agent_id {
                         other_ids // 中心连接所有
                     } else {
-                        vec![center.id.clone()] // 非中心只连中心
+                        vec![center.id] // 非中心只连中心
                     }
                 } else {
                     Vec::new()
@@ -257,7 +257,7 @@ impl TopologyManager {
                 if let Some(pos) = positions.iter().position(|id| *id == agent_id) {
                     let prev = positions[(pos + positions.len() - 1) % positions.len()];
                     let next = positions[(pos + 1) % positions.len()];
-                    vec![prev.clone(), next.clone()]
+                    vec![*prev, *next]
                 } else {
                     Vec::new()
                 }
@@ -270,16 +270,16 @@ impl TopologyManager {
                     // 父节点
                     if idx > 0 {
                         let parent_idx = (idx - 1) / 2;
-                        neighbors.push(agents[parent_idx].id.clone());
+                        neighbors.push(agents[parent_idx].id);
                     }
                     // 子节点
                     let left_child = 2 * idx + 1;
                     let right_child = 2 * idx + 2;
                     if left_child < agents.len() {
-                        neighbors.push(agents[left_child].id.clone());
+                        neighbors.push(agents[left_child].id);
                     }
                     if right_child < agents.len() {
-                        neighbors.push(agents[right_child].id.clone());
+                        neighbors.push(agents[right_child].id);
                     }
                 }
                 neighbors
@@ -299,7 +299,7 @@ impl TopologyManager {
                     scored.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
                     // 连接能力最接近的 3 个 Agent
-                    scored.iter().take(3).map(|(_, id)| (*id).clone()).collect()
+                    scored.iter().take(3).map(|(_, id)| **id).collect()
                 } else {
                     Vec::new()
                 }
@@ -317,7 +317,7 @@ impl TopologyManager {
                     } else {
                         let parent_idx = (idx - 1) / 2;
                         let level = (idx as f64 + 1.0).log2().ceil() as usize - 1;
-                        (level, Some(agents[parent_idx].id.clone()))
+                        (level, Some(agents[parent_idx].id))
                     }
                 } else {
                     (0, None)

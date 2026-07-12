@@ -58,6 +58,7 @@ pub struct TenantStats {
 
 // ── 视图状态 ────────────────────────────────────────
 
+#[allow(dead_code)]
 enum ActiveView {
     OrgList,
     OrgDetail { org: Organization },
@@ -78,17 +79,12 @@ struct TenantState {
     selected_tab: OrgTab,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default)]
 enum OrgTab {
+    #[default]
     Overview,
     Projects,
     Users,
-}
-
-impl Default for OrgTab {
-    fn default() -> Self {
-        Self::Overview
-    }
 }
 
 // ── 组件 ────────────────────────────────────────────
@@ -140,7 +136,7 @@ pub fn tenant_dashboard() -> Html {
 
     let on_create_org = {
         let view = view.clone();
-        Callback::from(move |_| view.set(ActiveView::CreateOrg))
+        Callback::from(move |_: MouseEvent| view.set(ActiveView::CreateOrg))
     };
 
     let on_org_click = {
@@ -189,7 +185,7 @@ pub fn tenant_dashboard() -> Html {
     let on_back = {
         let view = view.clone();
         let state = state.clone();
-        Callback::from(move |_| {
+        Callback::from(move |_: MouseEvent| {
             view.set(ActiveView::OrgList);
             state.set(TenantState::default());
         })
@@ -287,7 +283,7 @@ pub fn tenant_dashboard() -> Html {
 fn render_org_list(
     state: &TenantState,
     strings: &'static crate::i18n::Translations,
-    on_create: Callback<()>,
+    on_create: Callback<MouseEvent>,
     on_org_click: Callback<Organization>,
 ) -> Html {
     let stats = &state.stats;
@@ -342,7 +338,7 @@ fn render_org_list(
                             let org_clone = org.clone();
                             let onclick = {
                                 let cb = on_org_click.clone();
-                                Callback::from(move |_| cb.emit(org_clone.clone()))
+                                Callback::from(move |_: MouseEvent| cb.emit(org_clone.clone()))
                             };
                             let status_class = org.status.to_lowercase();
 
@@ -369,16 +365,16 @@ fn render_org_list(
 fn render_org_detail(
     org: &Organization,
     state: &TenantState,
-    strings: &'static crate::i18n::Translations,
-    on_back: Callback<()>,
+    _strings: &'static crate::i18n::Translations,
+    on_back: Callback<MouseEvent>,
     on_tab_change: Callback<OrgTab>,
 ) -> Html {
     let org_id = org.id.clone();
     let tab = &state.selected_tab;
 
-    let on_tab_overview = { let cb = on_tab_change.clone(); Callback::from(move |_| cb.emit(OrgTab::Overview)) };
-    let on_tab_projects = { let cb = on_tab_change.clone(); Callback::from(move |_| cb.emit(OrgTab::Projects)) };
-    let on_tab_users = { let cb = on_tab_change.clone(); Callback::from(move |_| cb.emit(OrgTab::Users)) };
+    let on_tab_overview = { let cb = on_tab_change.clone(); Callback::from(move |_: MouseEvent| cb.emit(OrgTab::Overview)) };
+    let on_tab_projects = { let cb = on_tab_change.clone(); Callback::from(move |_: MouseEvent| cb.emit(OrgTab::Projects)) };
+    let on_tab_users = { let cb = on_tab_change.clone(); Callback::from(move |_: MouseEvent| cb.emit(OrgTab::Users)) };
 
     html! {
         <>
@@ -423,7 +419,7 @@ fn render_org_detail(
                 OrgTab::Projects => {
                     let on_create_project = {
                         let org_id = org_id.clone();
-                        Callback::from(move |_| {
+                        Callback::from(move |_: MouseEvent| {
                             gloo_console::log!("Create project for org:", &org_id);
                         })
                     };
@@ -498,8 +494,8 @@ fn render_org_detail(
 }
 
 fn render_create_org(
-    strings: &'static crate::i18n::Translations,
-    on_back: Callback<()>,
+    _strings: &'static crate::i18n::Translations,
+    on_back: Callback<MouseEvent>,
 ) -> Html {
     html! {
         <>
@@ -518,8 +514,8 @@ fn render_create_org(
 
 fn render_create_project(
     _org_id: &str,
-    strings: &'static crate::i18n::Translations,
-    on_back: Callback<()>,
+    _strings: &'static crate::i18n::Translations,
+    on_back: Callback<MouseEvent>,
 ) -> Html {
     html! {
         <>
@@ -532,8 +528,8 @@ fn render_create_project(
 
 fn render_invite_user(
     _org_id: &str,
-    strings: &'static crate::i18n::Translations,
-    on_back: Callback<()>,
+    _strings: &'static crate::i18n::Translations,
+    on_back: Callback<MouseEvent>,
 ) -> Html {
     html! {
         <>

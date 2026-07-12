@@ -238,7 +238,7 @@ impl EvolutionEngine {
     ) -> Self {
         Self {
             config,
-            experience_store: experience_store,
+            experience_store,
             reflection_engine,
             agent_params: Arc::new(RwLock::new(HashMap::new())),
             plan_history: Arc::new(RwLock::new(Vec::new())),
@@ -299,7 +299,7 @@ impl EvolutionEngine {
         let mut plans = self.generate_plans(agent_id, &report).await;
 
         // 按优先级排序
-        plans.sort_by(|a, b| b.priority.cmp(&a.priority));
+        plans.sort_by_key(|b| std::cmp::Reverse(b.priority));
 
         // 应用计划
         let mut outcomes = Vec::new();
@@ -345,7 +345,7 @@ impl EvolutionEngine {
                     // 增加重试和验证
                     let plan = EvolutionPlan::new(
                         agent_id,
-                        insight.id.clone(),
+                        insight.id,
                         EvolutionAction::AddRetry,
                         "task_execution",
                         format!("增加重试机制以应对重复失败（基于洞察: {}）", insight.title),
@@ -357,7 +357,7 @@ impl EvolutionEngine {
 
                     let plan = EvolutionPlan::new(
                         agent_id,
-                        insight.id.clone(),
+                        insight.id,
                         EvolutionAction::AddValidation,
                         "pre_execution_validation",
                         format!("增加前置验证以减少失败（基于洞察: {}）", insight.title),
@@ -369,7 +369,7 @@ impl EvolutionEngine {
                     // 调整超时和参数
                     let plan = EvolutionPlan::new(
                         agent_id,
-                        insight.id.clone(),
+                        insight.id,
                         EvolutionAction::AdjustTimeout,
                         "execution_timeout",
                         format!("调整超时配置以应对性能退化（基于洞察: {}）", insight.title),
@@ -381,7 +381,7 @@ impl EvolutionEngine {
 
                     let plan = EvolutionPlan::new(
                         agent_id,
-                        insight.id.clone(),
+                        insight.id,
                         EvolutionAction::ScaleResource,
                         "compute_resources",
                         format!("增加计算资源以改善性能（基于洞察: {}）", insight.title),
@@ -393,7 +393,7 @@ impl EvolutionEngine {
                     // 切换/优化策略
                     let plan = EvolutionPlan::new(
                         agent_id,
-                        insight.id.clone(),
+                        insight.id,
                         EvolutionAction::SwitchStrategy,
                         "execution_strategy",
                         format!("切换执行策略以提升效率（基于洞察: {}）", insight.title),
@@ -405,7 +405,7 @@ impl EvolutionEngine {
                     // 优化协作模式
                     let plan = EvolutionPlan::new(
                         agent_id,
-                        insight.id.clone(),
+                        insight.id,
                         EvolutionAction::OptimizeCollaboration,
                         "collaboration_protocol",
                         format!("优化协作协议（基于洞察: {}）", insight.title),
@@ -417,7 +417,7 @@ impl EvolutionEngine {
                     // 学习新能力
                     let plan = EvolutionPlan::new(
                         agent_id,
-                        insight.id.clone(),
+                        insight.id,
                         EvolutionAction::LearnCapability,
                         "capability_learning",
                         format!("补充缺失能力（基于洞察: {}）", insight.title),
@@ -429,7 +429,7 @@ impl EvolutionEngine {
                     // 其他类型默认调整参数
                     let plan = EvolutionPlan::new(
                         agent_id,
-                        insight.id.clone(),
+                        insight.id,
                         EvolutionAction::AdjustParameter,
                         "general_parameters",
                         format!("调整通用参数（基于洞察: {}）", insight.title),
@@ -447,7 +447,7 @@ impl EvolutionEngine {
     pub async fn apply_plan(&self, plan: &EvolutionPlan) -> EvolutionOutcome {
         let start = std::time::Instant::now();
         let mut outcome = EvolutionOutcome {
-            plan_id: plan.id.clone(),
+            plan_id: plan.id,
             success: true,
             duration_ms: 0,
             effect_score: 0.0,

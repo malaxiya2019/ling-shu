@@ -282,7 +282,7 @@ impl SwarmCoordinator {
                 }
 
                 let bid = SwarmBid {
-                    agent_id: agent.id.clone(),
+                    agent_id: agent.id,
                     agent_name: agent.name.clone(),
                     bid_score: score.min(1.0),
                     estimated_ms: (agent.avg_execution_ms * (1.5 - agent.capability_score)).max(100.0) as u64,
@@ -319,7 +319,7 @@ impl SwarmCoordinator {
                 // 无可用 Agent
                 let completed_at = chrono::Utc::now().timestamp_millis();
                 return Ok(SwarmTaskResult {
-                    task_id: task.id.clone(),
+                    task_id: task.id,
                     agent_id: LsId::new(),
                     agent_name: "none".into(),
                     output: serde_json::Value::Null,
@@ -341,8 +341,8 @@ impl SwarmCoordinator {
             // 默认执行逻辑
             let completed_at = chrono::Utc::now().timestamp_millis();
             SwarmTaskResult {
-                task_id: task.id.clone(),
-                agent_id: agent.id.clone(),
+                task_id: task.id,
+                agent_id: agent.id,
                 agent_name: agent.name.clone(),
                 output: serde_json::json!({
                     "task": task.name,

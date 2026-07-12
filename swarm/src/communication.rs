@@ -277,13 +277,13 @@ impl SwarmCommunicator {
 
     /// 初始化并注册到通道
     pub async fn init(&mut self) {
-        let rx = self.channel.register_agent(self.agent_id.clone()).await;
+        let rx = self.channel.register_agent(self.agent_id).await;
         self.direct_rx = Some(rx);
     }
 
     /// 发送消息
     pub async fn send(&self, msg_type: SwarmMsgType, payload: serde_json::Value) -> Result<(), String> {
-        let msg = SwarmMessage::new(msg_type, self.agent_id.clone(), self.agent_name.clone(), payload);
+        let msg = SwarmMessage::new(msg_type, self.agent_id, self.agent_name.clone(), payload);
         self.channel.send(msg).await
     }
 
@@ -294,32 +294,26 @@ impl SwarmCommunicator {
         msg_type: SwarmMsgType,
         payload: serde_json::Value,
     ) -> Result<(), String> {
-        let msg = SwarmMessage::new(msg_type, self.agent_id.clone(), self.agent_name.clone(), payload)
+        let msg = SwarmMessage::new(msg_type, self.agent_id, self.agent_name.clone(), payload)
             .to(target_id);
         self.channel.send(msg).await
     }
 
     /// 广播消息
     pub async fn broadcast(&self, msg_type: SwarmMsgType, payload: serde_json::Value) -> Result<(), String> {
-        let msg = SwarmMessage::broadcast(msg_type, self.agent_id.clone(), self.agent_name.clone(), payload);
+        let msg = SwarmMessage::broadcast(msg_type, self.agent_id, self.agent_name.clone(), payload);
         self.channel.send(msg).await
     }
 
     /// 接收广播消息（非阻塞）
     pub fn try_recv_broadcast(&mut self) -> Option<SwarmMessage> {
-        match self.broadcast_rx.try_recv() {
-            Ok(msg) => Some(msg),
-            Err(_) => None,
-        }
+        self.broadcast_rx.try_recv().ok()
     }
 
     /// 接收直接消息（非阻塞）
     pub fn try_recv_direct(&mut self) -> Option<SwarmMessage> {
         if let Some(ref mut rx) = self.direct_rx {
-            match rx.try_recv() {
-                Ok(msg) => Some(msg),
-                Err(_) => None,
-            }
+            rx.try_recv().ok()
         } else {
             None
         }
