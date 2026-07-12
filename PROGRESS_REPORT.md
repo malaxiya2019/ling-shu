@@ -236,7 +236,7 @@
 | API 文档完善 | ✅ | 完整 REST API 文档 (183行，14类别，100+端点) |
 | 部署文档完善 | ✅ | 更新 Docker/K8s/Helm 部署指南 |
 | Benchmark 基线 | ✅ | 新增 benchmark_baseline.sh: 启动时间/内存/RPS/延迟 P50/P90/P95/P99/P99.9 |
-| LTS 版本发布 | 📋 | 标记 v4.2.7 LTS release (待 push) |
+| LTS 版本发布 | ✅ | 标记 v4.2.7 LTS release (tag v4.2.7-lts, 已推送至 Gitee) |
 
 
 ## 4. 下一阶段计划
