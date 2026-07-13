@@ -24,7 +24,7 @@ tower = { version = "0.5", optional = true }
 futures = { workspace = true, optional = true }
 
 # ── Optional external integrations ──
-chidori = { path = "/data/data/com.termux/files/home/chidori-fork/crates/chidori", optional = true }
+chidori = { git = "https://github.com/malaxiya2019/chidori-fork.git", rev = "8657d9f68d2f8451ea6beb96e4f602f7bce4cf37", optional = true }
 
 [features]
 otel = ["lingshu-observability/otel"]
