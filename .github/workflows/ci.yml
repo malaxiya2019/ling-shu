@@ -23,8 +23,9 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all --check
-      - run: # 使用 clippy 但允许已知的可接受 lint
-cargo clippy --all-targets --all-features --   -D clippy::correctness   -D clippy::suspicious   -A clippy::items_after_test_module   -A clippy::too_many_arguments   -A clippy::large_enum_variant   -A clippy::type_complexity   -W clippy::style   -W clippy::complexity   -W clippy::perf
+      - run: |
+          # 使用 clippy 但允许已知的可接受 lint
+          cargo clippy --all-targets --all-features --             -D clippy::correctness             -D clippy::suspicious             -A clippy::items_after_test_module             -A clippy::too_many_arguments             -A clippy::large_enum_variant             -A clippy::type_complexity             -W clippy::style             -W clippy::complexity             -W clippy::perf
 
   # ── Feature matrix compilation ──────────────────────
   # Verify each feature set compiles independently.
