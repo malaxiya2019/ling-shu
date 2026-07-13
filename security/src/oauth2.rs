@@ -114,6 +114,7 @@ pub struct OidcUserInfo {
 pub struct OAuth2Manager {
     config: OAuth2Config,
     /// 提供商元数据 (从 .well-known/openid-configuration 获取)
+    #[allow(dead_code)]
     provider_metadata: Option<HashMap<String, String>>,
 }
 
@@ -122,7 +123,8 @@ impl OAuth2Manager {
     pub fn new(config: OAuth2Config) -> Self {
         Self {
             config,
-            provider_metadata: None,
+            #[allow(dead_code)]
+    provider_metadata: None,
         }
     }
 
