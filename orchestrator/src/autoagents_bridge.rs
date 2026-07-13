@@ -74,8 +74,8 @@ pub struct AutoAgentsOrchestrator {
     orchestrator: Orchestrator,
     /// 编队配置缓存
     crews: tokio::sync::RwLock<HashMap<String, CrewConfig>>,
-    /// AutoAgents 引擎句柄
-    engine: Option<std::sync::Arc<tokio::sync::RwLock<autoagents::ReActEngine>>>,
+    /// AutoAgents LLM 提供者（可选，用于未来集成）
+    llm: Option<std::sync::Arc<dyn autoagents::llm::LLMProvider>>,
 }
 
 #[cfg(feature = "autoagents")]
@@ -85,22 +85,16 @@ impl AutoAgentsOrchestrator {
         Self {
             orchestrator: Orchestrator::new(config),
             crews: tokio::sync::RwLock::new(HashMap::new()),
-            engine: None,
+            llm: None,
         }
     }
 
-    /// 初始化 AutoAgents 引擎.
-    pub async fn init_engine(&mut self, llm_endpoint: &str, api_key: &str) -> LsResult<()> {
-        let config = autoagents::EngineConfig {
-            llm_endpoint: llm_endpoint.to_string(),
-            api_key: api_key.to_string(),
-            default_max_steps: 10,
-            default_temperature: 0.7,
-        };
-        let engine = autoagents::ReActEngine::new(config)
-            .map_err(|e| LsError::Internal(format!("AutoAgents init failed: {e}")))?;
-        self.engine = Some(std::sync::Arc::new(tokio::sync::RwLock::new(engine)));
-        info!("AutoAgents ReActEngine initialized");
+    /// 初始化 LLM 提供者（未来将用于 AgentBuilder 集成）.
+    pub async fn init_engine(&mut self, _llm_endpoint: &str, _api_key: &str) -> LsResult<()> {
+        // 注意: autoagents 上游 API 已重构 (v0.4.0)
+        // 旧 API (ReActEngine) 已移除，新 API 使用 AgentBuilder + BaseAgent + AgentExecutor
+        // TODO: 使用 AgentBuilder::new().llm(llm).build() 重构集成
+        info!("AutoAgents bridge: LLM provider registration pending (API migration)");
         Ok(())
     }
 
@@ -132,62 +126,12 @@ impl AutoAgentsOrchestrator {
         task: serde_json::Value,
         ctx: &LsContext,
     ) -> LsResult<DelegationResult> {
-        // 基于能力选择编队
-        let crew = {
-            let crews = self.crews.read().await;
-            crews
-                .get(crew_name)
-                .cloned()
-                .ok_or_else(|| LsError::NotFound(format!("crew {crew_name}")))?
-        };
-
-        // 如果引擎可用，使用 AutoAgents ReAct 推理
-        if let Some(engine) = &self.engine {
-            let mut eng = engine.write().await;
-            let react_input = autoagents::ReActInput {
-                task: task.to_string(),
-                max_steps: crew.react_config.max_steps,
-                temperature: crew.react_config.temperature,
-                tools: if crew.react_config.enable_tools {
-                    crew.react_config.allowed_tools.clone()
-                } else {
-                    Vec::new()
-                },
-            };
-
-            match eng.run(react_input).await {
-                Ok(output) => {
-                    info!(
-                        crew = %crew_name,
-                        steps = output.steps,
-                        "AutoAgents ReAct task completed"
-                    );
-                    return Ok(DelegationResult {
-                        task_id: output.task_id,
-                        agent_id: LsId::new(),
-                        team: crew_name.to_string(),
-                        output: serde_json::json!({
-                            "status": "completed",
-                            "result": output.result,
-                            "steps": output.steps,
-                            "reasoning": output.reasoning_chain,
-                        }),
-                        duration_ms: output.duration_ms,
-                        depth: 0,
-                    });
-                }
-                Err(e) => {
-                    warn!(
-                        error = %e,
-                        crew = %crew_name,
-                        "AutoAgents ReAct task failed, falling back to Lingshu delegation"
-                    );
-                    // 回退到标准编排
-                }
-            }
-        }
-
-        // 回退：使用 Lingshu 标准编排器委派
+        info!(
+            crew = %crew_name,
+            "AutoAgents bridge: delegating via standard orchestrator (ReAct integration pending)"
+        );
+        // 暂回退到标准编排器
+        // TODO: 使用 AgentExecutor + TurnEngine 实现 ReAct 循环
         self.orchestrator.delegate(crew_name, task, ctx).await
     }
 

@@ -17,6 +17,8 @@ use crate::registry::{AgentInfo, AgentRegistry};
 /// 调度策略.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ScheduleStrategy {
+    /// 顺序执行
+    Sequential,
     /// 轮询分配
     RoundRobin,
     /// 最少任务优先 (需追踪任务数)
@@ -96,6 +98,7 @@ impl AgentScheduler {
         let task_id = uuid::Uuid::now_v7().to_string();
 
         match strategy {
+            ScheduleStrategy::Sequential => self.round_robin(candidates, task_id),
             ScheduleStrategy::RoundRobin => self.round_robin(candidates, task_id),
             ScheduleStrategy::LeastBusy => self.least_busy(candidates, task_id).await,
             ScheduleStrategy::CapabilityFirst => {
