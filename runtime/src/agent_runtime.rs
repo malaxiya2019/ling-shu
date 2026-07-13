@@ -73,7 +73,7 @@ struct AgentRuntimeInner {
     agent_manager: AgentManager,
     agent_pool: Option<AgentPool>,
     agent_factory: LsAgentFactory,
-    tool_registry: Option<Arc<ToolRegistry>>,
+    tool_registry: Option<Arc<RwLock<ToolRegistry>>>,
     plugin_registry: Option<Arc<RwLock<PluginRegistry>>>,
     pipeline: Option<Arc<AgentPipeline>>,
     session_manager: SessionManager,
@@ -167,7 +167,7 @@ impl AgentRuntime {
     }
 
     /// 设置 ToolRegistry.
-    pub async fn set_tool_registry(&self, registry: Arc<ToolRegistry>) {
+    pub async fn set_tool_registry(&self, registry: Arc<RwLock<ToolRegistry>>) {
         let mut inner = self.inner.write().await;
         inner.tool_registry = Some(registry);
         info!("ToolRegistry attached to AgentRuntime");
@@ -292,7 +292,7 @@ impl AgentRuntime {
     }
 
     /// 获取 ToolRegistry 引用.
-    pub async fn tool_registry(&self) -> Option<Arc<lingshu_tool::ToolRegistry>> {
+    pub async fn tool_registry(&self) -> Option<Arc<RwLock<lingshu_tool::ToolRegistry>>> {
         self.inner.read().await.tool_registry.clone()
     }
 
@@ -337,7 +337,7 @@ mod tests {
         let runtime = AgentRuntime::new(AgentRuntimeConfig::default()).await.unwrap();
         let pipeline = Arc::new(AgentPipeline::new());
         runtime.set_pipeline(pipeline).await;
-        let registry = Arc::new(ToolRegistry::new());
+        let registry = Arc::new(RwLock::new(ToolRegistry::new()));
         runtime.set_tool_registry(registry).await;
     }
 

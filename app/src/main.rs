@@ -118,6 +118,16 @@ pub struct LingshuRuntime {
 
     /// v4.0 Agent Runtime — 新一代 Agent 运行时.
     pub agent_runtime: Option<AgentRuntime>,
+    /// v6.0 Swarm 群体智能引擎 (feature = "swarm").
+    #[cfg(feature = "swarm")]
+    pub swarm_engine: Option<std::sync::Arc<tokio::sync::RwLock<lingshu_swarm::engine::SwarmEngine>>>,
+
+    /// v6.0 Autonomy 自我进化引擎 (feature = "autonomy").
+    #[cfg(feature = "autonomy")]
+    pub evolution_engine: Option<std::sync::Arc<lingshu_autonomy::evolution::EvolutionEngine>>,
+
+    /// v6.0 WorkflowAccess — 工作流注册与执行.
+    pub workflow_access: Option<std::sync::Arc<lingshu_runtime::workflow_access::RuntimeWorkflowAccess>>,
 }
 
 impl LingshuRuntime {
@@ -327,6 +337,105 @@ impl LingshuRuntime {
         };
         let agent_runtime = lingshu_runtime::agent_runtime::AgentRuntime::new(agent_rt_config).await?;
         tracing::info!("agent runtime (v4.0) initialized");
+
+        // ── v6.0 Pipeline Wiring: 将 AgentPipeline 接入 AgentRuntime ──
+        if let Some(ref llm_backend) = llm {
+            // 1. 构建默认 ReAct Pipeline
+            let tool_registry_for_pipeline = tool_registry.clone();
+            let llm_for_pipeline = llm_backend.clone();
+            let memory_for_pipeline: Option<Arc<dyn lingshu_traits::memory::Memory>> = None;
+            let pipeline = Arc::new(
+                lingshu_runtime::agent_pipeline::AgentPipeline::default_react(
+                    llm_for_pipeline,
+                    config.llm.default_model.clone(),
+                    tool_registry_for_pipeline,
+                    memory_for_pipeline,
+                )
+                .with_max_iterations(10),
+            );
+
+            // 2. 注册到 AgentRuntime
+            agent_runtime.set_tool_registry(tool_registry.clone()).await;
+            agent_runtime.set_pipeline(pipeline.clone()).await;
+            agent_runtime.set_event_bus(event_bus.clone() as Arc<dyn lingshu_traits::event_bus::EventBus>).await;
+
+            // 3. 注册默认 PipelineAgent 到 AgentManager
+            let pipeline_agent = Box::new(
+                lingshu_runtime::agent_pipeline::PipelineAgent::new(
+                    lingshu_core::LsId::new(),
+                    "default-agent",
+                    pipeline,
+                ),
+            );
+            agent_manager
+                .register(lingshu_core::LsId::new(), "default-agent".into(), pipeline_agent)
+                .await;
+
+            tracing::info!("v6.0 pipeline wired: default-agent registered with ReAct pipeline");
+        } else {
+            tracing::warn!("v6.0 pipeline wiring skipped: no LLM backend available");
+        }
+
+        // ── v6.0 WorkflowAccess Wiring ──
+        let workflow_access = Arc::new(lingshu_runtime::workflow_access::RuntimeWorkflowAccess::new());
+        // 注册内置工作流
+        workflow_access.register("default-reason", serde_json::json!({
+            "name": "default-reason",
+            "description": "标准推理工作流：思考 → 行动 → 观察 → 回答",
+            "stages": ["think", "act", "observe", "respond"],
+        })).await;
+        workflow_access.register("rag-retrieve", serde_json::json!({
+            "name": "rag-retrieve",
+            "description": "RAG 检索工作流：检索 → 注入 → 推理 → 回答",
+            "stages": ["retrieve", "inject", "think", "respond"],
+        })).await;
+        agent_runtime.set_workflow_access(workflow_access.clone() as Arc<dyn lingshu_runtime::WorkflowAccess>).await;
+
+        // ── v6.0 Swarm Engine Wiring (if available) ──
+        #[cfg(feature = "swarm")]
+        let swarm_engine: Option<std::sync::Arc<tokio::sync::RwLock<lingshu_swarm::engine::SwarmEngine>>> = {
+            let swarm_cfg = lingshu_swarm::types::SwarmConfig {
+                name: "default-swarm".into(),
+                min_agents: 2,
+                max_agents: 8,
+                enable_emergent_specialization: true,
+                ..Default::default()
+            };
+            let engine = lingshu_swarm::engine::SwarmEngine::new(swarm_cfg);
+            engine.start().await.ok();
+            tracing::info!("v6.0 swarm engine initialized");
+            Some(Arc::new(tokio::sync::RwLock::new(engine)))
+        };
+        #[cfg(not(feature = "swarm"))]
+        let swarm_engine: Option<_> = None;
+
+        // ── v6.0 Autonomy Evolution Engine Wiring (if available) ──
+        #[cfg(feature = "autonomy")]
+        let evolution_engine: Option<std::sync::Arc<lingshu_autonomy::evolution::EvolutionEngine>> = {
+            let exp_store = Arc::new(lingshu_autonomy::experience::ExperienceStore::new(1000));
+            let reflection_cfg = lingshu_autonomy::reflection::ReflectionConfig::default();
+            let reflection_engine = Arc::new(lingshu_autonomy::reflection::ReflectionEngine::new(
+                reflection_cfg,
+                exp_store.clone(),
+            ));
+            let evol_cfg = lingshu_autonomy::evolution::EvolutionConfig {
+                auto_apply_threshold: 8,
+                cooldown: std::time::Duration::from_secs(300),
+                enable_auto_rollback: true,
+                ..Default::default()
+            };
+            let engine = lingshu_autonomy::evolution::EvolutionEngine::new(
+                evol_cfg,
+                exp_store,
+                reflection_engine,
+            );
+            tracing::info!("v6.0 autonomy evolution engine initialized");
+            Some(Arc::new(engine))
+        };
+        #[cfg(not(feature = "autonomy"))]
+        let evolution_engine: Option<_> = None;
+
+
         let runtime = Self {
             lifecycle,
             start_time: std::time::Instant::now(),
@@ -342,6 +451,11 @@ impl LingshuRuntime {
             tool_registry,
             agent_manager,
             agent_runtime: Some(agent_runtime),
+            #[cfg(feature = "swarm")]
+            swarm_engine,
+            #[cfg(feature = "autonomy")]
+            evolution_engine,
+            workflow_access: Some(workflow_access),
             memory_manager: lingshu_memory::SessionMemoryManager::default(),
             mcp_server: {
                 let mut mcp_server = lingshu_mcp::McpServer::new();

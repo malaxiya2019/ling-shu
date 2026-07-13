@@ -764,3 +764,179 @@ mod tests {
         assert!(matches!(result, StageAction::Continue));
     }
 }
+
+#[cfg(feature = "memory-summarizer")]
+// ── Summarizer MemoryStage ─────────────────────────
+
+impl MemoryStage {
+    /// 创建带 LLM 摘要的记忆存储阶段.
+    ///
+    /// 在执行记忆存储时，使用 `SummarizerLlm` 对对话内容进行智能摘要，
+    /// 以减少存储空间并提取关键信息.
+    ///
+    /// # 参数
+    ///
+    /// * `memory` — 可选记忆后端
+    /// * `summarizer` — LLM 摘要器，用于生成对话摘要
+    /// * `max_chars_before_summary` — 触发摘要的 token 阈值
+    pub fn new_with_summarizer(
+        memory: Option<Arc<dyn lingshu_traits::memory::Memory>>,
+        summarizer: Arc<dyn lingshu_memory::summarization::SummarizerLlm>,
+        max_chars_before_summary: usize,
+    ) -> Self {
+        // 包装 memory 使之在写入前先执行摘要
+        let wrapped = memory.map(|mem| {
+            let inner: Arc<dyn lingshu_traits::memory::Memory> = Arc::new(SummarizingMemory::new(
+                mem,
+                summarizer,
+                max_chars_before_summary,
+            ));
+            inner
+        });
+        Self { memory: wrapped }
+    }
+}
+#[cfg(feature = "memory-summarizer")]
+
+/// 带摘要功能的记忆包装器.
+///
+/// 在将内容写入下游 Memory 之前，先通过 SummarizerLlm 生成摘要。
+/// 如果摘要成功，则写入摘要文本而非原始内容。
+struct SummarizingMemory {
+    inner: Arc<dyn lingshu_traits::memory::Memory>,
+    summarizer: Arc<dyn lingshu_memory::summarization::SummarizerLlm>,
+    max_chars_threshold: usize,
+}
+
+#[cfg(feature = "memory-summarizer")]
+impl SummarizingMemory {
+    fn new(
+        inner: Arc<dyn lingshu_traits::memory::Memory>,
+        summarizer: Arc<dyn lingshu_memory::summarization::SummarizerLlm>,
+        max_chars_threshold: usize,
+    ) -> Self {
+        Self {
+            inner,
+            summarizer,
+            max_chars_threshold,
+        }
+    }
+
+    /// 估算文本的 token 数量（粗略估算：每中文字符~2 tokens，每英文单词~1.3 tokens）.
+    fn estimate_chars(text: &str) -> usize {
+        let char_count = text.chars().count();
+        let ascii_count = text.chars().filter(|c| c.is_ascii()).count();
+        let non_ascii = char_count.saturating_sub(ascii_count);
+        // 非 ASCII（主要是中文）：~2 tokens/字符
+        // ASCII：~0.25 tokens/字符（平均4字符/token）
+        non_ascii * 2 + ascii_count / 4
+    }
+}
+
+#[cfg(feature = "memory-summarizer")]
+#[async_trait::async_trait]
+impl lingshu_traits::memory::Memory for SummarizingMemory {
+    async fn write(
+        &self,
+        ctx: lingshu_core::LsContext,
+        item: lingshu_traits::memory::MemoryItem,
+    ) -> lingshu_core::LsResult<lingshu_core::LsId> {
+        // 检查是否需要摘要
+        let content_str = match &item.content {
+            serde_json::Value::String(s) => s.clone(),
+            other => other.to_string(),
+        };
+
+        let estimated = Self::estimate_chars(&content_str);
+        let should_summarize = estimated > self.max_chars_threshold;
+
+        let content_to_store = if should_summarize {
+            tracing::debug!(
+                estimated_chars = estimated,
+                threshold = self.max_chars_threshold,
+                "content exceeds threshold, summarizing before storage"
+            );
+            // 执行摘要
+            let prompt = format!(
+                "请用中文简洁总结以下内容（保留关键信息，不超过200字）：\n\n{}",
+                if content_str.len() > 2000 { &content_str[..2000] } else { &content_str }
+            );
+            match self
+                .summarizer
+                .generate(&ctx.child(), &prompt, "gpt-4o-mini")
+                .await
+            {
+                Ok(summary_text) => {
+                    tracing::debug!("memory summarization succeeded ({} chars → {})",
+                        content_str.len(), summary_text.len());
+                    serde_json::Value::String(summary_text)
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "memory summarization failed, storing original");
+                    item.content.clone()
+                }
+            }
+        } else {
+            item.content.clone()
+        };
+
+        let summarized_item = lingshu_traits::memory::MemoryItem {
+            content: content_to_store,
+            ..item
+        };
+
+        self.inner.write(ctx, summarized_item).await
+    }
+
+    async fn write_batch(
+        &self,
+        ctx: lingshu_core::LsContext,
+        items: Vec<lingshu_traits::memory::MemoryItem>,
+    ) -> lingshu_core::LsResult<Vec<lingshu_core::LsId>> {
+        let mut ids = Vec::with_capacity(items.len());
+        for item in items {
+            ids.push(self.write(ctx.child(), item).await?);
+        }
+        Ok(ids)
+    }
+
+    async fn read(
+        &self,
+        ctx: lingshu_core::LsContext,
+        memory_id: lingshu_core::LsId,
+    ) -> lingshu_core::LsResult<lingshu_traits::memory::MemoryItem> {
+        self.inner.read(ctx, memory_id).await
+    }
+
+    async fn search(
+        &self,
+        ctx: lingshu_core::LsContext,
+        query: &str,
+        limit: u64,
+    ) -> lingshu_core::LsResult<lingshu_traits::memory::MemorySearchResult> {
+        self.inner.search(ctx, query, limit).await
+    }
+
+    async fn delete(
+        &self,
+        ctx: lingshu_core::LsContext,
+        memory_id: lingshu_core::LsId,
+    ) -> lingshu_core::LsResult<()> {
+        self.inner.delete(ctx, memory_id).await
+    }
+
+    async fn clean_expired(
+        &self,
+        ctx: lingshu_core::LsContext,
+    ) -> lingshu_core::LsResult<u64> {
+        self.inner.clean_expired(ctx).await
+    }
+
+    async fn clear_session(
+        &self,
+        ctx: lingshu_core::LsContext,
+        session_id: lingshu_core::LsId,
+    ) -> lingshu_core::LsResult<()> {
+        self.inner.clear_session(ctx, session_id).await
+    }
+}

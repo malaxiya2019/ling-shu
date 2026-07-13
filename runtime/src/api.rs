@@ -520,6 +520,7 @@ impl ApiHandler {
     async fn handle_tool(&self, req: ApiToolRequest, ctx: &LsContext) -> ApiResponse {
         match self.runtime.tool_registry().await {
             Some(registry) => {
+                let registry = registry.read().await;
                 match req.action {
                     ToolAction::List => {
                         let tools = registry.list_tools().await;

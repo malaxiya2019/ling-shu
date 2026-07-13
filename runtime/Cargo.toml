@@ -12,6 +12,7 @@ lingshu-plugin = { path = "../plugin" }
 lingshu-eventbus = { path = "../eventbus" }
 lingshu-security = { path = "../security" }
 lingshu-observability = { path = "../observability" }
+lingshu-memory = { path = "../memory", optional = true }
 async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -30,3 +31,4 @@ chidori = { git = "https://github.com/malaxiya2019/chidori-fork.git", rev = "865
 otel = ["lingshu-observability/otel"]
 api-server = ["dep:axum", "dep:tower", "dep:futures"]
 chidori = ["dep:chidori"]
+memory-summarizer = ["dep:lingshu-memory"]

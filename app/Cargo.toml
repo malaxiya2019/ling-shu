@@ -5,10 +5,12 @@ edition.workspace = true
 description = "Lingshu Agent System — main binary entry point"
 
 [features]
-default = ["telegram", "feishu", "qq", "wechat", "discord"]
+default = ["telegram", "feishu", "qq", "wechat", "discord", "swarm", "autonomy"]
 chidori = []
 autoagents = []
 loong = []
+swarm = ["dep:lingshu-swarm"]
+autonomy = ["dep:lingshu-autonomy"]
 telegram = ["lingshu-channel/telegram"]
 feishu = ["lingshu-channel/feishu"]
 qq = ["lingshu-channel/qq"]
@@ -18,7 +20,7 @@ discord = ["lingshu-channel/discord"]
 [dependencies]
 lingshu-core = { path = "../core" }
 lingshu-traits = { path = "../traits" }
-lingshu-runtime = { path = "../runtime" }
+lingshu-runtime = { path = "../runtime", features = ["memory-summarizer"] }
 lingshu-eventbus = { path = "../eventbus" }
 lingshu-security = { path = "../security" }
 lingshu-config = { path = "../config" }
@@ -43,6 +45,8 @@ lingshu-knowledge-graph = { path = "../knowledge-graph" }
 lingshu-code-analyzer = { path = "../code-analyzer" }
 lingshu-credentials = { path = "../credentials" }
 lingshu-orchestrator = { path = "../orchestrator" }
+lingshu-swarm = { path = "../swarm", optional = true }
+lingshu-autonomy = { path = "../autonomy", optional = true }
 lingshu-websocket = { path = "../websocket" }
 lingshu-tenant = { path = "../tenant" }
 lingshu-evaluator = { path = "../evaluator" }

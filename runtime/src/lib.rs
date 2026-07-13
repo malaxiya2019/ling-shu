@@ -39,6 +39,7 @@ pub mod cron_scheduler;
 pub mod multi_agent;
 // chidori_recovery 始终注册模块（内部通过 cfg 隔离实现和桩）
 pub mod chidori_recovery;
+pub mod workflow_access;
 
 // ── Re-exports ──
 
@@ -59,6 +60,7 @@ pub use agent_pipeline::{
 };
 pub use agent_pool::{AgentFactory, AgentHandle, AgentPool, AgentPoolConfig, AgentPoolStats};
 pub use agent_runtime::{AgentRuntime, AgentRuntimeConfig, WorkflowAccess};
+pub use workflow_access::{ExecutionRecord, ExecutionState, RuntimeWorkflowAccess, WorkflowDef, WorkflowHandler};
 
 // v4.1 Task Scheduler
 pub use task_scheduler::{
