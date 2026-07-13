@@ -180,7 +180,7 @@ pub fn create_sub_workflow_handler(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::workflow::registry::{WorkflowRegistry, WorkflowRegistryEntry};
+    use crate::workflow::registry::WorkflowRegistry;
 
     #[test]
     fn test_sub_workflow_config_defaults() {
@@ -250,7 +250,7 @@ mod tests {
     fn test_create_handler() {
         let executor = Arc::new(SubWorkflowExecutor::new());
         let config = SubWorkflowConfig::default();
-        let handler = create_sub_workflow_handler(executor, config);
+        let _handler = create_sub_workflow_handler(executor, config);
         // Just verify it compiles and is send+sync
         fn assert_send_sync<T: Send + Sync>() {}
         assert_send_sync::<crate::workflow::dag::NodeHandler>();
