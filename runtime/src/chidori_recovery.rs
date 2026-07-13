@@ -100,7 +100,7 @@ impl ChidoriRecoveryManager {
         state: Vec<u8>,
     ) -> LsResult<String> {
         let mut checkpoints = self.checkpoints.write().await;
-        let point_id = format!("cp-{}-{}", agent_id, chrono::Utc::now().timestamp_nanos());
+        let point_id = format!("cp-{}-{}", agent_id, chrono::Utc::now().timestamp_nanos_opt());
 
         let savepoint = ChidoriSavePoint {
             point_id: point_id.clone(),
