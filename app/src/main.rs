@@ -407,7 +407,7 @@ impl LingshuRuntime {
             Some(Arc::new(tokio::sync::RwLock::new(engine)))
         };
         #[cfg(not(feature = "swarm"))]
-        let swarm_engine: Option<_> = None;
+        let _swarm_engine: Option<std::sync::Arc<tokio::sync::RwLock<()>>> = None;
 
         // ── v6.0 Autonomy Evolution Engine Wiring (if available) ──
         #[cfg(feature = "autonomy")]
@@ -433,7 +433,7 @@ impl LingshuRuntime {
             Some(Arc::new(engine))
         };
         #[cfg(not(feature = "autonomy"))]
-        let evolution_engine: Option<_> = None;
+        let _evolution_engine: Option<std::sync::Arc<()>> = None;
 
 
         let runtime = Self {
