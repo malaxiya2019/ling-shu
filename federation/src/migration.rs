@@ -177,7 +177,7 @@ impl MigrationManager {
         strategy: MigrationStrategy,
     ) -> LsResult<MigrateResult> {
         let start = std::time::Instant::now();
-        let migration_id = format!("mig-{}-{}", agent_id, chrono::Utc::now().timestamp_nanos());
+        let migration_id = format!("mig-{}-{}", agent_id, chrono::Utc::now().timestamp_nanos_opt());
 
         // 验证 Agent 存在
         let agent = {
