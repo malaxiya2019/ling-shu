@@ -49,7 +49,7 @@ members = [
     "examples/full-flow",
 ]
 [workspace.package]
-version = "3.0.0"
+version = "5.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Lingshu Agent System — LSCode v1.0.0"

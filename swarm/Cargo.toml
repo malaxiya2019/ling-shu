@@ -33,3 +33,6 @@ federation = ["dep:lingshu-federation"]
 [lib]
 name = "lingshu_swarm"
 path = "src/lib.rs"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["async_futures", "async_tokio"] }
