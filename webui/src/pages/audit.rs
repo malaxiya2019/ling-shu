@@ -298,6 +298,7 @@ pub fn audit_dashboard() -> Html {
                     let set_et = set_event_type.clone();
                     let trigger = refresh_trigger.clone();
                     let set_r = set_result.clone();
+                    let state = state.clone();
                     Callback::from(move |_| {
                         set_a.emit(String::new());
                         set_et.emit(String::new());
@@ -429,11 +430,11 @@ pub fn audit_dashboard() -> Html {
         if let Some(ref entry) = state.detail_entry {
             let close = close_detail.clone();
             html! {
-                <div class="modal-overlay" onclick={move |_| close.emit(())}>
+                <div class="modal-overlay" onclick={let close = close.clone(); move |_| close.emit(())}>
                     <div class="audit-modal" onclick={|e: MouseEvent| e.stop_propagation()}>
                         <div class="audit-modal-header">
                             <h2>{"📋 Audit Entry Detail"}</h2>
-                            <button class="audit-btn" onclick={move |_| close.emit(())}>{"✕"}</button>
+                                                        <button class="audit-btn" onclick={let close = close.clone(); move |_| close.emit(())}>✕</button>
                         </div>
                         <div class="audit-modal-body">
                             <table class="audit-detail-table">
