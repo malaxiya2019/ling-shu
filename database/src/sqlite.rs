@@ -216,10 +216,16 @@ impl Database for SqliteDatabase {
         let total: i64 = count_collection(&conn, collection)
             .map_err(|e| LsError::Internal(format!("query count failed: {e}")))?;
 
-        let total_pages = (total + pagination.page_size.max(1) as i64 - 1) / pagination.page_size.max(1) as i64;
+        let total_pages =
+            (total + pagination.page_size.max(1) as i64 - 1) / pagination.page_size.max(1) as i64;
 
-        let items = query_collection(&conn, collection, pagination.page as i64, pagination.page_size as i64)
-            .map_err(|e| LsError::Internal(format!("query failed: {e}")))?;
+        let items = query_collection(
+            &conn,
+            collection,
+            pagination.page as i64,
+            pagination.page_size as i64,
+        )
+        .map_err(|e| LsError::Internal(format!("query failed: {e}")))?;
 
         Ok(PaginatedResult {
             items,

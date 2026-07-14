@@ -3,11 +3,7 @@
 //! 启动 2-3 个联邦节点，验证发现、心跳、链路管理和统计功能。
 
 use lingshu_core::LsId;
-use lingshu_federation::{
-    discovery::{StaticDiscovery},
-    types::*,
-    Federation, FederationConfig,
-};
+use lingshu_federation::{discovery::StaticDiscovery, types::*, Federation, FederationConfig};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -16,9 +12,10 @@ use std::time::Duration;
 fn pick_port(base: u16) -> u16 {
     let mut port = base;
     for _ in 0..100 {
-        match std::net::TcpListener::bind(
-            std::net::SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), port),
-        ) {
+        match std::net::TcpListener::bind(std::net::SocketAddr::new(
+            std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST),
+            port,
+        )) {
             Ok(listener) => {
                 // 启用 SO_REUSEADDR 避免 TIME_WAIT 冲突
                 let _ = listener.set_nonblocking(true);
@@ -95,7 +92,10 @@ async fn test_federation_two_nodes_connect() {
     let stats_a = fed_a.stats().await;
     tracing::info!(
         "node-a stats: connected={}, total={}, links={}, uptime={}s",
-        stats_a.connected_nodes, stats_a.total_nodes, stats_a.active_links, stats_a.uptime_seconds
+        stats_a.connected_nodes,
+        stats_a.total_nodes,
+        stats_a.active_links,
+        stats_a.uptime_seconds
     );
 
     assert!(
@@ -127,17 +127,16 @@ async fn test_federation_three_nodes_mesh() {
     // 每个节点知道其他两个
     let mut feds = Vec::new();
     for i in 0..3 {
-        let seeds: Vec<SocketAddr> = (0..3)
-            .filter(|j| *j != i)
-            .map(|j| addrs[j])
-            .collect();
+        let seeds: Vec<SocketAddr> = (0..3).filter(|j| *j != i).map(|j| addrs[j]).collect();
         let mut fed = Federation::new(
             ids[i],
             make_config(&format!("node-{}", i), ports[i], seeds.clone()),
         )
         .await;
         register_static_discovery(&mut fed, seeds);
-        fed.start().await.unwrap_or_else(|_| panic!("node-{} start", i));
+        fed.start()
+            .await
+            .unwrap_or_else(|_| panic!("node-{} start", i));
         feds.push(fed);
     }
 
@@ -155,11 +154,7 @@ async fn test_federation_three_nodes_mesh() {
             stats.active_links,
             stats.uptime_seconds
         );
-        assert!(
-            true,
-            "node-{} should have uptime >= 0",
-            i
-        );
+        assert!(true, "node-{} should have uptime >= 0", i);
     }
 
     // 清理
@@ -195,10 +190,7 @@ async fn test_federation_manual_node_registration() {
 
     let stats_a = fed_a.stats().await;
     tracing::info!("manual-a stats: {:?}", stats_a);
-    assert!(
-        true,
-        "manual-a should be alive"
-    );
+    assert!(true, "manual-a should be alive");
 
     fed_a.stop().await;
     fed_b.stop().await;

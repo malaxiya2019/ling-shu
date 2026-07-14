@@ -3,25 +3,25 @@
 //! 提供全链路追踪（tracing + OpenTelemetry）、指标采集（Prometheus）
 //! 与健康检查的统一入口。
 
-pub mod health;
 #[cfg(feature = "otel")]
 pub mod genai;
-pub mod metrics;
-pub mod span;
-pub mod tracing;
-#[cfg(feature = "otel")]
-pub mod otel;
+pub mod health;
 #[cfg(feature = "loki")]
 pub mod loki;
+pub mod metrics;
+#[cfg(feature = "otel")]
+pub mod otel;
+pub mod span;
+pub mod tracing;
 
-pub use health::*;
-pub use metrics::*;
-pub use span::*;
-pub use tracing::*;
 #[cfg(feature = "otel")]
 pub use genai::*;
+pub use health::*;
+pub use metrics::*;
 #[cfg(feature = "otel")]
 pub use otel::RuntimeOtelMetrics;
+pub use span::*;
+pub use tracing::*;
 
 use lingshu_config::env::Environment;
 

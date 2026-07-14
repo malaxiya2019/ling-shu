@@ -1,7 +1,7 @@
 //! 🧩 MessageChannel trait — 消息通道插件核心接口.
 
-use async_trait::async_trait;
 use crate::types::*;
+use async_trait::async_trait;
 
 /// 消息通道插件核心接口.
 ///
@@ -35,9 +35,12 @@ pub trait MessageChannel: Send + Sync {
                 thread_id: ctx.thread_id,
                 silent: false,
                 account_id: ctx.account_id,
-            }).await
+            })
+            .await
         } else {
-            Err(crate::LsError::Llm("send_payload: no text content in payload".into()))
+            Err(crate::LsError::Llm(
+                "send_payload: no text content in payload".into(),
+            ))
         }
     }
 
@@ -61,11 +64,23 @@ pub trait MessageSendLifecycle: Send + Sync {
     async fn before_send(&self, ctx: &SendPayloadContext) -> crate::LsResult<()>;
 
     /// 发送成功后调用.
-    async fn after_send_success(&self, ctx: &SendPayloadContext, receipt: &SendReceipt) -> crate::LsResult<()>;
+    async fn after_send_success(
+        &self,
+        ctx: &SendPayloadContext,
+        receipt: &SendReceipt,
+    ) -> crate::LsResult<()>;
 
     /// 发送失败后调用.
-    async fn after_send_failure(&self, ctx: &SendPayloadContext, error: &crate::LsError) -> crate::LsResult<()>;
+    async fn after_send_failure(
+        &self,
+        ctx: &SendPayloadContext,
+        error: &crate::LsError,
+    ) -> crate::LsResult<()>;
 
     /// 持久化提交后调用.
-    async fn after_commit(&self, ctx: &SendPayloadContext, receipt: &SendReceipt) -> crate::LsResult<()>;
+    async fn after_commit(
+        &self,
+        ctx: &SendPayloadContext,
+        receipt: &SendReceipt,
+    ) -> crate::LsResult<()>;
 }

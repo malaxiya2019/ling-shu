@@ -17,7 +17,11 @@ pub trait VaultClientTrait: Send + Sync {
     async fn read_secret(&self, path: &str) -> LsResult<KvSecretResponse>;
 
     /// 写入 KV Secret (KV v2).
-    async fn write_secret(&self, path: &str, data: serde_json::Map<String, serde_json::Value>) -> LsResult<KvSecretResponse>;
+    async fn write_secret(
+        &self,
+        path: &str,
+        data: serde_json::Map<String, serde_json::Value>,
+    ) -> LsResult<KvSecretResponse>;
 
     /// 删除 KV Secret.
     async fn delete_secret(&self, path: &str) -> LsResult<()>;
@@ -73,22 +77,34 @@ impl VaultClient {
 
     /// 构建 KV v2 读取路径: /v1/{engine}/data/{path}
     fn kv_read_path(&self, path: &str) -> String {
-        format!("{}/v1/{}/data/{}", self.config.address, self.config.kv_engine_path, path)
+        format!(
+            "{}/v1/{}/data/{}",
+            self.config.address, self.config.kv_engine_path, path
+        )
     }
 
     /// 构建 KV v2 写入路径.
     fn kv_write_path(&self, path: &str) -> String {
-        format!("{}/v1/{}/data/{}", self.config.address, self.config.kv_engine_path, path)
+        format!(
+            "{}/v1/{}/data/{}",
+            self.config.address, self.config.kv_engine_path, path
+        )
     }
 
     /// 构建 KV v2 删除路径.
     fn kv_delete_path(&self, path: &str) -> String {
-        format!("{}/v1/{}/data/{}", self.config.address, self.config.kv_engine_path, path)
+        format!(
+            "{}/v1/{}/data/{}",
+            self.config.address, self.config.kv_engine_path, path
+        )
     }
 
     /// 构建 list 路径.
     fn kv_list_path(&self, path: &str) -> String {
-        format!("{}/v1/{}/metadata/{}", self.config.address, self.config.kv_engine_path, path)
+        format!(
+            "{}/v1/{}/metadata/{}",
+            self.config.address, self.config.kv_engine_path, path
+        )
     }
 
     /// 构建 health 路径.
@@ -113,13 +129,21 @@ impl VaultClient {
 
     /// 构建 transit encrypt 路径.
     fn transit_encrypt_path(&self, key_name: &str) -> String {
-        let engine = self.config.transit_engine_path.as_deref().unwrap_or("transit");
+        let engine = self
+            .config
+            .transit_engine_path
+            .as_deref()
+            .unwrap_or("transit");
         format!("{}/v1/{}/encrypt/{}", self.config.address, engine, key_name)
     }
 
     /// 构建 transit decrypt 路径.
     fn transit_decrypt_path(&self, key_name: &str) -> String {
-        let engine = self.config.transit_engine_path.as_deref().unwrap_or("transit");
+        let engine = self
+            .config
+            .transit_engine_path
+            .as_deref()
+            .unwrap_or("transit");
         format!("{}/v1/{}/decrypt/{}", self.config.address, engine, key_name)
     }
 }
@@ -133,13 +157,19 @@ impl VaultClientTrait for VaultClient {
             .header("X-Vault-Token", &self.config.token)
             .send()
             .await
-            .map_err(|e| lingshu_core::LsError::Internal(format!("vault health check failed: {e}")))?;
+            .map_err(|e| {
+                lingshu_core::LsError::Internal(format!("vault health check failed: {e}"))
+            })?;
 
         let health: VaultHealth = resp.json().await.map_err(|e| {
             lingshu_core::LsError::Internal(format!("vault health parse failed: {e}"))
         })?;
 
-        info!(initialized = health.initialized, sealed = health.sealed, "Vault health check");
+        info!(
+            initialized = health.initialized,
+            sealed = health.sealed,
+            "Vault health check"
+        );
         Ok(health)
     }
 
@@ -168,7 +198,11 @@ impl VaultClientTrait for VaultClient {
         Ok(secret)
     }
 
-    async fn write_secret(&self, path: &str, data: serde_json::Map<String, serde_json::Value>) -> LsResult<KvSecretResponse> {
+    async fn write_secret(
+        &self,
+        path: &str,
+        data: serde_json::Map<String, serde_json::Value>,
+    ) -> LsResult<KvSecretResponse> {
         let body = serde_json::json!({ "data": data, "options": { "cas": 0 } });
 
         let resp = self
@@ -192,7 +226,11 @@ impl VaultClientTrait for VaultClient {
             lingshu_core::LsError::Internal(format!("vault write parse failed: {e}"))
         })?;
 
-        info!(path, version = secret.metadata.version, "Vault secret written");
+        info!(
+            path,
+            version = secret.metadata.version,
+            "Vault secret written"
+        );
         Ok(secret)
     }
 
@@ -219,7 +257,10 @@ impl VaultClientTrait for VaultClient {
     async fn list_secrets(&self, path: &str) -> LsResult<Vec<String>> {
         let resp = self
             .client
-            .request(reqwest::Method::from_bytes(b"LIST").unwrap(), self.kv_list_path(path))
+            .request(
+                reqwest::Method::from_bytes(b"LIST").unwrap(),
+                self.kv_list_path(path),
+            )
             .header("X-Vault-Token", &self.config.token)
             .send()
             .await
@@ -253,7 +294,9 @@ impl VaultClientTrait for VaultClient {
             .header("X-Vault-Token", &self.config.token)
             .send()
             .await
-            .map_err(|e| lingshu_core::LsError::Internal(format!("vault dynamic secret request failed: {e}")))?;
+            .map_err(|e| {
+                lingshu_core::LsError::Internal(format!("vault dynamic secret request failed: {e}"))
+            })?;
 
         if !resp.status().is_success() {
             let status = resp.status();
@@ -294,7 +337,9 @@ impl VaultClientTrait for VaultClient {
             .json(&body)
             .send()
             .await
-            .map_err(|e| lingshu_core::LsError::Internal(format!("vault renew lease failed: {e}")))?;
+            .map_err(|e| {
+                lingshu_core::LsError::Internal(format!("vault renew lease failed: {e}"))
+            })?;
 
         if !resp.status().is_success() {
             let status = resp.status();
@@ -318,7 +363,9 @@ impl VaultClientTrait for VaultClient {
             .json(&body)
             .send()
             .await
-            .map_err(|e| lingshu_core::LsError::Internal(format!("vault revoke lease failed: {e}")))?;
+            .map_err(|e| {
+                lingshu_core::LsError::Internal(format!("vault revoke lease failed: {e}"))
+            })?;
 
         if !resp.status().is_success() {
             let status = resp.status();
@@ -409,7 +456,9 @@ impl VaultClientTrait for VaultClient {
 
 /// 内存 Mock Vault 客户端 (用于测试).
 pub struct MockVaultClient {
-    secrets: std::sync::RwLock<std::collections::HashMap<String, serde_json::Map<String, serde_json::Value>>>,
+    secrets: std::sync::RwLock<
+        std::collections::HashMap<String, serde_json::Map<String, serde_json::Value>>,
+    >,
 }
 
 impl Default for MockVaultClient {
@@ -439,9 +488,10 @@ impl VaultClientTrait for MockVaultClient {
     }
 
     async fn read_secret(&self, path: &str) -> LsResult<KvSecretResponse> {
-        let secrets = self.secrets.read().map_err(|e| {
-            lingshu_core::LsError::Internal(format!("mock vault lock error: {e}"))
-        })?;
+        let secrets = self
+            .secrets
+            .read()
+            .map_err(|e| lingshu_core::LsError::Internal(format!("mock vault lock error: {e}")))?;
         match secrets.get(path) {
             Some(data) => {
                 let mut md = serde_json::Map::new();
@@ -455,14 +505,21 @@ impl VaultClientTrait for MockVaultClient {
                     },
                 })
             }
-            None => Err(lingshu_core::LsError::NotFound(format!("secret '{path}' not found"))),
+            None => Err(lingshu_core::LsError::NotFound(format!(
+                "secret '{path}' not found"
+            ))),
         }
     }
 
-    async fn write_secret(&self, path: &str, data: serde_json::Map<String, serde_json::Value>) -> LsResult<KvSecretResponse> {
-        let mut secrets = self.secrets.write().map_err(|e| {
-            lingshu_core::LsError::Internal(format!("mock vault lock error: {e}"))
-        })?;
+    async fn write_secret(
+        &self,
+        path: &str,
+        data: serde_json::Map<String, serde_json::Value>,
+    ) -> LsResult<KvSecretResponse> {
+        let mut secrets = self
+            .secrets
+            .write()
+            .map_err(|e| lingshu_core::LsError::Internal(format!("mock vault lock error: {e}")))?;
         secrets.insert(path.to_string(), data.clone());
         Ok(KvSecretResponse {
             data: KvSecretDataInner { data },
@@ -475,28 +532,41 @@ impl VaultClientTrait for MockVaultClient {
     }
 
     async fn delete_secret(&self, path: &str) -> LsResult<()> {
-        let mut secrets = self.secrets.write().map_err(|e| {
-            lingshu_core::LsError::Internal(format!("mock vault lock error: {e}"))
-        })?;
+        let mut secrets = self
+            .secrets
+            .write()
+            .map_err(|e| lingshu_core::LsError::Internal(format!("mock vault lock error: {e}")))?;
         secrets.remove(path);
         Ok(())
     }
 
     async fn list_secrets(&self, path: &str) -> LsResult<Vec<String>> {
-        let secrets = self.secrets.read().map_err(|e| {
-            lingshu_core::LsError::Internal(format!("mock vault lock error: {e}"))
-        })?;
-        let keys: Vec<String> = secrets.keys()
+        let secrets = self
+            .secrets
+            .read()
+            .map_err(|e| lingshu_core::LsError::Internal(format!("mock vault lock error: {e}")))?;
+        let keys: Vec<String> = secrets
+            .keys()
             .filter(|k| k.starts_with(path))
-            .map(|k| k.trim_start_matches(path).trim_start_matches('/').to_string())
+            .map(|k| {
+                k.trim_start_matches(path)
+                    .trim_start_matches('/')
+                    .to_string()
+            })
             .collect();
         Ok(keys)
     }
 
     async fn request_dynamic_secret(&self, _path: &str) -> LsResult<DynamicSecret> {
         let mut data = serde_json::Map::new();
-        data.insert("username".into(), serde_json::Value::String("mock_user".into()));
-        data.insert("password".into(), serde_json::Value::String("mock_pass".into()));
+        data.insert(
+            "username".into(),
+            serde_json::Value::String("mock_user".into()),
+        );
+        data.insert(
+            "password".into(),
+            serde_json::Value::String("mock_pass".into()),
+        );
         Ok(DynamicSecret {
             lease_id: uuid::Uuid::new_v4().to_string(),
             lease_duration: 3600,
@@ -529,10 +599,14 @@ impl VaultClientTrait for MockVaultClient {
             use base64::Engine;
             let decoded = base64::engine::general_purpose::STANDARD
                 .decode(b64)
-                .map_err(|e| lingshu_core::LsError::Internal(format!("mock vault decrypt failed: {e}")))?;
+                .map_err(|e| {
+                    lingshu_core::LsError::Internal(format!("mock vault decrypt failed: {e}"))
+                })?;
             Ok(String::from_utf8_lossy(&decoded).to_string())
         } else {
-            Err(lingshu_core::LsError::Internal("mock vault: invalid ciphertext format".into()))
+            Err(lingshu_core::LsError::Internal(
+                "mock vault: invalid ciphertext format".into(),
+            ))
         }
     }
 }

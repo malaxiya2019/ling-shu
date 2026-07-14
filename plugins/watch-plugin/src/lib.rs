@@ -109,7 +109,7 @@ impl WatchPlugin {
                 },
             ],
             min_api_version: Some("1.0.0".into()),
-        ..Default::default()
+            ..Default::default()
         };
 
         let info = PluginInfo {
@@ -206,7 +206,7 @@ impl Plugin for WatchPlugin {
         Ok(())
     }
 
-        fn as_any(&self) -> &dyn std::any::Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 

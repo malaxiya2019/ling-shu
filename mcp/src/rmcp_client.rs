@@ -13,7 +13,7 @@
 //! let result = client.call_tool("my-tool", serde_json::json!({})).await?;
 //! ```
 
-use lingshu_core::{LsError, LsResult, LsId};
+use lingshu_core::{LsError, LsId, LsResult};
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -43,7 +43,11 @@ pub enum McpContent {
     #[serde(rename = "image")]
     Image { data: String, mime_type: String },
     #[serde(rename = "resource")]
-    Resource { uri: String, text: Option<String>, blob: Option<String> },
+    Resource {
+        uri: String,
+        text: Option<String>,
+        blob: Option<String>,
+    },
 }
 
 /// MCP 客户端 — 连接远程 MCP 服务器.
@@ -77,7 +81,9 @@ impl McpClient {
 
     /// 发送 JSON-RPC 请求并返回结果.
     async fn send_request(&self, method: &str, params: Option<Value>) -> LsResult<Value> {
-        let id = self.next_id.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let id = self
+            .next_id
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
         let body = serde_json::json!({
             "jsonrpc": "2.0",
@@ -147,7 +153,7 @@ impl McpClient {
                 name: t.name,
                 description: t.description,
                 parameters: vec![],
-            ..Default::default()
+                ..Default::default()
             })
             .collect())
     }

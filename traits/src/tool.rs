@@ -22,7 +22,6 @@ pub enum PermissionLevel {
     SuperAdmin,
 }
 
-
 impl std::fmt::Display for PermissionLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -76,8 +75,6 @@ impl ToolCategory {
         }
     }
 }
-
-
 
 impl std::fmt::Display for ToolCategory {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -172,7 +169,11 @@ pub struct ToolInfo {
 
 impl ToolInfo {
     /// 创建基础 ToolInfo（保留向后兼容）.
-    pub fn new(name: impl Into<String>, description: impl Into<String>, parameters: Vec<ToolParam>) -> Self {
+    pub fn new(
+        name: impl Into<String>,
+        description: impl Into<String>,
+        parameters: Vec<ToolParam>,
+    ) -> Self {
         Self {
             tool_id: LsId::new(),
             name: name.into(),

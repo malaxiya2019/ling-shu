@@ -18,12 +18,11 @@ pub(crate) mod chidori_e2e;
 pub(crate) mod autoagents_e2e;
 
 #[cfg(test)]
-
+pub(crate) mod loong_e2e;
+#[cfg(test)]
 // v5.0 跨 crate 端到端测试
 #[cfg(test)]
 pub(crate) mod swarm_autonomy_distributed_e2e;
-#[cfg(test)]
-pub(crate) mod loong_e2e;
 
 #[cfg(test)]
 mod tests {
@@ -134,8 +133,7 @@ mod tests {
         let bus = InMemoryEventBus::new();
         let ctx = LsContext::with_session(LsId::new());
 
-        let received: Arc<StdMutex<Vec<String>>> =
-            Arc::new(StdMutex::new(Vec::new()));
+        let received: Arc<StdMutex<Vec<String>>> = Arc::new(StdMutex::new(Vec::new()));
         let rx = received.clone();
 
         bus.subscribe(
@@ -233,8 +231,8 @@ mod tests {
     // ── 8. Prompt AB Test ───────────────────────────
     #[tokio::test]
     async fn test_prompt_ab_test() {
-        use lingshu_prompt::ABTestManager;
         use chrono::Utc;
+        use lingshu_prompt::ABTestManager;
 
         let mut manager = ABTestManager::new();
         manager
@@ -322,7 +320,9 @@ mod tests {
         let listener = tokio::net::TcpListener::from_std(std).unwrap();
 
         tokio::spawn(async move {
-            axum::serve(listener, app.into_make_service()).await.unwrap();
+            axum::serve(listener, app.into_make_service())
+                .await
+                .unwrap();
         });
 
         format!("http://{}", addr)

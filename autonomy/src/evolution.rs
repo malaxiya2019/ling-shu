@@ -282,7 +282,10 @@ impl EvolutionEngine {
         {
             let active = *self.active_plans.read().await;
             if active >= self.config.max_concurrent_plans {
-                warn!("max concurrent plans reached, skipping evolution for '{}'", agent_id);
+                warn!(
+                    "max concurrent plans reached, skipping evolution for '{}'",
+                    agent_id
+                );
                 return Vec::new();
             }
         }
@@ -465,14 +468,13 @@ impl EvolutionEngine {
             match plan.action {
                 EvolutionAction::AdjustTimeout => {
                     if let Some(ref new_val) = plan.new_value {
-                        if let Some(timeout) = new_val.get("timeout_secs").and_then(|v| v.as_u64()) {
+                        if let Some(timeout) = new_val.get("timeout_secs").and_then(|v| v.as_u64())
+                        {
                             let old_timeout = params.timeout_secs;
                             params.timeout_secs = timeout;
                             params.version += 1;
-                            outcome.observation = format!(
-                                "timeout adjusted: {}s -> {}s",
-                                old_timeout, timeout
-                            );
+                            outcome.observation =
+                                format!("timeout adjusted: {}s -> {}s", old_timeout, timeout);
                         }
                     }
                 }
@@ -482,10 +484,8 @@ impl EvolutionEngine {
                             let old_retries = params.max_retries;
                             params.max_retries = retries as u32;
                             params.version += 1;
-                            outcome.observation = format!(
-                                "max retries adjusted: {} -> {}",
-                                old_retries, retries
-                            );
+                            outcome.observation =
+                                format!("max retries adjusted: {} -> {}", old_retries, retries);
                         }
                     }
                 }
@@ -506,10 +506,12 @@ impl EvolutionEngine {
                 }
                 EvolutionAction::AdjustParameter => {
                     params.version += 1;
-                    outcome.observation = format!("general parameters adjusted (v{})", params.version);
+                    outcome.observation =
+                        format!("general parameters adjusted (v{})", params.version);
                 }
                 EvolutionAction::ScaleResource => {
-                    outcome.observation = format!("resource scaling requested for: {}", plan.target);
+                    outcome.observation =
+                        format!("resource scaling requested for: {}", plan.target);
                 }
                 EvolutionAction::LearnCapability => {
                     outcome.observation = format!("capability learning scheduled: {}", plan.target);
@@ -650,11 +652,7 @@ mod tests {
             .register_agent(agent_id, AgentParameters::new(agent_id))
             .await;
 
-        let insight = ReflectionInsight::new(
-            InsightType::FailurePattern,
-            "test",
-            "desc",
-        );
+        let insight = ReflectionInsight::new(InsightType::FailurePattern, "test", "desc");
         let plan = EvolutionPlan::new(
             agent_id,
             insight.id,

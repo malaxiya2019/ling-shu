@@ -50,25 +50,69 @@ pub fn sidebar(props: &SidebarProps) -> Html {
         Callback::from(move |_| cb.emit(Page::Tenant))
     };
 
-    let dash_class = if matches!(props.active_page, Page::Dashboard) { "active" } else { "" };
-    let audit_class = if matches!(props.active_page, Page::Audit) { "active" } else { "" };
-    let fed_class = if matches!(props.active_page, Page::Federation) { "active" } else { "" };
-    let eval_class = if matches!(props.active_page, Page::EvalReports) { "active" } else { "" };
-    let metrics_class = if matches!(props.active_page, Page::Metrics) { "active" } else { "" };
-    let plugins_class = if matches!(props.active_page, Page::Plugins) { "active" } else { "" };
-    let security_class = if matches!(props.active_page, Page::Security) { "active" } else { "" };
-    let bench_class = if matches!(props.active_page, Page::Benchmark) { "active" } else { "" };
-    let tenant_class = if matches!(props.active_page, Page::Tenant) { "active" } else { "" };
+    let dash_class = if matches!(props.active_page, Page::Dashboard) {
+        "active"
+    } else {
+        ""
+    };
+    let audit_class = if matches!(props.active_page, Page::Audit) {
+        "active"
+    } else {
+        ""
+    };
+    let fed_class = if matches!(props.active_page, Page::Federation) {
+        "active"
+    } else {
+        ""
+    };
+    let eval_class = if matches!(props.active_page, Page::EvalReports) {
+        "active"
+    } else {
+        ""
+    };
+    let metrics_class = if matches!(props.active_page, Page::Metrics) {
+        "active"
+    } else {
+        ""
+    };
+    let plugins_class = if matches!(props.active_page, Page::Plugins) {
+        "active"
+    } else {
+        ""
+    };
+    let security_class = if matches!(props.active_page, Page::Security) {
+        "active"
+    } else {
+        ""
+    };
+    let bench_class = if matches!(props.active_page, Page::Benchmark) {
+        "active"
+    } else {
+        ""
+    };
+    let tenant_class = if matches!(props.active_page, Page::Tenant) {
+        "active"
+    } else {
+        ""
+    };
 
     // Sidebar language switcher
     let is_zh = matches!(lang.locale, Locale::Zh);
     let toggle_zh = {
         let cb = lang.on_toggle.clone();
-        Callback::from(move |_| { if !is_zh { cb.emit(()) } })
+        Callback::from(move |_| {
+            if !is_zh {
+                cb.emit(())
+            }
+        })
     };
     let toggle_en = {
         let cb = lang.on_toggle.clone();
-        Callback::from(move |_| { if is_zh { cb.emit(()) } })
+        Callback::from(move |_| {
+            if is_zh {
+                cb.emit(())
+            }
+        })
     };
 
     html! {

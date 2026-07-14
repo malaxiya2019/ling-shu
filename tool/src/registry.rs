@@ -60,8 +60,12 @@ impl ToolRegistry {
 
         // 分类索引
         let cat = info.metadata.category.as_str().to_string();
-        self.category_index.write().await
-            .entry(cat).or_default().push(name.clone());
+        self.category_index
+            .write()
+            .await
+            .entry(cat)
+            .or_default()
+            .push(name.clone());
 
         info!(tool = %name, category = %info.metadata.category, "tool registered");
     }
@@ -101,13 +105,21 @@ impl ToolRegistry {
     }
 
     pub async fn list_by_category(&self, category: &str) -> Vec<String> {
-        self.category_index.read().await
-            .get(category).cloned().unwrap_or_default()
+        self.category_index
+            .read()
+            .await
+            .get(category)
+            .cloned()
+            .unwrap_or_default()
     }
 
     pub async fn list_by_tag(&self, tag: &str) -> Vec<String> {
-        self.tag_index.read().await
-            .get(tag).cloned().unwrap_or_default()
+        self.tag_index
+            .read()
+            .await
+            .get(tag)
+            .cloned()
+            .unwrap_or_default()
     }
 
     pub async fn find(&self, filter: &ToolFilter) -> Vec<ToolInfo> {
@@ -116,13 +128,19 @@ impl ToolRegistry {
         for (name, tool) in tools.iter() {
             let info = tool.info();
             if let Some(ref cat) = filter.category {
-                if info.metadata.category.as_str() != cat.as_str() { continue; }
+                if info.metadata.category.as_str() != cat.as_str() {
+                    continue;
+                }
             }
             if let Some(ref tags) = filter.tags {
-                if !tags.iter().any(|t| info.metadata.tags.contains(t)) { continue; }
+                if !tags.iter().any(|t| info.metadata.tags.contains(t)) {
+                    continue;
+                }
             }
             if let Some(ref search) = filter.name_search {
-                if !name.to_lowercase().contains(&search.to_lowercase()) { continue; }
+                if !name.to_lowercase().contains(&search.to_lowercase()) {
+                    continue;
+                }
             }
             results.push(info);
         }
@@ -143,7 +161,8 @@ impl ToolRegistry {
         let tool_info;
         {
             let tools = self.tools.read().await;
-            let t = tools.get(name)
+            let t = tools
+                .get(name)
                 .ok_or_else(|| LsError::NotFound(format!("tool not found: {name}")))?;
             tool_info = t.info();
         }
@@ -158,9 +177,12 @@ impl ToolRegistry {
         let (output, duration_ms) = {
             // 重新获取锁安全地获取引用
             let tools = self.tools.read().await;
-            let tool = tools.get(name)
+            let tool = tools
+                .get(name)
                 .ok_or_else(|| LsError::NotFound(format!("tool not found: {name}")))?;
-            self.sandbox.execute(tool.as_ref(), ctx.clone(), args.clone()).await?
+            self.sandbox
+                .execute(tool.as_ref(), ctx.clone(), args.clone())
+                .await?
         };
 
         // 调用历史
@@ -291,7 +313,9 @@ impl ToolRegistry {
 }
 
 impl Default for ToolRegistry {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[cfg(test)]
@@ -299,7 +323,7 @@ mod tests {
     use super::*;
     use async_trait::async_trait;
     use lingshu_core::LsId;
-    use lingshu_traits::tool::{ToolCategory, ToolMetadata, PermissionLevel, ToolParam};
+    use lingshu_traits::tool::{PermissionLevel, ToolCategory, ToolMetadata, ToolParam};
 
     struct EchoTool;
     #[async_trait]
@@ -310,8 +334,10 @@ mod tests {
                 name: "echo".into(),
                 description: "Echo the input".into(),
                 parameters: vec![ToolParam {
-                    name: "message".into(), description: "Message to echo".into(),
-                    required: true, param_type: "string".into(),
+                    name: "message".into(),
+                    description: "Message to echo".into(),
+                    required: true,
+                    param_type: "string".into(),
                 }],
                 metadata: ToolMetadata {
                     category: ToolCategory::General,
@@ -330,12 +356,14 @@ mod tests {
             }
             Ok(())
         }
-        async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> { Ok(input) }
-    
-    fn duplicate(&self) -> Box<dyn Tool> {
-        Box::new(EchoTool)
+        async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> {
+            Ok(input)
+        }
+
+        fn duplicate(&self) -> Box<dyn Tool> {
+            Box::new(EchoTool)
+        }
     }
-}
 
     struct FileTool;
     #[async_trait]
@@ -343,7 +371,8 @@ mod tests {
         fn info(&self) -> ToolInfo {
             ToolInfo {
                 tool_id: LsId::new(),
-                name: "read_file".into(), description: "Read a file".into(),
+                name: "read_file".into(),
+                description: "Read a file".into(),
                 parameters: vec![],
                 metadata: ToolMetadata {
                     category: ToolCategory::FileSystem,
@@ -356,9 +385,15 @@ mod tests {
                 },
             }
         }
-        fn duplicate(&self) -> Box<dyn Tool> { Box::new(FileTool) }
-        fn validate(&self, _input: &Value) -> LsResult<()> { Ok(()) }
-        async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> { Ok(input) }
+        fn duplicate(&self) -> Box<dyn Tool> {
+            Box::new(FileTool)
+        }
+        fn validate(&self, _input: &Value) -> LsResult<()> {
+            Ok(())
+        }
+        async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> {
+            Ok(input)
+        }
     }
 
     #[tokio::test]
@@ -375,15 +410,24 @@ mod tests {
         let reg = ToolRegistry::new();
         reg.register(Box::new(EchoTool)).await;
         reg.register(Box::new(FileTool)).await;
-        assert!(reg.list_by_category("general").await.contains(&"echo".to_string()));
-        assert!(reg.list_by_category("filesystem").await.contains(&"read_file".to_string()));
+        assert!(reg
+            .list_by_category("general")
+            .await
+            .contains(&"echo".to_string()));
+        assert!(reg
+            .list_by_category("filesystem")
+            .await
+            .contains(&"read_file".to_string()));
     }
 
     #[tokio::test]
     async fn test_list_by_tag() {
         let reg = ToolRegistry::new();
         reg.register(Box::new(EchoTool)).await;
-        assert!(reg.list_by_tag("utility").await.contains(&"echo".to_string()));
+        assert!(reg
+            .list_by_tag("utility")
+            .await
+            .contains(&"echo".to_string()));
     }
 
     #[tokio::test]
@@ -399,7 +443,9 @@ mod tests {
         let reg = ToolRegistry::new();
         reg.register(Box::new(EchoTool)).await;
         let ctx = LsContext::with_session(LsId::new());
-        let result = reg.execute_unchecked(&ctx, "echo", serde_json::json!({"message":"hi"})).await;
+        let result = reg
+            .execute_unchecked(&ctx, "echo", serde_json::json!({"message":"hi"}))
+            .await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap()["message"], "hi");
     }
@@ -409,8 +455,24 @@ mod tests {
         let reg = ToolRegistry::new();
         reg.register(Box::new(FileTool)).await; // requires User
         let ctx = LsContext::with_session(LsId::new());
-        assert!(reg.execute(&ctx, "read_file", serde_json::json!({}), Some(&CallerInfo::anonymous())).await.is_err());
-        assert!(reg.execute(&ctx, "read_file", serde_json::json!({}), Some(&CallerInfo::user("u1"))).await.is_ok());
+        assert!(reg
+            .execute(
+                &ctx,
+                "read_file",
+                serde_json::json!({}),
+                Some(&CallerInfo::anonymous())
+            )
+            .await
+            .is_err());
+        assert!(reg
+            .execute(
+                &ctx,
+                "read_file",
+                serde_json::json!({}),
+                Some(&CallerInfo::user("u1"))
+            )
+            .await
+            .is_ok());
     }
 
     #[tokio::test]

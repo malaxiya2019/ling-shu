@@ -11,8 +11,8 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
 
-use super::dag::{WorkflowDag, WorkflowResult};
 use super::checkpoint::{CheckpointManager, CheckpointStore, WorkflowCheckpointSummary};
+use super::dag::{WorkflowDag, WorkflowResult};
 
 /// 工作流注册表 — 管理多个工作流的生命周期.
 pub struct WorkflowRegistry {
@@ -95,11 +95,9 @@ impl WorkflowRegistry {
         input: Value,
     ) -> LsResult<WorkflowResult> {
         let workflows = self.workflows.read().await;
-        let dag = workflows
-            .get(name)
-            .ok_or_else(|| {
-                lingshu_core::LsError::NotFound(format!("workflow '{name}' not found"))
-            })?;
+        let dag = workflows.get(name).ok_or_else(|| {
+            lingshu_core::LsError::NotFound(format!("workflow '{name}' not found"))
+        })?;
 
         // If checkpoint manager is configured, use execute_or_resume
         if let Some(ref cm) = self.checkpoint_manager {
@@ -117,11 +115,9 @@ impl WorkflowRegistry {
         input: Value,
     ) -> LsResult<WorkflowResult> {
         let workflows = self.workflows.read().await;
-        let dag = workflows
-            .get(name)
-            .ok_or_else(|| {
-                lingshu_core::LsError::NotFound(format!("workflow '{name}' not found"))
-            })?;
+        let dag = workflows.get(name).ok_or_else(|| {
+            lingshu_core::LsError::NotFound(format!("workflow '{name}' not found"))
+        })?;
 
         match self.checkpoint_manager {
             Some(ref cm) => cm.execute_or_resume(dag, ctx, input).await,
@@ -178,9 +174,7 @@ mod tests {
     }
 
     fn make_hello_handler() -> crate::workflow::dag::NodeHandler {
-        Arc::new(|_ctx: LsContext, _input: Value| {
-            Box::pin(async { Ok(json!({"msg": "hello"})) })
-        })
+        Arc::new(|_ctx: LsContext, _input: Value| Box::pin(async { Ok(json!({"msg": "hello"})) }))
     }
 
     #[tokio::test]

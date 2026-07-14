@@ -39,10 +39,7 @@ async fn test_loong_create_agent() {
         Ok(agent_id) => {
             // 成功创建
             let agents = adapter.list_agents().await;
-            assert!(
-                agents.contains(&agent_id),
-                "agent should be in the list"
-            );
+            assert!(agents.contains(&agent_id), "agent should be in the list");
         }
         Err(LsError::NotImplemented(_)) => {
             // 桩模式
@@ -73,7 +70,10 @@ async fn test_loong_run_agent() {
     match adapter.create_agent(config).await {
         Ok(id) => {
             // 执行
-            match adapter.run_agent(&id, serde_json::json!({"cmd": "echo hello"})).await {
+            match adapter
+                .run_agent(&id, serde_json::json!({"cmd": "echo hello"}))
+                .await
+            {
                 Ok(output) => {
                     // 验证输出结构
                     assert_eq!(output.status, lingshu_traits::agent::AgentStatus::Completed);
@@ -132,7 +132,10 @@ async fn test_loong_with_registry() {
     match adapter.create_agent(config).await {
         Ok(agent_id) => {
             // feature 模式：验证 agent 已注册到 registry
-            let info = registry.get(&agent_id).await.expect("agent should be in registry");
+            let info = registry
+                .get(&agent_id)
+                .await
+                .expect("agent should be in registry");
             assert_eq!(info.name, "reg-agent");
             assert_eq!(info.tags.get("source").map(|s| s.as_str()), Some("loong"));
         }
@@ -168,6 +171,12 @@ async fn test_loong_runtime_status_structure() {
     let adapter = LoongAdapter::new();
     let status = adapter.runtime_status().await.unwrap();
     // 无论是否 feature 模式，都应返回合理的 JSON 结构
-    assert!(status.get("agent_count").is_some(), "status should have agent_count");
-    assert!(status.get("runtime_health").is_some(), "status should have runtime_health");
+    assert!(
+        status.get("agent_count").is_some(),
+        "status should have agent_count"
+    );
+    assert!(
+        status.get("runtime_health").is_some(),
+        "status should have runtime_health"
+    );
 }

@@ -313,7 +313,9 @@ impl Agent for DefaultAgent {
                         // Execute tool
                         let result = {
                             let registry = self.tools.read().await;
-                            registry.execute(&ctx, &tool_call.function.name, args, None).await
+                            registry
+                                .execute(&ctx, &tool_call.function.name, args, None)
+                                .await
                         };
 
                         let result_content = match result {
@@ -424,12 +426,11 @@ mod tests {
     #[tokio::test]
     async fn test_agent_initial_state() {
         // Just verify creation - full tests below
-        
     }
 
     fn make_agent() -> DefaultAgent {
         let registry = Arc::new(tokio::sync::RwLock::new(ToolRegistry::new()));
-        
+
         DefaultAgent::new(
             AgentConfig::default(),
             Arc::new(crate::MockLlm::new()),

@@ -23,13 +23,13 @@
 //! - [机器人鉴权](https://bot.q.qq.com/wiki/develop/api/openapi/auth.html)
 //! - [WebSocket 事件](https://bot.q.qq.com/wiki/develop/api/gateway/websocket.html)
 
-use async_trait::async_trait;
-use crate::types::*;
 use crate::traits::MessageChannel;
+use crate::types::*;
 use crate::{LsError, LsResult};
+use async_trait::async_trait;
+use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
 use std::time::Instant;
-use futures_util::{SinkExt, StreamExt};
 use tokio::sync::RwLock;
 
 // ===========================================================================
@@ -88,11 +88,7 @@ pub async fn spawn_qq_websocket(
 }
 
 /// 连接并监听 QQ WebSocket.
-async fn connect_and_listen(
-    ws_url: &str,
-    auth: &str,
-    state: Arc<RwLock<WsState>>,
-) -> LsResult<()> {
+async fn connect_and_listen(ws_url: &str, auth: &str, state: Arc<RwLock<WsState>>) -> LsResult<()> {
     use tokio_tungstenite::connect_async;
     use tokio_tungstenite::tungstenite::Message;
 
@@ -103,14 +99,11 @@ async fn connect_and_listen(
     let (mut write, mut read) = ws_stream.split();
 
     // 等待 Hello 包 (op=10)
-    let hello_timeout = tokio::time::timeout(
-        std::time::Duration::from_secs(10),
-        read.next(),
-    )
-    .await
-    .map_err(|_| LsError::Plugin("QQ WS: timeout waiting for Hello".into()))?
-    .ok_or_else(|| LsError::Plugin("QQ WS: stream ended before Hello".into()))?
-    .map_err(|e| LsError::Plugin(format!("QQ WS read error: {e}")))?;
+    let hello_timeout = tokio::time::timeout(std::time::Duration::from_secs(10), read.next())
+        .await
+        .map_err(|_| LsError::Plugin("QQ WS: timeout waiting for Hello".into()))?
+        .ok_or_else(|| LsError::Plugin("QQ WS: stream ended before Hello".into()))?
+        .map_err(|e| LsError::Plugin(format!("QQ WS read error: {e}")))?;
 
     let hello_msg = match hello_timeout {
         Message::Text(t) => serde_json::from_str::<serde_json::Value>(&t)
@@ -124,9 +117,13 @@ async fn connect_and_listen(
 
     let op = hello_msg["op"].as_i64().unwrap_or(-1);
     if op != 10 {
-        return Err(LsError::Plugin(format!("QQ WS: expected op=10 Hello, got op={op}")));
+        return Err(LsError::Plugin(format!(
+            "QQ WS: expected op=10 Hello, got op={op}"
+        )));
     }
-    let heartbeat_interval_ms = hello_msg["d"]["heartbeat_interval"].as_i64().unwrap_or(30000);
+    let heartbeat_interval_ms = hello_msg["d"]["heartbeat_interval"]
+        .as_i64()
+        .unwrap_or(30000);
 
     // 发送 Identify (op=2)
     let identify = serde_json::json!({
@@ -154,14 +151,11 @@ async fn connect_and_listen(
     tracing::info!("QQ WebSocket: identify sent");
 
     // 等待 Ready (op=0, t=READY)
-    let ready_timeout = tokio::time::timeout(
-        std::time::Duration::from_secs(10),
-        read.next(),
-    )
-    .await
-    .map_err(|_| LsError::Plugin("QQ WS: timeout waiting for Ready".to_string()))?
-    .ok_or_else(|| LsError::Plugin("QQ WS: stream ended before Ready".to_string()))?
-    .map_err(|e| LsError::Plugin(format!("QQ WS read error: {e}")))?;
+    let ready_timeout = tokio::time::timeout(std::time::Duration::from_secs(10), read.next())
+        .await
+        .map_err(|_| LsError::Plugin("QQ WS: timeout waiting for Ready".to_string()))?
+        .ok_or_else(|| LsError::Plugin("QQ WS: stream ended before Ready".to_string()))?
+        .map_err(|e| LsError::Plugin(format!("QQ WS read error: {e}")))?;
 
     let ready_msg = match ready_timeout {
         Message::Text(t) => serde_json::from_str::<serde_json::Value>(&t)
@@ -173,7 +167,9 @@ async fn connect_and_listen(
 
     let ready_op = ready_msg["op"].as_i64().unwrap_or(-1);
     if ready_op != 0 {
-        return Err(LsError::Plugin(format!("QQ WS: expected op=0 Ready, got op={ready_op}")));
+        return Err(LsError::Plugin(format!(
+            "QQ WS: expected op=0 Ready, got op={ready_op}"
+        )));
     }
 
     let session_id = ready_msg["d"]["session_id"].as_str().map(|s| s.to_string());
@@ -183,7 +179,10 @@ async fn connect_and_listen(
         s.seq = ready_msg["s"].as_i64().unwrap_or(0);
     }
 
-    tracing::info!("QQ WebSocket: ready, session_id={:?}", state.read().await.session_id);
+    tracing::info!(
+        "QQ WebSocket: ready, session_id={:?}",
+        state.read().await.session_id
+    );
 
     // 主循环: 心跳 + 事件读取
     let heartbeat_interval = std::time::Duration::from_millis(heartbeat_interval_ms as u64);
@@ -305,7 +304,8 @@ async fn handle_qq_ws_event(
             let channel_id = d["channel_id"].as_str().map(|s| s.to_string());
 
             // QQ timestamp 格式: "2024-01-01T00:00:00+08:00"
-            let ts = d["timestamp"].as_str()
+            let ts = d["timestamp"]
+                .as_str()
                 .and_then(|t| {
                     chrono::DateTime::parse_from_rfc3339(t)
                         .ok()
@@ -317,13 +317,25 @@ async fn handle_qq_ws_event(
                 channel_id: "qq".into(),
                 message_id: msg_id,
                 sender_id: author_id.clone(),
-                sender_name: d["member"]["nick"].as_str().map(|s| s.to_string())
+                sender_name: d["member"]["nick"]
+                    .as_str()
+                    .map(|s| s.to_string())
                     .or_else(|| d["author"]["username"].as_str().map(|s| s.to_string())),
-                chat_type: if is_group { ChatType::Group } else { ChatType::Direct },
-                chat_id: if is_group { channel_id } else { author_id.clone() },
+                chat_type: if is_group {
+                    ChatType::Group
+                } else {
+                    ChatType::Direct
+                },
+                chat_id: if is_group {
+                    channel_id
+                } else {
+                    author_id.clone()
+                },
                 text: content,
                 media_urls: vec![],
-                reply_to_id: d["referenced_message"]["id"].as_str().map(|s| s.to_string()),
+                reply_to_id: d["referenced_message"]["id"]
+                    .as_str()
+                    .map(|s| s.to_string()),
                 timestamp: ts,
                 raw: Some(payload.clone()),
             };
@@ -339,9 +351,13 @@ async fn handle_qq_ws_event(
             let event = InboundEvent {
                 channel_id: "qq".into(),
                 message_id: d["id"].as_str().map(|s| s.to_string()),
-                sender_id: d["author"]["user_openid"].as_str().map(|s| s.to_string())
+                sender_id: d["author"]["user_openid"]
+                    .as_str()
+                    .map(|s| s.to_string())
                     .or_else(|| d["author"]["id"].as_str().map(|s| s.to_string())),
-                sender_name: d["author"]["member"]["nick"].as_str().map(|s| s.to_string()),
+                sender_name: d["author"]["member"]["nick"]
+                    .as_str()
+                    .map(|s| s.to_string()),
                 chat_type: ChatType::Direct,
                 chat_id: d["author"]["user_openid"].as_str().map(|s| s.to_string()),
                 text: d["content"].as_str().map(|s| s.to_string()),
@@ -447,7 +463,11 @@ impl QqChannel {
         format!("Bot {}.{}", self.app_id, self.bot_token)
     }
 
-    async fn call_api(&self, method: &str, params: serde_json::Value) -> LsResult<serde_json::Value> {
+    async fn call_api(
+        &self,
+        method: &str,
+        params: serde_json::Value,
+    ) -> LsResult<serde_json::Value> {
         let url = format!("{}{}", self.api_base.trim_end_matches('/'), method);
         let resp = self
             .client
@@ -464,14 +484,23 @@ impl QqChannel {
 
         if let Some(code) = resp.get("code").and_then(|v| v.as_i64()) {
             if code != 0 {
-                let msg = resp.get("message").and_then(|v| v.as_str()).unwrap_or("unknown");
+                let msg = resp
+                    .get("message")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown");
                 return Err(LsError::Plugin(format!("QQ API 错误 [{code}]: {msg}")));
             }
         }
         Ok(resp)
     }
 
-    async fn send_to_user(&self, openid: &str, content: &str, msg_type: u32, reply_to: Option<&str>) -> LsResult<SendReceipt> {
+    async fn send_to_user(
+        &self,
+        openid: &str,
+        content: &str,
+        msg_type: u32,
+        reply_to: Option<&str>,
+    ) -> LsResult<SendReceipt> {
         let path = format!("/v2/users/{openid}/messages");
         let mut body = serde_json::json!({"content": content, "msg_type": msg_type});
         if let Some(msg_id) = reply_to {
@@ -486,7 +515,13 @@ impl QqChannel {
         })
     }
 
-    async fn send_to_group(&self, group_openid: &str, content: &str, msg_type: u32, reply_to: Option<&str>) -> LsResult<SendReceipt> {
+    async fn send_to_group(
+        &self,
+        group_openid: &str,
+        content: &str,
+        msg_type: u32,
+        reply_to: Option<&str>,
+    ) -> LsResult<SendReceipt> {
         let path = format!("/v2/groups/{group_openid}/messages");
         let mut body = serde_json::json!({"content": content, "msg_type": msg_type});
         if let Some(msg_id) = reply_to {
@@ -508,13 +543,17 @@ impl QqChannel {
 
 #[async_trait]
 impl MessageChannel for QqChannel {
-    fn id(&self) -> &'static str { "qq" }
+    fn id(&self) -> &'static str {
+        "qq"
+    }
 
     fn meta(&self) -> ChannelMeta {
         ChannelMeta {
             label: "QQ",
             description: "QQ 消息平台 — 官方机器人 API",
-            docs_url: Some("https://bot.q.qq.com/wiki/develop/api/openapi/message/post_messages.html"),
+            docs_url: Some(
+                "https://bot.q.qq.com/wiki/develop/api/openapi/message/post_messages.html",
+            ),
             aliases: &["qq", "qbot", "QQ"],
         }
     }
@@ -532,18 +571,22 @@ impl MessageChannel for QqChannel {
 
     async fn send_text(&self, ctx: SendTextContext) -> LsResult<SendReceipt> {
         if Self::is_group_target(&ctx.to) {
-            self.send_to_group(&ctx.to, &ctx.text, 0, ctx.reply_to_id.as_deref()).await
+            self.send_to_group(&ctx.to, &ctx.text, 0, ctx.reply_to_id.as_deref())
+                .await
         } else {
-            self.send_to_user(&ctx.to, &ctx.text, 0, ctx.reply_to_id.as_deref()).await
+            self.send_to_user(&ctx.to, &ctx.text, 0, ctx.reply_to_id.as_deref())
+                .await
         }
     }
 
     async fn send_media(&self, ctx: SendMediaContext) -> LsResult<SendReceipt> {
         let text = format!("📎 {} {}", ctx.media_url, ctx.text.as_deref().unwrap_or(""));
         if Self::is_group_target(&ctx.to) {
-            self.send_to_group(&ctx.to, &text, 0, ctx.reply_to_id.as_deref()).await
+            self.send_to_group(&ctx.to, &text, 0, ctx.reply_to_id.as_deref())
+                .await
         } else {
-            self.send_to_user(&ctx.to, &text, 0, ctx.reply_to_id.as_deref()).await
+            self.send_to_user(&ctx.to, &text, 0, ctx.reply_to_id.as_deref())
+                .await
         }
     }
 
@@ -553,9 +596,12 @@ impl MessageChannel for QqChannel {
             format!("❌ {}", payload.text.as_deref().unwrap_or("未知错误"))
         } else if let Some(media_urls) = &payload.media_urls {
             if !media_urls.is_empty() {
-                let links = media_urls.iter().enumerate()
+                let links = media_urls
+                    .iter()
+                    .enumerate()
                     .map(|(i, u)| format!("📎 [{i}]({u})"))
-                    .collect::<Vec<_>>().join("\n");
+                    .collect::<Vec<_>>()
+                    .join("\n");
                 match &payload.text {
                     Some(t) if !t.is_empty() => format!("{t}\n{links}"),
                     _ => links,
@@ -568,9 +614,11 @@ impl MessageChannel for QqChannel {
         };
 
         if Self::is_group_target(&ctx.to) {
-            self.send_to_group(&ctx.to, &text, 0, ctx.reply_to_id.as_deref()).await
+            self.send_to_group(&ctx.to, &text, 0, ctx.reply_to_id.as_deref())
+                .await
         } else {
-            self.send_to_user(&ctx.to, &text, 0, ctx.reply_to_id.as_deref()).await
+            self.send_to_user(&ctx.to, &text, 0, ctx.reply_to_id.as_deref())
+                .await
         }
     }
 
@@ -581,14 +629,18 @@ impl MessageChannel for QqChannel {
             if let Some(op) = raw.get("op").and_then(|v| v.as_i64()) {
                 // WebSocket 格式 (有 op 字段)
                 if op == 0 {
-                    let _ = handle_qq_ws_event(raw, &Arc::new(RwLock::new(WsState {
-                        tx: self.event_tx.read().await.clone().unwrap_or_else(|| {
-                            let (tx, _) = tokio::sync::mpsc::unbounded_channel();
-                            tx
-                        }),
-                        seq: 0,
-                        session_id: None,
-                    }))).await;
+                    let _ = handle_qq_ws_event(
+                        raw,
+                        &Arc::new(RwLock::new(WsState {
+                            tx: self.event_tx.read().await.clone().unwrap_or_else(|| {
+                                let (tx, _) = tokio::sync::mpsc::unbounded_channel();
+                                tx
+                            }),
+                            seq: 0,
+                            session_id: None,
+                        })),
+                    )
+                    .await;
                     return Ok(());
                 }
             }
@@ -609,9 +661,12 @@ impl MessageChannel for QqChannel {
 
     async fn health_check(&self) -> LsResult<HealthStatus> {
         let start = Instant::now();
-        match self.client.get(format!("{}/me", self.api_base.trim_end_matches('/')))
+        match self
+            .client
+            .get(format!("{}/me", self.api_base.trim_end_matches('/')))
             .header("Authorization", self.auth_header())
-            .send().await
+            .send()
+            .await
         {
             Ok(resp) if resp.status().is_success() => Ok(HealthStatus {
                 healthy: true,
@@ -646,7 +701,9 @@ impl MessageChannel for QqChannel {
         };
         Ok(MessagingTarget {
             normalized: MessagingTarget::normalize(&kind, &id),
-            kind, id, raw: raw.to_string(),
+            kind,
+            id,
+            raw: raw.to_string(),
         })
     }
 }

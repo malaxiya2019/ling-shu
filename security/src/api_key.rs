@@ -95,12 +95,16 @@ impl ApiKeyManager {
             owner: owner.to_string(),
             roles,
             created_at: chrono::Utc::now(),
-            expires_at: ttl_seconds.map(|s| chrono::Utc::now() + chrono::Duration::seconds(s as i64)),
+            expires_at: ttl_seconds
+                .map(|s| chrono::Utc::now() + chrono::Duration::seconds(s as i64)),
             revoked: false,
             last_used_at: None,
         };
 
-        self.active_keys.write().await.insert(key_hash, entry.clone());
+        self.active_keys
+            .write()
+            .await
+            .insert(key_hash, entry.clone());
         info!(key_id = %entry.key_id, owner = %owner, "API key generated");
         Ok((full_key, entry))
     }
@@ -110,9 +114,9 @@ impl ApiKeyManager {
         let key_hash = Self::hash_key(key);
 
         let keys = self.active_keys.read().await;
-        let entry = keys.get(&key_hash).ok_or_else(|| {
-            LsError::AuthenticationFailed("invalid API key".into())
-        })?;
+        let entry = keys
+            .get(&key_hash)
+            .ok_or_else(|| LsError::AuthenticationFailed("invalid API key".into()))?;
 
         if entry.revoked {
             return Err(LsError::AuthenticationFailed("API key revoked".into()));
@@ -230,7 +234,10 @@ mod tests {
     #[tokio::test]
     async fn test_generate_and_verify() {
         let mgr = ApiKeyManager::new();
-        let (key, entry) = mgr.generate("test", "user-1", vec!["admin".into()], None).await.unwrap();
+        let (key, entry) = mgr
+            .generate("test", "user-1", vec!["admin".into()], None)
+            .await
+            .unwrap();
 
         assert!(key.starts_with("ls_test_"));
         assert_eq!(entry.owner, "user-1");
@@ -267,7 +274,13 @@ mod tests {
         let (old_key, old_entry) = mgr.generate("test", "user-1", vec![], None).await.unwrap();
 
         let (new_key, new_entry) = mgr
-            .rotate(&old_entry.key_id, "test", "user-1", vec!["admin".into()], None)
+            .rotate(
+                &old_entry.key_id,
+                "test",
+                "user-1",
+                vec!["admin".into()],
+                None,
+            )
             .await
             .unwrap();
 
@@ -281,7 +294,10 @@ mod tests {
     #[tokio::test]
     async fn test_expired_key() {
         let mgr = ApiKeyManager::new();
-        let (key, _) = mgr.generate("test", "user-1", vec![], Some(0)).await.unwrap();
+        let (key, _) = mgr
+            .generate("test", "user-1", vec![], Some(0))
+            .await
+            .unwrap();
         // TTL=0 means expired immediately — but may still work if in the same nanosecond
         // Sleep a tiny bit to ensure expiry
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;

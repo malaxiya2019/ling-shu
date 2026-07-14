@@ -44,8 +44,14 @@ impl Default for LokiConfig {
                 .unwrap_or_else(|_| "http://localhost:3100/loki/api/v1/push".into()),
             tenant_id: std::env::var("LS_LOKI_TENANT_ID").ok(),
             labels: HashMap::from([
-                ("service".into(), std::env::var("LS_SERVICE_NAME").unwrap_or_else(|_| "lingshu".into())),
-                ("environment".into(), std::env::var("LS_ENV").unwrap_or_else(|_| "dev".into())),
+                (
+                    "service".into(),
+                    std::env::var("LS_SERVICE_NAME").unwrap_or_else(|_| "lingshu".into()),
+                ),
+                (
+                    "environment".into(),
+                    std::env::var("LS_ENV").unwrap_or_else(|_| "dev".into()),
+                ),
             ]),
             batch_interval_secs: 5,
             batch_size: 100,

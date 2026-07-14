@@ -64,12 +64,11 @@ pub struct ExecutionRecord {
 /// 工作流异步处理器签名.
 pub type WorkflowHandler = Arc<
     dyn Fn(
-            String,              // workflow name
-            LsContext,           // execution context
-            Value,               // input
-        ) -> std::pin::Pin<
-            Box<dyn std::future::Future<Output = LsResult<Value>> + Send>,
-        > + Send
+            String,    // workflow name
+            LsContext, // execution context
+            Value,     // input
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = LsResult<Value>> + Send>>
+        + Send
         + Sync,
 >;
 
@@ -176,12 +175,7 @@ impl WorkflowAccess for RuntimeWorkflowAccess {
     /// 优先级:
     /// 1. 如果有注册的异步处理器，使用处理器执行
     /// 2. 否则返回工作流定义本身作为结果（模板模式）
-    async fn execute_workflow(
-        &self,
-        name: &str,
-        ctx: LsContext,
-        input: Value,
-    ) -> LsResult<Value> {
+    async fn execute_workflow(&self, name: &str, ctx: LsContext, input: Value) -> LsResult<Value> {
         let now_ms = chrono::Utc::now().timestamp_millis();
 
         // 尝试 Handler 模式
@@ -242,13 +236,15 @@ impl WorkflowAccess for RuntimeWorkflowAccess {
 
                 // 记录执行日志
                 let mut log = self.execution_log.write().await;
-                log.entry(name.to_string()).or_default().push(ExecutionRecord {
-                    state: ExecutionState::Completed,
-                    input: input.clone(),
-                    output: Some(output.clone()),
-                    started_at: now_ms,
-                    completed_at: Some(chrono::Utc::now().timestamp_millis()),
-                });
+                log.entry(name.to_string())
+                    .or_default()
+                    .push(ExecutionRecord {
+                        state: ExecutionState::Completed,
+                        input: input.clone(),
+                        output: Some(output.clone()),
+                        started_at: now_ms,
+                        completed_at: Some(chrono::Utc::now().timestamp_millis()),
+                    });
 
                 info!(workflow = %name, "workflow executed in template mode");
                 Ok(output)
@@ -372,9 +368,7 @@ mod tests {
     #[tokio::test]
     async fn test_exists() {
         let access = RuntimeWorkflowAccess::new();
-        access
-            .register("exists", serde_json::json!({}))
-            .await;
+        access.register("exists", serde_json::json!({})).await;
         assert!(access.exists("exists").await);
         assert!(!access.exists("missing").await);
     }
@@ -382,9 +376,7 @@ mod tests {
     #[tokio::test]
     async fn test_execution_history() {
         let access = RuntimeWorkflowAccess::new();
-        access
-            .register("hist", serde_json::json!({"v": 1}))
-            .await;
+        access.register("hist", serde_json::json!({"v": 1})).await;
 
         let _ = access
             .execute_workflow("hist", test_ctx(), serde_json::json!({"n": 1}))

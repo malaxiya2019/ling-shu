@@ -25,11 +25,11 @@
 //! - [消息管理](https://developers.weixin.qq.com/doc/offiaccount/Message_Management/)
 //! - [发送客服消息](https://developers.weixin.qq.com/doc/offiaccount/Message_Management/Service_Center_messages.html)
 
-use async_trait::async_trait;
-use crate::types::*;
 use crate::traits::MessageChannel;
+use crate::types::*;
 use crate::{LsError, LsResult};
-use sha1::{Sha1, Digest};
+use async_trait::async_trait;
+use sha1::{Digest, Sha1};
 use std::time::Instant;
 
 // ── 微信通道 ───────────────────────────────────────
@@ -94,7 +94,10 @@ impl WeChatChannel {
             hasher.update(joined.as_bytes());
             hasher.finalize()
         };
-        let hex_hash = hash.iter().map(|b| format!("{:02x}", b)).collect::<String>();
+        let hex_hash = hash
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect::<String>();
         hex_hash == signature
     }
 
@@ -146,7 +149,7 @@ impl WeChatChannel {
     #[allow(dead_code)]
     fn strip_cdata(s: &str) -> String {
         if s.starts_with("<![CDATA[") && s.ends_with("]]>") {
-            s[9..s.len()-3].to_string()
+            s[9..s.len() - 3].to_string()
         } else {
             s.to_string()
         }
@@ -162,7 +165,7 @@ impl WeChatChannel {
                 xml[content_start..].find(&close).map(|end| {
                     let raw = &xml[content_start..content_start + end];
                     if raw.starts_with("<![CDATA[") && raw.ends_with("]]>") {
-                        raw[9..raw.len()-3].to_string()
+                        raw[9..raw.len() - 3].to_string()
                     } else {
                         raw.to_string()
                     }
@@ -175,7 +178,9 @@ impl WeChatChannel {
         let from_user = extract("FromUserName");
         let msg_id = extract("MsgId");
         let create_time_str = extract("CreateTime").unwrap_or_default();
-        let create_time: i64 = create_time_str.parse().unwrap_or_else(|_| chrono::Utc::now().timestamp());
+        let create_time: i64 = create_time_str
+            .parse()
+            .unwrap_or_else(|_| chrono::Utc::now().timestamp());
 
         Ok(InboundEvent {
             channel_id: "wechat".into(),
@@ -266,14 +271,15 @@ impl MessageChannel for WeChatChannel {
             .map_err(|e| LsError::Internal(format!("wechat send parse failed: {e}")))?;
 
         if result.get("errcode").and_then(|c| c.as_i64()) != Some(0) {
-            return Err(LsError::Internal(format!(
-                "wechat API error: {:?}",
-                result
-            )));
+            return Err(LsError::Internal(format!("wechat API error: {:?}", result)));
         }
 
         Ok(SendReceipt {
-            message_id: result.get("msgid").and_then(|m| m.as_str()).unwrap_or("unknown").to_string(),
+            message_id: result
+                .get("msgid")
+                .and_then(|m| m.as_str())
+                .unwrap_or("unknown")
+                .to_string(),
             thread_id: None,
             timestamp: chrono::Utc::now().timestamp(),
             raw: Some(result),
@@ -316,7 +322,11 @@ impl MessageChannel for WeChatChannel {
         }
 
         Ok(SendReceipt {
-            message_id: result.get("msgid").and_then(|m| m.as_str()).unwrap_or("unknown").to_string(),
+            message_id: result
+                .get("msgid")
+                .and_then(|m| m.as_str())
+                .unwrap_or("unknown")
+                .to_string(),
             thread_id: None,
             timestamp: chrono::Utc::now().timestamp(),
             raw: Some(result),
@@ -386,12 +396,9 @@ pub fn handle_verification(
 ///
 /// 微信服务器发送 POST 请求，body 为 XML 格式。
 /// 返回 XML 格式的回复。
-pub async fn handle_message(
-    _channel: &WeChatChannel,
-    xml_body: &str,
-) -> Result<String, String> {
-    let event = WeChatChannel::parse_wechat_xml(xml_body)
-        .map_err(|e| format!("parse failed: {e}"))?;
+pub async fn handle_message(_channel: &WeChatChannel, xml_body: &str) -> Result<String, String> {
+    let event =
+        WeChatChannel::parse_wechat_xml(xml_body).map_err(|e| format!("parse failed: {e}"))?;
 
     let from = event.sender_id.clone().unwrap_or_default();
     let to = event.chat_id.clone().unwrap_or_default();
@@ -421,7 +428,10 @@ mod tests {
         let mut hasher = Sha1::new();
         hasher.update(joined.as_bytes());
         let hash = hasher.finalize();
-        let signature = hash.iter().map(|b| format!("{:02x}", b)).collect::<String>();
+        let signature = hash
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect::<String>();
 
         assert!(channel.verify_signature(&signature, "1234567890", "nonce123"));
         assert!(!channel.verify_signature(&signature, "wrong", "nonce123"));

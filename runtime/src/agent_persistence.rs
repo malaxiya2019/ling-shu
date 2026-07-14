@@ -203,7 +203,6 @@ impl AgentPersistenceManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
 
     #[tokio::test]
     async fn test_save_and_load() {
@@ -286,7 +285,9 @@ mod tests {
             .await
             .unwrap();
 
-        mgr.update_status(&agent_id, AgentStatus::Running).await.unwrap();
+        mgr.update_status(&agent_id, AgentStatus::Running)
+            .await
+            .unwrap();
         let loaded = mgr.load_agent(&agent_id).await.unwrap().unwrap();
         assert_eq!(loaded.status, AgentStatus::Running);
     }

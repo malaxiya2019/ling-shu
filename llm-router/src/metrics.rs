@@ -156,10 +156,7 @@ impl MetricsCollector {
             p95_latency_ms: p95 * 1000.0,
             p99_latency_ms: p99 * 1000.0,
             total_cost: *self.costs.get(backend).unwrap_or(&0.0),
-            last_error: self
-                .last_errors
-                .get(backend)
-                .and_then(|e| e.clone()),
+            last_error: self.last_errors.get(backend).and_then(|e| e.clone()),
             last_call_at: *self.last_calls.get(backend).unwrap_or(&None),
         })
     }
@@ -168,9 +165,7 @@ impl MetricsCollector {
     pub fn all(&self) -> HashMap<String, BackendMetrics> {
         self.backends
             .keys()
-            .filter_map(|name| {
-                self.get(name).map(|m| (name.clone(), m))
-            })
+            .filter_map(|name| self.get(name).map(|m| (name.clone(), m)))
             .collect()
     }
 

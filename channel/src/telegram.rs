@@ -3,10 +3,10 @@
 //! 通过 Telegram Bot API 发送/接收消息.
 //! 作为参考实现，展示 MessageChannel trait 的具体用法.
 
-use async_trait::async_trait;
-use crate::types::*;
 use crate::traits::MessageChannel;
+use crate::types::*;
 use crate::{LsError, LsResult};
+use async_trait::async_trait;
 
 /// Telegram 通道插件.
 pub struct TelegramChannel {
@@ -58,7 +58,10 @@ impl TelegramChannel {
             .map_err(|e| LsError::Plugin(format!("Telegram response parse: {e}")))?;
 
         if resp.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
-            Ok(resp.get("result").cloned().unwrap_or(serde_json::Value::Null))
+            Ok(resp
+                .get("result")
+                .cloned()
+                .unwrap_or(serde_json::Value::Null))
         } else {
             let desc = resp
                 .get("description")
@@ -119,11 +122,19 @@ impl MessageChannel for TelegramChannel {
     }
 
     async fn send_media(&self, ctx: SendMediaContext) -> LsResult<SendReceipt> {
-        let method = if ctx.audio_as_voice { "sendVoice" } else { "sendDocument" };
+        let method = if ctx.audio_as_voice {
+            "sendVoice"
+        } else {
+            "sendDocument"
+        };
         // 使用 serde_json::Map 手动构建以支持动态 key
         let mut map = serde_json::Map::new();
         map.insert("chat_id".into(), serde_json::json!(ctx.to));
-        let media_key = if ctx.audio_as_voice { "voice" } else { "document" };
+        let media_key = if ctx.audio_as_voice {
+            "voice"
+        } else {
+            "document"
+        };
         map.insert(media_key.into(), serde_json::json!(ctx.media_url));
         map.insert("disable_notification".into(), serde_json::json!(false));
         if let Some(text) = &ctx.text {

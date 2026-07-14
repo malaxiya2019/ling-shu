@@ -55,10 +55,7 @@ impl FastEmbedBackend {
     /// 或 EmbeddingModel 的变体名称 (如 `"BGESmallENV15"`)。
     ///
     /// `cache_dir` 为 `None` 时使用 fastembed 默认缓存路径。
-    pub fn with_model(
-        model_name: &str,
-        cache_dir: Option<PathBuf>,
-    ) -> LsResult<Self> {
+    pub fn with_model(model_name: &str, cache_dir: Option<PathBuf>) -> LsResult<Self> {
         // 解析模型名称
         let model = EmbeddingModel::from_str(model_name).map_err(|e| {
             LsError::Embedding(format!("unknown embedding model '{model_name}': {e}"))
@@ -83,9 +80,7 @@ impl FastEmbedBackend {
         // 通过嵌入一条空文本获取维度信息
         let dimensions = Self::detect_dimensions(&text_embedding, model.clone())?;
 
-        debug!(
-            "FastEmbed initialized: model={model_name}, dimensions={dimensions}"
-        );
+        debug!("FastEmbed initialized: model={model_name}, dimensions={dimensions}");
 
         Ok(Self {
             inner: Mutex::new(text_embedding),
@@ -136,22 +131,21 @@ impl Embedding for FastEmbedBackend {
             return Ok(EmbeddingResponse {
                 vectors: vec![],
                 model: self.model.to_string(),
-                usage: EmbeddingUsage {
-                    total_tokens: 0,
-                },
+                usage: EmbeddingUsage { total_tokens: 0 },
             });
         }
 
         let text_count = texts.len() as u64;
 
         // fastembed 的 embed 是同步操作，需要在 blocking 线程池中执行
-        let mut guard = self.inner.lock().map_err(|e| {
-            LsError::Embedding(format!("mutex lock failed: {e}"))
-        })?;
+        let mut guard = self
+            .inner
+            .lock()
+            .map_err(|e| LsError::Embedding(format!("mutex lock failed: {e}")))?;
 
-        let embeddings = (*guard).embed(&texts, None).map_err(|e| {
-            LsError::Embedding(format!("fastembed inference failed: {e}"))
-        })?;
+        let embeddings = (*guard)
+            .embed(&texts, None)
+            .map_err(|e| LsError::Embedding(format!("fastembed inference failed: {e}")))?;
 
         // 释放锁
         drop(guard);
@@ -208,11 +202,9 @@ mod tests {
     fn test_validate_dimensions() {
         // 无需实际模型初始化，直接构造一个最小实例用于测试
         // 此处仅测试 validate_dimensions 方法
-        let model = EmbeddingModel::from_str("BAAI/bge-small-en-v1.5")
-            .expect("default model should parse");
-        let text_embedding = TextEmbedding::try_new(
-            InitOptionsWithLength::new(model.clone()),
-        );
+        let model =
+            EmbeddingModel::from_str("BAAI/bge-small-en-v1.5").expect("default model should parse");
+        let text_embedding = TextEmbedding::try_new(InitOptionsWithLength::new(model.clone()));
 
         // 如果模型初始化失败（例如没有 ONNX Runtime），跳过测试
         if let Ok(te) = text_embedding {
@@ -240,11 +232,9 @@ mod tests {
     /// 验证维度不匹配时校验失败.
     #[test]
     fn test_validate_dimensions_mismatch() {
-        let model = EmbeddingModel::from_str("BAAI/bge-small-en-v1.5")
-            .expect("default model should parse");
-        let text_embedding = TextEmbedding::try_new(
-            InitOptionsWithLength::new(model.clone()),
-        );
+        let model =
+            EmbeddingModel::from_str("BAAI/bge-small-en-v1.5").expect("default model should parse");
+        let text_embedding = TextEmbedding::try_new(InitOptionsWithLength::new(model.clone()));
 
         if let Ok(te) = text_embedding {
             let dimensions = match te.embed(vec!["test"], None) {

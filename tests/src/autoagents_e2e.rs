@@ -5,9 +5,7 @@
 //! 否则验证桩模块返回正确的 Unsupported 错误。
 
 use lingshu_core::{LsContext, LsError, LsId};
-use lingshu_orchestrator::autoagents_bridge::{
-    AutoAgentsOrchestrator, CrewConfig, ReActConfig,
-};
+use lingshu_orchestrator::autoagents_bridge::{AutoAgentsOrchestrator, CrewConfig, ReActConfig};
 use lingshu_orchestrator::orchestrator::OrchestratorConfig;
 
 /// 测试编队 (Crew) 的创建和查询

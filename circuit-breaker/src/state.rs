@@ -71,8 +71,7 @@ impl StateMachine {
 
     /// 上次状态变更的时间戳（Unix 毫秒）.
     pub fn last_state_change_at_ms(&self) -> i64 {
-        chrono::Utc::now().timestamp_millis()
-            - self.last_state_change.elapsed().as_millis() as i64
+        chrono::Utc::now().timestamp_millis() - self.last_state_change.elapsed().as_millis() as i64
     }
 
     /// 上次状态变更记录.

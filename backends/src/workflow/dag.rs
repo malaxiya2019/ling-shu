@@ -35,10 +35,7 @@ pub enum WorkflowEvent {
         workflow_name: String,
     },
     /// 节点开始执行.
-    NodeStarted {
-        node_id: LsId,
-        node_name: String,
-    },
+    NodeStarted { node_id: LsId, node_name: String },
     /// 节点执行完成.
     NodeCompleted {
         node_id: LsId,
@@ -284,7 +281,12 @@ impl WorkflowDag {
     }
 
     /// 设置节点重试.
-    pub fn set_node_retry(&mut self, node_id: LsId, retry_count: u32, retry_delay_ms: u64) -> LsResult<()> {
+    pub fn set_node_retry(
+        &mut self,
+        node_id: LsId,
+        retry_count: u32,
+        retry_delay_ms: u64,
+    ) -> LsResult<()> {
         let node = self
             .nodes
             .get_mut(&node_id)
@@ -535,8 +537,7 @@ impl WorkflowDag {
                     if let Some(ref skip_node_name) = node.skip_if {
                         let should_skip = node_outputs.iter().any(|(nid, output)| {
                             if let Some(n) = self.nodes.get(nid) {
-                                n.name == *skip_node_name
-                                    && matches!(output, Value::Bool(true))
+                                n.name == *skip_node_name && matches!(output, Value::Bool(true))
                             } else {
                                 false
                             }
@@ -559,7 +560,10 @@ impl WorkflowDag {
                                 handler(WorkflowEvent::NodeSkipped {
                                     node_id,
                                     node_name: node.name.clone(),
-                                    reason: format!("skipped by condition from node '{}'", skip_node_name),
+                                    reason: format!(
+                                        "skipped by condition from node '{}'",
+                                        skip_node_name
+                                    ),
                                 });
                             }
 
@@ -826,11 +830,7 @@ impl WorkflowDag {
     pub fn leaf_nodes(&self) -> Vec<LsId> {
         self.nodes
             .keys()
-            .filter(|id| {
-                self.adj_list
-                    .get(id)
-                    .is_none_or(|edges| edges.is_empty())
-            })
+            .filter(|id| self.adj_list.get(id).is_none_or(|edges| edges.is_empty()))
             .copied()
             .collect()
     }
@@ -965,12 +965,7 @@ impl Workflow {
     }
 
     /// 添加一个异步节点处理函数 (完整配置版).
-    pub fn add_node_with<F, Fut>(
-        &mut self,
-        name: &str,
-        config: NodeConfig,
-        handler: F,
-    ) -> LsId
+    pub fn add_node_with<F, Fut>(&mut self, name: &str, config: NodeConfig, handler: F) -> LsId
     where
         F: Fn(LsContext, Value) -> Fut + Send + Sync + 'static + Clone,
         Fut: std::future::Future<Output = LsResult<Value>> + Send + 'static,
@@ -1199,8 +1194,8 @@ mod tests {
                     Ok(json!({"done": true}))
                 })
             }),
-            1,   // timeout_secs
-            0,   // retry_count
+            1,    // timeout_secs
+            0,    // retry_count
             1000, // retry_delay_ms
             None, // skip_if
         );
@@ -1230,10 +1225,10 @@ mod tests {
                     }
                 })
             }),
-            0,     // timeout_secs
-            3,     // retry_count
-            50,    // retry_delay_ms (fast for test)
-            None,  // skip_if
+            0,    // timeout_secs
+            3,    // retry_count
+            50,   // retry_delay_ms (fast for test)
+            None, // skip_if
         );
 
         let result = wf.execute(test_ctx(), Value::Null).await.unwrap();
@@ -1328,16 +1323,25 @@ mod tests {
         );
 
         // Make node_b depend on node_a
-        let b = wf.nodes().iter().find(|(_, n)| n.name == "node_b").map(|(id, _)| *id).unwrap();
+        let b = wf
+            .nodes()
+            .iter()
+            .find(|(_, n)| n.name == "node_b")
+            .map(|(id, _)| *id)
+            .unwrap();
         wf.add_edge(a, b).unwrap();
 
         let _ = wf.execute(test_ctx(), Value::Null).await.unwrap();
 
         let captured = events.lock().unwrap();
         assert!(captured.len() >= 4); // WorkflowStarted + 2x NodeCompleted or NodeStarted + WorkflowCompleted
-        // Check we at least have start and end events
-        let has_start = captured.iter().any(|e| matches!(e, WorkflowEvent::WorkflowStarted { .. }));
-        let has_complete = captured.iter().any(|e| matches!(e, WorkflowEvent::WorkflowCompleted { .. }));
+                                      // Check we at least have start and end events
+        let has_start = captured
+            .iter()
+            .any(|e| matches!(e, WorkflowEvent::WorkflowStarted { .. }));
+        let has_complete = captured
+            .iter()
+            .any(|e| matches!(e, WorkflowEvent::WorkflowCompleted { .. }));
         assert!(has_start);
         assert!(has_complete);
     }
@@ -1377,17 +1381,20 @@ mod tests {
     async fn test_add_edges_batch() {
         let mut wf = WorkflowDag::new("batch-edge-test");
         let a = wf.add_node(
-            "a", "",
+            "a",
+            "",
             Value::Null,
             Arc::new(|_ctx, _input| Box::pin(async { Ok(Value::Null) })),
         );
         let b = wf.add_node(
-            "b", "",
+            "b",
+            "",
             Value::Null,
             Arc::new(|_ctx, _input| Box::pin(async { Ok(Value::Null) })),
         );
         let c = wf.add_node(
-            "c", "",
+            "c",
+            "",
             Value::Null,
             Arc::new(|_ctx, _input| Box::pin(async { Ok(Value::Null) })),
         );
@@ -1401,12 +1408,14 @@ mod tests {
     async fn test_remove_node() {
         let mut wf = WorkflowDag::new("remove-test");
         let a = wf.add_node(
-            "a", "",
+            "a",
+            "",
             Value::Null,
             Arc::new(|_ctx, _input| Box::pin(async { Ok(Value::Null) })),
         );
         let b = wf.add_node(
-            "b", "",
+            "b",
+            "",
             Value::Null,
             Arc::new(|_ctx, _input| Box::pin(async { Ok(Value::Null) })),
         );
@@ -1424,17 +1433,20 @@ mod tests {
     async fn test_root_and_leaf_nodes() {
         let mut wf = WorkflowDag::new("root-leaf-test");
         let a = wf.add_node(
-            "a", "",
+            "a",
+            "",
             Value::Null,
             Arc::new(|_ctx, _input| Box::pin(async { Ok(Value::Null) })),
         );
         let b = wf.add_node(
-            "b", "",
+            "b",
+            "",
             Value::Null,
             Arc::new(|_ctx, _input| Box::pin(async { Ok(Value::Null) })),
         );
         let c = wf.add_node(
-            "c", "",
+            "c",
+            "",
             Value::Null,
             Arc::new(|_ctx, _input| Box::pin(async { Ok(Value::Null) })),
         );
@@ -1455,7 +1467,8 @@ mod tests {
     async fn test_workflow_clone_resets_handlers() {
         let mut wf = WorkflowDag::new("clone-test");
         wf.add_node(
-            "a", "",
+            "a",
+            "",
             Value::Null,
             Arc::new(|_ctx, _input| Box::pin(async { Ok(json!({"done": true})) })),
         );

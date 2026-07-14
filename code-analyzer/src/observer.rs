@@ -283,49 +283,47 @@ impl NotifyFileObserver {
                 const DEBOUNCE_MS: u64 = 300;
 
                 while let Ok(event) = rx.recv() {
-                            if paused_clone.load(std::sync::atomic::Ordering::Relaxed) {
-                                continue;
-                            }
+                    if paused_clone.load(std::sync::atomic::Ordering::Relaxed) {
+                        continue;
+                    }
 
-                            let now = std::time::Instant::now();
-                            let kind = match event.kind {
-                                Create(_) => FileChangeKind::Created,
-                                Modify(_) => FileChangeKind::Modified,
-                                Remove(_) => FileChangeKind::Deleted,
-                                _ => continue,
-                            };
+                    let now = std::time::Instant::now();
+                    let kind = match event.kind {
+                        Create(_) => FileChangeKind::Created,
+                        Modify(_) => FileChangeKind::Modified,
+                        Remove(_) => FileChangeKind::Deleted,
+                        _ => continue,
+                    };
 
-                            let cb = {
-                                if let Ok(guard) = cb_clone.lock() {
-                                    guard.clone()
-                                } else {
+                    let cb = {
+                        if let Ok(guard) = cb_clone.lock() {
+                            guard.clone()
+                        } else {
+                            continue;
+                        }
+                    };
+
+                    if let Some(ref callback) = cb {
+                        for path in &event.paths {
+                            if let Some(last) = debounce.get(path) {
+                                if now.duration_since(*last).as_millis() < DEBOUNCE_MS as u128 {
                                     continue;
                                 }
+                            }
+                            debounce.insert(path.clone(), now);
+
+                            let fe = FileChangeEvent {
+                                path: path.clone(),
+                                kind: kind.clone(),
+                                timestamp: std::time::SystemTime::now(),
                             };
+                            callback(fe);
+                        }
+                    }
 
-                            if let Some(ref callback) = cb {
-                                for path in &event.paths {
-                                    if let Some(last) = debounce.get(path) {
-                                        if now.duration_since(*last).as_millis()
-                                            < DEBOUNCE_MS as u128
-                                        {
-                                            continue;
-                                        }
-                                    }
-                                    debounce.insert(path.clone(), now);
-
-                                    let fe = FileChangeEvent {
-                                        path: path.clone(),
-                                        kind: kind.clone(),
-                                        timestamp: std::time::SystemTime::now(),
-                                    };
-                                    callback(fe);
-                                }
-                            }
-
-                            if debounce.len() > 1000 {
-                                debounce.retain(|_, v| now.duration_since(*v).as_secs() < 5);
-                            }
+                    if debounce.len() > 1000 {
+                        debounce.retain(|_, v| now.duration_since(*v).as_secs() < 5);
+                    }
                 }
             })
             .map_err(|e| lingshu_core::LsError::Internal(format!("spawn thread: {e}")))?;

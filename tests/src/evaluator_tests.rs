@@ -121,7 +121,10 @@ async fn test_evaluator_run_suite() {
         "all mock cases should pass (echo match)"
     );
     assert!((result.overall_score - 1.0).abs() < 1e-6, "perfect score");
-    assert!(result.total_duration > Duration::ZERO, "should have duration");
+    assert!(
+        result.total_duration > Duration::ZERO,
+        "should have duration"
+    );
 }
 
 #[tokio::test]
@@ -181,12 +184,31 @@ async fn test_evaluator_metrics() {
     let result = runner.run_suite(&suite, &ctx).await;
 
     let metrics = &result.metrics;
-    assert!((metrics.accuracy - 1.0).abs() < 1e-6, "accuracy should be 1.0");
-    assert!((metrics.avg_input_tokens - 20.0).abs() < 1e-6, "avg input tokens");
-    assert!((metrics.avg_output_tokens - 30.0).abs() < 1e-6, "avg output tokens");
-    assert!(metrics.total_tokens >= 200, "total tokens ({}) >= 200", metrics.total_tokens);
-    assert!(metrics.avg_latency >= Duration::from_millis(15), "avg latency");
-    assert!(metrics.p50_latency >= Duration::from_millis(15), "p50 latency");
+    assert!(
+        (metrics.accuracy - 1.0).abs() < 1e-6,
+        "accuracy should be 1.0"
+    );
+    assert!(
+        (metrics.avg_input_tokens - 20.0).abs() < 1e-6,
+        "avg input tokens"
+    );
+    assert!(
+        (metrics.avg_output_tokens - 30.0).abs() < 1e-6,
+        "avg output tokens"
+    );
+    assert!(
+        metrics.total_tokens >= 200,
+        "total tokens ({}) >= 200",
+        metrics.total_tokens
+    );
+    assert!(
+        metrics.avg_latency >= Duration::from_millis(15),
+        "avg latency"
+    );
+    assert!(
+        metrics.p50_latency >= Duration::from_millis(15),
+        "p50 latency"
+    );
 }
 
 // ── 测试: 回归检测 ────────────────────────────────
@@ -335,11 +357,14 @@ async fn test_evaluator_report_generation() {
     });
 
     let suite = build_math_suite();
-    let runner = EvalRunner::new(target, EvalConfig {
-        output_dir: Some(dir_path.to_string_lossy().to_string()),
-        report_formats: vec![ReportFormat::Json, ReportFormat::Markdown],
-        ..Default::default()
-    });
+    let runner = EvalRunner::new(
+        target,
+        EvalConfig {
+            output_dir: Some(dir_path.to_string_lossy().to_string()),
+            report_formats: vec![ReportFormat::Json, ReportFormat::Markdown],
+            ..Default::default()
+        },
+    );
     let ctx = LsContext::with_session(LsId::new()).with_user("test");
     let result = runner.run_suite(&suite, &ctx).await;
 
@@ -366,7 +391,6 @@ async fn test_evaluator_report_generation() {
     assert!(md_content.contains("数学测试"));
     assert!(md_content.contains("1+1=2"));
 }
-
 
 /// 回声可评测目标 — 返回输入值 (而非预期值).
 struct EchoEvaluable {

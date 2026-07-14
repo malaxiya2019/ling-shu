@@ -3,15 +3,15 @@
 //! 后台定期检查 agent-device MCP 工具列表的变化，
 //! 自动发现新工具、淘汰已移除的工具，增量更新到 ToolRegistry。
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use lingshu_core::{LsContext, LsResult};
 use lingshu_mcp::rmcp_stdio_client::{McpStdioClient, McpTool};
 use lingshu_tool::ToolRegistry;
 use tokio::sync::RwLock;
-use tracing::{info, warn, debug};
+use tracing::{debug, info, warn};
 
 /// 工具同步状态
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -53,11 +53,7 @@ pub struct McpToolSyncTask {
 
 impl McpToolSyncTask {
     /// 创建新的同步任务
-    pub fn new(
-        client: Arc<McpStdioClient>,
-        registry: ToolRegistry,
-        ctx: LsContext,
-    ) -> Self {
+    pub fn new(client: Arc<McpStdioClient>, registry: ToolRegistry, ctx: LsContext) -> Self {
         Self {
             client,
             registry,
@@ -158,8 +154,7 @@ impl McpToolSyncTask {
 
         // 获取上次的工具集
         let mut last_tools = self.last_tools.write().await;
-        let last_names: std::collections::HashSet<String> =
-            last_tools.keys().cloned().collect();
+        let last_names: std::collections::HashSet<String> = last_tools.keys().cloned().collect();
 
         // 计算差异
         let new_tools: Vec<&McpTool> = current_tools
@@ -167,9 +162,7 @@ impl McpToolSyncTask {
             .filter(|t| !last_names.contains(&t.name))
             .collect();
 
-        let removed_names: Vec<&String> = last_names
-            .difference(&current_names)
-            .collect();
+        let removed_names: Vec<&String> = last_names.difference(&current_names).collect();
 
         // 更新工具注册表
         if !new_tools.is_empty() {

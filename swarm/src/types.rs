@@ -292,7 +292,8 @@ impl SwarmAgent {
         let alpha = 0.3;
         let task_score = if success { 1.0 } else { 0.0 };
         self.capability_score = alpha * task_score + (1.0 - alpha) * self.capability_score;
-        self.success_rate = alpha * (if success { 1.0 } else { 0.0 }) + (1.0 - alpha) * self.success_rate;
+        self.success_rate =
+            alpha * (if success { 1.0 } else { 0.0 }) + (1.0 - alpha) * self.success_rate;
         self.tasks_completed += 1;
         self.avg_execution_ms = if self.tasks_completed == 1 {
             execution_ms
@@ -333,7 +334,11 @@ pub struct SwarmTask {
 }
 
 impl SwarmTask {
-    pub fn new(name: impl Into<String>, description: impl Into<String>, input: serde_json::Value) -> Self {
+    pub fn new(
+        name: impl Into<String>,
+        description: impl Into<String>,
+        input: serde_json::Value,
+    ) -> Self {
         Self {
             id: LsId::new(),
             name: name.into(),
@@ -453,7 +458,10 @@ impl SwarmState {
     }
 
     pub fn busy_agent_count(&self) -> usize {
-        self.agents.iter().filter(|a| a.status == SwarmAgentStatus::Busy).count()
+        self.agents
+            .iter()
+            .filter(|a| a.status == SwarmAgentStatus::Busy)
+            .count()
     }
 }
 
@@ -527,9 +535,14 @@ mod tests {
 
     #[test]
     fn test_swarm_strategy_roundtrip() {
-        for s in &[SwarmStrategy::Voting, SwarmStrategy::Consensus,
-                   SwarmStrategy::Hierarchical, SwarmStrategy::Democratic,
-                   SwarmStrategy::Bidding, SwarmStrategy::Hybrid] {
+        for s in &[
+            SwarmStrategy::Voting,
+            SwarmStrategy::Consensus,
+            SwarmStrategy::Hierarchical,
+            SwarmStrategy::Democratic,
+            SwarmStrategy::Bidding,
+            SwarmStrategy::Hybrid,
+        ] {
             let json = serde_json::to_string(s).unwrap();
             let deserialized: SwarmStrategy = serde_json::from_str(&json).unwrap();
             assert_eq!(*s, deserialized);
@@ -567,9 +580,13 @@ mod tests {
 
     #[test]
     fn test_swarm_topology_roundtrip() {
-        for t in &[SwarmTopology::Star, SwarmTopology::Mesh,
-                   SwarmTopology::Ring, SwarmTopology::Tree,
-                   SwarmTopology::Dynamic] {
+        for t in &[
+            SwarmTopology::Star,
+            SwarmTopology::Mesh,
+            SwarmTopology::Ring,
+            SwarmTopology::Tree,
+            SwarmTopology::Dynamic,
+        ] {
             let json = serde_json::to_string(t).unwrap();
             let deserialized: SwarmTopology = serde_json::from_str(&json).unwrap();
             assert_eq!(*t, deserialized);
@@ -611,11 +628,18 @@ mod tests {
 
     #[test]
     fn test_swarm_agent_role_roundtrip() {
-        for r in &[SwarmAgentRole::Analyst, SwarmAgentRole::Creator,
-                   SwarmAgentRole::Validator, SwarmAgentRole::Negotiator,
-                   SwarmAgentRole::Observer, SwarmAgentRole::Planner,
-                   SwarmAgentRole::Executor, SwarmAgentRole::Tester,
-                   SwarmAgentRole::Aggregator, SwarmAgentRole::Router] {
+        for r in &[
+            SwarmAgentRole::Analyst,
+            SwarmAgentRole::Creator,
+            SwarmAgentRole::Validator,
+            SwarmAgentRole::Negotiator,
+            SwarmAgentRole::Observer,
+            SwarmAgentRole::Planner,
+            SwarmAgentRole::Executor,
+            SwarmAgentRole::Tester,
+            SwarmAgentRole::Aggregator,
+            SwarmAgentRole::Router,
+        ] {
             let json = serde_json::to_string(r).unwrap();
             let deserialized: SwarmAgentRole = serde_json::from_str(&json).unwrap();
             assert_eq!(*r, deserialized);
@@ -718,8 +742,7 @@ mod tests {
 
     #[test]
     fn test_swarm_agent_serialization() {
-        let agent = SwarmAgent::new("test", SwarmAgentRole::Analyst)
-            .with_expertise("go", 0.8);
+        let agent = SwarmAgent::new("test", SwarmAgentRole::Analyst).with_expertise("go", 0.8);
         let json = serde_json::to_string(&agent).unwrap();
         let deserialized: SwarmAgent = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.name, "test");
@@ -730,9 +753,14 @@ mod tests {
 
     #[test]
     fn test_swarm_agent_status_roundtrip() {
-        for s in &[SwarmAgentStatus::Idle, SwarmAgentStatus::Busy,
-                   SwarmAgentStatus::Evaluating, SwarmAgentStatus::Faulted,
-                   SwarmAgentStatus::Offline, SwarmAgentStatus::Removed] {
+        for s in &[
+            SwarmAgentStatus::Idle,
+            SwarmAgentStatus::Busy,
+            SwarmAgentStatus::Evaluating,
+            SwarmAgentStatus::Faulted,
+            SwarmAgentStatus::Offline,
+            SwarmAgentStatus::Removed,
+        ] {
             let json = serde_json::to_string(s).unwrap();
             let deserialized: SwarmAgentStatus = serde_json::from_str(&json).unwrap();
             assert_eq!(*s, deserialized);
@@ -768,8 +796,7 @@ mod tests {
 
     #[test]
     fn test_swarm_task_priority_capped() {
-        let task = SwarmTask::new("t", "", serde_json::json!({}))
-            .with_priority(15);
+        let task = SwarmTask::new("t", "", serde_json::json!({})).with_priority(15);
         assert_eq!(task.priority, 10);
     }
 

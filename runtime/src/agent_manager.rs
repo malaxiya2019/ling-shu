@@ -245,7 +245,10 @@ impl AgentManager {
             .get_mut(agent_id)
             .ok_or_else(|| lingshu_core::LsError::NotFound(format!("agent {agent_id}")))?;
         let name = entry.name.clone();
-        entry.agent.update_config(ctx.clone(), config.clone()).await?;
+        entry
+            .agent
+            .update_config(ctx.clone(), config.clone())
+            .await?;
         entry.status = entry.agent.status(ctx.clone()).await?;
         info!(agent_id = %agent_id, status = ?entry.status, "agent config updated");
         self.emit_event(

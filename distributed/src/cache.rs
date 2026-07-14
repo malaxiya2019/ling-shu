@@ -161,7 +161,6 @@ impl DistributedCache {
         self.len().await == 0
     }
 
-
     pub async fn stats(&self) -> CacheStats {
         let mut total_entries = 0;
         for shard in &self.shards {

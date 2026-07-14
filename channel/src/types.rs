@@ -36,8 +36,7 @@ impl std::fmt::Display for ChatType {
 /// Agent 回复载荷 — 渠道无关.
 ///
 /// 对应 OpenClaw 的 `ReplyPayload`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ReplyPayload {
     /// 文本内容.
     pub text: Option<String>,
@@ -81,7 +80,6 @@ impl ReplyPayload {
         }
     }
 }
-
 
 // ── 消息批次 ───────────────────────────────────────
 
@@ -183,9 +181,14 @@ pub enum MessagingTargetKind {
 impl MessagingTarget {
     /// 构建规范化键值.
     pub fn normalize(kind: &MessagingTargetKind, id: &str) -> String {
-        format!("{}:{}", 
-            match kind { MessagingTargetKind::User => "user", MessagingTargetKind::Channel => "channel" },
-            id.to_lowercase())
+        format!(
+            "{}:{}",
+            match kind {
+                MessagingTargetKind::User => "user",
+                MessagingTargetKind::Channel => "channel",
+            },
+            id.to_lowercase()
+        )
     }
 }
 
@@ -237,7 +240,7 @@ pub struct ChannelCapabilities {
 }
 
 /// 通道元数据.
-#[derive(Debug, Clone, )]
+#[derive(Debug, Clone)]
 pub struct ChannelMeta {
     /// 显示标签.
     pub label: &'static str,

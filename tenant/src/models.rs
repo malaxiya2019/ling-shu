@@ -19,15 +19,13 @@ pub struct Organization {
 }
 
 /// 组织状态.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum OrgStatus {
     #[default]
     Active,
     Suspended,
     Disabled,
 }
-
 
 /// 组织设置.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,15 +65,13 @@ pub struct Project {
 }
 
 /// 项目状态.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum ProjectStatus {
     #[default]
     Active,
     Archived,
     Frozen,
 }
-
 
 /// 项目设置.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -114,8 +110,7 @@ pub struct TenantUser {
 }
 
 /// 租户角色.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum TenantRole {
     Owner,
     Admin,
@@ -138,27 +133,20 @@ impl TenantRole {
                 "ls.agent.run",
                 "ls.agent.read",
             ],
-            TenantRole::Member => vec![
-                "ls.tenant.project.read",
-                "ls.agent.run",
-                "ls.agent.read",
-            ],
+            TenantRole::Member => vec!["ls.tenant.project.read", "ls.agent.run", "ls.agent.read"],
             TenantRole::Viewer => vec!["ls.agent.read"],
         }
     }
 }
 
-
 /// 用户状态.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum UserStatus {
     #[default]
     Active,
     Invited,
     Disabled,
 }
-
 
 /// 创建组织请求.
 #[derive(Debug, Clone, Serialize, Deserialize)]

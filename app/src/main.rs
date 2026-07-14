@@ -8,12 +8,13 @@
 
 mod api;
 
-use lingshu_runtime::agent_runtime::AgentRuntime;
 use clap::Parser;
+use lingshu_runtime::agent_runtime::AgentRuntime;
 use std::io::Write;
 use std::sync::Arc;
 use tracing::{error, info};
 
+use lingshu_channel::registry::ChannelRegistry;
 use lingshu_config::env::Environment;
 use lingshu_config::settings::{LlmProvider, LsConfig};
 use lingshu_core::{LsContext, LsError, LsId, LsResult};
@@ -21,15 +22,14 @@ use lingshu_credentials::CredentialManager;
 use lingshu_credentials::CredentialStore;
 use lingshu_eventbus::bus::InMemoryEventBus;
 use lingshu_observability::ObservabilityConfig;
+use lingshu_rag_plugin::RagPlugin;
 use lingshu_runtime::lifecycle::{LifecycleManager, LifecycleState};
 use lingshu_runtime::recovery::RecoveryManager;
 use lingshu_runtime::scheduler::InternalScheduler;
 use lingshu_runtime::session::SessionManager;
 use lingshu_runtime::ToolRegistry;
 use lingshu_security::service_auth::ServiceKeyBundle;
-use lingshu_rag_plugin::RagPlugin;
 use lingshu_storage::LocalStorage;
-use lingshu_channel::registry::ChannelRegistry;
 use lingshu_websocket::{ConnectionManager, SseBroadcaster};
 
 use crate::api::AppState;
@@ -120,14 +120,16 @@ pub struct LingshuRuntime {
     pub agent_runtime: Option<AgentRuntime>,
     /// v6.0 Swarm 群体智能引擎 (feature = "swarm").
     #[cfg(feature = "swarm")]
-    pub swarm_engine: Option<std::sync::Arc<tokio::sync::RwLock<lingshu_swarm::engine::SwarmEngine>>>,
+    pub swarm_engine:
+        Option<std::sync::Arc<tokio::sync::RwLock<lingshu_swarm::engine::SwarmEngine>>>,
 
     /// v6.0 Autonomy 自我进化引擎 (feature = "autonomy").
     #[cfg(feature = "autonomy")]
     pub evolution_engine: Option<std::sync::Arc<lingshu_autonomy::evolution::EvolutionEngine>>,
 
     /// v6.0 WorkflowAccess — 工作流注册与执行.
-    pub workflow_access: Option<std::sync::Arc<lingshu_runtime::workflow_access::RuntimeWorkflowAccess>>,
+    pub workflow_access:
+        Option<std::sync::Arc<lingshu_runtime::workflow_access::RuntimeWorkflowAccess>>,
 }
 
 impl LingshuRuntime {
@@ -236,7 +238,6 @@ impl LingshuRuntime {
         let credential_manager = std::sync::Arc::new(CredentialManager::new(credential_store));
         tracing::info!(path = %cred_db_path.display(), "credential vault initialized");
 
-
         // ── Optional: chidori recovery (feature = "chidori") ────
         #[cfg(feature = "chidori")]
         let chidori_recovery = Some(std::sync::Arc::new(
@@ -245,7 +246,9 @@ impl LingshuRuntime {
             ),
         ));
         #[cfg(not(feature = "chidori"))]
-        let chidori_recovery: Option<std::sync::Arc<lingshu_runtime::ChidoriRecoveryManager>> = None;
+        let chidori_recovery: Option<
+            std::sync::Arc<lingshu_runtime::ChidoriRecoveryManager>,
+        > = None;
 
         // ── Optional: AutoAgents orchestrator (feature = "autoagents") ──
         #[cfg(feature = "autoagents")]
@@ -255,7 +258,9 @@ impl LingshuRuntime {
             ),
         ));
         #[cfg(not(feature = "autoagents"))]
-        let autoagents: Option<std::sync::Arc<lingshu_orchestrator::AutoAgentsOrchestrator>> = None;
+        let autoagents: Option<
+            std::sync::Arc<lingshu_orchestrator::AutoAgentsOrchestrator>,
+        > = None;
 
         // ── Optional: Loong adapter (feature = "loong") ──────────
         #[cfg(feature = "loong")]
@@ -264,7 +269,6 @@ impl LingshuRuntime {
         ));
         #[cfg(not(feature = "loong"))]
         let loong_adapter: Option<std::sync::Arc<lingshu_orchestrator::LoongAdapter>> = None;
-
 
         // ── 通道注册表 (Channel Registry) ────────────────────────
         let channel_registry = {
@@ -307,7 +311,9 @@ impl LingshuRuntime {
                 std::env::var("LINGSHU_WECHAT_APP_SECRET"),
                 std::env::var("LINGSHU_WECHAT_TOKEN"),
             ) {
-                let ch = Arc::new(lingshu_channel::WeChatChannel::new(app_id, app_secret, token));
+                let ch = Arc::new(lingshu_channel::WeChatChannel::new(
+                    app_id, app_secret, token,
+                ));
                 reg.register(ch).await;
                 tracing::info!("channel registered: wechat");
             }
@@ -315,13 +321,10 @@ impl LingshuRuntime {
             // Discord (环境变量: DISCORD_BOT_TOKEN)
             #[cfg(feature = "discord")]
             if let Ok(_token) = std::env::var("DISCORD_BOT_TOKEN") {
-                let ch = Arc::new(
-                    lingshu_channel::DiscordChannel::new()
-                        .unwrap_or_else(|e| {
-                            tracing::warn!(error = %e, "failed to create Discord channel");
-                            panic!("DiscordChannel::new() failed: {e}")
-                        }),
-                );
+                let ch = Arc::new(lingshu_channel::DiscordChannel::new().unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, "failed to create Discord channel");
+                    panic!("DiscordChannel::new() failed: {e}")
+                }));
                 reg.register(ch).await;
                 tracing::info!("channel registered: discord");
             }
@@ -335,7 +338,8 @@ impl LingshuRuntime {
             session_ttl_seconds: config.runtime.session_ttl_seconds,
             ..Default::default()
         };
-        let agent_runtime = lingshu_runtime::agent_runtime::AgentRuntime::new(agent_rt_config).await?;
+        let agent_runtime =
+            lingshu_runtime::agent_runtime::AgentRuntime::new(agent_rt_config).await?;
         tracing::info!("agent runtime (v4.0) initialized");
 
         // ── v6.0 Pipeline Wiring: 将 AgentPipeline 接入 AgentRuntime ──
@@ -357,18 +361,22 @@ impl LingshuRuntime {
             // 2. 注册到 AgentRuntime
             agent_runtime.set_tool_registry(tool_registry.clone()).await;
             agent_runtime.set_pipeline(pipeline.clone()).await;
-            agent_runtime.set_event_bus(event_bus.clone() as Arc<dyn lingshu_traits::event_bus::EventBus>).await;
+            agent_runtime
+                .set_event_bus(event_bus.clone() as Arc<dyn lingshu_traits::event_bus::EventBus>)
+                .await;
 
             // 3. 注册默认 PipelineAgent 到 AgentManager
-            let pipeline_agent = Box::new(
-                lingshu_runtime::agent_pipeline::PipelineAgent::new(
-                    lingshu_core::LsId::new(),
-                    "default-agent",
-                    pipeline,
-                ),
-            );
+            let pipeline_agent = Box::new(lingshu_runtime::agent_pipeline::PipelineAgent::new(
+                lingshu_core::LsId::new(),
+                "default-agent",
+                pipeline,
+            ));
             agent_manager
-                .register(lingshu_core::LsId::new(), "default-agent".into(), pipeline_agent)
+                .register(
+                    lingshu_core::LsId::new(),
+                    "default-agent".into(),
+                    pipeline_agent,
+                )
                 .await;
 
             tracing::info!("v6.0 pipeline wired: default-agent registered with ReAct pipeline");
@@ -377,23 +385,36 @@ impl LingshuRuntime {
         }
 
         // ── v6.0 WorkflowAccess Wiring ──
-        let workflow_access = Arc::new(lingshu_runtime::workflow_access::RuntimeWorkflowAccess::new());
+        let workflow_access =
+            Arc::new(lingshu_runtime::workflow_access::RuntimeWorkflowAccess::new());
         // 注册内置工作流
-        workflow_access.register("default-reason", serde_json::json!({
-            "name": "default-reason",
-            "description": "标准推理工作流：思考 → 行动 → 观察 → 回答",
-            "stages": ["think", "act", "observe", "respond"],
-        })).await;
-        workflow_access.register("rag-retrieve", serde_json::json!({
-            "name": "rag-retrieve",
-            "description": "RAG 检索工作流：检索 → 注入 → 推理 → 回答",
-            "stages": ["retrieve", "inject", "think", "respond"],
-        })).await;
+        workflow_access
+            .register(
+                "default-reason",
+                serde_json::json!({
+                    "name": "default-reason",
+                    "description": "标准推理工作流：思考 → 行动 → 观察 → 回答",
+                    "stages": ["think", "act", "observe", "respond"],
+                }),
+            )
+            .await;
+        workflow_access
+            .register(
+                "rag-retrieve",
+                serde_json::json!({
+                    "name": "rag-retrieve",
+                    "description": "RAG 检索工作流：检索 → 注入 → 推理 → 回答",
+                    "stages": ["retrieve", "inject", "think", "respond"],
+                }),
+            )
+            .await;
         agent_runtime.set_workflow_access(workflow_access.clone() as Arc<dyn lingshu_runtime::WorkflowAccess>).await;
 
         // ── v6.0 Swarm Engine Wiring (if available) ──
         #[cfg(feature = "swarm")]
-        let swarm_engine: Option<std::sync::Arc<tokio::sync::RwLock<lingshu_swarm::engine::SwarmEngine>>> = {
+        let swarm_engine: Option<
+            std::sync::Arc<tokio::sync::RwLock<lingshu_swarm::engine::SwarmEngine>>,
+        > = {
             let swarm_cfg = lingshu_swarm::types::SwarmConfig {
                 name: "default-swarm".into(),
                 min_agents: 2,
@@ -411,7 +432,9 @@ impl LingshuRuntime {
 
         // ── v6.0 Autonomy Evolution Engine Wiring (if available) ──
         #[cfg(feature = "autonomy")]
-        let evolution_engine: Option<std::sync::Arc<lingshu_autonomy::evolution::EvolutionEngine>> = {
+        let evolution_engine: Option<
+            std::sync::Arc<lingshu_autonomy::evolution::EvolutionEngine>,
+        > = {
             let exp_store = Arc::new(lingshu_autonomy::experience::ExperienceStore::new(1000));
             let reflection_cfg = lingshu_autonomy::reflection::ReflectionConfig::default();
             let reflection_engine = Arc::new(lingshu_autonomy::reflection::ReflectionEngine::new(
@@ -434,7 +457,6 @@ impl LingshuRuntime {
         };
         #[cfg(not(feature = "autonomy"))]
         let _evolution_engine: Option<std::sync::Arc<()>> = None;
-
 
         let runtime = Self {
             lifecycle,
@@ -651,9 +673,11 @@ async fn run_repl(runtime: &LingshuRuntime) -> LsResult<()> {
                 println!("  /quit, /exit, /q Exit");
                 println!("  /stats           Show runtime statistics");
                 println!("  /session         Show current session info");
-                println!("  /channels         List registered channels
+                println!(
+                    "  /channels         List registered channels
   /channel <id> <cmd> Channel commands (send/health)
-  /llm <prompt>    Send prompt to LLM");
+  /llm <prompt>    Send prompt to LLM"
+                );
                 println!("  <any text>       Chat with the agent");
             }
             "/stats" => {
@@ -706,26 +730,29 @@ async fn run_repl(runtime: &LingshuRuntime) -> LsResult<()> {
                 let channel_id = parts.get(1).unwrap_or(&"");
                 let subcmd = parts.get(2).unwrap_or(&"");
                 match *subcmd {
-                    "health" => {
-                        match runtime.channel_registry.get(channel_id).await {
-                            Some(ch) => {
-                                match ch.health_check().await {
-                                    Ok(status) => {
-                                        println!("Channel [{}] health: {}", ch.id(),
-                                            if status.healthy { "✓ healthy" } else { "✗ unhealthy" });
-                                        if let Some(ms) = status.latency_ms {
-                                            println!("  Latency: {ms}ms");
-                                        }
-                                        if let Some(err) = &status.error {
-                                            println!("  Error: {err}");
-                                        }
+                    "health" => match runtime.channel_registry.get(channel_id).await {
+                        Some(ch) => match ch.health_check().await {
+                            Ok(status) => {
+                                println!(
+                                    "Channel [{}] health: {}",
+                                    ch.id(),
+                                    if status.healthy {
+                                        "✓ healthy"
+                                    } else {
+                                        "✗ unhealthy"
                                     }
-                                    Err(e) => println!("⚠ Health check failed: {e}"),
+                                );
+                                if let Some(ms) = status.latency_ms {
+                                    println!("  Latency: {ms}ms");
+                                }
+                                if let Some(err) = &status.error {
+                                    println!("  Error: {err}");
                                 }
                             }
-                            None => println!("⚠ Unknown channel: {channel_id}"),
-                        }
-                    }
+                            Err(e) => println!("⚠ Health check failed: {e}"),
+                        },
+                        None => println!("⚠ Unknown channel: {channel_id}"),
+                    },
                     _ if subcmd.starts_with("send ") => {
                         let send_args: Vec<&str> = subcmd.splitn(3, " ").collect();
                         let target = send_args.get(1).unwrap_or(&"");
@@ -745,7 +772,9 @@ async fn run_repl(runtime: &LingshuRuntime) -> LsResult<()> {
                                         account_id: None,
                                     };
                                     match ch.send_text(ctx).await {
-                                        Ok(receipt) => println!("✓ Sent! message_id={}", receipt.message_id),
+                                        Ok(receipt) => {
+                                            println!("✓ Sent! message_id={}", receipt.message_id)
+                                        }
                                         Err(e) => println!("⚠ Send failed: {e}"),
                                     }
                                 }
@@ -920,16 +949,24 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
         credential_manager: runtime.credential_manager.clone(),
         tenant_manager: std::sync::Arc::new(lingshu_tenant::TenantManager::new()),
         vault_client: std::sync::Arc::new(lingshu_vault::MockVaultClient::new()),
-        tee_system: std::sync::Arc::new(lingshu_tee::TeeSystem::initialize().await.unwrap_or_else(|e| {
-            tracing::warn!("Failed to initialize TEE system: {e}, using fallback");
-            lingshu_tee::TeeSystem {
-                platform: lingshu_tee::TeePlatform::None,
-                sgx: None,
-                tdx: None,
-                encrypted_memory: std::sync::Arc::new(lingshu_tee::EncryptedMemoryRegion::new()),
-                policy_engine: std::sync::Arc::new(std::sync::RwLock::new(lingshu_tee::TeePolicyEngine::default())),
-            }
-        })),
+        tee_system: std::sync::Arc::new(
+            lingshu_tee::TeeSystem::initialize()
+                .await
+                .unwrap_or_else(|e| {
+                    tracing::warn!("Failed to initialize TEE system: {e}, using fallback");
+                    lingshu_tee::TeeSystem {
+                        platform: lingshu_tee::TeePlatform::None,
+                        sgx: None,
+                        tdx: None,
+                        encrypted_memory: std::sync::Arc::new(
+                            lingshu_tee::EncryptedMemoryRegion::new(),
+                        ),
+                        policy_engine: std::sync::Arc::new(std::sync::RwLock::new(
+                            lingshu_tee::TeePolicyEngine::default(),
+                        )),
+                    }
+                }),
+        ),
         jwt_service: lingshu_security::auth::JwtService::from_env_or("lingshu-dev-secret", 86400),
     });
     // 桥接 MCP 进度通知到 SSE
@@ -941,7 +978,7 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
         let eb = state.plugin_event_bus.clone();
         tokio::spawn(async move {
             use lingshu_plugin::event::{Event, EventCallback, EventType};
-use lingshu_websocket::types::SseEvent;
+            use lingshu_websocket::types::SseEvent;
             let cb: EventCallback = Arc::new(move |event: Event| {
                 let data = serde_json::json!({
                     "type": format!("{:?}", event.event_type),

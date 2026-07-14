@@ -9,11 +9,11 @@
 //! - FederationTopology 操作
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use lingshu_core::LsId;
 use lingshu_federation::{
     Capability, CapabilityType, FederationConfig, FederationNode, FederationStats,
     FederationTopology, RemoteExecRequest, RemoteExecResponse,
 };
-use lingshu_core::LsId;
 
 // ── FederationNode 创建与操作 ─────────────────────
 
@@ -99,7 +99,13 @@ fn bench_capability(c: &mut Criterion) {
     let mut group = c.benchmark_group("federation::capability");
 
     group.bench_function("new_llm", |b| {
-        b.iter(|| Capability::new(black_box("gpt-4o"), black_box("GPT-4o"), CapabilityType::LlmModel))
+        b.iter(|| {
+            Capability::new(
+                black_box("gpt-4o"),
+                black_box("GPT-4o"),
+                CapabilityType::LlmModel,
+            )
+        })
     });
 
     group.bench_function("new_custom", |b| {
@@ -124,9 +130,7 @@ fn bench_capability(c: &mut Criterion) {
 fn bench_federation_config(c: &mut Criterion) {
     let mut group = c.benchmark_group("federation::config");
 
-    group.bench_function("default", |b| {
-        b.iter(|| FederationConfig::default())
-    });
+    group.bench_function("default", |b| b.iter(|| FederationConfig::default()));
 
     group.bench_function("serde_serialize", |b| {
         let config = FederationConfig::default();
@@ -147,14 +151,12 @@ fn bench_remote_exec_types(c: &mut Criterion) {
     let mut group = c.benchmark_group("federation::remote_exec");
 
     group.bench_function("request_create", |b| {
-        b.iter(|| {
-            RemoteExecRequest {
-                request_id: LsId::new().to_string(),
-                target: black_box("my-agent".into()),
-                payload: serde_json::json!({"prompt": "hello world", "max_tokens": 1024}),
-                timeout_secs: 30,
-                stream: false,
-            }
+        b.iter(|| RemoteExecRequest {
+            request_id: LsId::new().to_string(),
+            target: black_box("my-agent".into()),
+            payload: serde_json::json!({"prompt": "hello world", "max_tokens": 1024}),
+            timeout_secs: 30,
+            stream: false,
         })
     });
 
@@ -170,14 +172,12 @@ fn bench_remote_exec_types(c: &mut Criterion) {
     });
 
     group.bench_function("response_create", |b| {
-        b.iter(|| {
-            RemoteExecResponse {
-                request_id: "req-123".into(),
-                result: serde_json::json!({"output": "executed successfully", "tokens": 150}),
-                success: true,
-                error: None,
-                latency_ms: 42,
-            }
+        b.iter(|| RemoteExecResponse {
+            request_id: "req-123".into(),
+            result: serde_json::json!({"output": "executed successfully", "tokens": 150}),
+            success: true,
+            error: None,
+            latency_ms: 42,
         })
     });
 

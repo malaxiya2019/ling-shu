@@ -116,27 +116,36 @@ impl EmergentSpecialization {
     }
 
     /// 记录任务执行结果，更新 Agent 画像
-    pub async fn record_execution(&self, agent_id: &LsId, task_name: &str, role: SwarmAgentRole, result: &SwarmTaskResult) {
+    pub async fn record_execution(
+        &self,
+        agent_id: &LsId,
+        task_name: &str,
+        role: SwarmAgentRole,
+        result: &SwarmTaskResult,
+    ) {
         let mut profiles = self.profiles.write().await;
 
         if let Some(profile) = profiles.get_mut(agent_id) {
             // 更新角色表现
             let role_key = role.as_str().to_string();
-            let perf = profile
-                .role_performance
-                .entry(role_key.clone())
-                .or_insert(RolePerformance {
-                    execution_count: 0,
-                    success_rate: 0.5,
-                    avg_execution_ms: 0.0,
-                    avg_confidence: 0.5,
-                    last_executed: 0,
-                });
+            let perf =
+                profile
+                    .role_performance
+                    .entry(role_key.clone())
+                    .or_insert(RolePerformance {
+                        execution_count: 0,
+                        success_rate: 0.5,
+                        avg_execution_ms: 0.0,
+                        avg_confidence: 0.5,
+                        last_executed: 0,
+                    });
 
             let alpha = profile.learning_rate;
             perf.execution_count += 1;
-            perf.success_rate = alpha * (if result.success { 1.0 } else { 0.0 }) + (1.0 - alpha) * perf.success_rate;
-            perf.avg_execution_ms = alpha * result.execution_ms as f64 + (1.0 - alpha) * perf.avg_execution_ms;
+            perf.success_rate = alpha * (if result.success { 1.0 } else { 0.0 })
+                + (1.0 - alpha) * perf.success_rate;
+            perf.avg_execution_ms =
+                alpha * result.execution_ms as f64 + (1.0 - alpha) * perf.avg_execution_ms;
             perf.avg_confidence = alpha * result.confidence + (1.0 - alpha) * perf.avg_confidence;
             perf.last_executed = chrono::Utc::now().timestamp();
 
@@ -158,7 +167,13 @@ impl EmergentSpecialization {
             // 更新专长领域
             for expertise in profile.expertise_areas.keys().cloned().collect::<Vec<_>>() {
                 if let Some(score) = profile.expertise_areas.get_mut(&expertise) {
-                    *score = alpha * (if result.success { result.confidence } else { 0.0 }) + (1.0 - alpha) * *score;
+                    *score = alpha
+                        * (if result.success {
+                            result.confidence
+                        } else {
+                            0.0
+                        })
+                        + (1.0 - alpha) * *score;
                 }
             }
         }
@@ -294,15 +309,16 @@ impl SwarmMemory {
 
         // 检测模式：连续失败
         let outcomes = self.outcomes.read().await;
-        let recent_failures: Vec<&SwarmTaskResult> = outcomes
-            .values()
-            .filter(|r| !r.success)
-            .collect();
+        let recent_failures: Vec<&SwarmTaskResult> =
+            outcomes.values().filter(|r| !r.success).collect();
 
         if recent_failures.len() >= 3 {
             let pattern_name = "repeated_failure";
             let mut patterns = self.patterns.write().await;
-            if let Some(pattern) = patterns.iter_mut().find(|p: &&mut EmergentPattern| p.name == pattern_name) {
+            if let Some(pattern) = patterns
+                .iter_mut()
+                .find(|p: &&mut EmergentPattern| p.name == pattern_name)
+            {
                 pattern.occurrence_count += 1;
                 pattern.last_observed = chrono::Utc::now().timestamp();
             } else {
@@ -315,7 +331,10 @@ impl SwarmMemory {
                     last_observed: chrono::Utc::now().timestamp(),
                 });
             }
-            warn!("emergent pattern: repeated_failure ({} occurrences)", recent_failures.len());
+            warn!(
+                "emergent pattern: repeated_failure ({} occurrences)",
+                recent_failures.len()
+            );
         }
     }
 
@@ -387,7 +406,8 @@ mod tests {
         es.register_agent(&agent).await;
 
         let result = create_test_result(agent.id, true, 0.9);
-        es.record_execution(&agent.id, "test-task", SwarmAgentRole::Executor, &result).await;
+        es.record_execution(&agent.id, "test-task", SwarmAgentRole::Executor, &result)
+            .await;
 
         let profile = es.get_profile(&agent.id).await.unwrap();
         assert_eq!(profile.task_history.len(), 1);
@@ -406,13 +426,15 @@ mod tests {
         // 作为 Executor 表现差
         for _ in 0..3 {
             let result = create_test_result(agent.id, false, 0.2);
-            es.record_execution(&agent.id, "bad-task", SwarmAgentRole::Executor, &result).await;
+            es.record_execution(&agent.id, "bad-task", SwarmAgentRole::Executor, &result)
+                .await;
         }
 
         // 作为 Validator 表现好（假设在其他角色下记录了高性能）
         for _ in 0..3 {
             let result = create_test_result(agent.id, true, 0.95);
-            es.record_execution(&agent.id, "good-task", SwarmAgentRole::Validator, &result).await;
+            es.record_execution(&agent.id, "good-task", SwarmAgentRole::Validator, &result)
+                .await;
         }
 
         // 建议角色切换

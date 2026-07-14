@@ -42,7 +42,6 @@ impl RegistrySource {
     }
 }
 
-
 /// 市场插件条目 — 从市场发现的插件元信息.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MarketPluginEntry {
@@ -325,13 +324,12 @@ impl PluginMarket {
         let plugin_dir = target_dir.join(&entry.name);
 
         // 检查是否已安装
-        if plugin_dir.exists() && !options.force
-            && self.installed.contains_key(&entry.name) {
-                return Err(LsError::AlreadyExists(format!(
-                    "plugin '{}' already installed",
-                    entry.name
-                )));
-            }
+        if plugin_dir.exists() && !options.force && self.installed.contains_key(&entry.name) {
+            return Err(LsError::AlreadyExists(format!(
+                "plugin '{}' already installed",
+                entry.name
+            )));
+        }
 
         // 下载插件包
         info!(
@@ -433,7 +431,8 @@ impl PluginMarket {
     /// 按 source_type 移除注册源（匹配前缀）.
     pub fn remove_source(&mut self, source_type: &str) -> bool {
         let len_before = self.sources.len();
-        self.sources.retain(|s| !s.source_type().contains(source_type));
+        self.sources
+            .retain(|s| !s.source_type().contains(source_type));
         self.sources.len() < len_before
     }
 }

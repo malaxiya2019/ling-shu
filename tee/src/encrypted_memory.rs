@@ -2,10 +2,10 @@
 //!
 //! AES-256-GCM 内存级加密, 保护敏感数据在内存中的保密性.
 
-use std::hash::Hasher;
 use lingshu_core::LsResult;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::hash::Hasher;
 
 /// 加密内存区域 — 管理加密敏感数据的运行时内存.
 pub struct EncryptedMemoryRegion {
@@ -52,11 +52,18 @@ impl EncryptedMemoryRegion {
             access_count: 0,
         };
 
-        self.store.write().map_err(|e| {
-            lingshu_core::LsError::Internal(format!("encrypted memory lock error: {e}"))
-        })?.insert(id.to_string(), blob.clone());
+        self.store
+            .write()
+            .map_err(|e| {
+                lingshu_core::LsError::Internal(format!("encrypted memory lock error: {e}"))
+            })?
+            .insert(id.to_string(), blob.clone());
 
-        tracing::debug!(id, size = plaintext.len(), "Data stored in encrypted memory");
+        tracing::debug!(
+            id,
+            size = plaintext.len(),
+            "Data stored in encrypted memory"
+        );
         Ok(blob)
     }
 
@@ -79,9 +86,12 @@ impl EncryptedMemoryRegion {
 
     /// 删除加密块.
     pub fn delete(&self, id: &str) -> LsResult<()> {
-        self.store.write().map_err(|e| {
-            lingshu_core::LsError::Internal(format!("encrypted memory lock error: {e}"))
-        })?.remove(id);
+        self.store
+            .write()
+            .map_err(|e| {
+                lingshu_core::LsError::Internal(format!("encrypted memory lock error: {e}"))
+            })?
+            .remove(id);
         Ok(())
     }
 
@@ -95,9 +105,12 @@ impl EncryptedMemoryRegion {
 
     /// 清除所有加密块.
     pub fn clear(&self) -> LsResult<()> {
-        self.store.write().map_err(|e| {
-            lingshu_core::LsError::Internal(format!("encrypted memory lock error: {e}"))
-        })?.clear();
+        self.store
+            .write()
+            .map_err(|e| {
+                lingshu_core::LsError::Internal(format!("encrypted memory lock error: {e}"))
+            })?
+            .clear();
         tracing::info!("Encrypted memory region cleared");
         Ok(())
     }
@@ -128,9 +141,11 @@ fn aes256_gcm_encrypt(plaintext: &[u8], _key: &[u8; 32]) -> LsResult<(Vec<u8>, V
     let hash = hasher.finish();
 
     // 模拟加密: XOR + 附加校验
-    let ciphertext: Vec<u8> = plaintext.iter().enumerate().map(|(i, b)| {
-        b ^ (hash.to_le_bytes()[i % 8])
-    }).collect();
+    let ciphertext: Vec<u8> = plaintext
+        .iter()
+        .enumerate()
+        .map(|(i, b)| b ^ (hash.to_le_bytes()[i % 8]))
+        .collect();
 
     let nonce = hash.to_le_bytes().to_vec();
     Ok((ciphertext, nonce))
@@ -139,9 +154,11 @@ fn aes256_gcm_encrypt(plaintext: &[u8], _key: &[u8; 32]) -> LsResult<(Vec<u8>, V
 /// 软件 AES-256-GCM 解密 (模拟).
 fn aes256_gcm_decrypt(ciphertext: &[u8], nonce: &[u8], _key: &[u8; 32]) -> LsResult<Vec<u8>> {
     // 模拟解密: XOR 还原
-    let plaintext: Vec<u8> = ciphertext.iter().enumerate().map(|(i, b)| {
-        b ^ nonce[i % nonce.len()]
-    }).collect();
+    let plaintext: Vec<u8> = ciphertext
+        .iter()
+        .enumerate()
+        .map(|(i, b)| b ^ nonce[i % nonce.len()])
+        .collect();
     Ok(plaintext)
 }
 

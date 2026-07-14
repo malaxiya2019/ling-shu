@@ -62,7 +62,8 @@ impl RetrieveStage {
         Self {
             memory,
             top_k,
-            system_prompt_prefix: "## 历史记忆\n以下是本会话中相关的历史记忆，供你参考：\n".to_string(),
+            system_prompt_prefix: "## 历史记忆\n以下是本会话中相关的历史记忆，供你参考：\n"
+                .to_string(),
         }
     }
 
@@ -92,20 +93,14 @@ impl PipelineStage for RetrieveStage {
         debug!("retrieve_stage: searching for relevant memories");
 
         // 1. 从用户输入提取查询
-        let query = pipeline_ctx
-            .input
-            .as_str()
-            .unwrap_or("")
-            .to_string();
+        let query = pipeline_ctx.input.as_str().unwrap_or("").to_string();
 
         if query.is_empty() {
             return Ok(StageAction::Continue);
         }
 
         // 2. 检索相关记忆
-        let search_result = memory
-            .search(ctx.clone(), &query, self.top_k as u64)
-            .await;
+        let search_result = memory.search(ctx.clone(), &query, self.top_k as u64).await;
 
         let memories = match search_result {
             Ok(result) => result.items,
@@ -125,17 +120,16 @@ impl PipelineStage for RetrieveStage {
         memory_context.push_str(&self.system_prompt_prefix);
 
         for (i, item) in memories.iter().enumerate() {
-            let role = item.metadata.get("role").map(|s| s.as_str()).unwrap_or("unknown");
+            let role = item
+                .metadata
+                .get("role")
+                .map(|s| s.as_str())
+                .unwrap_or("unknown");
             let content_str = match &item.content {
                 Value::String(s) => s.clone(),
                 other => other.to_string(),
             };
-            memory_context.push_str(&format!(
-                "\n[{}. ({})] {}",
-                i + 1,
-                role,
-                content_str
-            ));
+            memory_context.push_str(&format!("\n[{}. ({})] {}", i + 1, role, content_str));
         }
 
         // 4. 注入到第一条 system 消息，或创建新的 system 消息
@@ -144,13 +138,16 @@ impl PipelineStage for RetrieveStage {
                 first_msg.content = format!("{}\n\n{}", first_msg.content, memory_context);
             } else {
                 // 如果没有 system 消息，创建一条
-                pipeline_ctx.messages.insert(0, lingshu_traits::llm::LlmMessage {
-                    role: lingshu_traits::llm::LlmRole::System,
-                    content: memory_context,
-                    name: None,
-                    content_parts: None,
-                    tool_calls: None,
-                });
+                pipeline_ctx.messages.insert(
+                    0,
+                    lingshu_traits::llm::LlmMessage {
+                        role: lingshu_traits::llm::LlmRole::System,
+                        content: memory_context,
+                        name: None,
+                        content_parts: None,
+                        tool_calls: None,
+                    },
+                );
             }
         } else {
             pipeline_ctx.messages.push(lingshu_traits::llm::LlmMessage {
@@ -220,8 +217,10 @@ pub fn build_rag_pipeline(
     pipeline.add_stage(crate::agent_pipeline::PreProcessStage);
 
     // 2. 记忆检索（RAG）
-    pipeline.add_stage(RetrieveStage::new(memory.clone(), rag_config.top_k)
-        .with_prefix(rag_config.system_prompt_prefix));
+    pipeline.add_stage(
+        RetrieveStage::new(memory.clone(), rag_config.top_k)
+            .with_prefix(rag_config.system_prompt_prefix),
+    );
 
     // 3. LLM 推理
     pipeline.add_stage(crate::agent_pipeline::ThinkStage::new(llm, model));
@@ -253,11 +252,8 @@ mod tests {
     async fn test_retrieve_stage_no_memory_continues() {
         let stage = RetrieveStage::new(None, 5);
         let ctx = LsContext::with_session(LsId::new());
-        let mut pipeline_ctx = PipelineContext::new(
-            LsId::new(),
-            "test".into(),
-            Value::String("hello".into()),
-        );
+        let mut pipeline_ctx =
+            PipelineContext::new(LsId::new(), "test".into(), Value::String("hello".into()));
 
         let result = stage.execute(&ctx, &mut pipeline_ctx).await.unwrap();
         assert!(matches!(result, StageAction::Continue));
@@ -268,11 +264,8 @@ mod tests {
         // No memory backend = skip retrieval
         let stage = RetrieveStage::new(None, 5);
         let ctx = LsContext::with_session(LsId::new());
-        let mut pipeline_ctx = PipelineContext::new(
-            LsId::new(),
-            "test".into(),
-            Value::String("".into()),
-        );
+        let mut pipeline_ctx =
+            PipelineContext::new(LsId::new(), "test".into(), Value::String("".into()));
 
         let result = stage.execute(&ctx, &mut pipeline_ctx).await.unwrap();
         assert!(matches!(result, StageAction::Continue));

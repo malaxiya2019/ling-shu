@@ -136,7 +136,11 @@ impl ApiResponse {
     }
 
     /// 创建错误响应（带错误码和附加详情）.
-    pub fn err_with_details(code: impl Into<String>, message: impl Into<String>, details: Value) -> Self {
+    pub fn err_with_details(
+        code: impl Into<String>,
+        message: impl Into<String>,
+        details: Value,
+    ) -> Self {
         Self {
             success: false,
             data: None,
@@ -423,23 +427,25 @@ impl ApiHandler {
                 ApiResponse::ok(serde_json::json!({"agents": api_agents, "count": count}))
             }
             AgentAction::Status => {
-                let agent_id = req.agent_id.and_then(|id| parse_ls_id(&id).ok())
+                let agent_id = req
+                    .agent_id
+                    .and_then(|id| parse_ls_id(&id).ok())
                     .ok_or_else(|| LsError::InvalidArgument("missing valid agent_id".into()));
                 match agent_id {
-                    Ok(id) => {
-                        match self.runtime.agent_status(&id).await {
-                            Ok(status) => ApiResponse::ok(serde_json::json!({
-                                "agent_id": id.to_string(),
-                                "status": format!("{:?}", status),
-                            })),
-                            Err(e) => ApiResponse::from_ls_error(e),
-                        }
-                    }
+                    Ok(id) => match self.runtime.agent_status(&id).await {
+                        Ok(status) => ApiResponse::ok(serde_json::json!({
+                            "agent_id": id.to_string(),
+                            "status": format!("{:?}", status),
+                        })),
+                        Err(e) => ApiResponse::from_ls_error(e),
+                    },
                     Err(e) => ApiResponse::from_ls_error(e),
                 }
             }
             AgentAction::Remove => {
-                let agent_id = req.agent_id.and_then(|id| parse_ls_id(&id).ok())
+                let agent_id = req
+                    .agent_id
+                    .and_then(|id| parse_ls_id(&id).ok())
                     .ok_or_else(|| LsError::InvalidArgument("missing valid agent_id".into()));
                 match agent_id {
                     Ok(id) => {
@@ -460,7 +466,10 @@ impl ApiHandler {
                     Err(e) => ApiResponse::from_ls_error(e),
                 }
             }
-            _ => ApiResponse::err("not_implemented", format!("agent action {:?} not implemented", req.action)),
+            _ => ApiResponse::err(
+                "not_implemented",
+                format!("agent action {:?} not implemented", req.action),
+            ),
         }
     }
 
@@ -488,7 +497,9 @@ impl ApiHandler {
                 }
             }
             SessionAction::Get => {
-                let session_id = req.session_id.and_then(|id| parse_ls_id(&id).ok())
+                let session_id = req
+                    .session_id
+                    .and_then(|id| parse_ls_id(&id).ok())
                     .ok_or_else(|| LsError::InvalidArgument("missing valid session_id".into()));
                 match session_id {
                     Ok(id) => match sm.get(id).await {
@@ -513,7 +524,10 @@ impl ApiHandler {
                     "active_sessions": active,
                 }))
             }
-            _ => ApiResponse::err("not_implemented", format!("session action {:?} not implemented", req.action)),
+            _ => ApiResponse::err(
+                "not_implemented",
+                format!("session action {:?} not implemented", req.action),
+            ),
         }
     }
 
@@ -536,18 +550,25 @@ impl ApiHandler {
                         }))
                     }
                     ToolAction::Get => {
-                        let name = req.tool_name.as_deref()
+                        let name = req
+                            .tool_name
+                            .as_deref()
                             .ok_or_else(|| LsError::InvalidArgument("missing tool_name".into()));
                         match name {
                             Ok(n) => match registry.get(n).await {
-                                Some(info) => ApiResponse::ok(serde_json::to_value(info).unwrap_or_default()),
+                                Some(info) => {
+                                    ApiResponse::ok(serde_json::to_value(info).unwrap_or_default())
+                                }
                                 None => {
                                     self.metrics.inc_tool_calls(n, "not_found");
                                     #[cfg(feature = "otel")]
                                     if let Some(ref otel) = self.otel_metrics {
                                         otel.inc_tool_calls(n, "not_found");
                                     }
-                                    ApiResponse::err("tool_not_found", format!("tool '{}' not found", n))
+                                    ApiResponse::err(
+                                        "tool_not_found",
+                                        format!("tool '{}' not found", n),
+                                    )
                                 }
                             },
                             Err(e) => ApiResponse::from_ls_error(e),
@@ -562,36 +583,39 @@ impl ApiHandler {
                         ApiResponse::ok(serde_json::to_value(defs).unwrap_or_default())
                     }
                     ToolAction::Execute => {
-                        let name = req.tool_name.as_deref()
+                        let name = req
+                            .tool_name
+                            .as_deref()
                             .ok_or_else(|| LsError::InvalidArgument("missing tool_name".into()));
                         let args = req.args.unwrap_or(Value::Null);
                         match name {
-                            Ok(n) => {
-                                match registry.execute_unchecked(ctx, n, args).await {
-                                    Ok(result) => {
-                                        self.metrics.inc_tool_calls(n, "success");
-                                        #[cfg(feature = "otel")]
-                                        if let Some(ref otel) = self.otel_metrics {
-                                            otel.inc_tool_calls(n, "success");
-                                        }
-                                        ApiResponse::ok(result)
+                            Ok(n) => match registry.execute_unchecked(ctx, n, args).await {
+                                Ok(result) => {
+                                    self.metrics.inc_tool_calls(n, "success");
+                                    #[cfg(feature = "otel")]
+                                    if let Some(ref otel) = self.otel_metrics {
+                                        otel.inc_tool_calls(n, "success");
                                     }
-                                    Err(e) => {
-                                        self.metrics.inc_tool_calls(n, "failed");
-                                        #[cfg(feature = "otel")]
-                                        if let Some(ref otel) = self.otel_metrics {
-                                            otel.inc_tool_calls(n, "failed");
-                                        }
-                                        ApiResponse::from_ls_error(e)
-                                    }
+                                    ApiResponse::ok(result)
                                 }
-                            }
+                                Err(e) => {
+                                    self.metrics.inc_tool_calls(n, "failed");
+                                    #[cfg(feature = "otel")]
+                                    if let Some(ref otel) = self.otel_metrics {
+                                        otel.inc_tool_calls(n, "failed");
+                                    }
+                                    ApiResponse::from_ls_error(e)
+                                }
+                            },
                             Err(e) => ApiResponse::from_ls_error(e),
                         }
                     }
                 }
             }
-            None => ApiResponse::err("tool_registry_not_configured", "ToolRegistry not configured"),
+            None => ApiResponse::err(
+                "tool_registry_not_configured",
+                "ToolRegistry not configured",
+            ),
         }
     }
 
@@ -610,7 +634,11 @@ impl ApiHandler {
                     None => return ApiResponse::err("invalid_argument", "workflow_name required"),
                 };
                 let input = req.input.clone().unwrap_or(serde_json::json!({}));
-                match self.runtime.execute_workflow(&name, _ctx.clone(), input).await {
+                match self
+                    .runtime
+                    .execute_workflow(&name, _ctx.clone(), input)
+                    .await
+                {
                     Ok(result) => ApiResponse::ok(serde_json::json!({ "result": result })),
                     Err(e) => ApiResponse::from_ls_error(e),
                 }
@@ -707,7 +735,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_ping() {
-        let runtime = AgentRuntime::new(AgentRuntimeConfig::default()).await.unwrap();
+        let runtime = AgentRuntime::new(AgentRuntimeConfig::default())
+            .await
+            .unwrap();
         let handler = ApiHandler::new(runtime);
         let response = handler.handle(ApiRequest::Ping, &test_ctx()).await;
         assert!(response.success);
@@ -716,7 +746,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_runtime_status() {
-        let runtime = AgentRuntime::new(AgentRuntimeConfig::default()).await.unwrap();
+        let runtime = AgentRuntime::new(AgentRuntimeConfig::default())
+            .await
+            .unwrap();
         let handler = ApiHandler::new(runtime);
         let req = ApiRequest::Runtime(ApiRuntimeRequest {
             action: RuntimeAction::Status,
@@ -727,7 +759,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_runtime_health() {
-        let runtime = AgentRuntime::new(AgentRuntimeConfig::default()).await.unwrap();
+        let runtime = AgentRuntime::new(AgentRuntimeConfig::default())
+            .await
+            .unwrap();
         runtime.start().await.unwrap();
         let handler = ApiHandler::new(runtime);
         let req = ApiRequest::Runtime(ApiRuntimeRequest {
@@ -740,7 +774,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_tool_list_no_registry() {
-        let runtime = AgentRuntime::new(AgentRuntimeConfig::default()).await.unwrap();
+        let runtime = AgentRuntime::new(AgentRuntimeConfig::default())
+            .await
+            .unwrap();
         let handler = ApiHandler::new(runtime);
         let req = ApiRequest::Tool(ApiToolRequest {
             action: ToolAction::List,
@@ -755,7 +791,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_create() {
-        let runtime = AgentRuntime::new(AgentRuntimeConfig::default()).await.unwrap();
+        let runtime = AgentRuntime::new(AgentRuntimeConfig::default())
+            .await
+            .unwrap();
         let handler = ApiHandler::new(runtime);
         let req = ApiRequest::Session(ApiSessionRequest {
             action: SessionAction::Create,
@@ -778,42 +816,50 @@ mod tests {
 
     #[tokio::test]
     async fn test_runtime_metrics_recorded() {
-        let runtime = AgentRuntime::new(AgentRuntimeConfig::default()).await.unwrap();
+        let runtime = AgentRuntime::new(AgentRuntimeConfig::default())
+            .await
+            .unwrap();
         let handler = ApiHandler::new(runtime);
         let ctx = test_ctx();
 
         // Session create → session_count metrics
-        let resp = handler.handle(
-            ApiRequest::Session(ApiSessionRequest {
-                action: SessionAction::Create,
-                session_id: None,
-            }),
-            &ctx,
-        ).await;
+        let resp = handler
+            .handle(
+                ApiRequest::Session(ApiSessionRequest {
+                    action: SessionAction::Create,
+                    session_id: None,
+                }),
+                &ctx,
+            )
+            .await;
         assert!(resp.success);
 
         // Runtime stats → agent_count + session_count metrics
-        let resp = handler.handle(
-            ApiRequest::Runtime(ApiRuntimeRequest {
-                action: RuntimeAction::Stats,
-            }),
-            &ctx,
-        ).await;
+        let resp = handler
+            .handle(
+                ApiRequest::Runtime(ApiRuntimeRequest {
+                    action: RuntimeAction::Stats,
+                }),
+                &ctx,
+            )
+            .await;
         assert!(resp.success);
         let data = resp.data.unwrap();
         assert_eq!(data["sessions"].as_u64().unwrap_or(0), 1);
 
         // Agent list → agent_count metrics
-        let resp = handler.handle(
-            ApiRequest::Agent(ApiAgentRequest {
-                action: AgentAction::List,
-                agent_id: None,
-                agent_name: None,
-                input: None,
-                agent_type: None,
-            }),
-            &ctx,
-        ).await;
+        let resp = handler
+            .handle(
+                ApiRequest::Agent(ApiAgentRequest {
+                    action: AgentAction::List,
+                    agent_id: None,
+                    agent_name: None,
+                    input: None,
+                    agent_type: None,
+                }),
+                &ctx,
+            )
+            .await;
         assert!(resp.success);
     }
 }

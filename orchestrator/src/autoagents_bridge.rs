@@ -187,11 +187,7 @@ impl AutoAgentsOrchestrator {
     }
 
     /// 初始化引擎（返回 Unsupported 错误）.
-    pub async fn init_engine(
-        &mut self,
-        _llm_endpoint: &str,
-        _api_key: &str,
-    ) -> LsResult<()> {
+    pub async fn init_engine(&mut self, _llm_endpoint: &str, _api_key: &str) -> LsResult<()> {
         Err(LsError::NotImplemented(
             "autoagents feature not enabled".into(),
         ))
@@ -257,7 +253,11 @@ mod tests {
     async fn test_autoagents_noop_stub() {
         let orch = AutoAgentsOrchestrator::new(OrchestratorConfig::default());
         let err = orch
-            .delegate_react("test", serde_json::json!({"task": "x"}), &LsContext::with_session(LsId::new()))
+            .delegate_react(
+                "test",
+                serde_json::json!({"task": "x"}),
+                &LsContext::with_session(LsId::new()),
+            )
             .await;
         if cfg!(not(feature = "autoagents")) {
             assert!(err.is_err());
@@ -296,11 +296,12 @@ mod stub_tests {
     #[tokio::test]
     async fn test_stub_register_agent_unsupported() {
         let orch = AutoAgentsOrchestrator::new(OrchestratorConfig::default());
-        let err = orch
-            .register_agent(LsId::new(), "stub", vec!["test"])
-            .await;
+        let err = orch.register_agent(LsId::new(), "stub", vec!["test"]).await;
         assert!(err.is_err());
-        assert!(err.unwrap_err().to_string().contains("autoagents feature not enabled"));
+        assert!(err
+            .unwrap_err()
+            .to_string()
+            .contains("autoagents feature not enabled"));
     }
 
     #[tokio::test]

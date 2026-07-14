@@ -18,9 +18,9 @@
 //! bridge.serve_stdio().await.unwrap();
 //! ```
 
-use lingshu_core::{LsContext, LsResult, LsId};
-use axum::{Router, routing, extract::State};
-use lingshu_traits::tool::{Tool};
+use axum::{extract::State, routing, Router};
+use lingshu_core::{LsContext, LsId, LsResult};
+use lingshu_traits::tool::Tool;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -51,7 +51,7 @@ impl From<&str> for McpMethod {
 /// JSON-RPC 请求.
 #[derive(Debug, Clone, serde::Deserialize)]
 struct JsonRpcRequest {
-#[allow(dead_code)]
+    #[allow(dead_code)]
     jsonrpc: String,
     method: String,
     #[serde(default)]
@@ -135,11 +135,8 @@ impl McpServerBridge {
         match method {
             McpMethod::ListTools => self.handle_list_tools(id).await,
             McpMethod::CallTool => {
-                self.handle_call_tool(
-                    id,
-                    request.params.unwrap_or(Value::Null),
-                )
-                .await
+                self.handle_call_tool(id, request.params.unwrap_or(Value::Null))
+                    .await
             }
             McpMethod::ListResources => self.handle_list_resources(id).await,
             McpMethod::ListPrompts => self.handle_list_prompts(id).await,
@@ -212,12 +209,7 @@ impl McpServerBridge {
                     ),
                 }
             }
-            None => json_rpc_error(
-                id,
-                -32602,
-                format!("Tool not found: {name}"),
-                None,
-            ),
+            None => json_rpc_error(id, -32602, format!("Tool not found: {name}"), None),
         }
     }
 
@@ -276,10 +268,7 @@ impl McpServerBridge {
 }
 
 /// axum handler for MCP POST requests.
-async fn handle_mcp_post(
-    State(bridge): State<Arc<McpServerBridge>>,
-    body: String,
-) -> String {
+async fn handle_mcp_post(State(bridge): State<Arc<McpServerBridge>>, body: String) -> String {
     bridge.handle_request(&body).await
 }
 
@@ -299,7 +288,11 @@ fn json_rpc_error(id: Value, code: i64, message: String, data: Option<Value>) ->
     serde_json::to_string(&JsonRpcResponse {
         jsonrpc: "2.0".into(),
         result: None,
-        error: Some(JsonRpcError { code, message, data }),
+        error: Some(JsonRpcError {
+            code,
+            message,
+            data,
+        }),
         id,
     })
     .unwrap_or_default()

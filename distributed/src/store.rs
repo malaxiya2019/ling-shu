@@ -150,7 +150,6 @@ impl DistributedStore {
         self.len().await == 0
     }
 
-
     pub async fn scan_prefix(&self, prefix: &str) -> Vec<StoreValue> {
         let mut results = Vec::new();
         for p in &self.partitions {

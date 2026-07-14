@@ -71,7 +71,9 @@ impl AttestationProvider for SgxManager {
             quote_hex,
             is_valid: true,
             timestamp: chrono::Utc::now().to_rfc3339(),
-            details: "SGX attestation completed (software mock). Install Intel SGX SDK for production.".into(),
+            details:
+                "SGX attestation completed (software mock). Install Intel SGX SDK for production."
+                    .into(),
         })
     }
 
@@ -106,7 +108,9 @@ impl AttestationProvider for TdxManager {
             quote_hex,
             is_valid: true,
             timestamp: chrono::Utc::now().to_rfc3339(),
-            details: "TDX attestation completed (software mock). Install Intel TDX SDK for production.".into(),
+            details:
+                "TDX attestation completed (software mock). Install Intel TDX SDK for production."
+                    .into(),
         })
     }
 

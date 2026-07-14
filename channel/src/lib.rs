@@ -33,10 +33,10 @@
 
 // ── 模块声明 ───────────────────────────────────────
 
-pub mod types;
-pub mod traits;
-pub mod registry;
 pub mod mcp_adapter;
+pub mod registry;
+pub mod traits;
+pub mod types;
 
 #[cfg(feature = "telegram")]
 pub mod telegram;
@@ -47,18 +47,18 @@ pub mod feishu;
 #[cfg(feature = "qq")]
 pub mod qq;
 
-#[cfg(feature = "wechat")]
-pub mod wechat;
 #[cfg(feature = "discord")]
 pub mod discord;
+#[cfg(feature = "wechat")]
+pub mod wechat;
 
 // ── 类型重导出 ─────────────────────────────────────
 
 pub use lingshu_core::{LsError, LsResult};
-pub use types::*;
-pub use traits::*;
-pub use registry::ChannelRegistry;
 pub use mcp_adapter::McpChannelAdapter;
+pub use registry::ChannelRegistry;
+pub use traits::*;
+pub use types::*;
 
 #[cfg(feature = "telegram")]
 pub use telegram::TelegramChannel;
@@ -69,9 +69,9 @@ pub use feishu::FeishuChannel;
 #[cfg(feature = "qq")]
 pub use qq::QqChannel;
 
-#[cfg(feature = "wechat")]
-pub use wechat::WeChatChannel;
 #[cfg(feature = "discord")]
 pub use discord::DiscordChannel;
-pub mod session_store;
+#[cfg(feature = "wechat")]
+pub use wechat::WeChatChannel;
 pub mod router;
+pub mod session_store;

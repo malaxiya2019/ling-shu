@@ -1,9 +1,9 @@
 //! 📋 ChannelRegistry — 通道插件注册表.
 
+use crate::traits::MessageChannel;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use crate::traits::MessageChannel;
 
 /// 通道插件注册表.
 ///

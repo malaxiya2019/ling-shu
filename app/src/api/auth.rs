@@ -3,7 +3,7 @@
 //! ✅ 已完成迁移 (从 full.rs)
 
 use crate::api::AppState;
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -67,7 +67,10 @@ pub async fn login_handler(
 /// POST /v1/logout — 管理面板登出
 #[allow(dead_code)]
 pub async fn logout_handler() -> (StatusCode, [(&'static str, &'static str); 2], &'static str) {
-    let headers = [("Set-Cookie", "token=; Max-Age=0; Path=/; HttpOnly"), ("Content-Type", "text/plain")];
+    let headers = [
+        ("Set-Cookie", "token=; Max-Age=0; Path=/; HttpOnly"),
+        ("Content-Type", "text/plain"),
+    ];
     (StatusCode::OK, headers, "Logged out")
 }
 

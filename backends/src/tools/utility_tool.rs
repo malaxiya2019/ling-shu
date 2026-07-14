@@ -30,7 +30,7 @@ impl Tool for CurrentTimeTool {
                     param_type: "string".into(),
                 },
             ],
-        ..Default::default()
+            ..Default::default()
         }
     }
 
@@ -135,7 +135,8 @@ impl Tool for CurrentTimeTool {
 
     fn duplicate(&self) -> Box<dyn Tool> {
         Box::new(CurrentTimeTool)
-    }}
+    }
+}
 
 /// 计算器工具 (安全的数学表达式求值).
 pub struct CalculatorTool;
@@ -202,7 +203,8 @@ impl Tool for CalculatorTool {
 
     fn duplicate(&self) -> Box<dyn Tool> {
         Box::new(CalculatorTool)
-    }}
+    }
+}
 
 // ── 简易数学表达式求值 ─────────────────────────────
 
@@ -218,7 +220,10 @@ fn eval_expression(expr: &str) -> Result<f64, String> {
     let result = parse_expr(&chars, &mut pos)?;
     skip_whitespace(&chars, &mut pos);
     if pos < chars.len() {
-        return Err(format!("unexpected character '{}' at position {}", chars[pos], pos));
+        return Err(format!(
+            "unexpected character '{}' at position {}",
+            chars[pos], pos
+        ));
     }
     Ok(result)
 }
@@ -232,7 +237,7 @@ fn skip_whitespace(chars: &[char], pos: &mut usize) {
 fn parse_number(chars: &[char], pos: &mut usize) -> Result<f64, String> {
     skip_whitespace(chars, pos);
     let start = *pos;
-    
+
     // Check for named constants
     if *pos < chars.len() && chars[*pos].is_ascii_alphabetic() {
         while *pos < chars.len() && (chars[*pos].is_ascii_alphanumeric() || chars[*pos] == '_') {
@@ -247,7 +252,7 @@ fn parse_number(chars: &[char], pos: &mut usize) -> Result<f64, String> {
             _ => Err(format!("unknown identifier '{}'", name)),
         };
     }
-    
+
     if *pos < chars.len() && chars[*pos] == '-' {
         *pos += 1;
         let val = parse_number(chars, pos)?;
@@ -257,25 +262,27 @@ fn parse_number(chars: &[char], pos: &mut usize) -> Result<f64, String> {
         *pos += 1;
         return parse_number(chars, pos);
     }
-    
+
     if *pos >= chars.len() || !(chars[*pos].is_ascii_digit() || chars[*pos] == '.') {
         return Err(format!("expected number at position {}", start));
     }
-    
+
     while *pos < chars.len() && (chars[*pos].is_ascii_digit() || chars[*pos] == '.') {
         *pos += 1;
     }
     let num_str: String = chars[start..*pos].iter().collect();
-    num_str.parse::<f64>().map_err(|e| format!("invalid number '{}': {}", num_str, e))
+    num_str
+        .parse::<f64>()
+        .map_err(|e| format!("invalid number '{}': {}", num_str, e))
 }
 
 fn parse_function(chars: &[char], pos: &mut usize) -> Result<f64, String> {
     skip_whitespace(chars, pos);
-    
+
     if *pos >= chars.len() {
         return Err("unexpected end of expression".into());
     }
-    
+
     // Check if it's a function call (letters followed by '(')
     if chars[*pos].is_ascii_alphabetic() {
         let start = *pos;
@@ -284,17 +291,20 @@ fn parse_function(chars: &[char], pos: &mut usize) -> Result<f64, String> {
         }
         let name: String = chars[start..*pos].iter().collect();
         skip_whitespace(chars, pos);
-        
+
         if *pos < chars.len() && chars[*pos] == '(' {
             // It's a function call
             *pos += 1; // skip '('
             let arg = parse_expr(chars, pos)?;
             skip_whitespace(chars, pos);
             if *pos >= chars.len() || chars[*pos] != ')' {
-                return Err(format!("expected ')' after function argument at position {}", *pos));
+                return Err(format!(
+                    "expected ')' after function argument at position {}",
+                    *pos
+                ));
             }
             *pos += 1; // skip ')'
-            
+
             return match name.as_str() {
                 "sin" => Ok(arg.sin()),
                 "cos" => Ok(arg.cos()),
@@ -327,7 +337,7 @@ fn parse_function(chars: &[char], pos: &mut usize) -> Result<f64, String> {
             };
         }
     }
-    
+
     if chars[*pos] == '(' {
         *pos += 1; // skip '('
         let result = parse_expr(chars, pos)?;
@@ -338,7 +348,7 @@ fn parse_function(chars: &[char], pos: &mut usize) -> Result<f64, String> {
         *pos += 1; // skip ')'
         return Ok(result);
     }
-    
+
     parse_number(chars, pos)
 }
 

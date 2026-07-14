@@ -71,7 +71,9 @@ pub fn metrics() -> Html {
                     }
                 });
             });
-            move || { handle.cancel(); }
+            move || {
+                handle.cancel();
+            }
         });
     }
 
@@ -247,7 +249,13 @@ pub fn metrics() -> Html {
 // ── SVG Line Chart Rendering ───────────────────────
 
 /// Render an SVG line chart for a single metric series.
-fn render_line_chart(data: &[DataPoint], metric: &str, y_min: f64, y_max: f64, color: &str) -> Html {
+fn render_line_chart(
+    data: &[DataPoint],
+    metric: &str,
+    y_min: f64,
+    y_max: f64,
+    color: &str,
+) -> Html {
     if data.len() < 2 {
         return html! { <div class="chart-placeholder">{ "Collecting data..." }</div> };
     }
@@ -261,23 +269,38 @@ fn render_line_chart(data: &[DataPoint], metric: &str, y_min: f64, y_max: f64, c
     let plot_w = w - pad_l - pad_r;
     let plot_h = h - pad_t - pad_b;
 
-    let range = if (y_max - y_min).abs() < f64::EPSILON { 1.0 } else { y_max - y_min };
+    let range = if (y_max - y_min).abs() < f64::EPSILON {
+        1.0
+    } else {
+        y_max - y_min
+    };
     let n = data.len();
 
-    let points: Vec<(f64, f64)> = data.iter().enumerate().map(|(i, d)| {
-        let val = match metric {
-            "cpu" => d.cpu,
-            "mem" => d.mem,
-            _ => d.cpu,
-        };
-        let x = pad_l + (i as f64 / (n - 1).max(1) as f64) * plot_w;
-        let y = pad_t + plot_h - ((val - y_min) / range * plot_h);
-        (x, y)
-    }).collect();
+    let points: Vec<(f64, f64)> = data
+        .iter()
+        .enumerate()
+        .map(|(i, d)| {
+            let val = match metric {
+                "cpu" => d.cpu,
+                "mem" => d.mem,
+                _ => d.cpu,
+            };
+            let x = pad_l + (i as f64 / (n - 1).max(1) as f64) * plot_w;
+            let y = pad_t + plot_h - ((val - y_min) / range * plot_h);
+            (x, y)
+        })
+        .collect();
 
     // Clip to plot area
     let path_d = build_smooth_path(&points);
-    let area_d = format!("{} L {} {} L {} {} Z", path_d, pad_l + plot_w, pad_t + plot_h, pad_l, pad_t + plot_h);
+    let area_d = format!(
+        "{} L {} {} L {} {} Z",
+        path_d,
+        pad_l + plot_w,
+        pad_t + plot_h,
+        pad_l,
+        pad_t + plot_h
+    );
 
     let y_ticks = 4;
     let y_labels: Vec<Html> = (0..=y_ticks).map(|i| {
@@ -323,18 +346,32 @@ fn render_token_chart(data: &[DataPoint], color: &str) -> Html {
 
     let min_t = data.iter().map(|d| d.tokens).min().unwrap_or(0);
     let max_t = data.iter().map(|d| d.tokens).max().unwrap_or(1);
-    let range: f64 = if max_t == min_t { 1.0 } else { (max_t - min_t) as f64 };
+    let range: f64 = if max_t == min_t {
+        1.0
+    } else {
+        (max_t - min_t) as f64
+    };
     let n = data.len();
 
-    let points: Vec<(f64, f64)> = data.iter().enumerate().map(|(i, d)| {
-        let x = pad_l + (i as f64 / (n - 1).max(1) as f64) * plot_w;
-        let y = pad_t + plot_h - ((d.tokens - min_t) as f64 / range * plot_h);
-        (x, y)
-    }).collect();
+    let points: Vec<(f64, f64)> = data
+        .iter()
+        .enumerate()
+        .map(|(i, d)| {
+            let x = pad_l + (i as f64 / (n - 1).max(1) as f64) * plot_w;
+            let y = pad_t + plot_h - ((d.tokens - min_t) as f64 / range * plot_h);
+            (x, y)
+        })
+        .collect();
 
     let path_d = build_smooth_path(&points);
-    let area_d = format!("{} L {} {} L {} {} Z",
-        path_d, pad_l + plot_w, pad_t + plot_h, pad_l, pad_t + plot_h);
+    let area_d = format!(
+        "{} L {} {} L {} {} Z",
+        path_d,
+        pad_l + plot_w,
+        pad_t + plot_h,
+        pad_l,
+        pad_t + plot_h
+    );
 
     let y_ticks = 4;
     let y_labels: Vec<Html> = (0..=y_ticks).map(|i| {
@@ -378,7 +415,10 @@ fn build_smooth_path(points: &[(f64, f64)]) -> String {
         let cpy1 = prev.1;
         let cpx2 = curr.0 - (curr.0 - prev.0) * 0.4;
         let cpy2 = curr.1;
-        d.push_str(&format!(" C {} {} {} {} {} {}", cpx1, cpy1, cpx2, cpy2, curr.0, curr.1));
+        d.push_str(&format!(
+            " C {} {} {} {} {} {}",
+            cpx1, cpy1, cpx2, cpy2, curr.0, curr.1
+        ));
     }
     d
 }

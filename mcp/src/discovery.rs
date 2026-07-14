@@ -89,9 +89,15 @@ pub struct DiscoveryConfig {
     pub health_check_timeout_secs: u64,
 }
 
-fn default_enabled() -> bool { true }
-fn default_interval() -> u64 { 60 }
-fn default_timeout() -> u64 { 5 }
+fn default_enabled() -> bool {
+    true
+}
+fn default_interval() -> u64 {
+    60
+}
+fn default_timeout() -> u64 {
+    5
+}
 
 /// 静态服务器条目
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -109,13 +115,11 @@ impl Default for DiscoveryConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            static_servers: vec![
-                StaticServerEntry {
-                    name: "local-filesystem".into(),
-                    url: "http://127.0.0.1:8080/mcp".into(),
-                    capabilities: vec!["filesystem".into()],
-                },
-            ],
+            static_servers: vec![StaticServerEntry {
+                name: "local-filesystem".into(),
+                url: "http://127.0.0.1:8080/mcp".into(),
+                capabilities: vec!["filesystem".into()],
+            }],
             dns_domains: vec!["_mcp._tcp.local".into()],
             mdns_service_types: vec!["_mcp._tcp".into()],
             scan_interval_secs: 60,
@@ -181,7 +185,10 @@ impl McpDiscovery {
                 });
                 info!("MCP 静态服务器 '{}' 已注册: {}", entry.name, entry.url);
             }
-            info!("MCP 自动发现初始化完成 ({} 个静态服务器)", config.static_servers.len());
+            info!(
+                "MCP 自动发现初始化完成 ({} 个静态服务器)",
+                config.static_servers.len()
+            );
         });
 
         discovery
@@ -205,7 +212,10 @@ impl McpDiscovery {
             latency_ms: None,
             last_seen: chrono::Utc::now(),
         };
-        self.discovered.write().await.insert(name.to_string(), server);
+        self.discovered
+            .write()
+            .await
+            .insert(name.to_string(), server);
         self.history.write().await.push(DiscoveryEvent {
             timestamp: chrono::Utc::now(),
             source: DiscoverySource::Manual,
@@ -416,13 +426,11 @@ mod tests {
     #[tokio::test]
     async fn test_static_discovery() {
         let config = DiscoveryConfig {
-            static_servers: vec![
-                StaticServerEntry {
-                    name: "test-server".into(),
-                    url: "http://127.0.0.1:9999/mcp".into(),
-                    capabilities: vec!["test".into()],
-                },
-            ],
+            static_servers: vec![StaticServerEntry {
+                name: "test-server".into(),
+                url: "http://127.0.0.1:9999/mcp".into(),
+                capabilities: vec!["test".into()],
+            }],
             ..Default::default()
         };
 

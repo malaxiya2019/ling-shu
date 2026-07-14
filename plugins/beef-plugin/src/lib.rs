@@ -111,7 +111,7 @@ impl BeefPlugin {
                 },
             ],
             min_api_version: Some("1.0.0".into()),
-        ..Default::default()
+            ..Default::default()
         };
 
         let info = PluginInfo {
@@ -212,7 +212,7 @@ impl Plugin for BeefPlugin {
         Ok(())
     }
 
-        fn as_any(&self) -> &dyn std::any::Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 

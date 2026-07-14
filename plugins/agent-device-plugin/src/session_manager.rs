@@ -6,11 +6,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-
-use tokio::sync::RwLock;
-use serde::{Serialize, Deserialize};
 use lingshu_core::LsId;
-use tracing::{info, warn, debug};
+use serde::{Deserialize, Serialize};
+use tokio::sync::RwLock;
+use tracing::{debug, info, warn};
 
 /// 会话平台类型
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -114,7 +113,10 @@ impl SessionManager {
             active: true,
         };
 
-        self.sessions.write().await.insert(id.clone(), session.clone());
+        self.sessions
+            .write()
+            .await
+            .insert(id.clone(), session.clone());
         info!(session_id = %id, "Agent-device session created");
         session
     }
@@ -323,8 +325,10 @@ mod tests {
     #[tokio::test]
     async fn test_list_sessions() {
         let mgr = SessionManager::new();
-        mgr.create_session("s1".into(), SessionPlatform::Ios, None, vec![]).await;
-        mgr.create_session("s2".into(), SessionPlatform::Android, None, vec![]).await;
+        mgr.create_session("s1".into(), SessionPlatform::Ios, None, vec![])
+            .await;
+        mgr.create_session("s2".into(), SessionPlatform::Android, None, vec![])
+            .await;
 
         let sessions = mgr.list_sessions().await;
         assert_eq!(sessions.len(), 2);
@@ -333,8 +337,11 @@ mod tests {
     #[tokio::test]
     async fn test_active_sessions() {
         let mgr = SessionManager::new();
-        mgr.create_session("active-1".into(), SessionPlatform::Ios, None, vec![]).await;
-        let s2 = mgr.create_session("to-close".into(), SessionPlatform::Android, None, vec![]).await;
+        mgr.create_session("active-1".into(), SessionPlatform::Ios, None, vec![])
+            .await;
+        let s2 = mgr
+            .create_session("to-close".into(), SessionPlatform::Android, None, vec![])
+            .await;
         mgr.close_session(&s2.id).await;
 
         let active = mgr.active_sessions().await;
@@ -345,9 +352,13 @@ mod tests {
     #[tokio::test]
     async fn test_stats() {
         let mgr = SessionManager::new();
-        mgr.create_session("s1".into(), SessionPlatform::Ios, None, vec![]).await;
-        mgr.create_session("s2".into(), SessionPlatform::Android, None, vec![]).await;
-        let s3 = mgr.create_session("s3".into(), SessionPlatform::Ios, None, vec![]).await;
+        mgr.create_session("s1".into(), SessionPlatform::Ios, None, vec![])
+            .await;
+        mgr.create_session("s2".into(), SessionPlatform::Android, None, vec![])
+            .await;
+        let s3 = mgr
+            .create_session("s3".into(), SessionPlatform::Ios, None, vec![])
+            .await;
         mgr.close_session(&s3.id).await;
 
         let stats = mgr.stats().await;
@@ -360,10 +371,12 @@ mod tests {
     #[tokio::test]
     async fn test_stale_session_cleanup() {
         let mgr = SessionManager::new();
-        
+
         // 创建一个会话（默认创建时间）
-        let s = mgr.create_session("stale".into(), SessionPlatform::Ios, None, vec![]).await;
-        
+        let s = mgr
+            .create_session("stale".into(), SessionPlatform::Ios, None, vec![])
+            .await;
+
         // 手动将 last_active 设置为较旧的时间来模拟过期
         {
             let mut sessions = mgr.sessions.write().await;

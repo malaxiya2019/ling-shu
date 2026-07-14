@@ -51,7 +51,11 @@ impl SwarmEngine {
         let config = Arc::new(config);
         let channel = Arc::new(SwarmChannel::new(10000));
         let strategy = create_strategy(&config);
-        let coordinator = Arc::new(SwarmCoordinator::new(config.clone(), strategy, channel.clone()));
+        let coordinator = Arc::new(SwarmCoordinator::new(
+            config.clone(),
+            strategy,
+            channel.clone(),
+        ));
         let topology = Arc::new(TopologyManager::new(config.topology));
         let emergent = Arc::new(EmergentSpecialization::new(3, 0.1));
         let memory = Arc::new(SwarmMemory::new());
@@ -163,9 +167,9 @@ impl SwarmEngine {
         let mut state = self.state.write().await;
         if state.agents.len() >= self.config.max_agents {
             return Err(lingshu_core::LsError::Internal(format!(
-                    "Swarm '{}' at max capacity ({})",
-                    state.name, self.config.max_agents
-                )));
+                "Swarm '{}' at max capacity ({})",
+                state.name, self.config.max_agents
+            )));
         }
 
         let agent_id = agent.id;
@@ -227,22 +231,19 @@ impl SwarmEngine {
     pub async fn submit_task(&self, ctx: &LsContext, task: SwarmTask) -> LsResult<ConsensusResult> {
         if !*self.running.read().await {
             return Err(lingshu_core::LsError::Internal(
-                "SwarmEngine is not running".to_string()
+                "SwarmEngine is not running".to_string(),
             ));
         }
 
         let state = self.state.read().await;
         if state.agents.is_empty() {
             return Err(lingshu_core::LsError::Internal(
-                "No agents in swarm".to_string()
+                "No agents in swarm".to_string(),
             ));
         }
 
         // 更新活跃任务计数
-        info!(
-            "submitting task '{}' to swarm '{}'",
-            task.name, state.name
-        );
+        info!("submitting task '{}' to swarm '{}'", task.name, state.name);
 
         let result = self.coordinator.coordinate(ctx, &state, &task).await?;
 
@@ -292,9 +293,7 @@ impl SwarmEngine {
     /// 获取 Swarm 性能指标
     pub async fn get_metrics(&self) -> SwarmMetrics {
         let state = self.state.read().await;
-        self.metrics
-            .metrics(state.id, &state)
-            .await
+        self.metrics.metrics(state.id, &state).await
     }
 
     /// 获取 Swarm 摘要
@@ -352,12 +351,9 @@ mod tests {
 
     fn create_test_agents() -> Vec<SwarmAgent> {
         vec![
-            SwarmAgent::new("alpha", SwarmAgentRole::Analyst)
-                .with_expertise("analysis", 0.9),
-            SwarmAgent::new("beta", SwarmAgentRole::Creator)
-                .with_expertise("code", 0.85),
-            SwarmAgent::new("gamma", SwarmAgentRole::Validator)
-                .with_expertise("qa", 0.8),
+            SwarmAgent::new("alpha", SwarmAgentRole::Analyst).with_expertise("analysis", 0.9),
+            SwarmAgent::new("beta", SwarmAgentRole::Creator).with_expertise("code", 0.85),
+            SwarmAgent::new("gamma", SwarmAgentRole::Validator).with_expertise("qa", 0.8),
         ]
     }
 
@@ -460,8 +456,8 @@ mod tests {
         engine.start().await.unwrap();
 
         // Add agents
-        let agent = SwarmAgent::new("worker", SwarmAgentRole::Executor)
-            .with_expertise("general", 0.8);
+        let agent =
+            SwarmAgent::new("worker", SwarmAgentRole::Executor).with_expertise("general", 0.8);
         engine.add_agent(agent).await.unwrap();
 
         // Register specialized agent

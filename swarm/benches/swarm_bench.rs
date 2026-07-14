@@ -20,29 +20,51 @@ fn bench_enum_ops(c: &mut Criterion) {
     let mut group = c.benchmark_group("swarm::enum");
     group.bench_function("strategy_as_str", |b| {
         let variants = [
-            SwarmStrategy::Voting, SwarmStrategy::Consensus,
-            SwarmStrategy::Hierarchical, SwarmStrategy::Democratic,
-            SwarmStrategy::Bidding, SwarmStrategy::Hybrid,
+            SwarmStrategy::Voting,
+            SwarmStrategy::Consensus,
+            SwarmStrategy::Hierarchical,
+            SwarmStrategy::Democratic,
+            SwarmStrategy::Bidding,
+            SwarmStrategy::Hybrid,
         ];
-        b.iter(|| { for v in &variants { black_box(v.as_str()); } })
+        b.iter(|| {
+            for v in &variants {
+                black_box(v.as_str());
+            }
+        })
     });
     group.bench_function("topology_as_str", |b| {
         let variants = [
-            SwarmTopology::Star, SwarmTopology::Mesh,
-            SwarmTopology::Ring, SwarmTopology::Tree,
+            SwarmTopology::Star,
+            SwarmTopology::Mesh,
+            SwarmTopology::Ring,
+            SwarmTopology::Tree,
             SwarmTopology::Dynamic,
         ];
-        b.iter(|| { for v in &variants { black_box(v.as_str()); } })
+        b.iter(|| {
+            for v in &variants {
+                black_box(v.as_str());
+            }
+        })
     });
     group.bench_function("role_as_str", |b| {
         let roles = [
-            SwarmAgentRole::Analyst, SwarmAgentRole::Creator,
-            SwarmAgentRole::Validator, SwarmAgentRole::Negotiator,
-            SwarmAgentRole::Planner, SwarmAgentRole::Executor,
-            SwarmAgentRole::Tester, SwarmAgentRole::Observer,
-            SwarmAgentRole::Aggregator, SwarmAgentRole::Router,
+            SwarmAgentRole::Analyst,
+            SwarmAgentRole::Creator,
+            SwarmAgentRole::Validator,
+            SwarmAgentRole::Negotiator,
+            SwarmAgentRole::Planner,
+            SwarmAgentRole::Executor,
+            SwarmAgentRole::Tester,
+            SwarmAgentRole::Observer,
+            SwarmAgentRole::Aggregator,
+            SwarmAgentRole::Router,
         ];
-        b.iter(|| { for r in &roles { black_box(r.as_str()); } })
+        b.iter(|| {
+            for r in &roles {
+                black_box(r.as_str());
+            }
+        })
     });
     group.bench_function("serde_roundtrip", |b| {
         let config = SwarmConfig {
@@ -93,9 +115,13 @@ fn bench_task_create(c: &mut Criterion) {
     });
     group.bench_function("new_with_options", |b| {
         b.iter(|| {
-            SwarmTask::new("opt-task", "Complex analysis", serde_json::json!({"data": "x".repeat(200)}))
-                .with_required_role(SwarmAgentRole::Analyst)
-                .with_priority(8)
+            SwarmTask::new(
+                "opt-task",
+                "Complex analysis",
+                serde_json::json!({"data": "x".repeat(200)}),
+            )
+            .with_required_role(SwarmAgentRole::Analyst)
+            .with_priority(8)
         })
     });
     group.finish();
@@ -108,19 +134,26 @@ fn bench_decision(c: &mut Criterion) {
         .with_required_role(SwarmAgentRole::Executor);
     let agents: Vec<SwarmAgent> = (0..20)
         .map(|i| {
-            let role = if i == 0 { SwarmAgentRole::Planner } else { SwarmAgentRole::Executor };
+            let role = if i == 0 {
+                SwarmAgentRole::Planner
+            } else {
+                SwarmAgentRole::Executor
+            };
             SwarmAgent::new(format!("agent-{i}"), role)
                 .with_expertise("default", 0.5 + i as f64 * 0.025)
         })
         .collect();
-    let bids: Vec<SwarmBid> = agents.iter().map(|a| SwarmBid {
-        agent_id: LsId::new(),
-        agent_name: a.name.clone(),
-        bid_score: 0.5 + (a.name.len() as f64 * 0.02).min(0.45),
-        estimated_ms: 100 + a.name.len() as u64 * 10,
-        rationale: "benchmark bid".into(),
-        timestamp: chrono::Utc::now().timestamp(),
-    }).collect();
+    let bids: Vec<SwarmBid> = agents
+        .iter()
+        .map(|a| SwarmBid {
+            agent_id: LsId::new(),
+            agent_name: a.name.clone(),
+            bid_score: 0.5 + (a.name.len() as f64 * 0.02).min(0.45),
+            estimated_ms: 100 + a.name.len() as u64 * 10,
+            rationale: "benchmark bid".into(),
+            timestamp: chrono::Utc::now().timestamp(),
+        })
+        .collect();
     let voting = VotingStrategy::new(0.5);
     let consensus = ConsensusStrategy::new(0.6);
     let bidding = BiddingStrategy;
@@ -128,19 +161,25 @@ fn bench_decision(c: &mut Criterion) {
     {
         use lingshu_swarm::SwarmDecisionStrategy;
         group.bench_function("voting_select_20agents", |b| {
-            b.iter(|| rt.block_on(async {
-                black_box(voting.select_agent(&task, &agents, &bids).await.unwrap())
-            }))
+            b.iter(|| {
+                rt.block_on(async {
+                    black_box(voting.select_agent(&task, &agents, &bids).await.unwrap())
+                })
+            })
         });
         group.bench_function("consensus_select_20agents", |b| {
-            b.iter(|| rt.block_on(async {
-                black_box(consensus.select_agent(&task, &agents, &bids).await.unwrap())
-            }))
+            b.iter(|| {
+                rt.block_on(async {
+                    black_box(consensus.select_agent(&task, &agents, &bids).await.unwrap())
+                })
+            })
         });
         group.bench_function("bidding_select_20agents", |b| {
-            b.iter(|| rt.block_on(async {
-                black_box(bidding.select_agent(&task, &agents, &bids).await.unwrap())
-            }))
+            b.iter(|| {
+                rt.block_on(async {
+                    black_box(bidding.select_agent(&task, &agents, &bids).await.unwrap())
+                })
+            })
         });
     }
     group.finish();
@@ -180,7 +219,9 @@ fn bench_memory(c: &mut Criterion) {
         };
         b.iter(|| {
             rt.block_on(async {
-                memory.record_result(black_box(&task), black_box(&result)).await;
+                memory
+                    .record_result(black_box(&task), black_box(&result))
+                    .await;
             })
         })
     });
@@ -197,7 +238,11 @@ fn bench_metrics(c: &mut Criterion) {
                 for i in 0..100 {
                     collector.record_execution(true, i as f64).await;
                 }
-                let state = SwarmState::new("bench-swarm", SwarmStrategy::Democratic, SwarmTopology::Mesh);
+                let state = SwarmState::new(
+                    "bench-swarm",
+                    SwarmStrategy::Democratic,
+                    SwarmTopology::Mesh,
+                );
                 black_box(collector.metrics(LsId::new(), &state).await)
             })
         })

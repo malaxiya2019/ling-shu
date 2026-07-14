@@ -2,8 +2,8 @@
 //!
 //! 覆盖所有结构体构建、序列化/反序列化、默认值、Mock trait 实现。
 
-use lingshu_traits::*;
 use lingshu_core::{LsContext, LsError, LsId, LsResult};
+use lingshu_traits::*;
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -14,8 +14,13 @@ use std::collections::HashMap;
 #[test]
 fn test_agent_status_roundtrip() {
     use agent::AgentStatus;
-    for status in &[AgentStatus::Idle, AgentStatus::Running, AgentStatus::Paused,
-                    AgentStatus::Completed, AgentStatus::Failed] {
+    for status in &[
+        AgentStatus::Idle,
+        AgentStatus::Running,
+        AgentStatus::Paused,
+        AgentStatus::Completed,
+        AgentStatus::Failed,
+    ] {
         let json = serde_json::to_string(status).unwrap();
         let deserialized: AgentStatus = serde_json::from_str(&json).unwrap();
         assert_eq!(*status, deserialized);
@@ -70,7 +75,10 @@ fn test_agent_output_failed() {
     let json = serde_json::to_string(&output).unwrap();
     let deserialized: AgentOutput = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized.status, AgentStatus::Failed);
-    assert_eq!(deserialized.error.unwrap().to_string(), "internal error: oops");
+    assert_eq!(
+        deserialized.error.unwrap().to_string(),
+        "internal error: oops"
+    );
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -80,7 +88,12 @@ fn test_agent_output_failed() {
 #[test]
 fn test_llm_role_roundtrip() {
     use llm::LlmRole;
-    for role in &[LlmRole::System, LlmRole::User, LlmRole::Assistant, LlmRole::Tool] {
+    for role in &[
+        LlmRole::System,
+        LlmRole::User,
+        LlmRole::Assistant,
+        LlmRole::Tool,
+    ] {
         let json = serde_json::to_string(role).unwrap();
         let deserialized: LlmRole = serde_json::from_str(&json).unwrap();
         assert_eq!(*role, deserialized);
@@ -127,7 +140,7 @@ fn test_content_part_image_url() {
         ContentPart::ImageUrl { image_url, .. } => {
             assert_eq!(image_url.url, "https://example.com/img.png");
             assert_eq!(image_url.detail.as_deref(), Some("auto"));
-        },
+        }
         _ => panic!("expected ImageUrl variant"),
     }
 }
@@ -141,12 +154,15 @@ fn test_image_url_from_base64() {
 
 #[test]
 fn test_llm_request_default_fields() {
-    use llm::{LlmRequest, LlmMessage, LlmRole};
+    use llm::{LlmMessage, LlmRequest, LlmRole};
     let req = LlmRequest {
         model: "gpt-4".into(),
         messages: vec![LlmMessage {
-            role: LlmRole::User, content: "hi".into(),
-            content_parts: None, name: None, tool_calls: None,
+            role: LlmRole::User,
+            content: "hi".into(),
+            content_parts: None,
+            name: None,
+            tool_calls: None,
         }],
         temperature: Some(0.7),
         max_tokens: Some(100),
@@ -163,7 +179,11 @@ fn test_llm_request_default_fields() {
 #[test]
 fn test_llm_usage_roundtrip() {
     use llm::LlmUsage;
-    let usage = LlmUsage { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 };
+    let usage = LlmUsage {
+        prompt_tokens: 10,
+        completion_tokens: 20,
+        total_tokens: 30,
+    };
     let json = serde_json::to_string(&usage).unwrap();
     let deserialized: LlmUsage = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized.total_tokens, 30);
@@ -172,7 +192,11 @@ fn test_llm_usage_roundtrip() {
 #[test]
 fn test_llm_chunk_roundtrip() {
     use llm::LlmChunk;
-    let chunk = LlmChunk { content: Some("hello".into()), tool_calls: None, finish_reason: Some("stop".into()) };
+    let chunk = LlmChunk {
+        content: Some("hello".into()),
+        tool_calls: None,
+        finish_reason: Some("stop".into()),
+    };
     let json = serde_json::to_string(&chunk).unwrap();
     let deserialized: LlmChunk = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized.content.as_deref(), Some("hello"));
@@ -181,7 +205,7 @@ fn test_llm_chunk_roundtrip() {
 
 #[test]
 fn test_tool_definition_and_call() {
-    use llm::{ToolDefinition, ToolFunction, ToolCall, ToolCallFunction, ToolResult};
+    use llm::{ToolCall, ToolCallFunction, ToolDefinition, ToolFunction, ToolResult};
     let def = ToolDefinition {
         tool_type: "function".into(),
         function: ToolFunction {
@@ -207,7 +231,10 @@ fn test_tool_definition_and_call() {
     let deserialized2: ToolCall = serde_json::from_str(&json2).unwrap();
     assert_eq!(deserialized2.id, "call_1");
 
-    let result = ToolResult { tool_call_id: "call_1".into(), content: "sunny".into() };
+    let result = ToolResult {
+        tool_call_id: "call_1".into(),
+        content: "sunny".into(),
+    };
     let json3 = serde_json::to_string(&result).unwrap();
     let deserialized3: ToolResult = serde_json::from_str(&json3).unwrap();
     assert_eq!(deserialized3.content, "sunny");
@@ -235,7 +262,10 @@ fn test_memory_item_roundtrip() {
     assert_eq!(deserialized.metadata.get("lang").unwrap(), "zh");
 
     // MemorySearchResult
-    let result = MemorySearchResult { items: vec![item.clone()], total: 1 };
+    let result = MemorySearchResult {
+        items: vec![item.clone()],
+        total: 1,
+    };
     let json2 = serde_json::to_string(&result).unwrap();
     let deserialized2: MemorySearchResult = serde_json::from_str(&json2).unwrap();
     assert_eq!(deserialized2.total, 1);
@@ -259,7 +289,10 @@ fn test_tool_category_display() {
     use tool::ToolCategory;
     assert_eq!(ToolCategory::General.to_string(), "general");
     assert_eq!(ToolCategory::FileSystem.to_string(), "filesystem");
-    assert_eq!(ToolCategory::Custom("my_tool".into()).to_string(), "my_tool");
+    assert_eq!(
+        ToolCategory::Custom("my_tool".into()).to_string(),
+        "my_tool"
+    );
 }
 
 #[test]
@@ -276,7 +309,7 @@ fn test_sandbox_config_default() {
 
 #[test]
 fn test_tool_info_builder() {
-    use tool::{ToolInfo, ToolCategory, PermissionLevel, SandboxConfig};
+    use tool::{PermissionLevel, SandboxConfig, ToolCategory, ToolInfo};
     let info = ToolInfo::new("calc", "Calculator", vec![])
         .with_category(ToolCategory::General)
         .with_tags(vec!["math".into()])
@@ -319,7 +352,12 @@ fn test_tool_call_record_roundtrip() {
 #[test]
 fn test_priority_roundtrip() {
     use scheduler::Priority;
-    for p in &[Priority::Low, Priority::Normal, Priority::High, Priority::Critical] {
+    for p in &[
+        Priority::Low,
+        Priority::Normal,
+        Priority::High,
+        Priority::Critical,
+    ] {
         let json = serde_json::to_string(p).unwrap();
         let deserialized: Priority = serde_json::from_str(&json).unwrap();
         assert_eq!(*p, deserialized);
@@ -329,8 +367,13 @@ fn test_priority_roundtrip() {
 #[test]
 fn test_task_status_roundtrip() {
     use scheduler::TaskStatus;
-    for s in &[TaskStatus::Pending, TaskStatus::Running, TaskStatus::Completed,
-               TaskStatus::Failed, TaskStatus::Cancelled] {
+    for s in &[
+        TaskStatus::Pending,
+        TaskStatus::Running,
+        TaskStatus::Completed,
+        TaskStatus::Failed,
+        TaskStatus::Cancelled,
+    ] {
         let json = serde_json::to_string(s).unwrap();
         let deserialized: TaskStatus = serde_json::from_str(&json).unwrap();
         assert_eq!(*s, deserialized);
@@ -339,7 +382,7 @@ fn test_task_status_roundtrip() {
 
 #[test]
 fn test_task_info_build() {
-    use scheduler::{TaskInfo, Priority, TaskStatus};
+    use scheduler::{Priority, TaskInfo, TaskStatus};
     let info = TaskInfo {
         task_id: LsId::new(),
         session_id: LsId::new(),
@@ -357,7 +400,12 @@ fn test_task_info_build() {
 #[test]
 fn test_quota_info() {
     use scheduler::QuotaInfo;
-    let q = QuotaInfo { max_concurrent: 10, current_concurrent: 3, max_queue_size: 100, current_queue_size: 5 };
+    let q = QuotaInfo {
+        max_concurrent: 10,
+        current_concurrent: 3,
+        max_queue_size: 100,
+        current_queue_size: 5,
+    };
     assert_eq!(q.max_concurrent, 10);
     assert_eq!(q.current_queue_size, 5);
 }
@@ -387,7 +435,11 @@ fn test_event_roundtrip() {
 #[test]
 fn test_subscription_info() {
     use event_bus::SubscriptionInfo;
-    let sub = SubscriptionInfo { id: "sub_1".into(), topic_pattern: "agent.*".into(), created_at: chrono::Utc::now() };
+    let sub = SubscriptionInfo {
+        id: "sub_1".into(),
+        topic_pattern: "agent.*".into(),
+        created_at: chrono::Utc::now(),
+    };
     let json = serde_json::to_string(&sub).unwrap();
     let deserialized: SubscriptionInfo = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized.id, "sub_1");
@@ -420,7 +472,11 @@ fn test_file_info_roundtrip() {
 #[test]
 fn test_presigned_url() {
     use storage::PresignedUrl;
-    let url = PresignedUrl { url: "https://example.com/upload".into(), method: "PUT".into(), expires_at: chrono::Utc::now() };
+    let url = PresignedUrl {
+        url: "https://example.com/upload".into(),
+        method: "PUT".into(),
+        expires_at: chrono::Utc::now(),
+    };
     let json = serde_json::to_string(&url).unwrap();
     let deserialized: PresignedUrl = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized.url, "https://example.com/upload");
@@ -464,7 +520,10 @@ fn test_vector_record() {
 #[test]
 fn test_vector_search_result() {
     use vector_store::VectorSearchResult;
-    let vsr = VectorSearchResult { records: vec![], total: 0 };
+    let vsr = VectorSearchResult {
+        records: vec![],
+        total: 0,
+    };
     let json = serde_json::to_string(&vsr).unwrap();
     let deserialized: VectorSearchResult = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized.total, 0);
@@ -478,7 +537,10 @@ fn test_vector_search_result() {
 #[test]
 fn test_pagination() {
     use database::Pagination;
-    let p = Pagination { page: 1, page_size: 20 };
+    let p = Pagination {
+        page: 1,
+        page_size: 20,
+    };
     assert_eq!(p.page, 1);
 }
 
@@ -501,7 +563,11 @@ fn test_paginated_result() {
 #[test]
 fn test_query_filter() {
     use database::QueryFilter;
-    let qf = QueryFilter { field: "name".into(), operator: "eq".into(), value: serde_json::json!("alice") };
+    let qf = QueryFilter {
+        field: "name".into(),
+        operator: "eq".into(),
+        value: serde_json::json!("alice"),
+    };
     let json = serde_json::to_string(&qf).unwrap();
     let deserialized: QueryFilter = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized.field, "name");
@@ -515,7 +581,10 @@ fn test_query_filter() {
 #[test]
 fn test_embedding_vector() {
     use embedding::EmbeddingVector;
-    let ev = EmbeddingVector { dimensions: 3, values: vec![0.1, 0.2, 0.3] };
+    let ev = EmbeddingVector {
+        dimensions: 3,
+        values: vec![0.1, 0.2, 0.3],
+    };
     let json = serde_json::to_string(&ev).unwrap();
     let deserialized: EmbeddingVector = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized.dimensions, 3);
@@ -525,7 +594,10 @@ fn test_embedding_vector() {
 #[test]
 fn test_embedding_request() {
     use embedding::EmbeddingRequest;
-    let req = EmbeddingRequest { input: vec!["hello".into(), "world".into()], model: Some("text-embedding-3".into()) };
+    let req = EmbeddingRequest {
+        input: vec!["hello".into(), "world".into()],
+        model: Some("text-embedding-3".into()),
+    };
     let json = serde_json::to_string(&req).unwrap();
     let deserialized: EmbeddingRequest = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized.input.len(), 2);
@@ -533,9 +605,12 @@ fn test_embedding_request() {
 
 #[test]
 fn test_embedding_response() {
-    use embedding::{EmbeddingResponse, EmbeddingVector, EmbeddingUsage};
+    use embedding::{EmbeddingResponse, EmbeddingUsage, EmbeddingVector};
     let resp = EmbeddingResponse {
-        vectors: vec![EmbeddingVector { dimensions: 3, values: vec![0.1, 0.2, 0.3] }],
+        vectors: vec![EmbeddingVector {
+            dimensions: 3,
+            values: vec![0.1, 0.2, 0.3],
+        }],
         model: "text-embedding-3".into(),
         usage: EmbeddingUsage { total_tokens: 10 },
     };
@@ -573,7 +648,10 @@ fn test_plugin_status_roundtrip() {
 #[test]
 fn test_plugin_permission() {
     use plugin::PluginPermission;
-    let perm = PluginPermission { resource: "storage".into(), actions: vec!["read".into(), "write".into()] };
+    let perm = PluginPermission {
+        resource: "storage".into(),
+        actions: vec!["read".into(), "write".into()],
+    };
     let json = serde_json::to_string(&perm).unwrap();
     let deserialized: PluginPermission = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized.resource, "storage");
@@ -592,7 +670,7 @@ fn test_plugin_manifest_default() {
 
 #[test]
 fn test_plugin_manifest_full() {
-    use plugin::{PluginManifest, PluginPermission, Capability, ToolDeclaration};
+    use plugin::{Capability, PluginManifest, PluginPermission, ToolDeclaration};
     let m = PluginManifest {
         name: "my-plugin".into(),
         version: "2.0.0".into(),
@@ -602,10 +680,21 @@ fn test_plugin_manifest_full() {
         license: Some("MIT".into()),
         plugin_type: "dynamic".into(),
         entry_point: Some("my_plugin_init".into()),
-        permissions: vec![PluginPermission { resource: "network".into(), actions: vec!["connect".into()] }],
+        permissions: vec![PluginPermission {
+            resource: "network".into(),
+            actions: vec!["connect".into()],
+        }],
         min_api_version: Some("1.0.0".into()),
-        capabilities: vec![Capability { name: "search".into(), description: Some("search engine".into()), version_req: None }],
-        tools: vec![ToolDeclaration { name: "search_tool".into(), description: "Searches".into(), permission_level: "user".into() }],
+        capabilities: vec![Capability {
+            name: "search".into(),
+            description: Some("search engine".into()),
+            version_req: None,
+        }],
+        tools: vec![ToolDeclaration {
+            name: "search_tool".into(),
+            description: "Searches".into(),
+            permission_level: "user".into(),
+        }],
     };
     let json = serde_json::to_string(&m).unwrap();
     let deserialized: PluginManifest = serde_json::from_str(&json).unwrap();
@@ -648,7 +737,12 @@ fn test_knowledge_entry() {
 #[test]
 fn test_data_source() {
     use knowledge::DataSource;
-    let ds = DataSource { source_id: LsId::new(), name: "docs".into(), source_type: "file".into(), config: serde_json::json!({"path": "/tmp"}) };
+    let ds = DataSource {
+        source_id: LsId::new(),
+        name: "docs".into(),
+        source_type: "file".into(),
+        config: serde_json::json!({"path": "/tmp"}),
+    };
     let json = serde_json::to_string(&ds).unwrap();
     let deserialized: DataSource = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized.name, "docs");
@@ -657,7 +751,10 @@ fn test_data_source() {
 #[test]
 fn test_knowledge_search_result() {
     use knowledge::KnowledgeSearchResult;
-    let result = KnowledgeSearchResult { entries: vec![], total: 0 };
+    let result = KnowledgeSearchResult {
+        entries: vec![],
+        total: 0,
+    };
     let json = serde_json::to_string(&result).unwrap();
     let deserialized: KnowledgeSearchResult = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized.total, 0);
@@ -697,7 +794,12 @@ fn test_tts_request_custom() {
 #[test]
 fn test_tts_response() {
     use voice::TtsResponse;
-    let resp = TtsResponse { audio_data: vec![0, 1, 2], format: "wav".into(), duration_secs: 2.5, sample_rate: 44100 };
+    let resp = TtsResponse {
+        audio_data: vec![0, 1, 2],
+        format: "wav".into(),
+        duration_secs: 2.5,
+        sample_rate: 44100,
+    };
     let json = serde_json::to_string(&resp).unwrap();
     let deserialized: TtsResponse = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized.duration_secs, 2.5);
@@ -727,7 +829,12 @@ fn test_stt_response() {
         text: "你好世界".into(),
         language: Some("zh-CN".into()),
         confidence: 0.98,
-        segments: vec![SttSegment { start: 0.0, end: 1.0, text: "你好".into(), confidence: 0.99 }],
+        segments: vec![SttSegment {
+            start: 0.0,
+            end: 1.0,
+            text: "你好".into(),
+            confidence: 0.99,
+        }],
     };
     let json = serde_json::to_string(&resp).unwrap();
     let deserialized: SttResponse = serde_json::from_str(&json).unwrap();
@@ -753,9 +860,14 @@ fn test_database_repository_collection_name() {
 #[test]
 fn test_runtime_status_roundtrip() {
     use runtime::RuntimeStatus;
-    for s in &[RuntimeStatus::Uninitialized, RuntimeStatus::Initializing,
-               RuntimeStatus::Running, RuntimeStatus::Paused,
-               RuntimeStatus::ShuttingDown, RuntimeStatus::Stopped] {
+    for s in &[
+        RuntimeStatus::Uninitialized,
+        RuntimeStatus::Initializing,
+        RuntimeStatus::Running,
+        RuntimeStatus::Paused,
+        RuntimeStatus::ShuttingDown,
+        RuntimeStatus::Stopped,
+    ] {
         let json = serde_json::to_string(s).unwrap();
         let deserialized: RuntimeStatus = serde_json::from_str(&json).unwrap();
         assert_eq!(*s, deserialized);
@@ -790,10 +902,17 @@ struct MockAgent {
 
 #[async_trait::async_trait]
 impl agent::Agent for MockAgent {
-    fn id(&self) -> LsId { self.id }
+    fn id(&self) -> LsId {
+        self.id
+    }
     async fn run(&mut self, _ctx: LsContext, _input: Value) -> LsResult<agent::AgentOutput> {
         self.status = agent::AgentStatus::Running;
-        Ok(agent::AgentOutput { agent_id: self.id, status: self.status, data: None, error: None })
+        Ok(agent::AgentOutput {
+            agent_id: self.id,
+            status: self.status,
+            data: None,
+            error: None,
+        })
     }
     async fn pause(&mut self, _ctx: LsContext) -> LsResult<()> {
         self.status = agent::AgentStatus::Paused;
@@ -829,19 +948,34 @@ impl agent::Agent for MockAgent {
 fn test_mock_agent_lifecycle() {
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
-        let mut agent = MockAgent { id: LsId::new(), status: agent::AgentStatus::Idle };
+        let mut agent = MockAgent {
+            id: LsId::new(),
+            status: agent::AgentStatus::Idle,
+        };
         let ctx = LsContext::with_session(LsId::new());
 
-        assert_eq!(agent.status(ctx.clone()).await.unwrap(), agent::AgentStatus::Idle);
+        assert_eq!(
+            agent.status(ctx.clone()).await.unwrap(),
+            agent::AgentStatus::Idle
+        );
 
-        let output = agent.run(ctx.clone(), serde_json::json!("test")).await.unwrap();
+        let output = agent
+            .run(ctx.clone(), serde_json::json!("test"))
+            .await
+            .unwrap();
         assert_eq!(output.status, agent::AgentStatus::Running);
 
         agent.pause(ctx.clone()).await.unwrap();
-        assert_eq!(agent.status(ctx.clone()).await.unwrap(), agent::AgentStatus::Paused);
+        assert_eq!(
+            agent.status(ctx.clone()).await.unwrap(),
+            agent::AgentStatus::Paused
+        );
 
         agent.resume(ctx.clone()).await.unwrap();
-        assert_eq!(agent.status(ctx.clone()).await.unwrap(), agent::AgentStatus::Running);
+        assert_eq!(
+            agent.status(ctx.clone()).await.unwrap(),
+            agent::AgentStatus::Running
+        );
 
         // snapshot & restore
         let snap = agent.snapshot(ctx.clone()).await.unwrap();
@@ -849,7 +983,10 @@ fn test_mock_agent_lifecycle() {
 
         agent.cancel(ctx.clone()).await.unwrap();
         agent.restore(ctx.clone(), snap).await.unwrap();
-        assert_eq!(agent.status(ctx.clone()).await.unwrap(), agent::AgentStatus::Running);
+        assert_eq!(
+            agent.status(ctx.clone()).await.unwrap(),
+            agent::AgentStatus::Running
+        );
     });
 }
 
@@ -857,13 +994,18 @@ fn test_mock_agent_lifecycle() {
 fn test_mock_agent_default_methods() {
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
-        let mut agent = MockAgent { id: LsId::new(), status: agent::AgentStatus::Idle };
+        let mut agent = MockAgent {
+            id: LsId::new(),
+            status: agent::AgentStatus::Idle,
+        };
         let ctx = LsContext::with_session(LsId::new());
 
         let result = agent.restart(ctx.clone()).await;
         assert!(result.is_err()); // default returns Unsupported
 
-        let result = agent.update_config(ctx.clone(), serde_json::json!({})).await;
+        let result = agent
+            .update_config(ctx.clone(), serde_json::json!({}))
+            .await;
         assert!(result.is_err()); // default returns Unsupported
     });
 }
@@ -894,23 +1036,41 @@ impl memory::Memory for MockMemory {
         self.items.lock().unwrap().push(item);
         Ok(id)
     }
-    async fn write_batch(&self, _ctx: LsContext, items: Vec<memory::MemoryItem>) -> LsResult<Vec<LsId>> {
+    async fn write_batch(
+        &self,
+        _ctx: LsContext,
+        items: Vec<memory::MemoryItem>,
+    ) -> LsResult<Vec<LsId>> {
         let ids: Vec<LsId> = items.iter().map(|i| i.memory_id).collect();
         self.items.lock().unwrap().extend(items);
         Ok(ids)
     }
     async fn read(&self, _ctx: LsContext, memory_id: LsId) -> LsResult<memory::MemoryItem> {
         let items = self.items.lock().unwrap();
-        items.iter().find(|i| i.memory_id == memory_id).cloned()
+        items
+            .iter()
+            .find(|i| i.memory_id == memory_id)
+            .cloned()
             .ok_or_else(|| LsError::NotFound("memory not found".into()))
     }
-    async fn search(&self, _ctx: LsContext, query: &str, limit: u64) -> LsResult<memory::MemorySearchResult> {
+    async fn search(
+        &self,
+        _ctx: LsContext,
+        query: &str,
+        limit: u64,
+    ) -> LsResult<memory::MemorySearchResult> {
         let items = self.items.lock().unwrap();
-        let filtered: Vec<_> = items.iter().filter(|i| {
-            i.content.to_string().contains(query)
-        }).take(limit as usize).cloned().collect();
+        let filtered: Vec<_> = items
+            .iter()
+            .filter(|i| i.content.to_string().contains(query))
+            .take(limit as usize)
+            .cloned()
+            .collect();
         let total = filtered.len() as u64;
-        Ok(memory::MemorySearchResult { items: filtered, total })
+        Ok(memory::MemorySearchResult {
+            items: filtered,
+            total,
+        })
     }
     async fn delete(&self, _ctx: LsContext, memory_id: LsId) -> LsResult<()> {
         let mut items = self.items.lock().unwrap();
@@ -942,7 +1102,9 @@ impl memory::Memory for MockMemory {
 fn test_mock_memory_crud() {
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
-        let mem = MockMemory { items: std::sync::Mutex::new(vec![]) };
+        let mem = MockMemory {
+            items: std::sync::Mutex::new(vec![]),
+        };
         let ctx = LsContext::with_session(LsId::new());
 
         let item = memory::MemoryItem {
@@ -968,7 +1130,9 @@ fn test_mock_memory_crud() {
 fn test_mock_memory_clean_expired() {
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
-        let mem = MockMemory { items: std::sync::Mutex::new(vec![]) };
+        let mem = MockMemory {
+            items: std::sync::Mutex::new(vec![]),
+        };
         let ctx = LsContext::with_session(LsId::new());
 
         // Insert an expired item (ttl=0, should be cleaned immediately)
@@ -994,25 +1158,50 @@ struct MockLlm;
 
 #[async_trait::async_trait]
 impl llm::Llm for MockLlm {
-    async fn invoke(&self, _ctx: LsContext, request: llm::LlmRequest) -> LsResult<llm::LlmResponse> {
+    async fn invoke(
+        &self,
+        _ctx: LsContext,
+        request: llm::LlmRequest,
+    ) -> LsResult<llm::LlmResponse> {
         Ok(llm::LlmResponse {
             message: llm::LlmMessage {
                 role: llm::LlmRole::Assistant,
-                content: format!("echo: {}", request.messages.first().map_or("", |m| &m.content)),
+                content: format!(
+                    "echo: {}",
+                    request.messages.first().map_or("", |m| &m.content)
+                ),
                 content_parts: None,
                 name: None,
                 tool_calls: None,
             },
             finish_reason: "stop".into(),
-            usage: llm::LlmUsage { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+            usage: llm::LlmUsage {
+                prompt_tokens: 10,
+                completion_tokens: 5,
+                total_tokens: 15,
+            },
         })
     }
-    async fn invoke_stream(&self, _ctx: LsContext, _request: llm::LlmRequest)
-        -> LsResult<tokio::sync::mpsc::Receiver<LsResult<llm::LlmChunk>>>
-    {
+    async fn invoke_stream(
+        &self,
+        _ctx: LsContext,
+        _request: llm::LlmRequest,
+    ) -> LsResult<tokio::sync::mpsc::Receiver<LsResult<llm::LlmChunk>>> {
         let (tx, rx) = tokio::sync::mpsc::channel(4);
-        tx.send(Ok(llm::LlmChunk { content: Some("hello".into()), tool_calls: None, finish_reason: None })).await.unwrap();
-        tx.send(Ok(llm::LlmChunk { content: None, tool_calls: None, finish_reason: Some("stop".into()) })).await.unwrap();
+        tx.send(Ok(llm::LlmChunk {
+            content: Some("hello".into()),
+            tool_calls: None,
+            finish_reason: None,
+        }))
+        .await
+        .unwrap();
+        tx.send(Ok(llm::LlmChunk {
+            content: None,
+            tool_calls: None,
+            finish_reason: Some("stop".into()),
+        }))
+        .await
+        .unwrap();
         Ok(rx)
     }
     async fn usage_stats(&self, _ctx: LsContext) -> LsResult<HashMap<String, u64>> {
@@ -1031,10 +1220,16 @@ fn test_mock_llm_invoke() {
         let req = llm::LlmRequest {
             model: "gpt-4".into(),
             messages: vec![llm::LlmMessage {
-                role: llm::LlmRole::User, content: "hi".into(),
-                content_parts: None, name: None, tool_calls: None,
+                role: llm::LlmRole::User,
+                content: "hi".into(),
+                content_parts: None,
+                name: None,
+                tool_calls: None,
             }],
-            temperature: None, max_tokens: None, tools: None, stream: false,
+            temperature: None,
+            max_tokens: None,
+            tools: None,
+            stream: false,
         };
         let resp = llm.invoke(ctx.clone(), req).await.unwrap();
         assert_eq!(resp.message.content, "echo: hi");
@@ -1051,7 +1246,10 @@ fn test_mock_llm_stream() {
         let req = llm::LlmRequest {
             model: "gpt-4".into(),
             messages: vec![],
-            temperature: None, max_tokens: None, tools: None, stream: true,
+            temperature: None,
+            max_tokens: None,
+            tools: None,
+            stream: true,
         };
         let mut rx = llm.invoke_stream(ctx.clone(), req).await.unwrap();
         let first = rx.recv().await.unwrap().unwrap();
@@ -1074,13 +1272,21 @@ impl event_bus::EventBus for MockEventBus {
         self.events.lock().unwrap().extend(events);
         Ok(())
     }
-    async fn subscribe(&self, _ctx: LsContext, topic_pattern: &str, _handler: event_bus::EventHandler) -> LsResult<String> {
+    async fn subscribe(
+        &self,
+        _ctx: LsContext,
+        topic_pattern: &str,
+        _handler: event_bus::EventHandler,
+    ) -> LsResult<String> {
         Ok(format!("sub_{}", topic_pattern))
     }
     async fn unsubscribe(&self, _ctx: LsContext, _subscription_id: &str) -> LsResult<()> {
         Ok(())
     }
-    async fn list_subscriptions(&self, _ctx: LsContext) -> LsResult<Vec<event_bus::SubscriptionInfo>> {
+    async fn list_subscriptions(
+        &self,
+        _ctx: LsContext,
+    ) -> LsResult<Vec<event_bus::SubscriptionInfo>> {
         Ok(vec![])
     }
 }
@@ -1089,16 +1295,24 @@ impl event_bus::EventBus for MockEventBus {
 fn test_mock_eventbus() {
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
-        let bus = MockEventBus { events: std::sync::Mutex::new(vec![]) };
+        let bus = MockEventBus {
+            events: std::sync::Mutex::new(vec![]),
+        };
         let ctx = LsContext::with_session(LsId::new());
         let event = event_bus::Event {
-            event_id: "e1".into(), topic: "test".into(),
-            session_id: "s1".into(), trace_id: "t1".into(),
-            payload: serde_json::json!({"key": "val"}), timestamp: chrono::Utc::now(),
+            event_id: "e1".into(),
+            topic: "test".into(),
+            session_id: "s1".into(),
+            trace_id: "t1".into(),
+            payload: serde_json::json!({"key": "val"}),
+            timestamp: chrono::Utc::now(),
         };
         bus.publish(ctx.clone(), event.clone()).await.unwrap();
 
-        let sub_id = bus.subscribe(ctx.clone(), "test.*", Box::new(|_e| Ok(()))).await.unwrap();
+        let sub_id = bus
+            .subscribe(ctx.clone(), "test.*", Box::new(|_e| Ok(())))
+            .await
+            .unwrap();
         assert_eq!(sub_id, "sub_test.*");
 
         let subscriptions = bus.list_subscriptions(ctx.clone()).await.unwrap();
@@ -1114,18 +1328,32 @@ impl scheduler::Scheduler for MockScheduler {
     async fn submit(&self, _ctx: LsContext, _task: Box<dyn FnOnce() + Send>) -> LsResult<LsId> {
         Ok(LsId::new())
     }
-    async fn cancel(&self, _ctx: LsContext, _task_id: LsId) -> LsResult<()> { Ok(()) }
+    async fn cancel(&self, _ctx: LsContext, _task_id: LsId) -> LsResult<()> {
+        Ok(())
+    }
     async fn get_task(&self, _ctx: LsContext, task_id: LsId) -> LsResult<scheduler::TaskInfo> {
         Ok(scheduler::TaskInfo {
-            task_id, session_id: LsId::new(), priority: scheduler::Priority::Normal,
+            task_id,
+            session_id: LsId::new(),
+            priority: scheduler::Priority::Normal,
             status: scheduler::TaskStatus::Completed,
-            created_at: chrono::Utc::now(), tags: HashMap::new(),
+            created_at: chrono::Utc::now(),
+            tags: HashMap::new(),
         })
     }
-    async fn pause(&self, _ctx: LsContext) -> LsResult<()> { Ok(()) }
-    async fn resume(&self, _ctx: LsContext) -> LsResult<()> { Ok(()) }
+    async fn pause(&self, _ctx: LsContext) -> LsResult<()> {
+        Ok(())
+    }
+    async fn resume(&self, _ctx: LsContext) -> LsResult<()> {
+        Ok(())
+    }
     async fn quota(&self, _ctx: LsContext) -> LsResult<scheduler::QuotaInfo> {
-        Ok(scheduler::QuotaInfo { max_concurrent: 10, current_concurrent: 0, max_queue_size: 100, current_queue_size: 0 })
+        Ok(scheduler::QuotaInfo {
+            max_concurrent: 10,
+            current_concurrent: 0,
+            max_queue_size: 100,
+            current_queue_size: 0,
+        })
     }
 }
 
@@ -1151,13 +1379,36 @@ struct MockVectorStore;
 
 #[async_trait::async_trait]
 impl vector_store::VectorStore for MockVectorStore {
-    async fn create_collection(&self, _ctx: LsContext, _name: &str, _dimensions: usize) -> LsResult<LsId> {
+    async fn create_collection(
+        &self,
+        _ctx: LsContext,
+        _name: &str,
+        _dimensions: usize,
+    ) -> LsResult<LsId> {
         Ok(LsId::new())
     }
-    async fn delete_collection(&self, _ctx: LsContext, _collection_id: LsId) -> LsResult<()> { Ok(()) }
-    async fn upsert(&self, _ctx: LsContext, _collection_id: LsId, _records: Vec<vector_store::VectorRecord>) -> LsResult<()> { Ok(()) }
-    async fn search(&self, _ctx: LsContext, _collection_id: LsId, _query: Vec<f32>, top_k: u64) -> LsResult<vector_store::VectorSearchResult> {
-        Ok(vector_store::VectorSearchResult { records: vec![], total: top_k })
+    async fn delete_collection(&self, _ctx: LsContext, _collection_id: LsId) -> LsResult<()> {
+        Ok(())
+    }
+    async fn upsert(
+        &self,
+        _ctx: LsContext,
+        _collection_id: LsId,
+        _records: Vec<vector_store::VectorRecord>,
+    ) -> LsResult<()> {
+        Ok(())
+    }
+    async fn search(
+        &self,
+        _ctx: LsContext,
+        _collection_id: LsId,
+        _query: Vec<f32>,
+        top_k: u64,
+    ) -> LsResult<vector_store::VectorSearchResult> {
+        Ok(vector_store::VectorSearchResult {
+            records: vec![],
+            total: top_k,
+        })
     }
 }
 
@@ -1167,7 +1418,10 @@ fn test_mock_vector_store() {
     rt.block_on(async {
         let vs = MockVectorStore;
         let ctx = LsContext::with_session(LsId::new());
-        let id = vs.create_collection(ctx.clone(), "my_collection", 768).await.unwrap();
+        let id = vs
+            .create_collection(ctx.clone(), "my_collection", 768)
+            .await
+            .unwrap();
         assert!(!id.is_nil());
 
         let result = vs.search(ctx.clone(), id, vec![0.1, 0.2], 5).await.unwrap();
@@ -1180,21 +1434,36 @@ struct MockEmbedding;
 
 #[async_trait::async_trait]
 impl embedding::Embedding for MockEmbedding {
-    async fn embed(&self, _ctx: LsContext, request: embedding::EmbeddingRequest) -> LsResult<embedding::EmbeddingResponse> {
+    async fn embed(
+        &self,
+        _ctx: LsContext,
+        request: embedding::EmbeddingRequest,
+    ) -> LsResult<embedding::EmbeddingResponse> {
         Ok(embedding::EmbeddingResponse {
-            vectors: request.input.iter().map(|_| embedding::EmbeddingVector {
-                dimensions: self.dimensions(),
-                values: vec![0.1; self.dimensions()],
-            }).collect(),
+            vectors: request
+                .input
+                .iter()
+                .map(|_| embedding::EmbeddingVector {
+                    dimensions: self.dimensions(),
+                    values: vec![0.1; self.dimensions()],
+                })
+                .collect(),
             model: "mock".into(),
-            usage: embedding::EmbeddingUsage { total_tokens: request.input.len() as u64 },
+            usage: embedding::EmbeddingUsage {
+                total_tokens: request.input.len() as u64,
+            },
         })
     }
     fn validate_dimensions(&self, vector: &embedding::EmbeddingVector) -> LsResult<()> {
-        if vector.dimensions == self.dimensions() { Ok(()) }
-        else { Err(LsError::InvalidArgument("dimension mismatch".into())) }
+        if vector.dimensions == self.dimensions() {
+            Ok(())
+        } else {
+            Err(LsError::InvalidArgument("dimension mismatch".into()))
+        }
     }
-    fn dimensions(&self) -> usize { 3 }
+    fn dimensions(&self) -> usize {
+        3
+    }
 }
 
 #[test]
@@ -1203,17 +1472,29 @@ fn test_mock_embedding() {
     rt.block_on(async {
         let emb = MockEmbedding;
         let ctx = LsContext::with_session(LsId::new());
-        let resp = emb.embed(ctx.clone(), embedding::EmbeddingRequest {
-            input: vec!["hello".into(), "world".into()],
-            model: None,
-        }).await.unwrap();
+        let resp = emb
+            .embed(
+                ctx.clone(),
+                embedding::EmbeddingRequest {
+                    input: vec!["hello".into(), "world".into()],
+                    model: None,
+                },
+            )
+            .await
+            .unwrap();
         assert_eq!(resp.vectors.len(), 2);
         assert_eq!(resp.vectors[0].dimensions, 3);
 
-        let vec = embedding::EmbeddingVector { dimensions: 3, values: vec![0.1, 0.2, 0.3] };
+        let vec = embedding::EmbeddingVector {
+            dimensions: 3,
+            values: vec![0.1, 0.2, 0.3],
+        };
         assert!(emb.validate_dimensions(&vec).is_ok());
 
-        let wrong = embedding::EmbeddingVector { dimensions: 10, values: vec![0.0; 10] };
+        let wrong = embedding::EmbeddingVector {
+            dimensions: 10,
+            values: vec![0.0; 10],
+        };
         assert!(emb.validate_dimensions(&wrong).is_err());
     });
 }
@@ -1226,41 +1507,83 @@ struct MockDatabase {
 #[async_trait::async_trait]
 impl database::Database for MockDatabase {
     async fn insert(&self, _ctx: LsContext, _collection: &str, data: Value) -> LsResult<Value> {
-        self.store.lock().unwrap().insert("key".into(), data.clone());
+        self.store
+            .lock()
+            .unwrap()
+            .insert("key".into(), data.clone());
         Ok(data)
     }
-    async fn get_by_id(&self, _ctx: LsContext, _collection: &str, id: &str) -> LsResult<Option<Value>> {
+    async fn get_by_id(
+        &self,
+        _ctx: LsContext,
+        _collection: &str,
+        id: &str,
+    ) -> LsResult<Option<Value>> {
         Ok(self.store.lock().unwrap().get(id).cloned())
     }
-    async fn query(&self, _ctx: LsContext, _collection: &str, _filters: Vec<database::QueryFilter>, pagination: database::Pagination) -> LsResult<database::PaginatedResult> {
+    async fn query(
+        &self,
+        _ctx: LsContext,
+        _collection: &str,
+        _filters: Vec<database::QueryFilter>,
+        pagination: database::Pagination,
+    ) -> LsResult<database::PaginatedResult> {
         let items: Vec<Value> = self.store.lock().unwrap().values().cloned().collect();
         let total = items.len() as u64;
         Ok(database::PaginatedResult {
-            items, total, page: pagination.page, page_size: pagination.page_size,
+            items,
+            total,
+            page: pagination.page,
+            page_size: pagination.page_size,
             total_pages: (total + pagination.page_size - 1) / pagination.page_size,
         })
     }
-    async fn update(&self, _ctx: LsContext, _collection: &str, id: &str, data: Value) -> LsResult<Option<Value>> {
+    async fn update(
+        &self,
+        _ctx: LsContext,
+        _collection: &str,
+        id: &str,
+        data: Value,
+    ) -> LsResult<Option<Value>> {
         Ok(self.store.lock().unwrap().insert(id.into(), data))
     }
     async fn delete(&self, _ctx: LsContext, _collection: &str, id: &str) -> LsResult<bool> {
         Ok(self.store.lock().unwrap().remove(id).is_some())
     }
-    async fn begin_transaction(&self, _ctx: LsContext) -> LsResult<String> { Ok("txn_1".into()) }
-    async fn commit_transaction(&self, _ctx: LsContext, _txn_id: &str) -> LsResult<()> { Ok(()) }
-    async fn rollback_transaction(&self, _ctx: LsContext, _txn_id: &str) -> LsResult<()> { Ok(()) }
+    async fn begin_transaction(&self, _ctx: LsContext) -> LsResult<String> {
+        Ok("txn_1".into())
+    }
+    async fn commit_transaction(&self, _ctx: LsContext, _txn_id: &str) -> LsResult<()> {
+        Ok(())
+    }
+    async fn rollback_transaction(&self, _ctx: LsContext, _txn_id: &str) -> LsResult<()> {
+        Ok(())
+    }
 }
 
 #[test]
 fn test_mock_database_crud() {
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
-        let db = MockDatabase { store: std::sync::Mutex::new(HashMap::new()) };
+        let db = MockDatabase {
+            store: std::sync::Mutex::new(HashMap::new()),
+        };
         let ctx = LsContext::with_session(LsId::new());
         let data = serde_json::json!({"name": "alice"});
         db.insert(ctx.clone(), "users", data.clone()).await.unwrap();
 
-        let query = db.query(ctx.clone(), "users", vec![], database::Pagination { page: 1, page_size: 10 }).await.unwrap();
+        let query = db
+            .query(
+                ctx.clone(),
+                "users",
+                vec![],
+                database::Pagination {
+                    page: 1,
+                    page_size: 10,
+                },
+            )
+            .await
+            .unwrap();
         assert_eq!(query.total, 1);
     });
 }
@@ -1274,13 +1597,23 @@ struct MockTool;
 #[async_trait::async_trait]
 impl tool::Tool for MockTool {
     fn info(&self) -> tool::ToolInfo {
-        tool::ToolInfo::new("mock_tool", "A mock tool", vec![
-            tool::ToolParam { name: "input".into(), description: "Input value".into(), required: true, param_type: "string".into() }
-        ])
+        tool::ToolInfo::new(
+            "mock_tool",
+            "A mock tool",
+            vec![tool::ToolParam {
+                name: "input".into(),
+                description: "Input value".into(),
+                required: true,
+                param_type: "string".into(),
+            }],
+        )
     }
     fn validate(&self, input: &Value) -> LsResult<()> {
-        if input.get("input").is_some() { Ok(()) }
-        else { Err(LsError::InvalidArgument("missing input".into())) }
+        if input.get("input").is_some() {
+            Ok(())
+        } else {
+            Err(LsError::InvalidArgument("missing input".into()))
+        }
     }
     async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> {
         Ok(serde_json::json!({"result": input}))
@@ -1302,7 +1635,10 @@ fn test_mock_tool() {
         assert!(tool.validate(&serde_json::json!({})).is_err());
 
         let ctx = LsContext::with_session(LsId::new());
-        let result = tool.execute(ctx.clone(), serde_json::json!({"input": "hello"})).await.unwrap();
+        let result = tool
+            .execute(ctx.clone(), serde_json::json!({"input": "hello"}))
+            .await
+            .unwrap();
         assert_eq!(result["result"]["input"], "hello");
 
         let dup = tool.duplicate();

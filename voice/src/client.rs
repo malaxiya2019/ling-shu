@@ -3,8 +3,7 @@
 use async_trait::async_trait;
 use lingshu_core::{LsContext, LsError, LsResult};
 use lingshu_traits::voice::{
-    SttProvider, SttRequest, SttResponse, SttSegment,
-    TtsProvider, TtsRequest, TtsResponse,
+    SttProvider, SttRequest, SttResponse, SttSegment, TtsProvider, TtsRequest, TtsResponse,
 };
 use serde_json::Value;
 
@@ -49,7 +48,9 @@ impl TtsProvider for OmniVoiceClient {
             "speed": request.speed,
         });
 
-        let resp = self.client.post(&url)
+        let resp = self
+            .client
+            .post(&url)
             .json(&payload)
             .send()
             .await
@@ -65,7 +66,9 @@ impl TtsProvider for OmniVoiceClient {
             )));
         }
 
-        let audio_bytes = resp.bytes().await
+        let audio_bytes = resp
+            .bytes()
+            .await
             .map_err(|e| LsError::External(format!("OmniVoice read audio failed: {e}")))?
             .to_vec();
 
@@ -89,9 +92,12 @@ impl TtsProvider for OmniVoiceClient {
         let url = format!("{}/v1/audio/voices", self.base_url);
         match self.client.get(&url).send().await {
             Ok(resp) if resp.status().is_success() => {
-                let data: Value = resp.json().await
+                let data: Value = resp
+                    .json()
+                    .await
                     .map_err(|e| LsError::External(format!("parse voices failed: {e}")))?;
-                let voices = data["voices"].as_array()
+                let voices = data["voices"]
+                    .as_array()
                     .map(|arr| {
                         arr.iter()
                             .filter_map(|v| v.as_str().map(String::from))
@@ -116,17 +122,22 @@ impl SttProvider for OmniVoiceClient {
         let url = format!("{}/v1/audio/transcriptions", self.base_url);
 
         let mut form = reqwest::multipart::Form::new()
-            .part("file", reqwest::multipart::Part::bytes(request.audio_data)
-                .file_name(format!("audio.{}", request.format))
-                .mime_str("audio/wav")
-                .unwrap_or_else(|_| reqwest::multipart::Part::bytes(vec![])))
+            .part(
+                "file",
+                reqwest::multipart::Part::bytes(request.audio_data)
+                    .file_name(format!("audio.{}", request.format))
+                    .mime_str("audio/wav")
+                    .unwrap_or_else(|_| reqwest::multipart::Part::bytes(vec![])),
+            )
             .text("model", request.model.unwrap_or_else(|| "whisper-1".into()));
 
         if let Some(ref lang) = request.language {
             form = form.text("language", lang.clone());
         }
 
-        let resp = self.client.post(&url)
+        let resp = self
+            .client
+            .post(&url)
             .multipart(form)
             .send()
             .await
@@ -142,23 +153,28 @@ impl SttProvider for OmniVoiceClient {
             )));
         }
 
-        let data: Value = resp.json().await
+        let data: Value = resp
+            .json()
+            .await
             .map_err(|e| LsError::External(format!("OmniVoice parse response failed: {e}")))?;
 
         let text = data["text"].as_str().unwrap_or("").to_string();
         let language = data["language"].as_str().map(String::from);
         let confidence = data["confidence"].as_f64().unwrap_or(0.0);
 
-        let segments = data["segments"].as_array()
+        let segments = data["segments"]
+            .as_array()
             .map(|arr| {
-                arr.iter().filter_map(|s| {
-                    Some(SttSegment {
-                        start: s["start"].as_f64()?,
-                        end: s["end"].as_f64()?,
-                        text: s["text"].as_str()?.to_string(),
-                        confidence: s["confidence"].as_f64().unwrap_or(0.0),
+                arr.iter()
+                    .filter_map(|s| {
+                        Some(SttSegment {
+                            start: s["start"].as_f64()?,
+                            end: s["end"].as_f64()?,
+                            text: s["text"].as_str()?.to_string(),
+                            confidence: s["confidence"].as_f64().unwrap_or(0.0),
+                        })
                     })
-                }).collect()
+                    .collect()
             })
             .unwrap_or_default();
 
@@ -178,6 +194,9 @@ impl SttProvider for OmniVoiceClient {
                 text: "test".into(),
                 ..Default::default()
             },
-        ).await.map(|_| true).or(Ok(false))
+        )
+        .await
+        .map(|_| true)
+        .or(Ok(false))
     }
 }

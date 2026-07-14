@@ -11,14 +11,14 @@
 
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use lingshu_core::{LsContext, LsError, LsId, LsResult};
 use lingshu_plugin::PluginRegistry;
 use lingshu_tool::ToolRegistry;
-use tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
-use tracing::info;
-use async_trait::async_trait;
 use serde_json::Value;
+use tokio::sync::RwLock;
+use tracing::info;
 
 use crate::agent_factory::LsAgentFactory;
 use crate::agent_manager::AgentManager;
@@ -113,7 +113,9 @@ impl AgentRuntime {
         {
             let inner = runtime.inner.write().await;
             let ctx = LsContext::with_session(LsId::new());
-            inner.lifecycle.transition(&ctx, LifecycleState::Initializing)?;
+            inner
+                .lifecycle
+                .transition(&ctx, LifecycleState::Initializing)?;
         }
 
         info!("AgentRuntime created");
@@ -142,7 +144,9 @@ impl AgentRuntime {
         let inner = self.inner.write().await;
         let ctx = LsContext::with_session(LsId::new());
 
-        inner.lifecycle.transition(&ctx, LifecycleState::ShuttingDown)?;
+        inner
+            .lifecycle
+            .transition(&ctx, LifecycleState::ShuttingDown)?;
         inner.lifecycle.transition(&ctx, LifecycleState::Stopped)?;
         info!("AgentRuntime stopped");
         Ok(())
@@ -225,11 +229,18 @@ impl AgentRuntime {
     }
 
     /// 执行工作流.
-    pub async fn execute_workflow(&self, name: &str, ctx: LsContext, input: Value) -> LsResult<Value> {
+    pub async fn execute_workflow(
+        &self,
+        name: &str,
+        ctx: LsContext,
+        input: Value,
+    ) -> LsResult<Value> {
         let inner = self.inner.read().await;
         match &inner.workflow_access {
             Some(access) => access.execute_workflow(name, ctx, input).await,
-            None => Err(LsError::NotFound("WorkflowAccess not configured".to_string())),
+            None => Err(LsError::NotFound(
+                "WorkflowAccess not configured".to_string(),
+            )),
         }
     }
 
@@ -238,7 +249,9 @@ impl AgentRuntime {
         let inner = self.inner.read().await;
         match &inner.workflow_access {
             Some(access) => access.workflow_status(name).await,
-            None => Err(LsError::NotFound("WorkflowAccess not configured".to_string())),
+            None => Err(LsError::NotFound(
+                "WorkflowAccess not configured".to_string(),
+            )),
         }
     }
 
@@ -257,7 +270,12 @@ impl AgentRuntime {
     }
 
     /// 注册 Agent 到 AgentManager.
-    pub async fn register_agent(&self, agent_id: LsId, name: String, agent: Box<dyn lingshu_traits::agent::Agent>) {
+    pub async fn register_agent(
+        &self,
+        agent_id: LsId,
+        name: String,
+        agent: Box<dyn lingshu_traits::agent::Agent>,
+    ) {
         let inner = self.inner.read().await;
         inner.agent_manager.register(agent_id, name, agent).await;
     }
@@ -282,7 +300,10 @@ impl AgentRuntime {
     }
 
     /// 获取 Agent 状态.
-    pub async fn agent_status(&self, agent_id: &LsId) -> LsResult<lingshu_traits::agent::AgentStatus> {
+    pub async fn agent_status(
+        &self,
+        agent_id: &LsId,
+    ) -> LsResult<lingshu_traits::agent::AgentStatus> {
         self.inner.read().await.agent_manager.status(agent_id).await
     }
 
@@ -297,7 +318,9 @@ impl AgentRuntime {
     }
 
     /// 获取 PluginRegistry 引用.
-    pub async fn plugin_registry(&self) -> Option<Arc<tokio::sync::RwLock<lingshu_plugin::PluginRegistry>>> {
+    pub async fn plugin_registry(
+        &self,
+    ) -> Option<Arc<tokio::sync::RwLock<lingshu_plugin::PluginRegistry>>> {
         self.inner.read().await.plugin_registry.clone()
     }
 
@@ -305,7 +328,6 @@ impl AgentRuntime {
     pub async fn active_sessions(&self) -> u64 {
         self.inner.read().await.session_manager.active_count().await
     }
-
 }
 
 use crate::agent_pool::AgentPoolStats;
@@ -316,14 +338,18 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_runtime() {
-        let runtime = AgentRuntime::new(AgentRuntimeConfig::default()).await.unwrap();
+        let runtime = AgentRuntime::new(AgentRuntimeConfig::default())
+            .await
+            .unwrap();
         let state = runtime.lifecycle_state().await.unwrap();
         assert_eq!(state, LifecycleState::Initializing);
     }
 
     #[tokio::test]
     async fn test_start_and_shutdown() {
-        let runtime = AgentRuntime::new(AgentRuntimeConfig::default()).await.unwrap();
+        let runtime = AgentRuntime::new(AgentRuntimeConfig::default())
+            .await
+            .unwrap();
         runtime.start().await.unwrap();
         let state = runtime.lifecycle_state().await.unwrap();
         assert!(state.is_running());
@@ -334,7 +360,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_set_components() {
-        let runtime = AgentRuntime::new(AgentRuntimeConfig::default()).await.unwrap();
+        let runtime = AgentRuntime::new(AgentRuntimeConfig::default())
+            .await
+            .unwrap();
         let pipeline = Arc::new(AgentPipeline::new());
         runtime.set_pipeline(pipeline).await;
         let registry = Arc::new(RwLock::new(ToolRegistry::new()));
@@ -343,7 +371,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_session() {
-        let runtime = AgentRuntime::new(AgentRuntimeConfig::default()).await.unwrap();
+        let runtime = AgentRuntime::new(AgentRuntimeConfig::default())
+            .await
+            .unwrap();
         let ctx = LsContext::with_session(LsId::new());
         runtime.create_session(&ctx).await.unwrap();
         let sm = runtime.session_manager().await;

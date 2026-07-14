@@ -330,7 +330,10 @@ impl DistScheduler {
             return;
         }
         *running = true;
-        info!("distributed scheduler started (strategy={})", self.config.strategy.as_str());
+        info!(
+            "distributed scheduler started (strategy={})",
+            self.config.strategy.as_str()
+        );
 
         // 健康检查和负载更新循环
         let running_flag = self.running.clone();
@@ -410,9 +413,7 @@ impl DistScheduler {
             DistScheduleStrategy::LeastTasks => self.select_least_tasks(&loads).await,
             DistScheduleStrategy::RoundRobin => self.select_round_robin(&loads).await,
             DistScheduleStrategy::Weighted => self.select_weighted(&loads).await,
-            DistScheduleStrategy::ConsistentHash => {
-                self.select_consistent_hash(task, &loads).await
-            }
+            DistScheduleStrategy::ConsistentHash => self.select_consistent_hash(task, &loads).await,
             DistScheduleStrategy::LocalFirst => self.select_local_first(&loads).await,
             DistScheduleStrategy::Adaptive => self.select_adaptive(task, &loads).await,
         };
@@ -454,8 +455,7 @@ impl DistScheduler {
         &self,
         loads: &HashMap<String, NodeLoad>,
     ) -> Option<(String, String)> {
-        let online: Vec<(&String, &NodeLoad)> =
-            loads.iter().filter(|(_, l)| l.is_online).collect();
+        let online: Vec<(&String, &NodeLoad)> = loads.iter().filter(|(_, l)| l.is_online).collect();
         if online.is_empty() {
             return None;
         }
@@ -467,12 +467,8 @@ impl DistScheduler {
     }
 
     /// 加权策略
-    async fn select_weighted(
-        &self,
-        loads: &HashMap<String, NodeLoad>,
-    ) -> Option<(String, String)> {
-        let online: Vec<(&String, &NodeLoad)> =
-            loads.iter().filter(|(_, l)| l.is_online).collect();
+    async fn select_weighted(&self, loads: &HashMap<String, NodeLoad>) -> Option<(String, String)> {
+        let online: Vec<(&String, &NodeLoad)> = loads.iter().filter(|(_, l)| l.is_online).collect();
         if online.is_empty() {
             return None;
         }
@@ -508,8 +504,7 @@ impl DistScheduler {
         task: &DistTask,
         loads: &HashMap<String, NodeLoad>,
     ) -> Option<(String, String)> {
-        let online: Vec<(&String, &NodeLoad)> =
-            loads.iter().filter(|(_, l)| l.is_online).collect();
+        let online: Vec<(&String, &NodeLoad)> = loads.iter().filter(|(_, l)| l.is_online).collect();
         if online.is_empty() {
             return None;
         }
@@ -550,23 +545,20 @@ impl DistScheduler {
         loads: &HashMap<String, NodeLoad>,
     ) -> Option<(String, String)> {
         let weights = self.node_weights.read().await;
-        let online: Vec<(&String, &NodeLoad)> =
-            loads.iter().filter(|(_, l)| l.is_online).collect();
+        let online: Vec<(&String, &NodeLoad)> = loads.iter().filter(|(_, l)| l.is_online).collect();
         if online.is_empty() {
             return None;
         }
 
         let local_id = &self.config.local_node_id;
 
-        let best = online
-            .iter()
-            .max_by(|(id_a, a), (id_b, b)| {
-                let a_score = Self::adaptive_score(a, id_a, local_id, task, &weights);
-                let b_score = Self::adaptive_score(b, id_b, local_id, task, &weights);
-                a_score
-                    .partial_cmp(&b_score)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
+        let best = online.iter().max_by(|(id_a, a), (id_b, b)| {
+            let a_score = Self::adaptive_score(a, id_a, local_id, task, &weights);
+            let b_score = Self::adaptive_score(b, id_b, local_id, task, &weights);
+            a_score
+                .partial_cmp(&b_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         best.map(|(id, l)| ((*id).clone(), l.addr.clone()))
     }
@@ -826,11 +818,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_task_creation() {
-        let task = DistTask::new("my-task", "code-exec", serde_json::json!({"code": "print(1)"}))
-            .with_priority(8)
-            .with_target_agent("agent-1")
-            .with_affinity("node-1")
-            .with_capability("python");
+        let task = DistTask::new(
+            "my-task",
+            "code-exec",
+            serde_json::json!({"code": "print(1)"}),
+        )
+        .with_priority(8)
+        .with_target_agent("agent-1")
+        .with_affinity("node-1")
+        .with_capability("python");
 
         assert_eq!(task.name, "my-task");
         assert_eq!(task.priority, 8);
@@ -884,10 +880,7 @@ mod tests {
     #[test]
     fn test_strategy_display() {
         assert_eq!(DistScheduleStrategy::Adaptive.as_str(), "adaptive");
-        assert_eq!(
-            DistScheduleStrategy::LeastTasks.as_str(),
-            "least_tasks"
-        );
+        assert_eq!(DistScheduleStrategy::LeastTasks.as_str(), "least_tasks");
         assert_eq!(
             DistScheduleStrategy::ConsistentHash.as_str(),
             "consistent_hash"

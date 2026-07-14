@@ -41,7 +41,12 @@ pub struct ScheduledTask {
 }
 
 impl ScheduledTask {
-    fn new(name: String, schedule: ScheduleType, instruction: String, target_channel: Option<String>) -> Self {
+    fn new(
+        name: String,
+        schedule: ScheduleType,
+        instruction: String,
+        target_channel: Option<String>,
+    ) -> Self {
         Self {
             id: uuid::Uuid::new_v4().to_string(),
             name,
@@ -90,7 +95,7 @@ impl SchedulerPlugin {
                 },
             ],
             min_api_version: Some("1.0.0".into()),
-        ..Default::default()
+            ..Default::default()
         };
 
         Self {
@@ -183,7 +188,7 @@ impl Plugin for SchedulerPlugin {
         Ok(())
     }
 
-        fn as_any(&self) -> &dyn std::any::Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 
@@ -224,18 +229,26 @@ async fn scheduler_loop(
         {
             let task_map = tasks.read().await;
             for (id, task) in task_map.iter() {
-                if !task.enabled { continue; }
+                if !task.enabled {
+                    continue;
+                }
                 match &task.schedule {
                     ScheduleType::Once(at) => {
-                        if now >= *at { tasks_to_run.push(id.clone()); }
+                        if now >= *at {
+                            tasks_to_run.push(id.clone());
+                        }
                     }
                     ScheduleType::Interval(secs) => {
                         let last = task.last_run.unwrap_or(task.created_at);
                         let elapsed = (now - last).num_seconds() as u64;
-                        if elapsed >= *secs { tasks_to_run.push(id.clone()); }
+                        if elapsed >= *secs {
+                            tasks_to_run.push(id.clone());
+                        }
                     }
                     ScheduleType::Cron(expr) => {
-                        if check_cron { cron_tasks.push((id.clone(), expr.clone())); }
+                        if check_cron {
+                            cron_tasks.push((id.clone(), expr.clone()));
+                        }
                     }
                 }
             }
@@ -248,7 +261,9 @@ async fn scheduler_loop(
                         let diff = (next - now).num_seconds();
                         (0..=5).contains(&diff)
                     });
-                    if should_run { tasks_to_run.push(id); }
+                    if should_run {
+                        tasks_to_run.push(id);
+                    }
                 }
             }
         }
@@ -282,13 +297,14 @@ async fn scheduler_loop(
 #[cfg(test)]
 mod tests {
     use super::*;
-    
 
     #[test]
     fn test_task_creation() {
         let task = ScheduledTask::new(
-            "test".into(), ScheduleType::Interval(60),
-            "do something".into(), None,
+            "test".into(),
+            ScheduleType::Interval(60),
+            "do something".into(),
+            None,
         );
         assert_eq!(task.name, "test");
         assert!(task.enabled);
@@ -305,10 +321,15 @@ mod tests {
     #[tokio::test]
     async fn test_add_and_list_tasks() {
         let plugin = SchedulerPlugin::new();
-        let id = plugin.add_task(
-            "test".into(), ScheduleType::Interval(30),
-            "hello".into(), None,
-        ).await.unwrap();
+        let id = plugin
+            .add_task(
+                "test".into(),
+                ScheduleType::Interval(30),
+                "hello".into(),
+                None,
+            )
+            .await
+            .unwrap();
         let tasks = plugin.list_tasks().await;
         assert_eq!(tasks.len(), 1);
         assert_eq!(tasks[0].id, id);
@@ -317,10 +338,15 @@ mod tests {
     #[tokio::test]
     async fn test_cancel_task() {
         let plugin = SchedulerPlugin::new();
-        let id = plugin.add_task(
-            "test".into(), ScheduleType::Interval(30),
-            "msg".into(), None,
-        ).await.unwrap();
+        let id = plugin
+            .add_task(
+                "test".into(),
+                ScheduleType::Interval(30),
+                "msg".into(),
+                None,
+            )
+            .await
+            .unwrap();
         assert!(plugin.cancel_task(&id).await.unwrap());
         assert!(!plugin.cancel_task(&id).await.unwrap());
     }

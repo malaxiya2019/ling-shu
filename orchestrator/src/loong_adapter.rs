@@ -94,10 +94,7 @@ impl LoongAdapter {
 
         // 在 loong 运行时中创建 agent
         let handle = {
-            let mut rt = self
-                .runtime
-                .write()
-                .await;
+            let mut rt = self.runtime.write().await;
             rt.create_agent(
                 &config.name,
                 loong::AgentSpec {
@@ -311,9 +308,9 @@ mod tests {
 #[cfg(not(feature = "loong"))]
 mod stub_tests {
     use super::*;
+    use crate::registry::AgentRegistry;
     use lingshu_core::{LsContext, LsId};
     use std::sync::Arc;
-    use crate::registry::AgentRegistry;
 
     #[test]
     fn test_stub_config_serde() {
@@ -334,11 +331,12 @@ mod stub_tests {
     #[tokio::test]
     async fn test_stub_create_agent_unsupported() {
         let adapter = LoongAdapter::new();
-        let err = adapter
-            .create_agent(LoongAgentConfig::default())
-            .await;
+        let err = adapter.create_agent(LoongAgentConfig::default()).await;
         assert!(err.is_err());
-        assert!(err.unwrap_err().to_string().contains("loong feature not enabled"));
+        assert!(err
+            .unwrap_err()
+            .to_string()
+            .contains("loong feature not enabled"));
     }
 
     #[tokio::test]

@@ -78,12 +78,7 @@ pub fn record_agent(span: &tracing::Span, agent_id: &str, agent_name: &str) {
 }
 
 /// 创建用于 LLM invoke 的 span，执行后记录用量。
-pub async fn traced_invoke<F, T>(
-    ctx: LsContext,
-    model: &str,
-    operation: GenAiOperation,
-    f: F,
-) -> T
+pub async fn traced_invoke<F, T>(ctx: LsContext, model: &str, operation: GenAiOperation, f: F) -> T
 where
     F: std::future::Future<Output = T>,
 {

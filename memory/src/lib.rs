@@ -46,10 +46,15 @@ pub mod types;
 pub mod vector;
 
 pub use buffer::ChatBuffer;
-pub use consolidation::{ConsolidationPolicy, ConsolidationResult, ConsolidationTrigger, Importance, LongTermStore, MemoryConsolidator};
+pub use consolidation::{
+    ConsolidationPolicy, ConsolidationResult, ConsolidationTrigger, Importance, LongTermStore,
+    MemoryConsolidator,
+};
 pub use graph::*;
 pub use memory::{DefaultMemory, Memory};
 pub use session::SessionMemoryManager;
-pub use summarization::{MemorySummarizer, MemorySummary, SummarizationConfig, SummarizationStrategy, SummarizerLlm};
+pub use summarization::{
+    MemorySummarizer, MemorySummary, SummarizationConfig, SummarizationStrategy, SummarizerLlm,
+};
 pub use types::{MemoryConfig, MemoryItem, MemoryQuery, MemoryResult};
 pub use vector::{InMemoryVectorStore, VectorMemory, VectorRecord};

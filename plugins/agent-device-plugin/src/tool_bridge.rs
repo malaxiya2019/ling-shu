@@ -7,9 +7,9 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use lingshu_core::{LsContext, LsId, LsResult};
-use lingshu_mcp::rmcp_stdio_client::{McpStdioClient, McpToolResult, McpContent};
+use lingshu_mcp::rmcp_stdio_client::{McpContent, McpStdioClient, McpToolResult};
 use lingshu_traits::tool::{
-    Tool, ToolInfo, ToolMetadata, ToolParam, ToolCategory, PermissionLevel, SandboxConfig,
+    PermissionLevel, SandboxConfig, Tool, ToolCategory, ToolInfo, ToolMetadata, ToolParam,
 };
 use serde_json::Value;
 
@@ -63,7 +63,11 @@ impl McpBridgeTool {
             },
         };
 
-        Self { info, client, output_format }
+        Self {
+            info,
+            client,
+            output_format,
+        }
     }
 
     /// 将 MCP 结果转换为 JSON Value.
@@ -117,7 +121,11 @@ impl Tool for McpBridgeTool {
 
     async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> {
         // 提取工具名称（去掉 device: 前缀）
-        let tool_name = self.info.name.strip_prefix("device:").unwrap_or(&self.info.name);
+        let tool_name = self
+            .info
+            .name
+            .strip_prefix("device:")
+            .unwrap_or(&self.info.name);
 
         // 注入 outputFormat（如果不为 optimized）
         let enhanced_input = if self.output_format != "optimized" {
@@ -254,7 +262,9 @@ mod tests {
     #[test]
     fn test_mcp_result_to_value_text() {
         let result = McpToolResult {
-            content: vec![McpContent::Text { text: "Hello, world!".into() }],
+            content: vec![McpContent::Text {
+                text: "Hello, world!".into(),
+            }],
             is_error: false,
         };
 
@@ -267,8 +277,12 @@ mod tests {
     fn test_mcp_result_to_value_multiple() {
         let result = McpToolResult {
             content: vec![
-                McpContent::Text { text: "Line 1".into() },
-                McpContent::Text { text: "Line 2".into() },
+                McpContent::Text {
+                    text: "Line 1".into(),
+                },
+                McpContent::Text {
+                    text: "Line 2".into(),
+                },
             ],
             is_error: false,
         };

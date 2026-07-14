@@ -169,9 +169,9 @@ impl TopologyManager {
         let busy = state.busy_agent_count();
 
         match agent_count {
-            0..=3 => SwarmTopology::Mesh,    // 小型 Swarm 用全互联
-            4..=10 => SwarmTopology::Star,   // 中型用星型
-            11..=20 => SwarmTopology::Tree,   // 较大用树型
+            0..=3 => SwarmTopology::Mesh,   // 小型 Swarm 用全互联
+            4..=10 => SwarmTopology::Star,  // 中型用星型
+            11..=20 => SwarmTopology::Tree, // 较大用树型
             _ => {
                 if busy > available * 2 {
                     SwarmTopology::Ring // 高负载时用环形减少连接
@@ -234,8 +234,16 @@ impl TopologyManager {
 
     // ── 辅助方法 ──
 
-    fn calculate_neighbors(agent_id: &LsId, agents: &[SwarmAgent], topology: SwarmTopology) -> Vec<LsId> {
-        let other_ids: Vec<LsId> = agents.iter().filter(|a| a.id != *agent_id).map(|a| a.id).collect();
+    fn calculate_neighbors(
+        agent_id: &LsId,
+        agents: &[SwarmAgent],
+        topology: SwarmTopology,
+    ) -> Vec<LsId> {
+        let other_ids: Vec<LsId> = agents
+            .iter()
+            .filter(|a| a.id != *agent_id)
+            .map(|a| a.id)
+            .collect();
 
         match topology {
             SwarmTopology::Mesh => other_ids, // 全连接
@@ -296,7 +304,8 @@ impl TopologyManager {
                             (score, &a.id)
                         })
                         .collect();
-                    scored.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+                    scored
+                        .sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
                     // 连接能力最接近的 3 个 Agent
                     scored.iter().take(3).map(|(_, id)| **id).collect()
@@ -307,7 +316,11 @@ impl TopologyManager {
         }
     }
 
-    fn calculate_hierarchy(agent_id: &LsId, agents: &[SwarmAgent], topology: SwarmTopology) -> (usize, Option<LsId>) {
+    fn calculate_hierarchy(
+        agent_id: &LsId,
+        agents: &[SwarmAgent],
+        topology: SwarmTopology,
+    ) -> (usize, Option<LsId>) {
         match topology {
             SwarmTopology::Tree | SwarmTopology::Star => {
                 let idx = agents.iter().position(|a| a.id == *agent_id);

@@ -12,8 +12,7 @@ mod client;
 mod tools;
 
 pub use client::OmniVoiceClient;
-pub use tools::{SayTool, ListenTool, VoiceTools};
 pub use lingshu_traits::voice::{
-    SttProvider, SttRequest, SttResponse, SttSegment,
-    TtsProvider, TtsRequest, TtsResponse,
+    SttProvider, SttRequest, SttResponse, SttSegment, TtsProvider, TtsRequest, TtsResponse,
 };
+pub use tools::{ListenTool, SayTool, VoiceTools};

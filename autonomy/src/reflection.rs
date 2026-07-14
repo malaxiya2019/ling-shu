@@ -189,10 +189,7 @@ impl ReflectionEngine {
         let mut insights = Vec::new();
 
         // 检测失败模式
-        if let Some(pattern_insight) = self
-            .detect_failure_patterns(agent_id, &experiences)
-            .await
-        {
+        if let Some(pattern_insight) = self.detect_failure_patterns(agent_id, &experiences).await {
             insights.push(pattern_insight);
         }
 
@@ -267,7 +264,9 @@ impl ReflectionEngine {
 
         info!(
             "reflection complete for '{}': {} insights (health: {:.2})",
-            agent_id, report.insights.len(), report.health_score
+            agent_id,
+            report.insights.len(),
+            report.health_score
         );
 
         report
@@ -360,11 +359,8 @@ impl ReflectionEngine {
         let mid = experiences.len() / 2;
         let (first_half, second_half) = experiences.split_at(mid);
 
-        let first_avg: f64 = first_half
-            .iter()
-            .map(|e| e.duration_ms as f64)
-            .sum::<f64>()
-            / first_half.len() as f64;
+        let first_avg: f64 =
+            first_half.iter().map(|e| e.duration_ms as f64).sum::<f64>() / first_half.len() as f64;
 
         let second_avg: f64 = second_half
             .iter()
@@ -379,7 +375,10 @@ impl ReflectionEngine {
                 format!("性能退化: 执行耗时增加 {:.0}%", degradation),
                 format!(
                     "Agent '{}' 最近 {} 条经验的平均耗时 {:.0}ms，较前期 {:.0}ms 显著增加",
-                    agent_id, second_half.len(), second_avg, first_avg
+                    agent_id,
+                    second_half.len(),
+                    second_avg,
+                    first_avg
                 ),
             )
             .with_confidence(0.8)
@@ -435,7 +434,9 @@ impl ReflectionEngine {
                         ),
                         format!(
                             "Agent '{}' 的 '{}' 类型任务成功率仅 {:.0}%，需要优化处理流程",
-                            agent_id, exp_type, success_rate * 100.0
+                            agent_id,
+                            exp_type,
+                            success_rate * 100.0
                         ),
                     )
                     .with_confidence(0.7)
@@ -595,9 +596,14 @@ mod tests {
     async fn test_detect_failure_patterns() {
         let (store, agent_id) = create_store_with_failures();
         let engine = ReflectionEngine::new(ReflectionConfig::default(), store);
-        let experiences = engine.experience_store.get_agent_experiences(&agent_id).await;
+        let experiences = engine
+            .experience_store
+            .get_agent_experiences(&agent_id)
+            .await;
 
-        let insight = engine.detect_failure_patterns(&agent_id, &experiences).await;
+        let insight = engine
+            .detect_failure_patterns(&agent_id, &experiences)
+            .await;
         assert!(insight.is_some());
         let insight = insight.unwrap();
         assert_eq!(insight.insight_type, InsightType::FailurePattern);
@@ -656,10 +662,18 @@ mod tests {
             store,
         );
 
-        let experiences = engine.experience_store.get_agent_experiences(agent_id).await;
-        let insight = engine.detect_performance_degradation(agent_id, &experiences).await;
+        let experiences = engine
+            .experience_store
+            .get_agent_experiences(agent_id)
+            .await;
+        let insight = engine
+            .detect_performance_degradation(agent_id, &experiences)
+            .await;
         assert!(insight.is_some());
-        assert_eq!(insight.unwrap().insight_type, InsightType::PerformanceDegradation);
+        assert_eq!(
+            insight.unwrap().insight_type,
+            InsightType::PerformanceDegradation
+        );
     }
 
     #[test]

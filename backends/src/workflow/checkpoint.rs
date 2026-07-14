@@ -168,7 +168,10 @@ impl CheckpointManager {
     }
 
     /// 加载检查点.
-    pub async fn load_checkpoint(&self, workflow_id: &LsId) -> LsResult<Option<WorkflowCheckpoint>> {
+    pub async fn load_checkpoint(
+        &self,
+        workflow_id: &LsId,
+    ) -> LsResult<Option<WorkflowCheckpoint>> {
         self.store.load(workflow_id).await
     }
 
@@ -235,12 +238,12 @@ pub async fn resume_from_checkpoint(
 
 #[cfg(test)]
 mod tests {
+    use super::super::dag::NodeResult;
     use super::*;
     use lingshu_core::LsContext;
     use serde_json::json;
     use std::collections::{HashMap, HashSet};
     use std::sync::Arc;
-    use super::super::dag::NodeResult;
 
     fn test_ctx() -> LsContext {
         LsContext::with_session(LsId::new())
@@ -306,7 +309,8 @@ mod tests {
 
         let mut wf = WorkflowDag::new("cp-test");
         let a = wf.add_node(
-            "step_a", "",
+            "step_a",
+            "",
             Value::Null,
             Arc::new(|_ctx, _input| Box::pin(async { Ok(json!({"done": true})) })),
         );
@@ -354,7 +358,8 @@ mod tests {
 
         let mut wf = WorkflowDag::new("fresh-exec");
         wf.add_node(
-            "hello", "",
+            "hello",
+            "",
             Value::Null,
             Arc::new(|_ctx, _input| Box::pin(async { Ok(json!({"msg": "hello"})) })),
         );

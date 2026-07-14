@@ -188,7 +188,7 @@ impl RagPlugin {
                 actions: vec!["read".into(), "write".into()],
             }],
             min_api_version: Some("1.0.0".into()),
-        ..Default::default()
+            ..Default::default()
         };
 
         let info = PluginInfo {
@@ -343,7 +343,7 @@ impl Plugin for RagPlugin {
         Ok(())
     }
 
-        fn as_any(&self) -> &dyn std::any::Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 
@@ -465,13 +465,23 @@ mod tests {
     #[tokio::test]
     async fn test_query_for_llm() {
         let plugin = RagPlugin::default();
-        plugin.store_document("Rust is a systems language focused on safety and performance").await;
-        plugin.store_document("Python is an interpreted high-level programming language").await;
+        plugin
+            .store_document("Rust is a systems language focused on safety and performance")
+            .await;
+        plugin
+            .store_document("Python is an interpreted high-level programming language")
+            .await;
 
         let context = plugin.query_for_llm("Rust safety", 2).await;
         assert!(!context.is_empty(), "Expected non-empty context, got empty");
-        assert!(context.contains("用户问题"), "Expected formatted context, got: {context}");
-        assert!(context.contains("Rust"), "Expected Rust-related content, got: {context}");
+        assert!(
+            context.contains("用户问题"),
+            "Expected formatted context, got: {context}"
+        );
+        assert!(
+            context.contains("Rust"),
+            "Expected Rust-related content, got: {context}"
+        );
     }
 
     #[tokio::test]

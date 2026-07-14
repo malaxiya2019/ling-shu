@@ -95,7 +95,11 @@ impl Tool for CredentialListTool {
             serde_json::to_value(list).unwrap_or_default(),
         ))
     }
-    fn duplicate(&self) -> Box<dyn Tool> { Box::new(CredentialListTool { mgr: self.mgr.clone() }) }
+    fn duplicate(&self) -> Box<dyn Tool> {
+        Box::new(CredentialListTool {
+            mgr: self.mgr.clone(),
+        })
+    }
 }
 
 // ── CredentialCreateTool ────────────────────────────
@@ -241,7 +245,11 @@ impl Tool for CredentialCreateTool {
             serde_json::to_value(summary).unwrap_or_default(),
         ))
     }
-    fn duplicate(&self) -> Box<dyn Tool> { Box::new(CredentialCreateTool { mgr: self.mgr.clone() }) }
+    fn duplicate(&self) -> Box<dyn Tool> {
+        Box::new(CredentialCreateTool {
+            mgr: self.mgr.clone(),
+        })
+    }
 }
 
 // ── CredentialGetTool ───────────────────────────────
@@ -270,7 +278,7 @@ impl Tool for CredentialGetTool {
                 required: true,
                 param_type: "string".into(),
             }],
-        ..Default::default()
+            ..Default::default()
         }
     }
 
@@ -290,7 +298,11 @@ impl Tool for CredentialGetTool {
             Err(e) => Ok(error_result(format!("credential not found: {e}"))),
         }
     }
-    fn duplicate(&self) -> Box<dyn Tool> { Box::new(CredentialGetTool { mgr: self.mgr.clone() }) }
+    fn duplicate(&self) -> Box<dyn Tool> {
+        Box::new(CredentialGetTool {
+            mgr: self.mgr.clone(),
+        })
+    }
 }
 
 // ── CredentialDeleteTool ────────────────────────────
@@ -319,7 +331,7 @@ impl Tool for CredentialDeleteTool {
                 required: true,
                 param_type: "string".into(),
             }],
-        ..Default::default()
+            ..Default::default()
         }
     }
 
@@ -340,7 +352,11 @@ impl Tool for CredentialDeleteTool {
             Err(e) => Ok(error_result(format!("delete failed: {e}"))),
         }
     }
-    fn duplicate(&self) -> Box<dyn Tool> { Box::new(CredentialDeleteTool { mgr: self.mgr.clone() }) }
+    fn duplicate(&self) -> Box<dyn Tool> {
+        Box::new(CredentialDeleteTool {
+            mgr: self.mgr.clone(),
+        })
+    }
 }
 
 // ── CredentialValidateTool ──────────────────────────
@@ -370,7 +386,7 @@ impl Tool for CredentialValidateTool {
                 required: true,
                 param_type: "string".into(),
             }],
-        ..Default::default()
+            ..Default::default()
         }
     }
 
@@ -390,7 +406,11 @@ impl Tool for CredentialValidateTool {
             Err(e) => Ok(error_result(format!("validate failed: {e}"))),
         }
     }
-    fn duplicate(&self) -> Box<dyn Tool> { Box::new(CredentialValidateTool { mgr: self.mgr.clone() }) }
+    fn duplicate(&self) -> Box<dyn Tool> {
+        Box::new(CredentialValidateTool {
+            mgr: self.mgr.clone(),
+        })
+    }
 }
 
 // ── CredentialUpdateTool ────────────────────────────
@@ -499,7 +519,11 @@ impl Tool for CredentialUpdateTool {
             Err(e) => Ok(error_result(format!("update failed: {e}"))),
         }
     }
-    fn duplicate(&self) -> Box<dyn Tool> { Box::new(CredentialUpdateTool { mgr: self.mgr.clone() }) }
+    fn duplicate(&self) -> Box<dyn Tool> {
+        Box::new(CredentialUpdateTool {
+            mgr: self.mgr.clone(),
+        })
+    }
 }
 
 // ── 批量注册辅助 ────────────────────────────────────

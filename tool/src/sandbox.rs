@@ -3,11 +3,10 @@
 //! 提供超时控制、资源限制、输出截断等安全保障机制。
 //! 所有工具执行必须经过沙箱检查。
 
-
-use std::time::Instant;
 use lingshu_core::{LsContext, LsError, LsResult};
 use lingshu_traits::tool::Tool;
 use serde_json::Value;
+use std::time::Instant;
 use tokio::time::{timeout, Duration};
 use tracing::{debug, warn};
 
@@ -79,10 +78,12 @@ impl ToolSandbox {
 
         // 确定超时时间
         let timeout_ms = tool_info
-            .metadata.timeout_ms
+            .metadata
+            .timeout_ms
             .or_else(|| {
                 tool_info
-                    .metadata.sandbox_config
+                    .metadata
+                    .sandbox_config
                     .as_ref()
                     .map(|c| c.max_execution_ms)
             })
@@ -176,44 +177,48 @@ mod tests {
     #[async_trait]
     impl Tool for FastTool {
         fn info(&self) -> ToolInfo {
-            ToolInfo::new("fast", "A fast tool", vec![])
-                .with_timeout(5_000)
+            ToolInfo::new("fast", "A fast tool", vec![]).with_timeout(5_000)
         }
-        fn validate(&self, _input: &Value) -> LsResult<()> { Ok(()) }
+        fn validate(&self, _input: &Value) -> LsResult<()> {
+            Ok(())
+        }
         async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> {
             tokio::time::sleep(Duration::from_millis(10)).await;
             Ok(input)
         }
-    
-    fn duplicate(&self) -> Box<dyn lingshu_traits::tool::Tool> {
-        Box::new(FastTool)
+
+        fn duplicate(&self) -> Box<dyn lingshu_traits::tool::Tool> {
+            Box::new(FastTool)
+        }
     }
-}
 
     struct SlowTool;
     #[async_trait]
     impl Tool for SlowTool {
         fn info(&self) -> ToolInfo {
-            ToolInfo::new("slow", "A slow tool", vec![])
-                .with_timeout(50)
+            ToolInfo::new("slow", "A slow tool", vec![]).with_timeout(50)
         }
-        fn validate(&self, _input: &Value) -> LsResult<()> { Ok(()) }
+        fn validate(&self, _input: &Value) -> LsResult<()> {
+            Ok(())
+        }
         async fn execute(&self, _ctx: LsContext, _input: Value) -> LsResult<Value> {
             tokio::time::sleep(Duration::from_millis(200)).await;
             Ok(serde_json::json!({"done": true}))
         }
-    
-    fn duplicate(&self) -> Box<dyn lingshu_traits::tool::Tool> {
-        Box::new(SlowTool)
+
+        fn duplicate(&self) -> Box<dyn lingshu_traits::tool::Tool> {
+            Box::new(SlowTool)
+        }
     }
-}
 
     #[tokio::test]
     async fn test_fast_tool_executes() {
         let sandbox = ToolSandbox::new();
         let tool = FastTool;
         let ctx = LsContext::with_session(LsId::new());
-        let result = sandbox.execute(&tool, ctx, serde_json::json!({"msg": "hi"})).await;
+        let result = sandbox
+            .execute(&tool, ctx, serde_json::json!({"msg": "hi"}))
+            .await;
         assert!(result.is_ok());
         let (output, dur) = result.unwrap();
         assert_eq!(output["msg"], "hi");
@@ -229,7 +234,10 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err();
         let err_str = err.to_string();
-        assert!(err_str.contains("超时"), "Expected timeout error, got: {err_str}");
+        assert!(
+            err_str.contains("超时"),
+            "Expected timeout error, got: {err_str}"
+        );
     }
 
     #[tokio::test]
@@ -241,13 +249,17 @@ mod tests {
             fn info(&self) -> ToolInfo {
                 ToolInfo::new("unsafe", "No sandbox config", vec![])
             }
-            fn validate(&self, _input: &Value) -> LsResult<()> { Ok(()) }
-            async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> { Ok(input) }
-        
-    fn duplicate(&self) -> Box<dyn lingshu_traits::tool::Tool> {
-        Box::new(UnsafeTool)
-    }
-}
+            fn validate(&self, _input: &Value) -> LsResult<()> {
+                Ok(())
+            }
+            async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> {
+                Ok(input)
+            }
+
+            fn duplicate(&self) -> Box<dyn lingshu_traits::tool::Tool> {
+                Box::new(UnsafeTool)
+            }
+        }
 
         let sandbox = ToolSandbox::new().with_strict(true);
         let tool = UnsafeTool;

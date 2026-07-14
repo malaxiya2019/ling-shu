@@ -14,7 +14,7 @@
 use async_trait::async_trait;
 use lingshu_core::{LsContext, LsError, LsResult};
 use lingshu_traits::llm::*;
-use llmkit::{CompletionRequest, LLMKitClient, Message, ContentBlock};
+use llmkit::{CompletionRequest, ContentBlock, LLMKitClient, Message};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -23,40 +23,32 @@ async fn build_client(provider: &str, api_key: &str) -> LsResult<LLMKitClient> {
     let mut builder = LLMKitClient::builder();
 
     builder = match provider {
-        "deepseek" => {
-            builder.with_deepseek(api_key).map_err(|e| {
-                LsError::Llm(format!("llmkit deepseek init failed: {e}"))
-            })?
-        }
-        "qwen" | "alibaba" => {
-            builder.with_alibaba(api_key).map_err(|e| {
-                LsError::Llm(format!("llmkit qwen init failed: {e}"))
-            })?
-        }
-        "anthropic" => {
-            builder.with_anthropic(api_key).map_err(|e| {
-                LsError::Llm(format!("llmkit anthropic init failed: {e}"))
-            })?
-        }
-        "openai" => {
-            builder.with_openai(api_key).map_err(|e| {
-                LsError::Llm(format!("llmkit openai init failed: {e}"))
-            })?
-        }
+        "deepseek" => builder
+            .with_deepseek(api_key)
+            .map_err(|e| LsError::Llm(format!("llmkit deepseek init failed: {e}")))?,
+        "qwen" | "alibaba" => builder
+            .with_alibaba(api_key)
+            .map_err(|e| LsError::Llm(format!("llmkit qwen init failed: {e}")))?,
+        "anthropic" => builder
+            .with_anthropic(api_key)
+            .map_err(|e| LsError::Llm(format!("llmkit anthropic init failed: {e}")))?,
+        "openai" => builder
+            .with_openai(api_key)
+            .map_err(|e| LsError::Llm(format!("llmkit openai init failed: {e}")))?,
         // OpenAI 兼容的通用 provider
         _ => {
             let base_url = std::env::var("LLMKIT_BASE_URL")
                 .unwrap_or_else(|_| format!("https://api.{}.com/v1", provider));
-            builder.with_openai_compatible(provider, &base_url, Some(api_key.into()))
-                .map_err(|e| {
-                    LsError::Llm(format!("llmkit {} init failed: {e}", provider))
-                })?
+            builder
+                .with_openai_compatible(provider, &base_url, Some(api_key.into()))
+                .map_err(|e| LsError::Llm(format!("llmkit {} init failed: {e}", provider)))?
         }
     };
 
-    builder.build().await.map_err(|e| {
-        LsError::Llm(format!("llmkit client build failed: {e}"))
-    })
+    builder
+        .build()
+        .await
+        .map_err(|e| LsError::Llm(format!("llmkit client build failed: {e}")))
 }
 
 /// llmkit 后端.
@@ -98,7 +90,7 @@ impl Llm for LlmkitLlm {
                         content: m.content.clone(),
                         is_error: false,
                     }])
-                },
+                }
             })
             .collect();
 
@@ -150,13 +142,21 @@ impl Llm for LlmkitLlm {
         _ctx: LsContext,
         _request: LlmRequest,
     ) -> LsResult<tokio::sync::mpsc::Receiver<LsResult<LlmChunk>>> {
-        Err(LsError::NotImplemented("llmkit streaming not yet implemented".into()))
+        Err(LsError::NotImplemented(
+            "llmkit streaming not yet implemented".into(),
+        ))
     }
 
     async fn usage_stats(&self, _ctx: LsContext) -> LsResult<HashMap<String, u64>> {
         let mut stats = HashMap::new();
-        stats.insert("prompt_tokens".into(), self.prompt_tokens.load(Ordering::SeqCst));
-        stats.insert("completion_tokens".into(), self.completion_tokens.load(Ordering::SeqCst));
+        stats.insert(
+            "prompt_tokens".into(),
+            self.prompt_tokens.load(Ordering::SeqCst),
+        );
+        stats.insert(
+            "completion_tokens".into(),
+            self.completion_tokens.load(Ordering::SeqCst),
+        );
         Ok(stats)
     }
 }

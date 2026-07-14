@@ -28,7 +28,11 @@ pub trait SpecializedAgent: Send + Sync {
     /// 执行任务
     async fn execute(&self, ctx: &LsContext, task: &SwarmTask) -> LsResult<SwarmTaskResult>;
     /// 验证结果
-    async fn validate(&self, ctx: &LsContext, result: &SwarmTaskResult) -> LsResult<ValidationReport>;
+    async fn validate(
+        &self,
+        ctx: &LsContext,
+        result: &SwarmTaskResult,
+    ) -> LsResult<ValidationReport>;
 }
 
 /// 验证报告
@@ -61,7 +65,9 @@ impl AnalystAgent {
             _ => 0.1,
         };
         let deps = task.depends_on.len() as f64 * 0.2;
-        (desc_len.min(1000.0) / 1000.0 * 0.5 + input_complexity.min(1.0) * 0.3 + deps.min(1.0) * 0.2)
+        (desc_len.min(1000.0) / 1000.0 * 0.5
+            + input_complexity.min(1.0) * 0.3
+            + deps.min(1.0) * 0.2)
             .min(1.0)
     }
 
@@ -74,7 +80,12 @@ impl AnalystAgent {
             let subtask = SwarmTask {
                 id: LsId::new(),
                 name: format!("{}-part-{}", task.name, i + 1),
-                description: format!("Sub-task {} of '{}': {}", i + 1, task.name, task.description),
+                description: format!(
+                    "Sub-task {} of '{}': {}",
+                    i + 1,
+                    task.name,
+                    task.description
+                ),
                 input: task.input.clone(),
                 required_role: match i % 4 {
                     0 => Some(SwarmAgentRole::Analyst),
@@ -112,7 +123,10 @@ impl SpecializedAgent for AnalystAgent {
 
     async fn analyze(&self, _ctx: &LsContext, task: &SwarmTask) -> LsResult<Vec<SwarmTask>> {
         let complexity = Self::analyze_complexity(task);
-        debug!("analyst: complexity={:.2} for task '{}'", complexity, task.name);
+        debug!(
+            "analyst: complexity={:.2} for task '{}'",
+            complexity, task.name
+        );
         let subtasks = Self::decompose_task(task, complexity);
         info!("analyst: decomposed into {} sub-tasks", subtasks.len());
         Ok(subtasks)
@@ -149,11 +163,19 @@ impl SpecializedAgent for AnalystAgent {
         })
     }
 
-    async fn validate(&self, _ctx: &LsContext, result: &SwarmTaskResult) -> LsResult<ValidationReport> {
+    async fn validate(
+        &self,
+        _ctx: &LsContext,
+        result: &SwarmTaskResult,
+    ) -> LsResult<ValidationReport> {
         Ok(ValidationReport {
             passed: result.success,
             score: result.confidence,
-            issues: if !result.success { vec!["Analysis failed".to_string()] } else { Vec::new() },
+            issues: if !result.success {
+                vec!["Analysis failed".to_string()]
+            } else {
+                Vec::new()
+            },
             recommendations: Vec::new(),
         })
     }
@@ -213,7 +235,11 @@ impl SpecializedAgent for CreatorAgent {
         })
     }
 
-    async fn validate(&self, _ctx: &LsContext, result: &SwarmTaskResult) -> LsResult<ValidationReport> {
+    async fn validate(
+        &self,
+        _ctx: &LsContext,
+        result: &SwarmTaskResult,
+    ) -> LsResult<ValidationReport> {
         Ok(ValidationReport {
             passed: result.success,
             score: result.confidence,
@@ -297,13 +323,21 @@ impl SpecializedAgent for ValidatorAgent {
             success: passed,
             execution_ms: (completed_at - start) as u64,
             confidence: score.max(0.0),
-            error: if passed { None } else { Some(format!("Validation failed: {}", issues.join("; "))) },
+            error: if passed {
+                None
+            } else {
+                Some(format!("Validation failed: {}", issues.join("; ")))
+            },
             started_at: start,
             completed_at,
         })
     }
 
-    async fn validate(&self, _ctx: &LsContext, result: &SwarmTaskResult) -> LsResult<ValidationReport> {
+    async fn validate(
+        &self,
+        _ctx: &LsContext,
+        result: &SwarmTaskResult,
+    ) -> LsResult<ValidationReport> {
         Ok(ValidationReport {
             passed: result.success,
             score: result.confidence,
@@ -336,9 +370,9 @@ impl NegotiatorAgent {
         let mut common = Vec::new();
 
         // 如果所有结果完全相同，则已达成完全共识
-        let all_same = results.iter().all(|r| {
-            serde_json::to_string(&r.output).unwrap_or_default() == first_str
-        });
+        let all_same = results
+            .iter()
+            .all(|r| serde_json::to_string(&r.output).unwrap_or_default() == first_str);
 
         if all_same {
             common.push("Full consensus reached".to_string());
@@ -386,7 +420,11 @@ impl SpecializedAgent for NegotiatorAgent {
         })
     }
 
-    async fn validate(&self, _ctx: &LsContext, result: &SwarmTaskResult) -> LsResult<ValidationReport> {
+    async fn validate(
+        &self,
+        _ctx: &LsContext,
+        result: &SwarmTaskResult,
+    ) -> LsResult<ValidationReport> {
         Ok(ValidationReport {
             passed: result.success,
             score: result.confidence,
@@ -475,7 +513,11 @@ impl SpecializedAgent for ObserverAgent {
         })
     }
 
-    async fn validate(&self, _ctx: &LsContext, result: &SwarmTaskResult) -> LsResult<ValidationReport> {
+    async fn validate(
+        &self,
+        _ctx: &LsContext,
+        result: &SwarmTaskResult,
+    ) -> LsResult<ValidationReport> {
         Ok(ValidationReport {
             passed: result.success,
             score: result.confidence,
@@ -537,7 +579,11 @@ impl SpecializedAgent for TesterAgent {
         })
     }
 
-    async fn validate(&self, _ctx: &LsContext, result: &SwarmTaskResult) -> LsResult<ValidationReport> {
+    async fn validate(
+        &self,
+        _ctx: &LsContext,
+        result: &SwarmTaskResult,
+    ) -> LsResult<ValidationReport> {
         Ok(ValidationReport {
             passed: result.success,
             score: result.confidence,
@@ -568,8 +614,12 @@ mod tests {
     use lingshu_core::{LsContext, LsId};
 
     fn create_test_task() -> SwarmTask {
-        SwarmTask::new("test-task", "A test task for validation", serde_json::json!({"key": "value"}))
-            .with_priority(7)
+        SwarmTask::new(
+            "test-task",
+            "A test task for validation",
+            serde_json::json!({"key": "value"}),
+        )
+        .with_priority(7)
     }
 
     #[tokio::test]

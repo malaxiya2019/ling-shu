@@ -12,8 +12,8 @@
 
 use async_trait::async_trait;
 use lingshu_core::{LsContext, LsResult};
+use lingshu_observability::genai::{record_usage, GenAiOperation};
 use lingshu_traits::llm::*;
-use lingshu_observability::genai::{GenAiOperation, record_usage};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -39,13 +39,15 @@ impl TracedLlm {
 #[async_trait]
 impl Llm for TracedLlm {
     async fn invoke(&self, ctx: LsContext, request: LlmRequest) -> LsResult<LlmResponse> {
-        let span = lingshu_observability::genai_span!(
-            GenAiOperation::Chat,
-            &self.model_name,
-            ctx
+        let span = lingshu_observability::genai_span!(GenAiOperation::Chat, &self.model_name, ctx);
+        span.record(
+            "gen_ai.request.max_tokens",
+            tracing::field::debug(&request.max_tokens),
         );
-        span.record("gen_ai.request.max_tokens", tracing::field::debug(&request.max_tokens));
-        span.record("gen_ai.request.temperature", tracing::field::debug(&request.temperature));
+        span.record(
+            "gen_ai.request.temperature",
+            tracing::field::debug(&request.temperature),
+        );
         let _guard = span.enter();
         let start = std::time::Instant::now();
 
@@ -54,7 +56,11 @@ impl Llm for TracedLlm {
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
         match &result {
             Ok(resp) => {
-                record_usage(&span, resp.usage.prompt_tokens, resp.usage.completion_tokens);
+                record_usage(
+                    &span,
+                    resp.usage.prompt_tokens,
+                    resp.usage.completion_tokens,
+                );
                 tracing::debug!(
                     duration_ms,
                     input_tokens = resp.usage.prompt_tokens,
@@ -75,13 +81,16 @@ impl Llm for TracedLlm {
         ctx: LsContext,
         request: LlmRequest,
     ) -> LsResult<tokio::sync::mpsc::Receiver<LsResult<LlmChunk>>> {
-        let span = lingshu_observability::genai_span!(
-            GenAiOperation::ChatStream,
-            &self.model_name,
-            ctx
+        let span =
+            lingshu_observability::genai_span!(GenAiOperation::ChatStream, &self.model_name, ctx);
+        span.record(
+            "gen_ai.request.max_tokens",
+            tracing::field::debug(&request.max_tokens),
         );
-        span.record("gen_ai.request.max_tokens", tracing::field::debug(&request.max_tokens));
-        span.record("gen_ai.request.temperature", tracing::field::debug(&request.temperature));
+        span.record(
+            "gen_ai.request.temperature",
+            tracing::field::debug(&request.temperature),
+        );
         let _guard = span.enter();
 
         let result = self.inner.invoke_stream(ctx, request).await;
@@ -99,11 +108,7 @@ impl Llm for TracedLlm {
     }
 
     async fn usage_stats(&self, ctx: LsContext) -> LsResult<HashMap<String, u64>> {
-        let span = lingshu_observability::genai_span!(
-            GenAiOperation::Chat,
-            &self.model_name,
-            ctx
-        );
+        let span = lingshu_observability::genai_span!(GenAiOperation::Chat, &self.model_name, ctx);
         let _guard = span.enter();
         self.inner.usage_stats(ctx).await
     }

@@ -25,9 +25,7 @@ use lingshu_traits::plugin::Plugin;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 初始化日志
-    tracing_subscriber::fmt()
-        .with_env_filter("info")
-        .init();
+    tracing_subscriber::fmt().with_env_filter("info").init();
 
     println!("╔══════════════════════════════════════════════════╗");
     println!("║   📱 agent-device × Lingshu 集成演示              ║");
@@ -37,10 +35,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // ── 检查系统依赖 ──────────────────────────────────────
     println!("🔍 检查系统依赖...");
     let deps = AgentDevicePlugin::check_dependencies().await;
-    println!("   Node.js:       {}", if deps.node_installed { "✅" } else { "❌" });
-    println!("   agent-device:  {}", if deps.agent_device_installed { "✅" } else { "❌" });
-    println!("   Xcode:         {}", if deps.xcode_installed { "✅" } else { "❌" });
-    println!("   ADB:           {}", if deps.adb_installed { "✅" } else { "❌" });
+    println!(
+        "   Node.js:       {}",
+        if deps.node_installed { "✅" } else { "❌" }
+    );
+    println!(
+        "   agent-device:  {}",
+        if deps.agent_device_installed {
+            "✅"
+        } else {
+            "❌"
+        }
+    );
+    println!(
+        "   Xcode:         {}",
+        if deps.xcode_installed { "✅" } else { "❌" }
+    );
+    println!(
+        "   ADB:           {}",
+        if deps.adb_installed { "✅" } else { "❌" }
+    );
 
     if !deps.all_ok() {
         eprintln!("⚠️  缺少必要依赖，请安装 Node.js 和 agent-device");
@@ -56,11 +70,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = AgentDeviceConfig {
         command: "agent-device".into(),
         args: vec!["mcp".into()],
-        tool_timeout_ms: 120_000,       // 120s 超时
-        max_restarts: 3,                // 最多重启 3 次
+        tool_timeout_ms: 120_000,          // 120s 超时
+        max_restarts: 3,                   // 最多重启 3 次
         output_format: "optimized".into(), // 优化输出格式
-        auto_sync_interval_secs: 30,    // 🔄 每 30 秒同步工具变化
-        max_session_idle_secs: 3600,    // 1 小时空闲超时
+        auto_sync_interval_secs: 30,       // 🔄 每 30 秒同步工具变化
+        max_session_idle_secs: 3600,       // 1 小时空闲超时
         ..Default::default()
     };
 
@@ -86,11 +100,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // ── 查看插件状态 ──────────────────────────────────────
     let status = plugin.plugin_status().await;
     println!("📊 插件状态:");
-    println!("   名称:             {}", status["name"].as_str().unwrap_or("?"));
-    println!("   版本:             {}", status["version"].as_str().unwrap_or("?"));
-    println!("   运行中:           {}", status["running"].as_bool().unwrap_or(false));
-    println!("   发现工具数:       {}", status["discovered_tools"].as_u64().unwrap_or(0));
-    println!("   自动同步:         {}", status["sync_enabled"].as_bool().unwrap_or(false));
+    println!(
+        "   名称:             {}",
+        status["name"].as_str().unwrap_or("?")
+    );
+    println!(
+        "   版本:             {}",
+        status["version"].as_str().unwrap_or("?")
+    );
+    println!(
+        "   运行中:           {}",
+        status["running"].as_bool().unwrap_or(false)
+    );
+    println!(
+        "   发现工具数:       {}",
+        status["discovered_tools"].as_u64().unwrap_or(0)
+    );
+    println!(
+        "   自动同步:         {}",
+        status["sync_enabled"].as_bool().unwrap_or(false)
+    );
     println!();
 
     // ── 列出已发现的工具 ──────────────────────────────────
@@ -111,10 +140,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "general".to_string()
         };
 
-        category_map
-            .entry(category)
-            .or_default()
-            .push(name.clone());
+        category_map.entry(category).or_default().push(name.clone());
     }
 
     for (category, names) in &category_map {
@@ -128,8 +154,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // ── 验证关键工具存在 ──────────────────────────────────
     let tool_names: Vec<String> = tools.iter().map(|t| t.info().name.clone()).collect();
 
-    let key_tools = ["device:snapshot", "device:open", "device:click",
-                     "device:type", "device:scroll", "device:screenshot"];
+    let key_tools = [
+        "device:snapshot",
+        "device:open",
+        "device:click",
+        "device:type",
+        "device:scroll",
+        "device:screenshot",
+    ];
     println!("🔑 关键工具检查:");
     for key in &key_tools {
         let found = tool_names.iter().any(|n| n == key);
@@ -139,15 +171,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // ── 测试调用 capabilities（不需要设备） ──────────────
     println!("📞 测试 MCP 通信: capabilities...");
-    let cap_tools: Vec<_> = tools.iter()
+    let cap_tools: Vec<_> = tools
+        .iter()
         .filter(|t| t.info().name == "capabilities" || t.info().name == "device:capabilities")
         .collect();
 
     if let Some(cap_tool) = cap_tools.first() {
-        match cap_tool.execute(LsContext::with_session(LsId::new()), serde_json::json!({})).await {
+        match cap_tool
+            .execute(LsContext::with_session(LsId::new()), serde_json::json!({}))
+            .await
+        {
             Ok(result) => {
                 println!("   ✅ capabilities 调用成功");
-                println!("   结果: {}", serde_json::to_string_pretty(&result).unwrap_or_default());
+                println!(
+                    "   结果: {}",
+                    serde_json::to_string_pretty(&result).unwrap_or_default()
+                );
             }
             Err(e) => {
                 println!("   ⚠️  capabilities 调用 (无设备环境): {}", e);

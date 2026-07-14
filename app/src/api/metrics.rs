@@ -22,12 +22,14 @@ pub async fn metrics_handler() -> (axum::http::StatusCode, String) {
         "timestamp": chrono::Utc::now().to_rfc3339(),
     });
 
-    (axum::http::StatusCode::OK, serde_json::to_string(&metrics).unwrap_or_default())
+    (
+        axum::http::StatusCode::OK,
+        serde_json::to_string(&metrics).unwrap_or_default(),
+    )
 }
 
 /// Axum route definition for Metrics module
 #[allow(dead_code)]
 pub fn metrics_routes() -> axum::Router<Arc<AppState>> {
-    axum::Router::new()
-        .route("/v1/metrics", axum::routing::get(metrics_handler))
+    axum::Router::new().route("/v1/metrics", axum::routing::get(metrics_handler))
 }

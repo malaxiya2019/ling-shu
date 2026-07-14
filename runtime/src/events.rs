@@ -8,7 +8,6 @@ use lingshu_eventbus::{EventTopic, LsEvent};
 use lingshu_traits::event_bus::EventBus;
 use serde_json::{json, Value};
 
-
 /// 发布 Agent 状态变更事件.
 pub async fn emit_agent_state_change(
     bus: &dyn EventBus,
@@ -46,7 +45,9 @@ pub async fn emit_tool_call(
         Err(_) => "failed",
     };
     let output_preview = match result {
-        Ok(v) => json!({ "preview": serde_json::to_string(v).unwrap_or_default().chars().take(200).collect::<String>() }),
+        Ok(v) => {
+            json!({ "preview": serde_json::to_string(v).unwrap_or_default().chars().take(200).collect::<String>() })
+        }
         Err(e) => json!({ "error": e.to_string() }),
     };
     let payload = json!({

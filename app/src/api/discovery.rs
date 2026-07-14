@@ -3,7 +3,7 @@
 //! v4.3 Enterprise
 
 use crate::api::AppState;
-use axum::{Json, extract::State};
+use axum::{extract::State, Json};
 use std::sync::Arc;
 
 #[allow(dead_code)]
@@ -32,6 +32,12 @@ pub async fn discovery_health_handler(
 #[allow(dead_code)]
 pub fn discovery_routes() -> axum::Router<Arc<AppState>> {
     axum::Router::new()
-        .route("/v1/discovery/servers", axum::routing::get(discovery_list_handler))
-        .route("/v1/discovery/health", axum::routing::get(discovery_health_handler))
+        .route(
+            "/v1/discovery/servers",
+            axum::routing::get(discovery_list_handler),
+        )
+        .route(
+            "/v1/discovery/health",
+            axum::routing::get(discovery_health_handler),
+        )
 }

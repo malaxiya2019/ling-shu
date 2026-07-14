@@ -21,10 +21,10 @@
 //! - [发送消息 API](https://open.feishu.cn/document/server-docs/im-v1/message/create)
 //! - [获取 tenant_access_token](https://open.feishu.cn/document/server-docs/authentication-management/access-token/tenant_access_token_internal)
 
-use async_trait::async_trait;
-use crate::types::*;
 use crate::traits::MessageChannel;
+use crate::types::*;
 use crate::{LsError, LsResult};
+use async_trait::async_trait;
 use std::time::Instant;
 
 /// 飞书通道插件.
@@ -85,7 +85,10 @@ impl FeishuChannel {
         }
 
         // 刷新 token
-        let url = format!("{}/open-apis/auth/v3/tenant_access_token/internal", self.api_base);
+        let url = format!(
+            "{}/open-apis/auth/v3/tenant_access_token/internal",
+            self.api_base
+        );
         let resp = self
             .client
             .post(&url)
@@ -183,10 +186,7 @@ impl FeishuChannel {
             .await?;
 
         Ok(SendReceipt {
-            message_id: result["message_id"]
-                .as_str()
-                .unwrap_or("")
-                .to_string(),
+            message_id: result["message_id"].as_str().unwrap_or("").to_string(),
             thread_id: None,
             timestamp: chrono::Utc::now().timestamp(),
             raw: Some(result),
@@ -225,7 +225,8 @@ impl MessageChannel for FeishuChannel {
         let content = serde_json::json!({
             "text": ctx.text,
         });
-        self.send_message(&ctx.to, "text", &content.to_string()).await
+        self.send_message(&ctx.to, "text", &content.to_string())
+            .await
     }
 
     async fn send_media(&self, ctx: SendMediaContext) -> LsResult<SendReceipt> {
@@ -242,7 +243,8 @@ impl MessageChannel for FeishuChannel {
                 "text": format!("📎 {}\n{}", ctx.media_url, ctx.text.as_deref().unwrap_or("")),
             })
         };
-        self.send_message(&ctx.to, "text", &content.to_string()).await
+        self.send_message(&ctx.to, "text", &content.to_string())
+            .await
     }
 
     async fn send_payload(&self, ctx: SendPayloadContext) -> LsResult<SendReceipt> {
@@ -254,7 +256,9 @@ impl MessageChannel for FeishuChannel {
             let content = serde_json::json!({
                 "text": format!("❌ {err_text}"),
             });
-            return self.send_message(&ctx.to, "text", &content.to_string()).await;
+            return self
+                .send_message(&ctx.to, "text", &content.to_string())
+                .await;
         }
 
         // 如果有媒体 URL，构建富文本
@@ -274,14 +278,17 @@ impl MessageChannel for FeishuChannel {
                 };
 
                 let content = serde_json::json!({"text": full_text});
-                return self.send_message(&ctx.to, "text", &content.to_string()).await;
+                return self
+                    .send_message(&ctx.to, "text", &content.to_string())
+                    .await;
             }
         }
 
         // 纯文本
         let text = payload.text.as_deref().unwrap_or("");
         let content = serde_json::json!({"text": text});
-        self.send_message(&ctx.to, "text", &content.to_string()).await
+        self.send_message(&ctx.to, "text", &content.to_string())
+            .await
     }
 
     async fn handle_inbound(&self, event: InboundEvent) -> LsResult<()> {
@@ -338,7 +345,8 @@ impl MessageChannel for FeishuChannel {
         // 解析消息内容
         let message_id = msg["message_id"].as_str().map(|s| s.to_string());
         let chat_id = msg["chat_id"].as_str().map(|s| s.to_string());
-        let create_time = msg["create_time"].as_str()
+        let create_time = msg["create_time"]
+            .as_str()
             .and_then(|t| t.parse::<i64>().ok())
             .unwrap_or_else(|| chrono::Utc::now().timestamp());
 
@@ -359,8 +367,14 @@ impl MessageChannel for FeishuChannel {
                     serde_json::from_str(content_raw).unwrap_or(serde_json::json!({}));
                 let image_key = content_val["image_key"].as_str().map(|s| s.to_string());
                 let media = image_key
-                    .map(|k| format!("https://open.feishu.cn/open-apis/im/v1/images/{}?image_type=message", k))
-                    .into_iter().collect();
+                    .map(|k| {
+                        format!(
+                            "https://open.feishu.cn/open-apis/im/v1/images/{}?image_type=message",
+                            k
+                        )
+                    })
+                    .into_iter()
+                    .collect();
                 (None, media)
             }
             _ => (None, vec![]),

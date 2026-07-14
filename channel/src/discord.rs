@@ -12,10 +12,10 @@
 //! - [Discord Developer Portal — Create Message](https://discord.com/developers/docs/resources/channel#create-message)
 //! - [Discord API Reference](https://discord.com/developers/docs/intro)
 
-use async_trait::async_trait;
-use crate::types::*;
 use crate::traits::MessageChannel;
+use crate::types::*;
 use crate::{LsError, LsResult};
+use async_trait::async_trait;
 use std::time::Instant;
 
 /// Discord API 基础 URL.
@@ -94,9 +94,7 @@ impl DiscordChannel {
         if status.is_success() {
             Ok(body)
         } else {
-            let msg = body["message"]
-                .as_str()
-                .unwrap_or("unknown error");
+            let msg = body["message"].as_str().unwrap_or("unknown error");
             let code = body["code"].as_i64().unwrap_or(0);
             Err(LsError::Plugin(format!(
                 "Discord API 错误 [{}] (code {}): {}",
@@ -133,7 +131,10 @@ impl DiscordChannel {
 
         Ok(SendReceipt {
             message_id: result["id"].as_str().unwrap_or("").to_string(),
-            thread_id: result.get("thread_id").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            thread_id: result
+                .get("thread_id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
             timestamp: chrono::Utc::now().timestamp(),
             raw: Some(result),
         })
@@ -167,13 +168,8 @@ impl MessageChannel for DiscordChannel {
     }
 
     async fn send_text(&self, ctx: SendTextContext) -> LsResult<SendReceipt> {
-        self.send_message(
-            &ctx.to,
-            &ctx.text,
-            false,
-            ctx.reply_to_id.as_deref(),
-        )
-        .await
+        self.send_message(&ctx.to, &ctx.text, false, ctx.reply_to_id.as_deref())
+            .await
     }
 
     async fn send_media(&self, ctx: SendMediaContext) -> LsResult<SendReceipt> {
@@ -208,7 +204,10 @@ impl MessageChannel for DiscordChannel {
 
         Ok(SendReceipt {
             message_id: result["id"].as_str().unwrap_or("").to_string(),
-            thread_id: result.get("thread_id").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            thread_id: result
+                .get("thread_id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
             timestamp: chrono::Utc::now().timestamp(),
             raw: Some(result),
         })

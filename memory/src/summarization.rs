@@ -41,8 +41,6 @@ pub enum SummarizationStrategy {
     Rewrite,
 }
 
-
-
 /// 记忆摘要
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemorySummary {
@@ -148,7 +146,7 @@ impl SummarizerLlm for Arc<dyn lingshu_traits::llm::Llm> {
             temperature: Some(0.3),
             max_tokens: Some(2048),
             tools: None,
-            stream: false
+            stream: false,
         };
 
         let response = self.invoke(ctx.clone(), request).await?;
@@ -265,8 +263,14 @@ impl MemorySummarizer {
 
         let result = llm.generate(ctx, &prompt, model).await?;
 
-        let time_start = conversation.first().map(|i| i.timestamp).unwrap_or_else(Utc::now);
-        let time_end = conversation.last().map(|i| i.timestamp).unwrap_or_else(Utc::now);
+        let time_start = conversation
+            .first()
+            .map(|i| i.timestamp)
+            .unwrap_or_else(Utc::now);
+        let time_end = conversation
+            .last()
+            .map(|i| i.timestamp)
+            .unwrap_or_else(Utc::now);
 
         let summary = MemorySummary::new(
             session_id,
@@ -280,7 +284,9 @@ impl MemorySummarizer {
 
         info!(
             "summarization complete: session={}, items={}, strategy={:?}",
-            session_id, conversation.len(), strategy
+            session_id,
+            conversation.len(),
+            strategy
         );
 
         Ok(Some(summary))
@@ -337,13 +343,17 @@ mod tests {
         struct MockLlm;
         #[async_trait]
         impl SummarizerLlm for MockLlm {
-            async fn generate(&self, _ctx: &LsContext, _prompt: &str, _model: &str) -> LsResult<String> {
+            async fn generate(
+                &self,
+                _ctx: &LsContext,
+                _prompt: &str,
+                _model: &str,
+            ) -> LsResult<String> {
                 Ok("test summary".to_string())
             }
         }
 
-        let summarizer = MemorySummarizer::default()
-            .with_llm(Arc::new(MockLlm));
+        let summarizer = MemorySummarizer::default().with_llm(Arc::new(MockLlm));
 
         assert!(!summarizer.should_summarize(10));
         assert!(summarizer.should_summarize(50));
@@ -378,7 +388,10 @@ mod tests {
         let summarizer = MemorySummarizer::default();
         let ctx = LsContext::with_session(lingshu_core::LsId::new());
         let items = vec![MemoryItem::new("s1", "user", "hello")];
-        let result = summarizer.summarize(&ctx, "s1", &items, None).await.unwrap();
+        let result = summarizer
+            .summarize(&ctx, "s1", &items, None)
+            .await
+            .unwrap();
         assert!(result.is_none());
     }
 
@@ -387,20 +400,30 @@ mod tests {
         struct MockLlm;
         #[async_trait]
         impl SummarizerLlm for MockLlm {
-            async fn generate(&self, _ctx: &LsContext, _prompt: &str, _model: &str) -> LsResult<String> {
-                Ok("**摘要**：这是一个测试摘要。\n**核心话题**：测试\n**关键信息**：模拟 LLM 调用".to_string())
+            async fn generate(
+                &self,
+                _ctx: &LsContext,
+                _prompt: &str,
+                _model: &str,
+            ) -> LsResult<String> {
+                Ok(
+                    "**摘要**：这是一个测试摘要。\n**核心话题**：测试\n**关键信息**：模拟 LLM 调用"
+                        .to_string(),
+                )
             }
         }
 
-        let summarizer = MemorySummarizer::default()
-            .with_llm(Arc::new(MockLlm));
+        let summarizer = MemorySummarizer::default().with_llm(Arc::new(MockLlm));
         let ctx = LsContext::with_session(lingshu_core::LsId::new());
         let items = vec![
             MemoryItem::new("s1", "user", "今天天气怎么样？"),
             MemoryItem::new("s1", "assistant", "今天天气很好。"),
         ];
 
-        let result = summarizer.summarize(&ctx, "s1", &items, None).await.unwrap();
+        let result = summarizer
+            .summarize(&ctx, "s1", &items, None)
+            .await
+            .unwrap();
         assert!(result.is_some());
         let summary = result.unwrap();
         assert_eq!(summary.session_id, "s1");
@@ -414,7 +437,12 @@ mod tests {
         struct MockLlm;
         #[async_trait]
         impl SummarizerLlm for MockLlm {
-            async fn generate(&self, _ctx: &LsContext, _prompt: &str, _model: &str) -> LsResult<String> {
+            async fn generate(
+                &self,
+                _ctx: &LsContext,
+                _prompt: &str,
+                _model: &str,
+            ) -> LsResult<String> {
                 Ok("**摘要**：增量摘要结果。\n**核心话题**：测试续接".to_string())
             }
         }
@@ -422,7 +450,8 @@ mod tests {
         let summarizer = MemorySummarizer::new(SummarizationConfig {
             strategy: SummarizationStrategy::Incremental,
             ..Default::default()
-        }).with_llm(Arc::new(MockLlm));
+        })
+        .with_llm(Arc::new(MockLlm));
 
         let ctx = LsContext::with_session(lingshu_core::LsId::new());
 

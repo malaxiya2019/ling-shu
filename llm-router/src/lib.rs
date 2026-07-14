@@ -46,8 +46,7 @@ pub use strategies::{
 };
 
 /// 路由策略类型.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum RouterPolicy {
     /// 按优先级顺序（默认）
     #[default]
@@ -61,7 +60,6 @@ pub enum RouterPolicy {
     /// 轮询分发
     RoundRobin,
 }
-
 
 /// 后端注册信息.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -147,11 +145,7 @@ impl LlmRouter {
     }
 
     /// 注册一个 LLM 后端.
-    pub fn register(
-        &mut self,
-        entry: BackendEntry,
-        llm: Box<dyn Llm + Send + Sync>,
-    ) {
+    pub fn register(&mut self, entry: BackendEntry, llm: Box<dyn Llm + Send + Sync>) {
         let name = entry.name.clone();
         info!(backend = %name, "registering LLM backend");
         self.backends.insert(name.clone(), llm);
@@ -237,7 +231,9 @@ impl LlmRouter {
         // 如果失败且有 fallback，尝试降级
         if result.is_err() && enabled.len() > 1 {
             drop(metrics);
-            let fallback = self.try_fallback(ctx, request, &enabled, &backend_name).await;
+            let fallback = self
+                .try_fallback(ctx, request, &enabled, &backend_name)
+                .await;
             if let Ok(resp) = fallback {
                 let elapsed = start.elapsed();
                 let mut metrics = self.metrics.write().await;
@@ -272,7 +268,9 @@ impl LlmRouter {
                 }
             }
         }
-        Err(LsError::Internal("all backends exhausted in fallback".into()))
+        Err(LsError::Internal(
+            "all backends exhausted in fallback".into(),
+        ))
     }
 
     /// 流式路由并调用 LLM.
@@ -288,13 +286,15 @@ impl LlmRouter {
             .map(|(n, _)| n.clone())
             .collect();
 
-        let backend_name = enabled.first().cloned().ok_or_else(|| {
-            LsError::NotImplemented("no LLM backends registered".into())
-        })?;
+        let backend_name = enabled
+            .first()
+            .cloned()
+            .ok_or_else(|| LsError::NotImplemented("no LLM backends registered".into()))?;
 
-        let llm = self.backends.get(&backend_name).ok_or_else(|| {
-            LsError::Internal(format!("backend '{}' not found", backend_name))
-        })?;
+        let llm = self
+            .backends
+            .get(&backend_name)
+            .ok_or_else(|| LsError::Internal(format!("backend '{}' not found", backend_name)))?;
 
         info!(
             backend = %backend_name,
@@ -321,7 +321,9 @@ impl LlmRouter {
 
     /// 启用/禁用后端.
     pub async fn set_backend_enabled(&self, _name: &str, _enabled: bool) -> LsResult<()> {
-        Err(LsError::NotImplemented("use register() to reconfigure".into()))
+        Err(LsError::NotImplemented(
+            "use register() to reconfigure".into(),
+        ))
     }
 }
 
@@ -344,11 +346,7 @@ impl RouterBuilder {
         self
     }
 
-    pub fn add_backend(
-        mut self,
-        entry: BackendEntry,
-        llm: Box<dyn Llm + Send + Sync>,
-    ) -> Self {
+    pub fn add_backend(mut self, entry: BackendEntry, llm: Box<dyn Llm + Send + Sync>) -> Self {
         self.backends.push((entry, llm));
         self
     }
@@ -414,10 +412,7 @@ mod tests {
     #[tokio::test]
     async fn test_register_backend() {
         let mut router = LlmRouter::new(RouterPolicy::Priority);
-        router.register(
-            BackendEntry::new("mock").with_priority(1),
-            mock_llm(),
-        );
+        router.register(BackendEntry::new("mock").with_priority(1), mock_llm());
         let names = router.backend_names();
         assert_eq!(names, vec!["mock"]);
     }
@@ -425,10 +420,7 @@ mod tests {
     #[tokio::test]
     async fn test_route_and_invoke() {
         let mut router = LlmRouter::new(RouterPolicy::Priority);
-        router.register(
-            BackendEntry::new("mock").with_priority(1),
-            mock_llm(),
-        );
+        router.register(BackendEntry::new("mock").with_priority(1), mock_llm());
 
         let ctx = LsContext::with_session(LsId::new());
         let req = LlmRequest {
@@ -470,10 +462,7 @@ mod tests {
     #[tokio::test]
     async fn test_metrics_collection() {
         let mut router = LlmRouter::new(RouterPolicy::Priority);
-        router.register(
-            BackendEntry::new("mock").with_priority(1),
-            mock_llm(),
-        );
+        router.register(BackendEntry::new("mock").with_priority(1), mock_llm());
 
         let ctx = LsContext::with_session(LsId::new());
         let req = LlmRequest {
@@ -518,10 +507,7 @@ mod tests {
     #[tokio::test]
     async fn test_llm_trait_invoke() {
         let mut router = LlmRouter::new(RouterPolicy::Priority);
-        router.register(
-            BackendEntry::new("mock").with_priority(1),
-            mock_llm(),
-        );
+        router.register(BackendEntry::new("mock").with_priority(1), mock_llm());
 
         let ctx = LsContext::with_session(LsId::new());
         let req = LlmRequest {

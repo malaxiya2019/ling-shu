@@ -6,7 +6,7 @@
 
 use lingshu_core::{LsContext, LsError, LsId};
 use lingshu_runtime::chidori_recovery::{
-    ChidoriRecoveryManager, CheckpointConfig, CheckpointRecovery,
+    CheckpointConfig, CheckpointRecovery, ChidoriRecoveryManager,
 };
 use lingshu_runtime::recovery::{FaultEvent, FaultLevel};
 
@@ -17,7 +17,10 @@ async fn test_chidori_checkpoint_roundtrip() {
     let manager = ChidoriRecoveryManager::new(CheckpointConfig::default());
 
     let state = b"agent-state-42".to_vec();
-    let point_id = match manager.save_checkpoint(&ctx, "agent-e2e", state.clone()).await {
+    let point_id = match manager
+        .save_checkpoint(&ctx, "agent-e2e", state.clone())
+        .await
+    {
         Ok(id) => id,
         Err(e) if matches!(e, LsError::NotImplemented(_)) => {
             // 桩模式：验证返回正确的错误类型
@@ -108,7 +111,10 @@ async fn test_chidori_max_snapshots() {
     let manager = ChidoriRecoveryManager::new(config);
 
     for i in 0..5 {
-        match manager.save_checkpoint(&ctx, "agent-limit", vec![i as u8]).await {
+        match manager
+            .save_checkpoint(&ctx, "agent-limit", vec![i as u8])
+            .await
+        {
             Ok(_) => {}
             Err(LsError::NotImplemented(_)) => return,
             Err(e) => panic!("unexpected error: {e}"),

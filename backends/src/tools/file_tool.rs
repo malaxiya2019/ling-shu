@@ -58,7 +58,7 @@ impl Tool for FileReadTool {
                 required: true,
                 param_type: "string".into(),
             }],
-        ..Default::default()
+            ..Default::default()
         }
     }
 
@@ -91,8 +91,11 @@ impl Tool for FileReadTool {
     }
 
     fn duplicate(&self) -> Box<dyn Tool> {
-        Box::new(FileReadTool { allowed_base: self.allowed_base.clone() })
-    }}
+        Box::new(FileReadTool {
+            allowed_base: self.allowed_base.clone(),
+        })
+    }
+}
 
 /// 写入文件内容.
 pub struct FileWriteTool {
@@ -172,7 +175,7 @@ impl Tool for FileWriteTool {
                     param_type: "string".into(),
                 },
             ],
-        ..Default::default()
+            ..Default::default()
         }
     }
 
@@ -224,8 +227,11 @@ impl Tool for FileWriteTool {
     }
 
     fn duplicate(&self) -> Box<dyn Tool> {
-        Box::new(FileWriteTool { allowed_base: self.allowed_base.clone() })
-    }}
+        Box::new(FileWriteTool {
+            allowed_base: self.allowed_base.clone(),
+        })
+    }
+}
 
 /// 列出目录内容.
 pub struct ListDirTool {
@@ -296,7 +302,7 @@ impl Tool for ListDirTool {
                     param_type: "boolean".into(),
                 },
             ],
-        ..Default::default()
+            ..Default::default()
         }
     }
 
@@ -393,8 +399,11 @@ impl Tool for ListDirTool {
     }
 
     fn duplicate(&self) -> Box<dyn Tool> {
-        Box::new(ListDirTool { allowed_base: self.allowed_base.clone() })
-    }}
+        Box::new(ListDirTool {
+            allowed_base: self.allowed_base.clone(),
+        })
+    }
+}
 
 #[cfg(test)]
 mod tests {

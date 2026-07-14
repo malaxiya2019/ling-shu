@@ -57,8 +57,8 @@ pub const NAME: &str = "lingshu-swarm";
 
 #[cfg(test)]
 mod integration_tests {
-    use lingshu_core::{LsContext, LsId};
     use super::*;
+    use lingshu_core::{LsContext, LsId};
 
     /// 完整 Swarm 集成测试：创建 → 添加 Agent → 执行任务 → 获取指标
     async fn test_swarm_full_lifecycle() {
@@ -98,13 +98,14 @@ mod integration_tests {
         engine.start().await.unwrap();
 
         let agents = vec![
-            SwarmAgent::new("fast-agent", SwarmAgentRole::Executor)
-                .with_expertise("speed", 0.9),
+            SwarmAgent::new("fast-agent", SwarmAgentRole::Executor).with_expertise("speed", 0.9),
             SwarmAgent::new("accurate-agent", SwarmAgentRole::Executor)
                 .with_expertise("accuracy", 0.95),
         ];
         engine.add_agents(agents).await.unwrap();
-        engine.register_specialized(Box::new(CreatorAgent::new("creator"))).await;
+        engine
+            .register_specialized(Box::new(CreatorAgent::new("creator")))
+            .await;
 
         assert_eq!(engine.state().await.agent_count(), 2);
         assert!(engine.is_running().await);

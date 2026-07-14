@@ -3,8 +3,6 @@
 //! 测试 MCP stdio 子进程的启动、工具发现和基本工具调用。
 //! 需要系统已安装 agent-device (`npm install -g agent-device`)。
 
-
-
 use lingshu_mcp::rmcp_stdio_client::{McpStdioClient, McpStdioConfig};
 
 /// 测试直接通过 McpStdioClient 启动 agent-device MCP 子进程并列出工具。
@@ -32,10 +30,7 @@ async fn test_mcp_stdio_client_discovers_tools() {
         .expect("MCP health check failed");
 
     // 列出工具
-    let tools = client
-        .list_tools()
-        .await
-        .expect("Failed to list MCP tools");
+    let tools = client.list_tools().await.expect("Failed to list MCP tools");
 
     assert!(!tools.is_empty(), "Should discover at least one MCP tool");
     assert!(
@@ -53,7 +48,11 @@ async fn test_mcp_stdio_client_discovers_tools() {
 
     println!("✅ Discovered {} MCP tools", tools.len());
     for tool in &tools {
-        println!("  - {}: {}", tool.name, &tool.description[..tool.description.len().min(60)]);
+        println!(
+            "  - {}: {}",
+            tool.name,
+            &tool.description[..tool.description.len().min(60)]
+        );
     }
 
     // 测试 tools/call 对 version 命令（不需要设备）
@@ -100,10 +99,16 @@ async fn test_mcp_stdio_client_restart() {
     tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
 
     // 首次健康检查
-    client.health_check().await.expect("Initial health check failed");
+    client
+        .health_check()
+        .await
+        .expect("Initial health check failed");
 
     // 重启
-    client.restart().await.expect("First restart should succeed");
+    client
+        .restart()
+        .await
+        .expect("First restart should succeed");
 
     tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
 
@@ -114,10 +119,16 @@ async fn test_mcp_stdio_client_restart() {
         .expect("Health check after restart failed");
 
     // 重启后应仍能列出工具
-    let tools = client.list_tools().await.expect("list_tools after restart failed");
+    let tools = client
+        .list_tools()
+        .await
+        .expect("list_tools after restart failed");
     assert!(!tools.is_empty(), "Should discover tools after restart");
 
-    println!("✅ Restart test passed: discovered {} tools after restart", tools.len());
+    println!(
+        "✅ Restart test passed: discovered {} tools after restart",
+        tools.len()
+    );
 
     client.shutdown().await.expect("Shutdown failed");
 }
@@ -127,8 +138,8 @@ async fn test_mcp_stdio_client_restart() {
 #[tokio::test]
 async fn test_agent_device_plugin_integration() {
     use lingshu_agent_device_plugin::AgentDevicePlugin;
-    use lingshu_traits::plugin::Plugin;
     use lingshu_core::LsContext;
+    use lingshu_traits::plugin::Plugin;
 
     let plugin = AgentDevicePlugin::new("agent-device".into());
     let ctx = LsContext::with_session(lingshu_core::LsId::new());
@@ -146,10 +157,7 @@ async fn test_agent_device_plugin_integration() {
         .expect("Plugin start_and_discover should succeed");
 
     assert!(!tools.is_empty(), "Should discover tools via Plugin API");
-    println!(
-        "✅ Discovered {} tools via AgentDevicePlugin",
-        tools.len()
-    );
+    println!("✅ Discovered {} tools via AgentDevicePlugin", tools.len());
 
     // 验证一些关键工具存在
     let tool_names: Vec<String> = tools.iter().map(|t| t.info().name).collect();
@@ -169,10 +177,15 @@ async fn test_agent_device_plugin_integration() {
     // 插件状态应该显示运行中
     let status = plugin.plugin_status().await;
     assert!(status["running"].as_bool().unwrap_or(false));
-    assert_eq!(status["discovered_tools"].as_u64().unwrap_or(0) as usize, tools.len());
+    assert_eq!(
+        status["discovered_tools"].as_u64().unwrap_or(0) as usize,
+        tools.len()
+    );
 
-    println!("✅ Plugin status: running={}, tools={}", 
-        status["running"], status["discovered_tools"]);
+    println!(
+        "✅ Plugin status: running={}, tools={}",
+        status["running"], status["discovered_tools"]
+    );
 
     // Stop
     plugin.stop(ctx).await.expect("Plugin stop should succeed");

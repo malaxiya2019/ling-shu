@@ -117,7 +117,12 @@ impl SwarmMessage {
         self
     }
 
-    pub fn broadcast(msg_type: SwarmMsgType, sender_id: LsId, sender_name: String, payload: serde_json::Value) -> Self {
+    pub fn broadcast(
+        msg_type: SwarmMsgType,
+        sender_id: LsId,
+        sender_name: String,
+        payload: serde_json::Value,
+    ) -> Self {
         Self::new(msg_type, sender_id, sender_name, payload)
     }
 }
@@ -243,7 +248,11 @@ impl SwarmChannel {
     /// 按类型过滤历史消息
     pub async fn get_messages_by_type(&self, msg_type: SwarmMsgType) -> Vec<SwarmMessage> {
         let history = self.message_history.read().await;
-        history.iter().filter(|m| m.msg_type == msg_type).cloned().collect()
+        history
+            .iter()
+            .filter(|m| m.msg_type == msg_type)
+            .cloned()
+            .collect()
     }
 }
 
@@ -282,7 +291,11 @@ impl SwarmCommunicator {
     }
 
     /// 发送消息
-    pub async fn send(&self, msg_type: SwarmMsgType, payload: serde_json::Value) -> Result<(), String> {
+    pub async fn send(
+        &self,
+        msg_type: SwarmMsgType,
+        payload: serde_json::Value,
+    ) -> Result<(), String> {
         let msg = SwarmMessage::new(msg_type, self.agent_id, self.agent_name.clone(), payload);
         self.channel.send(msg).await
     }
@@ -300,8 +313,13 @@ impl SwarmCommunicator {
     }
 
     /// 广播消息
-    pub async fn broadcast(&self, msg_type: SwarmMsgType, payload: serde_json::Value) -> Result<(), String> {
-        let msg = SwarmMessage::broadcast(msg_type, self.agent_id, self.agent_name.clone(), payload);
+    pub async fn broadcast(
+        &self,
+        msg_type: SwarmMsgType,
+        payload: serde_json::Value,
+    ) -> Result<(), String> {
+        let msg =
+            SwarmMessage::broadcast(msg_type, self.agent_id, self.agent_name.clone(), payload);
         self.channel.send(msg).await
     }
 
@@ -373,14 +391,20 @@ mod tests {
     async fn test_communicator() {
         let channel = Arc::new(SwarmChannel::new(100));
         let agent_id = LsId::new();
-        let mut comm = SwarmCommunicator::new(agent_id.clone(), "test-agent".into(), channel.clone());
+        let mut comm =
+            SwarmCommunicator::new(agent_id.clone(), "test-agent".into(), channel.clone());
         comm.init().await;
 
         // Subscribe before sending
         let mut rx = channel.subscribe();
 
         // Send broadcast
-        comm.broadcast(SwarmMsgType::Heartbeat, serde_json::json!({"status": "alive"})).await.unwrap();
+        comm.broadcast(
+            SwarmMsgType::Heartbeat,
+            serde_json::json!({"status": "alive"}),
+        )
+        .await
+        .unwrap();
 
         // Should be able to receive
         let msg = rx.recv().await.unwrap();
@@ -391,7 +415,8 @@ mod tests {
     async fn test_unregister() {
         let channel = Arc::new(SwarmChannel::new(100));
         let agent_id = LsId::new();
-        let mut comm = SwarmCommunicator::new(agent_id.clone(), "test-agent".into(), channel.clone());
+        let mut comm =
+            SwarmCommunicator::new(agent_id.clone(), "test-agent".into(), channel.clone());
         comm.init().await;
         comm.shutdown().await;
 

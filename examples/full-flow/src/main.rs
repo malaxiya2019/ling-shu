@@ -5,18 +5,15 @@
 //! 2. Distributed — 分布式集群调度
 //! 3. Autonomy — 自我反思与进化
 
-use lingshu_swarm::{
-    SwarmAgent, SwarmAgentRole, SwarmConfig, SwarmEngine,
-    SwarmStrategy, SwarmTopology,
+use lingshu_autonomy::{
+    AgentParameters, AutonomyEngine, EvolutionConfig, ExperienceEntry, ExperienceOutcome,
+    ExperienceSeverity, ExperienceType, ReflectionConfig,
 };
 use lingshu_distributed::{
-    Cluster, ClusterConfig, DistScheduler, DistSchedulerConfig,
-    DistScheduleStrategy, DistTask,
+    Cluster, ClusterConfig, DistScheduleStrategy, DistScheduler, DistSchedulerConfig, DistTask,
 };
-use lingshu_autonomy::{
-    AutonomyEngine, EvolutionConfig, ReflectionConfig,
-    ExperienceEntry, ExperienceType, ExperienceOutcome, ExperienceSeverity,
-    AgentParameters,
+use lingshu_swarm::{
+    SwarmAgent, SwarmAgentRole, SwarmConfig, SwarmEngine, SwarmStrategy, SwarmTopology,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -122,7 +119,12 @@ async fn main() {
     println!("   ✅ Swarm: 4 个 Agent 已加入");
 
     // 注册自治参数
-    for name in &["分析者-Alice", "规划者-Bob", "执行者-Charlie", "审查者-Diana"] {
+    for name in &[
+        "分析者-Alice",
+        "规划者-Bob",
+        "执行者-Charlie",
+        "审查者-Diana",
+    ] {
         let params = AgentParameters {
             agent_id: name.to_string(),
             temperature: 0.7,
@@ -249,16 +251,24 @@ async fn main() {
 
     // Swarm 状态
     let s_state = swarm.state().await;
-    println!("📊 Swarm 状态: {} Agent, 策略={:?}, 拓扑={:?}",
-        s_state.agents.len(), s_state.strategy, s_state.topology);
+    println!(
+        "📊 Swarm 状态: {} Agent, 策略={:?}, 拓扑={:?}",
+        s_state.agents.len(),
+        s_state.strategy,
+        s_state.topology
+    );
 
     let summary = swarm.summary().await;
-    println!("📈 Swarm 摘要: 完成={}, 成功率={:.1}%",
-        summary.total_tasks_completed, summary.overall_success_rate * 100.0);
+    println!(
+        "📈 Swarm 摘要: 完成={}, 成功率={:.1}%",
+        summary.total_tasks_completed,
+        summary.overall_success_rate * 100.0
+    );
 
     // 调度器统计
     let s_summary = scheduler.summary().await;
-    println!("\n📊 调度器统计: 在线节点={}/{} | 待处理={}, 活跃={}",
+    println!(
+        "\n📊 调度器统计: 在线节点={}/{} | 待处理={}, 活跃={}",
         s_summary.online_nodes,
         s_summary.total_nodes,
         s_summary.total_pending_tasks,
@@ -267,15 +277,25 @@ async fn main() {
 
     let loads = scheduler.get_all_loads().await;
     for load in &loads {
-        println!("   ⚡ 节点 {}: 活跃任务={}, CPU={:.1}%, 内存={:.1}%",
-            load.node_id, load.active_tasks,
-            load.cpu_usage * 100.0, load.memory_usage * 100.0);
+        println!(
+            "   ⚡ 节点 {}: 活跃任务={}, CPU={:.1}%, 内存={:.1}%",
+            load.node_id,
+            load.active_tasks,
+            load.cpu_usage * 100.0,
+            load.memory_usage * 100.0
+        );
     }
 
     // 自治引擎 — 经验摘要
-    for name in &["分析者-Alice", "规划者-Bob", "执行者-Charlie", "审查者-Diana"] {
+    for name in &[
+        "分析者-Alice",
+        "规划者-Bob",
+        "执行者-Charlie",
+        "审查者-Diana",
+    ] {
         let exp_summary = autonomy.experience_store.summarize(name).await;
-        println!("\n📊 [{}] 经验: 总计={}, 成功={}, 失败={}, 成功率={:.1}%",
+        println!(
+            "\n📊 [{}] 经验: 总计={}, 成功={}, 失败={}, 成功率={:.1}%",
             name,
             exp_summary.total_count,
             exp_summary.success_count,
@@ -288,8 +308,12 @@ async fn main() {
     println!("\n🔍 执行自治反思...");
     for name in &["分析者-Alice", "审查者-Diana"] {
         let report = autonomy.reflect_only(name).await;
-        println!("   [{2}] 健康评分={0:.1}/1.0, 洞察数={1}",
-            report.health_score, report.insights.len(), name);
+        println!(
+            "   [{2}] 健康评分={0:.1}/1.0, 洞察数={1}",
+            report.health_score,
+            report.insights.len(),
+            name
+        );
         for insight in &report.insights {
             println!("      💡 {1} (优先级={0})", insight.priority, insight.title);
         }

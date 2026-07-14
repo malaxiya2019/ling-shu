@@ -60,7 +60,7 @@ pub struct McpServerManager {
 
 struct McpServerProcess {
     child: Option<std::process::Child>,
-#[allow(dead_code)]
+    #[allow(dead_code)]
     url: String,
 }
 
@@ -74,11 +74,7 @@ impl McpServerManager {
     }
 
     /// 根据配置启动并连接 MCP 服务器.
-    pub async fn start_server(
-        &self,
-        name: &str,
-        config: &McpServerConfig,
-    ) -> LsResult<()> {
+    pub async fn start_server(&self, name: &str, config: &McpServerConfig) -> LsResult<()> {
         if !config.auto_start {
             info!("MCP server '{}' auto-start disabled, skipping", name);
             return Ok(());
@@ -119,7 +115,11 @@ impl McpServerManager {
 
         // 对于 stdio 模式的 MCP 服务器，使用 stdio 传输层
         // 对于 HTTP 模式的 MCP 服务器，等待端口就绪后连接 HTTP
-        let url = if config.args.iter().any(|a| a.contains("http") || a.contains("port")) {
+        let url = if config
+            .args
+            .iter()
+            .any(|a| a.contains("http") || a.contains("port"))
+        {
             config
                 .url
                 .clone()
@@ -253,13 +253,8 @@ pub fn default_server_configs() -> HashMap<String, McpServerConfig> {
         "omnivoice".into(),
         McpServerConfig {
             command: "python".into(),
-            args: vec![
-                "-m".into(),
-                "backend.mcp_server".into(),
-            ],
-            env: HashMap::from([
-                ("OMNIVOICE_API_URL".into(), "http://localhost:3900".into()),
-            ]),
+            args: vec!["-m".into(), "backend.mcp_server".into()],
+            env: HashMap::from([("OMNIVOICE_API_URL".into(), "http://localhost:3900".into())]),
             url: None,
             auto_start: false,
         },

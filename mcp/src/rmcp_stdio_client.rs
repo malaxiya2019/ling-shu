@@ -21,10 +21,10 @@
 //! ```
 
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
+use std::sync::Arc;
 
-use lingshu_core::{LsError, LsResult, LsId};
+use lingshu_core::{LsError, LsId, LsResult};
 use serde_json::Value;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, Command};
@@ -57,7 +57,11 @@ pub enum McpContent {
     #[serde(rename = "image")]
     Image { data: String, mime_type: String },
     #[serde(rename = "resource")]
-    Resource { uri: String, text: Option<String>, blob: Option<String> },
+    Resource {
+        uri: String,
+        text: Option<String>,
+        blob: Option<String>,
+    },
 }
 
 /// Stdio MCP 客户端配置.
@@ -161,13 +165,15 @@ impl McpStdioClient {
             ))
         })?;
 
-        let stdin = child.stdin.take().ok_or_else(|| {
-            LsError::Plugin("failed to capture child stdin".into())
-        })?;
+        let stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| LsError::Plugin("failed to capture child stdin".into()))?;
 
-        let stdout = child.stdout.take().ok_or_else(|| {
-            LsError::Plugin("failed to capture child stdout".into())
-        })?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| LsError::Plugin("failed to capture child stdout".into()))?;
 
         let stderr = child.stderr.take();
 
@@ -197,14 +203,18 @@ impl McpStdioClient {
                                     if let Some(pending_resp) = pending_map.remove(&id) {
                                         // 检查是否有错误
                                         if let Some(err) = resp.get("error") {
-                                            let code = err.get("code").and_then(|v| v.as_i64()).unwrap_or(0);
+                                            let code = err
+                                                .get("code")
+                                                .and_then(|v| v.as_i64())
+                                                .unwrap_or(0);
                                             let msg = err
                                                 .get("message")
                                                 .and_then(|v| v.as_str())
                                                 .unwrap_or("unknown error");
-                                            let _ = pending_resp.sender.send(Err(
-                                                LsError::Internal(format!("MCP error [{code}]: {msg}"))
-                                            ));
+                                            let _ =
+                                                pending_resp.sender.send(Err(LsError::Internal(
+                                                    format!("MCP error [{code}]: {msg}"),
+                                                )));
                                         } else if let Some(result) = resp.get("result") {
                                             let _ = pending_resp.sender.send(Ok(result.clone()));
                                         } else {
@@ -282,9 +292,9 @@ impl McpStdioClient {
         // 写入 stdin
         {
             let mut stdin_guard = self.stdin.lock().await;
-            let stdin = stdin_guard.as_mut().ok_or_else(|| {
-                LsError::Plugin("MCP stdin not available".into())
-            })?;
+            let stdin = stdin_guard
+                .as_mut()
+                .ok_or_else(|| LsError::Plugin("MCP stdin not available".into()))?;
 
             let msg = serde_json::to_string(&request)
                 .map_err(|e| LsError::Internal(format!("MCP serialization failed: {e}")))?;
@@ -332,13 +342,15 @@ impl McpStdioClient {
 
     /// tools/call — 调用远程服务器上的工具.
     pub async fn call_tool(&self, name: &str, arguments: Value) -> LsResult<McpToolResult> {
-        let result = self.send_request(
-            "tools/call",
-            Some(serde_json::json!({
-                "name": name,
-                "arguments": arguments,
-            })),
-        ).await?;
+        let result = self
+            .send_request(
+                "tools/call",
+                Some(serde_json::json!({
+                    "name": name,
+                    "arguments": arguments,
+                })),
+            )
+            .await?;
 
         serde_json::from_value(result)
             .map_err(|e| LsError::Plugin(format!("MCP tool result parse failed: {e}")))
@@ -475,7 +487,6 @@ fn extract_params_from_schema(schema: &Value) -> Vec<lingshu_traits::tool::ToolP
     params
 }
 
-
 /// 同步清理 — 确保子进程在 Drop 时被终止.
 impl Drop for McpStdioClient {
     fn drop(&mut self) {
@@ -518,7 +529,9 @@ mod tests {
         let params = extract_params_from_schema(&schema);
         assert_eq!(params.len(), 2);
         assert!(params.iter().any(|p| p.name == "platform" && p.required));
-        assert!(params.iter().any(|p| p.name == "interactive" && !p.required));
+        assert!(params
+            .iter()
+            .any(|p| p.name == "interactive" && !p.required));
     }
 
     #[test]
@@ -559,7 +572,9 @@ mod tests {
     #[test]
     fn test_mcp_result_serde() {
         let result = McpToolResult {
-            content: vec![McpContent::Text { text: "Hello".into() }],
+            content: vec![McpContent::Text {
+                text: "Hello".into(),
+            }],
             is_error: false,
         };
 

@@ -24,7 +24,9 @@ pub fn security() -> Html {
                     Ok(s) => status.set(Some(s)),
                     Err(e) => error.set(e),
                 }
-                if let Ok(h) = client::beef_hooks().await { hooks.set(h.browsers) }
+                if let Ok(h) = client::beef_hooks().await {
+                    hooks.set(h.browsers)
+                }
             });
             || ()
         });

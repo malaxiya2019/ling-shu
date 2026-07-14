@@ -101,7 +101,10 @@ pub fn tenant_dashboard() -> Html {
         let state = state.clone();
         use_effect_with((), move |_| {
             wasm_bindgen_futures::spawn_local(async move {
-                let mut s = TenantState { loading: true, ..TenantState::default() };
+                let mut s = TenantState {
+                    loading: true,
+                    ..TenantState::default()
+                };
 
                 // 获取组织列表
                 match Request::get("/v1/tenant/orgs").send().await {
@@ -148,10 +151,16 @@ pub fn tenant_dashboard() -> Html {
             let state = state.clone();
             let org_clone = org.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let mut s = TenantState { loading: true, ..TenantState::default() };
+                let mut s = TenantState {
+                    loading: true,
+                    ..TenantState::default()
+                };
 
                 // 获取项目列表
-                match Request::get(&format!("/v1/tenant/orgs/{org_id}/projects")).send().await {
+                match Request::get(&format!("/v1/tenant/orgs/{org_id}/projects"))
+                    .send()
+                    .await
+                {
                     Ok(resp) => {
                         if let Ok(projects) = resp.json::<Vec<Project>>().await {
                             s.projects = projects;
@@ -161,7 +170,10 @@ pub fn tenant_dashboard() -> Html {
                 }
 
                 // 获取用户列表
-                match Request::get(&format!("/v1/tenant/orgs/{org_id}/users")).send().await {
+                match Request::get(&format!("/v1/tenant/orgs/{org_id}/users"))
+                    .send()
+                    .await
+                {
                     Ok(resp) => {
                         if let Ok(users) = resp.json::<Vec<TenantUser>>().await {
                             s.users = users;
@@ -372,9 +384,18 @@ fn render_org_detail(
     let org_id = org.id.clone();
     let tab = &state.selected_tab;
 
-    let on_tab_overview = { let cb = on_tab_change.clone(); Callback::from(move |_: MouseEvent| cb.emit(OrgTab::Overview)) };
-    let on_tab_projects = { let cb = on_tab_change.clone(); Callback::from(move |_: MouseEvent| cb.emit(OrgTab::Projects)) };
-    let on_tab_users = { let cb = on_tab_change.clone(); Callback::from(move |_: MouseEvent| cb.emit(OrgTab::Users)) };
+    let on_tab_overview = {
+        let cb = on_tab_change.clone();
+        Callback::from(move |_: MouseEvent| cb.emit(OrgTab::Overview))
+    };
+    let on_tab_projects = {
+        let cb = on_tab_change.clone();
+        Callback::from(move |_: MouseEvent| cb.emit(OrgTab::Projects))
+    };
+    let on_tab_users = {
+        let cb = on_tab_change.clone();
+        Callback::from(move |_: MouseEvent| cb.emit(OrgTab::Users))
+    };
 
     html! {
         <>

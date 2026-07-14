@@ -11,11 +11,7 @@ use crate::metrics::MetricsCollector;
 #[async_trait]
 pub trait RouterStrategy {
     /// 从可用后端列表中选择一个后端.
-    async fn select(
-        &self,
-        backends: &[String],
-        metrics: &MetricsCollector,
-    ) -> Option<String>;
+    async fn select(&self, backends: &[String], metrics: &MetricsCollector) -> Option<String>;
 }
 
 // ── Priority Strategy ──────────────────────────────
@@ -69,10 +65,7 @@ impl RouterStrategy for FallbackStrategy {
         let mut candidates: Vec<(String, f64)> = backends
             .iter()
             .map(|name| {
-                let rate = metrics
-                    .get(name)
-                    .map(|m| m.success_rate())
-                    .unwrap_or(1.0);
+                let rate = metrics.get(name).map(|m| m.success_rate()).unwrap_or(1.0);
                 (name.clone(), rate)
             })
             .collect();
@@ -141,10 +134,7 @@ impl RouterStrategy for CostStrategy {
         let mut candidates: Vec<(String, f64)> = backends
             .iter()
             .map(|name| {
-                let cost = metrics
-                    .get(name)
-                    .map(|m| m.total_cost)
-                    .unwrap_or(0.0);
+                let cost = metrics.get(name).map(|m| m.total_cost).unwrap_or(0.0);
                 (name.clone(), cost)
             })
             .collect();

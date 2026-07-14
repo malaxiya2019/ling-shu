@@ -24,8 +24,8 @@ use axum::{
     Router,
 };
 use lingshu_evaluator;
-use lingshu_tenant;
 use lingshu_federation;
+use lingshu_tenant;
 use lingshu_watch_plugin;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -448,7 +448,8 @@ pub async fn openapi_json_handler() -> Json<serde_json::Value> {
 
 /// Swagger UI — interactive API documentation
 async fn swagger_ui_handler() -> Html<&'static str> {
-    Html(r##"<!DOCTYPE html>
+    Html(
+        r##"<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -468,7 +469,8 @@ async fn swagger_ui_handler() -> Html<&'static str> {
     });
   </script>
 </body>
-</html>"##)
+</html>"##,
+    )
 }
 /// Server-rendered Web Console (v4.3 Enterprise).
 /// 完整的 AJAX 管理面板，无需 wasm 编译。
@@ -1090,7 +1092,7 @@ async fn admin_handler() -> Html<String> {
   </script>
 </body>
 </html>"##.to_string())
-}// ── Webhook Handlers ──────────────────────────────────────
+} // ── Webhook Handlers ──────────────────────────────────────
 
 /// POST /v1/channels/feishu/webhook — 飞书事件回调
 /// 接收飞书开放平台事件订阅回调，自动解析为 InboundEvent。
@@ -1098,11 +1100,17 @@ async fn feishu_webhook_handler(
     State(state): State<Arc<AppState>>,
     Json(raw): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let channel = state.runtime.channel_registry.get("feishu").await
-        .ok_or_else(|| (
-            StatusCode::NOT_FOUND,
-            Json(json!({"error": "feishu channel not found"})),
-        ))?;
+    let channel = state
+        .runtime
+        .channel_registry
+        .get("feishu")
+        .await
+        .ok_or_else(|| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(json!({"error": "feishu channel not found"})),
+            )
+        })?;
     // 飞书回调验证: 处理 URL 验证挑战
     if let Some(challenge) = raw.get("challenge").and_then(|v| v.as_str()) {
         return Ok(Json(json!({"challenge": challenge})));
@@ -1123,7 +1131,10 @@ async fn feishu_webhook_handler(
     };
     channel.handle_inbound(event).await.map_err(|e| {
         tracing::warn!(error = %e, "feishu inbound handler failed");
-        (StatusCode::OK, Json(json!({"status": "accepted", "warning": e.to_string()})))
+        (
+            StatusCode::OK,
+            Json(json!({"status": "accepted", "warning": e.to_string()})),
+        )
     })?;
     Ok(Json(json!({"status": "ok"})))
 }
@@ -1133,11 +1144,17 @@ async fn qq_webhook_handler(
     State(state): State<Arc<AppState>>,
     Json(raw): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let channel = state.runtime.channel_registry.get("qq").await
-        .ok_or_else(|| (
-            StatusCode::NOT_FOUND,
-            Json(json!({"error": "qq channel not found"})),
-        ))?;
+    let channel = state
+        .runtime
+        .channel_registry
+        .get("qq")
+        .await
+        .ok_or_else(|| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(json!({"error": "qq channel not found"})),
+            )
+        })?;
     let event = InboundEvent {
         channel_id: "qq".into(),
         message_id: None,
@@ -1153,7 +1170,10 @@ async fn qq_webhook_handler(
     };
     channel.handle_inbound(event).await.map_err(|e| {
         tracing::warn!(error = %e, "qq inbound handler failed");
-        (StatusCode::OK, Json(json!({"status": "accepted", "warning": e.to_string()})))
+        (
+            StatusCode::OK,
+            Json(json!({"status": "accepted", "warning": e.to_string()})),
+        )
     })?;
     Ok(Json(json!({"status": "ok"})))
 }
@@ -1216,7 +1236,10 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         // Plugin Market API
         .route("/v1/plugins/market/search", get(market_search_handler))
         .route("/v1/plugins/market/list", get(market_list_handler))
-        .route("/v1/plugins/market/sources/:source_type", delete(market_remove_source_handler))
+        .route(
+            "/v1/plugins/market/sources/:source_type",
+            delete(market_remove_source_handler),
+        )
         .route("/v1/plugins/market/install", post(market_install_handler))
         .route(
             "/v1/plugins/market/sources",
@@ -1227,7 +1250,10 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             post(hot_reload_start_handler),
         )
         .route("/v1/plugins/hotreload/stop", post(hot_reload_stop_handler))
-        .route("/v1/plugins/hot-reload/status", get(hot_reload_status_handler))
+        .route(
+            "/v1/plugins/hot-reload/status",
+            get(hot_reload_status_handler),
+        )
         .route("/v1/plugins/events", get(plugin_events_handler))
         // BeEF Security Testing API
         .route("/v1/security/beef/status", get(beef_status_handler))
@@ -1271,35 +1297,74 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             "/v1/credentials/providers",
             get(credential_providers_handler),
         )
-                // Audit API — 审计日志查询
+        // Audit API — 审计日志查询
         .route("/v1/audit/logs", get(audit_query_handler))
         .route("/v1/audit/stats", get(audit_stats_handler))
         .route("/v1/audit/entry/:id", get(audit_entry_handler))
         .route("/v1/audit/export", get(audit_export_handler))
         .route("/v1/audit/archive", post(audit_archive_handler))
-// Tenant API (MT) -- 多租户管理
-        .route("/v1/tenant/orgs", get(tenant_list_orgs_handler).post(tenant_create_org_handler))
+        // Tenant API (MT) -- 多租户管理
+        .route(
+            "/v1/tenant/orgs",
+            get(tenant_list_orgs_handler).post(tenant_create_org_handler),
+        )
         .route("/v1/tenant/orgs/:org_id", get(tenant_get_org_handler))
-        .route("/v1/tenant/orgs/:org_id/projects", get(tenant_list_projects_handler).post(tenant_create_project_handler))
-        .route("/v1/tenant/orgs/:org_id/projects/:project_id", get(tenant_get_project_handler))
-        .route("/v1/tenant/orgs/:org_id/users", get(tenant_list_users_handler).post(tenant_invite_user_handler))
-        .route("/v1/tenant/orgs/:org_id/users/:user_id", get(tenant_get_user_handler).delete(tenant_remove_user_handler))
+        .route(
+            "/v1/tenant/orgs/:org_id/projects",
+            get(tenant_list_projects_handler).post(tenant_create_project_handler),
+        )
+        .route(
+            "/v1/tenant/orgs/:org_id/projects/:project_id",
+            get(tenant_get_project_handler),
+        )
+        .route(
+            "/v1/tenant/orgs/:org_id/users",
+            get(tenant_list_users_handler).post(tenant_invite_user_handler),
+        )
+        .route(
+            "/v1/tenant/orgs/:org_id/users/:user_id",
+            get(tenant_get_user_handler).delete(tenant_remove_user_handler),
+        )
         .route("/v1/tenant/stats", get(tenant_stats_handler))
         // Vault API (Secret Management)
         .route("/v1/vault/health", get(vault_health_handler))
-        .route("/v1/vault/secrets", post(vault_write_handler).get(vault_list_handler))
-        .route("/v1/vault/secrets/*path", get(vault_read_handler).delete(vault_delete_handler))
+        .route(
+            "/v1/vault/secrets",
+            post(vault_write_handler).get(vault_list_handler),
+        )
+        .route(
+            "/v1/vault/secrets/*path",
+            get(vault_read_handler).delete(vault_delete_handler),
+        )
         .route("/v1/vault/encrypt", post(vault_encrypt_handler))
         .route("/v1/vault/decrypt", post(vault_decrypt_handler))
-        .route("/v1/vault/dynamic-secret/*path", get(vault_dynamic_secret_handler))
-        .route("/v1/vault/lease/:lease_id/renew", post(vault_renew_lease_handler))
-        .route("/v1/vault/lease/:lease_id/revoke", post(vault_revoke_lease_handler))
+        .route(
+            "/v1/vault/dynamic-secret/*path",
+            get(vault_dynamic_secret_handler),
+        )
+        .route(
+            "/v1/vault/lease/:lease_id/renew",
+            post(vault_renew_lease_handler),
+        )
+        .route(
+            "/v1/vault/lease/:lease_id/revoke",
+            post(vault_revoke_lease_handler),
+        )
         // TEE API (Confidential Computing)
         .route("/v1/tee/health", get(tee_health_handler))
         .route("/v1/tee/attest", post(tee_attest_handler))
-        .route("/v1/tee/encrypted-memory", post(tee_encrypted_memory_store_handler).get(tee_encrypted_memory_list_handler))
-        .route("/v1/tee/encrypted-memory/:id", get(tee_encrypted_memory_get_handler).delete(tee_encrypted_memory_delete_handler))
-        .route("/v1/tee/policy", get(tee_policy_get_handler).put(tee_policy_update_handler))
+        .route(
+            "/v1/tee/encrypted-memory",
+            post(tee_encrypted_memory_store_handler).get(tee_encrypted_memory_list_handler),
+        )
+        .route(
+            "/v1/tee/encrypted-memory/:id",
+            get(tee_encrypted_memory_get_handler).delete(tee_encrypted_memory_delete_handler),
+        )
+        .route(
+            "/v1/tee/policy",
+            get(tee_policy_get_handler).put(tee_policy_update_handler),
+        )
         // Evaluator API (ES)
         .route("/v1/eval/run", post(eval_run_handler))
         .route("/v1/eval/result", get(eval_result_handler))
@@ -1312,13 +1377,31 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/v1/channels/feishu/webhook", post(feishu_webhook_handler))
         .route("/v1/channels/qq/webhook", post(qq_webhook_handler))
         // Billing API (v4.3 Enterprise — Token Cost)
-        .route("/v1/billing/stats", get(crate::api::billing::billing_stats_handler))
-        .route("/v1/billing/report/:user_id", get(crate::api::billing::billing_report_handler))
-        .route("/v1/billing/quota/:user_id", get(crate::api::billing::billing_quota_handler))
-        .route("/v1/billing/usage", post(crate::api::billing::record_usage_handler))
+        .route(
+            "/v1/billing/stats",
+            get(crate::api::billing::billing_stats_handler),
+        )
+        .route(
+            "/v1/billing/report/:user_id",
+            get(crate::api::billing::billing_report_handler),
+        )
+        .route(
+            "/v1/billing/quota/:user_id",
+            get(crate::api::billing::billing_quota_handler),
+        )
+        .route(
+            "/v1/billing/usage",
+            post(crate::api::billing::record_usage_handler),
+        )
         // Discovery API (v4.3 Enterprise — MCP Auto-Discovery)
-        .route("/v1/discovery/servers", get(crate::api::discovery::discovery_list_handler))
-        .route("/v1/discovery/health", get(crate::api::discovery::discovery_health_handler))
+        .route(
+            "/v1/discovery/servers",
+            get(crate::api::discovery::discovery_list_handler),
+        )
+        .route(
+            "/v1/discovery/health",
+            get(crate::api::discovery::discovery_health_handler),
+        )
         // API Documentation
         .route("/docs", get(docs_handler))
         .route("/docs/openapi.json", get(openapi_json_handler))
@@ -1422,7 +1505,8 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 
 /// 登录页面 (GET).
 async fn login_page_handler() -> Html<String> {
-    Html(r##"<!DOCTYPE html>
+    Html(
+        r##"<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -1497,7 +1581,9 @@ async fn login_page_handler() -> Html<String> {
     });
   </script>
 </body>
-</html>"##.to_string())
+</html>"##
+            .to_string(),
+    )
 }
 
 #[derive(Deserialize)]
@@ -1681,7 +1767,6 @@ async fn metrics_handler() -> (StatusCode, String) {
     let text = registry.gather_text();
     (StatusCode::OK, text)
 }
-
 
 /// GET /v1/metrics — JSON format for WebUI real-time charts
 async fn v1_metrics_handler() -> Json<MetricsJsonResponse> {
@@ -2592,8 +2677,7 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
 
     let _ = socket
         .send(ws::Message::Text(
-            json!({"type": "connected", "session_id": session_id_str.clone()})
-                .to_string(),
+            json!({"type": "connected", "session_id": session_id_str.clone()}).to_string(),
         ))
         .await;
 
@@ -2614,8 +2698,7 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
         if prompt.is_empty() {
             let _ = socket
                 .send(ws::Message::Text(
-                    json!({"type": "error", "message": "empty prompt"})
-                        .to_string(),
+                    json!({"type": "error", "message": "empty prompt"}).to_string(),
                 ))
                 .await;
             continue;
@@ -2739,8 +2822,7 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
                 Err(e) => {
                     let _ = socket
                         .send(ws::Message::Text(
-                            json!({"type": "error", "message": format!("{e}")})
-                                .to_string(),
+                            json!({"type": "error", "message": format!("{e}")}).to_string(),
                         ))
                         .await;
                 }
@@ -2748,8 +2830,7 @@ async fn handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
         } else {
             let _ = socket
                 .send(ws::Message::Text(
-                    json!({"type": "error", "message": "no LLM configured"})
-                        .to_string(),
+                    json!({"type": "error", "message": "no LLM configured"}).to_string(),
                 ))
                 .await;
         }
@@ -2853,8 +2934,7 @@ async fn v2_handle_ws(mut socket: ws::WebSocket, state: Arc<AppState>) {
 
     let _ = socket
         .send(ws::Message::Text(
-            json!({"type": "connected", "session_id": sid_str.clone()})
-                .to_string(),
+            json!({"type": "connected", "session_id": sid_str.clone()}).to_string(),
         ))
         .await;
 
@@ -3104,7 +3184,9 @@ pub async fn plugin_events_handler(State(state): State<Arc<AppState>>) -> impl I
 // ── Agent Lifecycle Handlers ────────────────────────
 
 /// GET /v1/agents — 列出所有 Agent
-pub async fn agent_list_handler(State(state): State<Arc<AppState>>) -> Json<Vec<AgentSummaryResponse>> {
+pub async fn agent_list_handler(
+    State(state): State<Arc<AppState>>,
+) -> Json<Vec<AgentSummaryResponse>> {
     let agents = state.runtime.agent_manager.list().await;
     let items: Vec<AgentSummaryResponse> = agents
         .iter()
@@ -3394,7 +3476,6 @@ pub struct AgentSummaryResponse {
     created_at: String,
 }
 
-
 /// Detailed plugin response
 #[derive(Serialize)]
 #[allow(dead_code)]
@@ -3508,7 +3589,7 @@ pub async fn plugin_install_handler(
         entry_point: None,
         permissions: req.permissions.unwrap_or_default(),
         min_api_version: Some("1.0.0".into()),
-    ..Default::default()
+        ..Default::default()
     };
 
     let plugin_id = lingshu_core::LsId::new();
@@ -3723,20 +3804,18 @@ pub async fn market_search_handler(
 
 /// GET /v1/plugins/market/list — 列出市场中所有可用插件
 #[allow(dead_code)]
-pub async fn market_list_handler(
-    State(state): State<Arc<AppState>>,
-) -> Json<serde_json::Value> {
+pub async fn market_list_handler(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     let market = state.plugin_market.read().await;
     let registry = state.plugin_registry.list().await;
     let installed: Vec<String> = registry.iter().map(|p| p.manifest.name.clone()).collect();
-    
+
     let mut plugins: Vec<serde_json::Value> = Vec::new();
-    
+
     // 从 market index 读取已注册的插件信息
     for source in market.sources() {
         let _ = source;
     }
-    
+
     // 返回本地 market 目录中的插件列表
     let market_dir = market.install_dir();
     if market_dir.exists() && market_dir.is_dir() {
@@ -3748,9 +3827,16 @@ pub async fn market_list_handler(
                     if plugin_json.exists() {
                         if let Ok(data) = std::fs::read_to_string(&plugin_json) {
                             if let Ok(manifest) = serde_json::from_str::<serde_json::Value>(&data) {
-                                let name = manifest.get("name").and_then(|v| v.as_str()).unwrap_or("");
-                                let version = manifest.get("version").and_then(|v| v.as_str()).unwrap_or("");
-                                let desc = manifest.get("description").and_then(|v| v.as_str()).unwrap_or("");
+                                let name =
+                                    manifest.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                                let version = manifest
+                                    .get("version")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("");
+                                let desc = manifest
+                                    .get("description")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("");
                                 let is_installed = installed.contains(&name.to_string());
                                 plugins.push(serde_json::json!({
                                     "name": name,
@@ -3766,7 +3852,7 @@ pub async fn market_list_handler(
             }
         }
     }
-    
+
     Json(serde_json::json!({
         "total": plugins.len(),
         "plugins": plugins,
@@ -3779,7 +3865,11 @@ pub async fn market_remove_source_handler(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(source_type): axum::extract::Path<String>,
 ) -> Json<serde_json::Value> {
-    let removed = state.plugin_market.write().await.remove_source(&source_type);
+    let removed = state
+        .plugin_market
+        .write()
+        .await
+        .remove_source(&source_type);
     Json(serde_json::json!({
         "removed": removed,
         "source_type": source_type,
@@ -3838,10 +3928,13 @@ pub async fn market_sources_handler(
 ) -> Json<Vec<MarketSourceItem>> {
     let market = state.plugin_market.read().await;
     let sources = market.sources();
-    let items: Vec<MarketSourceItem> = sources.iter().map(|s| MarketSourceItem {
-        source_type: s.source_type().to_string(),
-        source_url: s.source_url().to_string(),
-    }).collect();
+    let items: Vec<MarketSourceItem> = sources
+        .iter()
+        .map(|s| MarketSourceItem {
+            source_type: s.source_type().to_string(),
+            source_url: s.source_url().to_string(),
+        })
+        .collect();
     Json(items)
 }
 
@@ -3873,7 +3966,6 @@ pub async fn market_refresh_handler() -> Json<serde_json::Value> {
         "message": "Market sources refreshed",
     }))
 }
-
 
 /// POST /v1/plugins/hotreload/start — 启动热重载监控
 async fn hot_reload_start_handler(
@@ -4347,7 +4439,6 @@ async fn multimodal_chat_handler(
 // ── Tests ───────────────────────────────────────────
 
 // ── MCP (Model Context Protocol) ─────────────────────
-
 
 // ── Knowledge Graph API ─────────────────────────────────
 
@@ -4857,7 +4948,10 @@ async fn credential_token_handler(
 ) -> Result<Json<lingshu_credentials::CredentialEntry>, (StatusCode, String)> {
     match state.credential_manager.get_token(&id) {
         Ok(Some(entry)) => Ok(Json(entry)),
-        Ok(None) => Err((StatusCode::NOT_FOUND, "credential not found: :id".to_string())),
+        Ok(None) => Err((
+            StatusCode::NOT_FOUND,
+            "credential not found: :id".to_string(),
+        )),
         Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
     }
 }
@@ -5037,7 +5131,9 @@ pub struct RegressionRequest {
 // ── Federation API ─────────────────────────────────
 
 /// 获取联邦状态.
-pub async fn federation_status_handler(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+pub async fn federation_status_handler(
+    State(state): State<Arc<AppState>>,
+) -> Json<serde_json::Value> {
     let stats = state.runtime.federation.stats().await;
     let nodes = state.runtime.federation.online_nodes().await;
     Json(serde_json::json!({
@@ -5125,8 +5221,6 @@ pub async fn federation_execute_handler(
     Ok(Json(result))
 }
 
-
-
 // ── Audit API Handlers ────────────────────────────
 
 /// GET /v1/audit/logs — 查询审计日志
@@ -5169,8 +5263,12 @@ async fn audit_query_handler(
     }
 
     let query = qb.build();
-    let entries = state.runtime.audit_log.query(&query).await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))))?;
+    let entries = state.runtime.audit_log.query(&query).await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+    })?;
 
     // 查询总匹配数（不带 offset/limit）
     let mut count_qb = lingshu_audit::AuditQueryBuilder::new();
@@ -5194,7 +5292,12 @@ async fn audit_query_handler(
     if let Some(result) = params.get("result") {
         count_qb = count_qb.with_result(result);
     }
-    let total = state.runtime.audit_log.count(&count_qb.build()).await.unwrap_or(entries.len() as u64);
+    let total = state
+        .runtime
+        .audit_log
+        .count(&count_qb.build())
+        .await
+        .unwrap_or(entries.len() as u64);
 
     Ok(Json(json!({
         "entries": entries,
@@ -5202,22 +5305,27 @@ async fn audit_query_handler(
     })))
 }
 
-
-
 // ── Audit Stats ──────────────────────────────────
 
 /// GET /v1/audit/stats — 审计统计（事件类型分布、每日趋势、Top操作者）
 async fn audit_stats_handler(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    let entries = state.runtime.audit_log.query(
-        &lingshu_audit::AuditQueryBuilder::new().build(),
-    ).await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()})))
-    })?;
+    let entries = state
+        .runtime
+        .audit_log
+        .query(&lingshu_audit::AuditQueryBuilder::new().build())
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": e.to_string()})),
+            )
+        })?;
 
     let mut by_type: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
-    let mut by_result: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+    let mut by_result: std::collections::BTreeMap<String, usize> =
+        std::collections::BTreeMap::new();
     let mut by_actor: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
     let mut by_day: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
 
@@ -5271,27 +5379,49 @@ async fn audit_export_handler(
         qb = qb.with_limit(limit);
     }
     let query = qb.build();
-    let entries = state.runtime.audit_log.query(&query).await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))))?;
+    let entries = state.runtime.audit_log.query(&query).await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )
+    })?;
 
     let fmt = params.get("format").map(|s| s.as_str()).unwrap_or("json");
     match fmt {
         "csv" => {
             let mut csv = String::from("id,timestamp,event_type,event_name,actor,resource_type,resource_id,result,detail\n");
             for e in &entries {
-                csv.push_str(&format!("{},{},{},{},{},{},{},{},{}\n",
-                    e.id, e.timestamp.format("%Y-%m-%dT%H:%M:%SZ"),
-                    format_args!("{:?}", e.event_type), esc_csv(&e.event_name),
-                    esc_csv(&e.actor), esc_csv(&e.resource_type),
-                    esc_csv(&e.resource_id), esc_csv(&e.result),
-                    esc_csv(&e.detail)));
+                csv.push_str(&format!(
+                    "{},{},{},{},{},{},{},{},{}\n",
+                    e.id,
+                    e.timestamp.format("%Y-%m-%dT%H:%M:%SZ"),
+                    format_args!("{:?}", e.event_type),
+                    esc_csv(&e.event_name),
+                    esc_csv(&e.actor),
+                    esc_csv(&e.resource_type),
+                    esc_csv(&e.resource_id),
+                    esc_csv(&e.result),
+                    esc_csv(&e.detail)
+                ));
             }
-            Ok((StatusCode::OK, [("content-type", "text/csv; charset=utf-8")], csv))
+            Ok((
+                StatusCode::OK,
+                [("content-type", "text/csv; charset=utf-8")],
+                csv,
+            ))
         }
         _ => {
-            let json_str = serde_json::to_string_pretty(&json!(entries))
-                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))))?;
-            Ok((StatusCode::OK, [("content-type", "application/json; charset=utf-8")], json_str))
+            let json_str = serde_json::to_string_pretty(&json!(entries)).map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": e.to_string()})),
+                )
+            })?;
+            Ok((
+                StatusCode::OK,
+                [("content-type", "application/json; charset=utf-8")],
+                json_str,
+            ))
         }
     }
 }
@@ -5312,14 +5442,25 @@ async fn audit_archive_handler(
     State(state): State<Arc<AppState>>,
     Json(req): Json<serde_json::Value>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    let days = req.get("older_than_days").and_then(|v| v.as_u64()).unwrap_or(30);
+    let days = req
+        .get("older_than_days")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(30);
     let cutoff = chrono::Utc::now() - chrono::Duration::days(days as i64);
 
     let mut qb = lingshu_audit::AuditQueryBuilder::new();
     qb = qb.with_limit(100000);
-    let all = state.runtime.audit_log.query(&qb.build()).await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()})))
-    })?;
+    let all = state
+        .runtime
+        .audit_log
+        .query(&qb.build())
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": e.to_string()})),
+            )
+        })?;
 
     let archived_count = all.iter().filter(|e| e.timestamp < cutoff).count();
 
@@ -5331,7 +5472,6 @@ async fn audit_archive_handler(
     })))
 }
 
-
 // ── Tenant API Handlers (Multi-Tenant) ─────────────
 
 /// GET /v1/tenant/orgs — 列出所有组织
@@ -5340,7 +5480,10 @@ async fn tenant_list_orgs_handler(
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     match state.tenant_manager.list_organizations().await {
         Ok(orgs) => Ok(Json(json!(orgs))),
-        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()})))),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        )),
     }
 }
 
@@ -5349,7 +5492,11 @@ async fn tenant_create_org_handler(
     State(state): State<Arc<AppState>>,
     Json(req): Json<lingshu_tenant::CreateOrganizationRequest>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    match state.tenant_manager.create_organization(&req.name, &req.slug, "system").await {
+    match state
+        .tenant_manager
+        .create_organization(&req.name, &req.slug, "system")
+        .await
+    {
         Ok(org) => Ok(Json(json!(org))),
         Err(e) => Err((StatusCode::CONFLICT, Json(json!({"error": e.to_string()})))),
     }
@@ -5383,9 +5530,16 @@ async fn tenant_create_project_handler(
     axum::extract::Path(org_id): axum::extract::Path<String>,
     Json(req): Json<lingshu_tenant::CreateProjectRequest>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    match state.tenant_manager.create_project(&org_id, &req.name, &req.description.unwrap_or_default()).await {
+    match state
+        .tenant_manager
+        .create_project(&org_id, &req.name, &req.description.unwrap_or_default())
+        .await
+    {
         Ok(project) => Ok(Json(json!(project))),
-        Err(e) => Err((StatusCode::BAD_REQUEST, Json(json!({"error": e.to_string()})))),
+        Err(e) => Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": e.to_string()})),
+        )),
     }
 }
 
@@ -5417,7 +5571,11 @@ async fn tenant_invite_user_handler(
     axum::extract::Path(org_id): axum::extract::Path<String>,
     Json(req): Json<lingshu_tenant::InviteUserRequest>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    match state.tenant_manager.invite_user(&org_id, &req.email, req.role).await {
+    match state
+        .tenant_manager
+        .invite_user(&org_id, &req.email, req.role)
+        .await
+    {
         Ok(user) => Ok(Json(json!(user))),
         Err(e) => Err((StatusCode::CONFLICT, Json(json!({"error": e.to_string()})))),
     }
@@ -5446,9 +5604,7 @@ async fn tenant_remove_user_handler(
 }
 
 /// GET /v1/tenant/stats — 租户统计
-async fn tenant_stats_handler(
-    State(state): State<Arc<AppState>>,
-) -> Json<Value> {
+async fn tenant_stats_handler(State(state): State<Arc<AppState>>) -> Json<Value> {
     let stats = state.tenant_manager.stats().await;
     Json(json!(stats))
 }
@@ -5587,9 +5743,7 @@ mod tests {
             ),
             tenant_manager: std::sync::Arc::new(lingshu_tenant::TenantManager::new()),
             vault_client: std::sync::Arc::new(lingshu_vault::client::MockVaultClient::new()),
-            tee_system: std::sync::Arc::new(
-                lingshu_tee::TeeSystem::initialize().await.unwrap()
-            ),
+            tee_system: std::sync::Arc::new(lingshu_tee::TeeSystem::initialize().await.unwrap()),
         })
     }
 
@@ -6011,9 +6165,7 @@ pub fn format_duration(d: std::time::Duration) -> String {
 // ── Vault API Handlers ─────────────────────────────
 
 /// GET /v1/vault/health — Vault 健康检查
-async fn vault_health_handler(
-    State(state): State<Arc<AppState>>,
-) -> Json<serde_json::Value> {
+async fn vault_health_handler(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     match state.vault_client.health().await {
         Ok(health) => Json(serde_json::json!({
             "success": true,
@@ -6037,7 +6189,8 @@ async fn vault_write_handler(
     Json(payload): Json<serde_json::Value>,
 ) -> Json<serde_json::Value> {
     let path = params.get("path").map(|s| s.as_str()).unwrap_or("default");
-    let data = payload.get("data")
+    let data = payload
+        .get("data")
         .and_then(|v| v.as_object())
         .cloned()
         .unwrap_or_default();
@@ -6111,10 +6264,12 @@ async fn vault_encrypt_handler(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<serde_json::Value>,
 ) -> Json<serde_json::Value> {
-    let key_name = payload.get("key_name")
+    let key_name = payload
+        .get("key_name")
         .and_then(|v| v.as_str())
         .unwrap_or("default");
-    let plaintext = payload.get("plaintext")
+    let plaintext = payload
+        .get("plaintext")
         .and_then(|v| v.as_str())
         .unwrap_or("");
 
@@ -6138,10 +6293,12 @@ async fn vault_decrypt_handler(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<serde_json::Value>,
 ) -> Json<serde_json::Value> {
-    let key_name = payload.get("key_name")
+    let key_name = payload
+        .get("key_name")
         .and_then(|v| v.as_str())
         .unwrap_or("default");
-    let ciphertext = payload.get("ciphertext")
+    let ciphertext = payload
+        .get("ciphertext")
         .and_then(|v| v.as_str())
         .unwrap_or("");
 
@@ -6191,7 +6348,10 @@ async fn vault_renew_lease_handler(
     Path(lease_id): Path<String>,
     Json(payload): Json<serde_json::Value>,
 ) -> Json<serde_json::Value> {
-    let increment = payload.get("increment").and_then(|v| v.as_u64()).unwrap_or(3600);
+    let increment = payload
+        .get("increment")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(3600);
     match state.vault_client.renew_lease(&lease_id, increment).await {
         Ok(()) => Json(serde_json::json!({ "success": true })),
         Err(e) => Json(serde_json::json!({
@@ -6218,9 +6378,7 @@ async fn vault_revoke_lease_handler(
 // ── TEE API Handlers ───────────────────────────────
 
 /// GET /v1/tee/health — TEE 健康状态
-async fn tee_health_handler(
-    State(state): State<Arc<AppState>>,
-) -> Json<serde_json::Value> {
+async fn tee_health_handler(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     let tee = &state.tee_system;
     let platform = &tee.platform;
 
@@ -6241,7 +6399,8 @@ async fn tee_attest_handler(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<serde_json::Value>,
 ) -> Json<serde_json::Value> {
-    let nonce = payload.get("nonce")
+    let nonce = payload
+        .get("nonce")
         .and_then(|v| v.as_str())
         .unwrap_or("default-nonce");
 
@@ -6334,10 +6493,13 @@ async fn tee_encrypted_memory_list_handler(
 }
 
 /// GET /v1/tee/policy — 获取 TEE 策略配置
-async fn tee_policy_get_handler(
-    State(state): State<Arc<AppState>>,
-) -> Json<serde_json::Value> {
-    let config = state.tee_system.policy_engine.read().unwrap().policy_config();
+async fn tee_policy_get_handler(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    let config = state
+        .tee_system
+        .policy_engine
+        .read()
+        .unwrap()
+        .policy_config();
     Json(serde_json::json!({
         "success": true,
         "enforce": config.enforce,
@@ -6349,8 +6511,23 @@ async fn tee_policy_update_handler(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<serde_json::Value>,
 ) -> Json<serde_json::Value> {
-    let enforce = payload.get("enforce").and_then(|v| v.as_bool()).unwrap_or(false);
-    state.tee_system.policy_engine.write().unwrap().set_enforce(enforce);
-    let config = state.tee_system.policy_engine.read().unwrap().policy_config();
-    Json(serde_json::json!({"success": true, "enforce": config.enforce, "required_operations": config.required_operations}))
+    let enforce = payload
+        .get("enforce")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    state
+        .tee_system
+        .policy_engine
+        .write()
+        .unwrap()
+        .set_enforce(enforce);
+    let config = state
+        .tee_system
+        .policy_engine
+        .read()
+        .unwrap()
+        .policy_config();
+    Json(
+        serde_json::json!({"success": true, "enforce": config.enforce, "required_operations": config.required_operations}),
+    )
 }

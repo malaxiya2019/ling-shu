@@ -124,7 +124,7 @@ impl OAuth2Manager {
         Self {
             config,
             #[allow(dead_code)]
-    provider_metadata: None,
+            provider_metadata: None,
         }
     }
 
@@ -169,12 +169,8 @@ impl OAuth2Manager {
         }
 
         let token_url = match self.config.provider {
-            OAuth2Provider::Google => {
-                "https://oauth2.googleapis.com/token"
-            }
-            OAuth2Provider::GitHub => {
-                "https://github.com/login/oauth/access_token"
-            }
+            OAuth2Provider::Google => "https://oauth2.googleapis.com/token",
+            OAuth2Provider::GitHub => "https://github.com/login/oauth/access_token",
             OAuth2Provider::Microsoft => {
                 "https://login.microsoftonline.com/common/oauth2/v2.0/token"
             }
@@ -222,7 +218,9 @@ impl OAuth2Manager {
     fn decode_id_token(&self, token: &str) -> LsResult<OidcUserInfo> {
         let parts: Vec<&str> = token.split('.').collect();
         if parts.len() < 2 {
-            return Err(LsError::AuthenticationFailed("invalid id_token format".into()));
+            return Err(LsError::AuthenticationFailed(
+                "invalid id_token format".into(),
+            ));
         }
 
         // Decode payload (base64)
@@ -240,11 +238,23 @@ impl OAuth2Manager {
             .ok_or_else(|| LsError::AuthenticationFailed("missing sub claim".into()))?
             .to_string();
 
-        let email = claims.get("email").and_then(|v| v.as_str()).map(String::from);
+        let email = claims
+            .get("email")
+            .and_then(|v| v.as_str())
+            .map(String::from);
         let email_verified = claims.get("email_verified").and_then(|v| v.as_bool());
-        let name = claims.get("name").and_then(|v| v.as_str()).map(String::from);
-        let picture = claims.get("picture").and_then(|v| v.as_str()).map(String::from);
-        let locale = claims.get("locale").and_then(|v| v.as_str()).map(String::from);
+        let name = claims
+            .get("name")
+            .and_then(|v| v.as_str())
+            .map(String::from);
+        let picture = claims
+            .get("picture")
+            .and_then(|v| v.as_str())
+            .map(String::from);
+        let locale = claims
+            .get("locale")
+            .and_then(|v| v.as_str())
+            .map(String::from);
 
         Ok(OidcUserInfo {
             sub,
@@ -279,7 +289,10 @@ mod tests {
     fn test_provider_from_str() {
         assert_eq!(OAuth2Provider::from_str("google"), OAuth2Provider::Google);
         assert_eq!(OAuth2Provider::from_str("GITHUB"), OAuth2Provider::GitHub);
-        assert_eq!(OAuth2Provider::from_str("Microsoft"), OAuth2Provider::Microsoft);
+        assert_eq!(
+            OAuth2Provider::from_str("Microsoft"),
+            OAuth2Provider::Microsoft
+        );
         match OAuth2Provider::from_str("custom-oidc") {
             OAuth2Provider::Custom(s) => assert_eq!(s, "custom-oidc"),
             _ => panic!("expected custom"),

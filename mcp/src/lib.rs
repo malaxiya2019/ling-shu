@@ -49,20 +49,20 @@
 //! }
 //! ```
 
-pub mod credential_tools;
-pub mod discovery;
 #[cfg(feature = "agent-runtime")]
 pub mod agent_tools;
+pub mod credential_tools;
+pub mod discovery;
 pub mod server;
-pub mod tool;
-pub mod types;
 #[cfg(feature = "rmcp")]
 pub mod server_launcher;
+pub mod tool;
+pub mod types;
 
 #[cfg(feature = "rmcp")]
-pub mod rmcp_server;
-#[cfg(feature = "rmcp")]
 pub mod rmcp_client;
+#[cfg(feature = "rmcp")]
+pub mod rmcp_server;
 /// Stdio MCP 客户端 — 通过子进程 stdin/stdout 连接外部 MCP 服务器.
 ///
 /// 主要用于连接使用 stdio 传输层的 MCP 服务器（如 agent-device mcp）。

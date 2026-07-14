@@ -32,15 +32,15 @@ pub mod traced_llm;
 pub use traced_llm::TracedLlm;
 pub mod workflow;
 
-pub mod embedding_openai;
 #[cfg(feature = "fastembed")]
 pub mod embedding_fastembed;
+pub mod embedding_openai;
 pub mod knowledge_mem;
-#[cfg(feature = "llmkit")]
-pub mod llm_llmkit;
 #[cfg(feature = "anthropic")]
 pub mod llm_anthropic;
 pub mod llm_factory;
+#[cfg(feature = "llmkit")]
+pub mod llm_llmkit;
 #[cfg(any(feature = "openai", feature = "groq"))]
 pub mod llm_openai;
 pub mod llm_retry;
@@ -57,19 +57,19 @@ pub mod vector_store_qdrant;
 pub mod vector_store_sqlite;
 
 pub use agent_default::{AgentConfig, DefaultAgent};
-#[cfg(feature = "openai")]
-pub use embedding_openai::OpenAiEmbedding;
 #[cfg(feature = "fastembed")]
 pub use embedding_fastembed::FastEmbedBackend;
+#[cfg(feature = "openai")]
+pub use embedding_openai::OpenAiEmbedding;
 pub use knowledge_mem::InMemoryKnowledge;
 #[cfg(feature = "anthropic")]
 pub use llm_anthropic::AnthropicLlm;
 pub use llm_factory::build_llm;
+#[cfg(feature = "llmkit")]
+pub use llm_llmkit::LlmkitLlm;
 #[cfg(any(feature = "openai", feature = "groq"))]
 pub use llm_openai::OpenAiLlm;
 pub use llm_retry::{with_retry, RetryLlm};
-#[cfg(feature = "llmkit")]
-pub use llm_llmkit::LlmkitLlm;
 #[cfg(feature = "vector-store-sqlite")]
 pub use memory_sqlite::MemorySQLite;
 #[cfg(feature = "mock")]

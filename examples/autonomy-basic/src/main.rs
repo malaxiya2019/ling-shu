@@ -3,9 +3,8 @@
 //! 演示：创建引擎 → 存储经验 → 反思分析 → 进化调整 → 获取报告
 
 use lingshu_autonomy::{
-    AutonomyEngine, EvolutionConfig, ReflectionConfig,
-    ExperienceEntry, ExperienceType, ExperienceOutcome, ExperienceSeverity,
-    AgentParameters,
+    AgentParameters, AutonomyEngine, EvolutionConfig, ExperienceEntry, ExperienceOutcome,
+    ExperienceSeverity, ExperienceType, ReflectionConfig,
 };
 use std::time::Duration;
 
@@ -52,7 +51,10 @@ async fn main() {
         updated_at: chrono::Utc::now().timestamp(),
     };
 
-    engine.evolution_engine.register_agent("agent-alpha", params).await;
+    engine
+        .evolution_engine
+        .register_agent("agent-alpha", params)
+        .await;
     println!("✅ Agent 注册完成 (agent-alpha)");
 
     // 3. 存储成功经验
@@ -127,9 +129,7 @@ async fn main() {
     for outcome in &outcomes {
         println!(
             "   ⚡ 成功={} | 效果评分={:.2} | {}",
-            outcome.success,
-            outcome.effect_score,
-            outcome.observation,
+            outcome.success, outcome.effect_score, outcome.observation,
         );
     }
 
@@ -141,7 +141,10 @@ async fn main() {
         println!("   max_tokens = {}", params.max_tokens);
         println!("   timeout_secs = {}", params.timeout_secs);
         println!("   max_retries = {}", params.max_retries);
-        println!("   collaboration_strategy = {}", params.collaboration_strategy);
+        println!(
+            "   collaboration_strategy = {}",
+            params.collaboration_strategy
+        );
         println!("   default_priority = {}", params.default_priority);
         println!("   version = {}", params.version);
     }

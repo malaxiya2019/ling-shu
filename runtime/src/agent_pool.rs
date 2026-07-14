@@ -12,8 +12,8 @@ use std::time::Instant;
 
 use async_trait::async_trait;
 use lingshu_core::{LsContext, LsError, LsId, LsResult};
-use serde::{Deserialize, Serialize};
 use lingshu_traits::agent::{Agent, AgentStatus};
+use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, RwLock};
 use tracing::{debug, info, warn};
 
@@ -192,7 +192,8 @@ impl AgentPool {
         }
 
         // 3. 创建新的 Agent
-        self.total.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.total
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let name = "default".to_string();
         let agent = self.factory.create(&name, ctx).await?;
         let agent_id = agent.id();
@@ -241,7 +242,8 @@ impl AgentPool {
             }
         }
 
-        self.total.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.total
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let agent = self.factory.create(name, ctx).await?;
         let agent_id = agent.id();
         self.borrowed.write().await.insert(agent_id, Instant::now());
@@ -263,7 +265,8 @@ impl AgentPool {
         match status {
             Ok(AgentStatus::Failed) | Ok(AgentStatus::Completed) => {
                 debug!(agent_id = %agent_id, "agent not reusable, dropping");
-                self.total.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+                self.total
+                    .fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
                 return;
             }
             _ => {}
@@ -274,7 +277,8 @@ impl AgentPool {
         if idle.len() >= self.config.max_total / 2 {
             // 空闲队列已满，丢弃多余的
             debug!(agent_id = %agent_id, "idle pool full, dropping agent");
-            self.total.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+            self.total
+                .fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
             return;
         }
 
@@ -297,7 +301,8 @@ impl AgentPool {
 
         for id in expired_ids {
             self.borrowed.write().await.remove(&id);
-            self.total.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+            self.total
+                .fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
             warn!(agent_id = %id, "reclaimed expired borrowed agent");
         }
     }
@@ -310,7 +315,8 @@ impl AgentPool {
         let before = idle.len();
         idle.retain(|e| now.duration_since(e.last_used) < max_idle);
         let removed = before - idle.len();
-        self.total.fetch_sub(removed as usize, std::sync::atomic::Ordering::Relaxed);
+        self.total
+            .fetch_sub(removed as usize, std::sync::atomic::Ordering::Relaxed);
 
         // 确保达到 min_idle
         let shortfall = self.config.min_idle.saturating_sub(idle.len());
@@ -377,8 +383,14 @@ mod tests {
 
     #[async_trait]
     impl Agent for DummyAgent {
-        fn id(&self) -> LsId { self.id }
-        async fn run(&mut self, _ctx: LsContext, _input: serde_json::Value) -> LsResult<AgentOutput> {
+        fn id(&self) -> LsId {
+            self.id
+        }
+        async fn run(
+            &mut self,
+            _ctx: LsContext,
+            _input: serde_json::Value,
+        ) -> LsResult<AgentOutput> {
             Ok(AgentOutput {
                 agent_id: self.id,
                 status: AgentStatus::Completed,
@@ -386,9 +398,15 @@ mod tests {
                 error: None,
             })
         }
-        async fn pause(&mut self, _ctx: LsContext) -> LsResult<()> { Ok(()) }
-        async fn resume(&mut self, _ctx: LsContext) -> LsResult<()> { Ok(()) }
-        async fn cancel(&mut self, _ctx: LsContext) -> LsResult<()> { Ok(()) }
+        async fn pause(&mut self, _ctx: LsContext) -> LsResult<()> {
+            Ok(())
+        }
+        async fn resume(&mut self, _ctx: LsContext) -> LsResult<()> {
+            Ok(())
+        }
+        async fn cancel(&mut self, _ctx: LsContext) -> LsResult<()> {
+            Ok(())
+        }
         async fn snapshot(&self, _ctx: LsContext) -> LsResult<AgentSnapshot> {
             Ok(AgentSnapshot {
                 agent_id: self.id,
@@ -398,8 +416,12 @@ mod tests {
                 created_at: chrono::Utc::now(),
             })
         }
-        async fn restore(&mut self, _ctx: LsContext, _snap: AgentSnapshot) -> LsResult<()> { Ok(()) }
-        async fn status(&self, _ctx: LsContext) -> LsResult<AgentStatus> { Ok(AgentStatus::Idle) }
+        async fn restore(&mut self, _ctx: LsContext, _snap: AgentSnapshot) -> LsResult<()> {
+            Ok(())
+        }
+        async fn status(&self, _ctx: LsContext) -> LsResult<AgentStatus> {
+            Ok(AgentStatus::Idle)
+        }
     }
 
     struct TestFactory;

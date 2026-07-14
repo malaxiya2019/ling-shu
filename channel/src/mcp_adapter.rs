@@ -4,11 +4,11 @@
 //! 该服务器实际对接 WhatsApp/WeChat/Telegram 等平台。
 //! 对应 OpenClaw 的 Gateway 架构。
 
+use crate::traits::MessageChannel;
+use crate::types::*;
+use crate::{LsError, LsResult};
 use async_trait::async_trait;
 use std::sync::Arc;
-use crate::types::*;
-use crate::traits::MessageChannel;
-use crate::{LsError, LsResult};
 
 /// MCP 通道适配器 — 将 MCP 服务器的 tools 暴露为 MessageChannel.
 ///
@@ -130,7 +130,9 @@ impl MessageChannel for McpChannelAdapter {
     }
 
     async fn health_check(&self) -> LsResult<HealthStatus> {
-        let result = self.call_tool("channel_health", serde_json::json!({})).await?;
+        let result = self
+            .call_tool("channel_health", serde_json::json!({}))
+            .await?;
         serde_json::from_value(result)
             .map_err(|e| LsError::Plugin(format!("Health status parse failed: {e}")))
     }

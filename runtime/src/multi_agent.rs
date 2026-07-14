@@ -196,7 +196,12 @@ impl DefaultPlanner {
     }
 
     /// 使用 LLM 分解任务
-    pub async fn plan(&self, ctx: &LsContext, goal: &str, context: &Value) -> LsResult<Vec<SubTask>> {
+    pub async fn plan(
+        &self,
+        ctx: &LsContext,
+        goal: &str,
+        context: &Value,
+    ) -> LsResult<Vec<SubTask>> {
         let llm = match &self.llm {
             Some(l) => l,
             None => {
@@ -263,13 +268,26 @@ impl DefaultPlanner {
             .into_iter()
             .map(|t| SubTask {
                 id: uuid::Uuid::new_v4().to_string(),
-                name: t.get("name").and_then(|v| v.as_str()).unwrap_or("task").to_string(),
-                description: t.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                name: t
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("task")
+                    .to_string(),
+                description: t
+                    .get("description")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
                 input: t.get("input").cloned().unwrap_or(context.clone()),
                 assigned_role: Some(AgentRole::Executor),
-                depends_on: t.get("depends_on")
+                depends_on: t
+                    .get("depends_on")
                     .and_then(|v| v.as_array())
-                    .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect()
+                    })
                     .unwrap_or_default(),
                 result: None,
             })
@@ -337,7 +355,11 @@ impl MultiAgentOrchestrator {
     }
 
     /// 执行多 Agent 协作
-    pub async fn execute(&self, ctx: &LsContext, request: MultiAgentRequest) -> LsResult<MultiAgentResult> {
+    pub async fn execute(
+        &self,
+        ctx: &LsContext,
+        request: MultiAgentRequest,
+    ) -> LsResult<MultiAgentResult> {
         let start = std::time::Instant::now();
         let workflow_id = uuid::Uuid::new_v4().to_string();
 
@@ -348,7 +370,10 @@ impl MultiAgentOrchestrator {
         );
 
         // 1. Plan: 分解任务
-        let sub_tasks = self.planner.plan(ctx, &request.goal, &request.context).await?;
+        let sub_tasks = self
+            .planner
+            .plan(ctx, &request.goal, &request.context)
+            .await?;
         debug!("multi_agent: planned {} sub-tasks", sub_tasks.len());
 
         // 2. Execute + Review + Critic 循环
@@ -358,7 +383,10 @@ impl MultiAgentOrchestrator {
 
         while iteration < request.max_iterations && !all_approved {
             iteration += 1;
-            debug!("multi_agent: iteration {}/{}", iteration, request.max_iterations);
+            debug!(
+                "multi_agent: iteration {}/{}",
+                iteration, request.max_iterations
+            );
 
             let mut iteration_tasks = sub_tasks.clone();
             let mut iteration_all_approved = true;
@@ -366,13 +394,17 @@ impl MultiAgentOrchestrator {
             for task in &mut iteration_tasks {
                 // 查找 Agent
                 let role = task.assigned_role.unwrap_or(AgentRole::Executor);
-                let agent = self.find_agent(role)
+                let agent = self
+                    .find_agent(role)
                     .or_else(|| self.find_agent(AgentRole::Executor));
 
                 let agent = match agent {
                     Some(a) => a,
                     None => {
-                        warn!("multi_agent: no agent for role={}, task={}", role, task.name);
+                        warn!(
+                            "multi_agent: no agent for role={}, task={}",
+                            role, task.name
+                        );
                         continue;
                     }
                 };
@@ -396,7 +428,8 @@ impl MultiAgentOrchestrator {
                                         if let Some(ref mut r) = task.result {
                                             r.review = Some(review_output.to_string());
                                             // 简单审查：如果输出包含 "FAIL" 则标记未通过
-                                            r.approved = !review_output.to_string().contains("FAIL");
+                                            r.approved =
+                                                !review_output.to_string().contains("FAIL");
                                         }
                                     }
                                     Err(e) => {
@@ -467,7 +500,11 @@ impl MultiAgentOrchestrator {
             success: all_approved,
             duration_ms,
             iterations: iteration,
-            error: if all_approved { None } else { Some("Max iterations reached without full approval".to_string()) },
+            error: if all_approved {
+                None
+            } else {
+                Some("Max iterations reached without full approval".to_string())
+            },
         })
     }
 }
@@ -537,7 +574,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_mock_agent() {
-        let agent = MockAgent::new("test", AgentRole::Executor, serde_json::json!({"result": "ok"}));
+        let agent = MockAgent::new(
+            "test",
+            AgentRole::Executor,
+            serde_json::json!({"result": "ok"}),
+        );
         assert_eq!(agent.name(), "test");
         assert_eq!(agent.role(), AgentRole::Executor);
 
@@ -559,7 +600,10 @@ mod tests {
     async fn test_default_planner_no_llm() {
         let planner = DefaultPlanner::new("planner", None);
         let ctx = LsContext::with_session(lingshu_core::LsId::new());
-        let tasks = planner.plan(&ctx, "do something", &Value::Null).await.unwrap();
+        let tasks = planner
+            .plan(&ctx, "do something", &Value::Null)
+            .await
+            .unwrap();
         assert_eq!(tasks.len(), 1);
         assert_eq!(tasks[0].name, "execute");
     }
@@ -568,12 +612,16 @@ mod tests {
     async fn test_orchestrator_with_mock_agents() {
         let planner = DefaultPlanner::new("planner", None);
         let mut orchestrator = MultiAgentOrchestrator::new(planner);
-        orchestrator = orchestrator.register_agent(Arc::new(
-            MockAgent::new("executor", AgentRole::Executor, serde_json::json!({"done": true}))
-        ));
-        orchestrator = orchestrator.register_agent(Arc::new(
-            MockAgent::new("reviewer", AgentRole::Reviewer, serde_json::json!("approved"))
-        ));
+        orchestrator = orchestrator.register_agent(Arc::new(MockAgent::new(
+            "executor",
+            AgentRole::Executor,
+            serde_json::json!({"done": true}),
+        )));
+        orchestrator = orchestrator.register_agent(Arc::new(MockAgent::new(
+            "reviewer",
+            AgentRole::Reviewer,
+            serde_json::json!("approved"),
+        )));
 
         let ctx = LsContext::with_session(lingshu_core::LsId::new());
         let request = MultiAgentRequest {
@@ -595,12 +643,16 @@ mod tests {
         let planner = DefaultPlanner::new("planner", None);
         let mut orchestrator = MultiAgentOrchestrator::new(planner);
         // Reviewer always marks as FAIL, so it will iterate
-        orchestrator = orchestrator.register_agent(Arc::new(
-            MockAgent::new("executor", AgentRole::Executor, serde_json::json!({"done": true}))
-        ));
-        orchestrator = orchestrator.register_agent(Arc::new(
-            MockAgent::new("reviewer", AgentRole::Reviewer, serde_json::json!("FAIL: needs improvement"))
-        ));
+        orchestrator = orchestrator.register_agent(Arc::new(MockAgent::new(
+            "executor",
+            AgentRole::Executor,
+            serde_json::json!({"done": true}),
+        )));
+        orchestrator = orchestrator.register_agent(Arc::new(MockAgent::new(
+            "reviewer",
+            AgentRole::Reviewer,
+            serde_json::json!("FAIL: needs improvement"),
+        )));
         orchestrator = orchestrator.with_max_iterations(2);
 
         let ctx = LsContext::with_session(lingshu_core::LsId::new());

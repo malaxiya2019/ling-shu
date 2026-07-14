@@ -33,7 +33,9 @@ pub struct TlsConfig {
 impl Default for TlsConfig {
     fn default() -> Self {
         Self {
-            enabled: std::env::var("LS_FED_TLS_ENABLED").ok().map_or(false, |v| v == "true"),
+            enabled: std::env::var("LS_FED_TLS_ENABLED")
+                .ok()
+                .map_or(false, |v| v == "true"),
             cert_path: std::env::var("LS_FED_TLS_CERT").ok(),
             key_path: std::env::var("LS_FED_TLS_KEY").ok(),
             ca_path: std::env::var("LS_FED_TLS_CA").ok(),
@@ -94,16 +96,22 @@ impl TlsServer {
     pub async fn accept(&self) -> LsResult<(Box<dyn IoStream>, std::net::SocketAddr)> {
         match self {
             TlsServer::Plain(listener) => {
-                let (stream, addr) = listener.accept().await
+                let (stream, addr) = listener
+                    .accept()
+                    .await
                     .map_err(|e| lingshu_core::LsError::Internal(format!("accept: {e}")))?;
                 Ok((Box::new(stream), addr))
             }
             #[cfg(feature = "tls")]
             TlsServer::Tls(listener, config) => {
-                let (stream, addr) = listener.accept().await
+                let (stream, addr) = listener
+                    .accept()
+                    .await
                     .map_err(|e| lingshu_core::LsError::Internal(format!("accept: {e}")))?;
                 let acceptor = tokio_rustls::TlsAcceptor::from(config.clone());
-                let tls_stream = acceptor.accept(stream).await
+                let tls_stream = acceptor
+                    .accept(stream)
+                    .await
                     .map_err(|e| lingshu_core::LsError::Internal(format!("tls handshake: {e}")))?;
                 Ok((Box::new(tls_stream), addr))
             }
@@ -142,20 +150,25 @@ impl TlsConnector {
     pub async fn connect(&self, addr: &str) -> LsResult<Box<dyn IoStream>> {
         match self {
             TlsConnector::Plain => {
-                let stream = TcpStream::connect(addr).await
+                let stream = TcpStream::connect(addr)
+                    .await
                     .map_err(|e| lingshu_core::LsError::Internal(format!("connect {addr}: {e}")))?;
                 Ok(Box::new(stream))
             }
             #[cfg(feature = "tls")]
             TlsConnector::Tls(config) => {
-                let stream = TcpStream::connect(addr).await
+                let stream = TcpStream::connect(addr)
+                    .await
                     .map_err(|e| lingshu_core::LsError::Internal(format!("connect {addr}: {e}")))?;
                 let connector = tokio_rustls::TlsConnector::from(config.clone());
                 // Use DNS name from the address
                 let dns_name = rustls::pki_types::ServerName::try_from(
-                    addr.split(':').next().unwrap_or("localhost")
-                ).map_err(|_| lingshu_core::LsError::Internal("invalid DNS name".into()))?;
-                let tls_stream = connector.connect(dns_name, stream).await
+                    addr.split(':').next().unwrap_or("localhost"),
+                )
+                .map_err(|_| lingshu_core::LsError::Internal("invalid DNS name".into()))?;
+                let tls_stream = connector
+                    .connect(dns_name, stream)
+                    .await
                     .map_err(|e| lingshu_core::LsError::Internal(format!("tls connect: {e}")))?;
                 Ok(Box::new(tls_stream))
             }
@@ -194,12 +207,12 @@ fn load_private_key(path: &str) -> LsResult<rustls::pki_types::PrivateKeyDer<'st
 
 #[cfg(feature = "tls")]
 fn build_server_config(config: &TlsConfig) -> LsResult<Arc<rustls::ServerConfig>> {
-    let certs = load_certs(config.cert_path.as_ref().ok_or_else(
-        || lingshu_core::LsError::Internal("cert_path required for TLS server".into())
-    )?)?;
-    let key = load_private_key(config.key_path.as_ref().ok_or_else(
-        || lingshu_core::LsError::Internal("key_path required for TLS server".into())
-    )?)?;
+    let certs = load_certs(config.cert_path.as_ref().ok_or_else(|| {
+        lingshu_core::LsError::Internal("cert_path required for TLS server".into())
+    })?)?;
+    let key = load_private_key(config.key_path.as_ref().ok_or_else(|| {
+        lingshu_core::LsError::Internal("key_path required for TLS server".into())
+    })?)?;
 
     let mut server_config = rustls::ServerConfig::builder()
         .with_no_client_auth()
@@ -221,12 +234,12 @@ fn build_client_config(config: &TlsConfig) -> LsResult<Arc<rustls::ClientConfig>
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| lingshu_core::LsError::Internal(format!("parse CA {ca_path}: {e}")))?;
         for cert in certs {
-            root_store.add(cert)
+            root_store
+                .add(cert)
                 .map_err(|e| lingshu_core::LsError::Internal(format!("add CA cert: {e}")))?;
         }
     } else {
         // Use Mozilla's default root store
-        
     }
 
     let client_config = rustls::ClientConfig::builder()

@@ -57,27 +57,32 @@ pub fn audit_dashboard() -> Html {
         let refresh = refresh.clone();
         use_effect_with(refresh.clone(), move |_| {
             wasm_bindgen_futures::spawn_local(async move {
-                let mut s = AuditState { loading: true, ..Default::default() };
+                let mut s = AuditState {
+                    loading: true,
+                    ..Default::default()
+                };
 
                 // 构建查询参数
                 let _actor_clone = state.filter_actor.clone();
                 let params = [("limit", "200")];
 
-                let url = format!("/v1/audit/logs?{}", params.iter()
-                    .map(|(k, v)| format!("{k}={v}"))
-                    .collect::<Vec<_>>()
-                    .join("&"));
+                let url = format!(
+                    "/v1/audit/logs?{}",
+                    params
+                        .iter()
+                        .map(|(k, v)| format!("{k}={v}"))
+                        .collect::<Vec<_>>()
+                        .join("&")
+                );
 
                 match Request::get(&url).send().await {
-                    Ok(resp) => {
-                        match resp.json::<AuditResponse>().await {
-                            Ok(data) => {
-                                s.entries = data.entries;
-                                s.total = data.total;
-                            }
-                            Err(e) => s.error = format!("parse error: {e}"),
+                    Ok(resp) => match resp.json::<AuditResponse>().await {
+                        Ok(data) => {
+                            s.entries = data.entries;
+                            s.total = data.total;
                         }
-                    }
+                        Err(e) => s.error = format!("parse error: {e}"),
+                    },
                     Err(e) => s.error = format!("fetch error: {e}"),
                 }
                 s.loading = false;
@@ -88,8 +93,15 @@ pub fn audit_dashboard() -> Html {
     }
 
     let _event_types = vec![
-        "", "user_login", "user_logout", "api_call", "agent_execution",
-        "admin_action", "config_change", "permission_change", "system",
+        "",
+        "user_login",
+        "user_logout",
+        "api_call",
+        "agent_execution",
+        "admin_action",
+        "config_change",
+        "permission_change",
+        "system",
     ];
     let _result_types = ["", "success", "failure"];
 

@@ -101,9 +101,20 @@ pub trait LongTermStore: Send + Sync {
     /// 批量存储记忆条目
     async fn store_batch(&self, ctx: &LsContext, items: Vec<MemoryItem>) -> LsResult<usize>;
     /// 检索长期记忆
-    async fn retrieve(&self, ctx: &LsContext, session_id: &str, limit: usize) -> LsResult<Vec<MemoryItem>>;
+    async fn retrieve(
+        &self,
+        ctx: &LsContext,
+        session_id: &str,
+        limit: usize,
+    ) -> LsResult<Vec<MemoryItem>>;
     /// 搜索长期记忆
-    async fn search(&self, ctx: &LsContext, session_id: &str, query: &str, limit: usize) -> LsResult<Vec<MemoryItem>>;
+    async fn search(
+        &self,
+        ctx: &LsContext,
+        session_id: &str,
+        query: &str,
+        limit: usize,
+    ) -> LsResult<Vec<MemoryItem>>;
     /// 清除会话的长期记忆
     async fn clear_session(&self, ctx: &LsContext, session_id: &str) -> LsResult<usize>;
 }
@@ -144,9 +155,7 @@ impl MemoryConsolidator {
 
         match self.policy.trigger {
             ConsolidationTrigger::Size(size) => buffer_len >= size,
-            ConsolidationTrigger::Interval(secs) => {
-                elapsed.num_seconds() >= secs as i64
-            }
+            ConsolidationTrigger::Interval(secs) => elapsed.num_seconds() >= secs as i64,
             ConsolidationTrigger::Both(size, secs) => {
                 buffer_len >= size || elapsed.num_seconds() >= secs as i64
             }
@@ -175,9 +184,8 @@ impl MemoryConsolidator {
         let age_threshold = Duration::seconds(self.policy.max_age_seconds);
 
         // 筛选需要合并的条目（超过最大年龄 + 达到重要性阈值）
-        let (to_consolidate, skipped): (Vec<&MemoryItem>, Vec<&MemoryItem>) = buffer_items
-            .iter()
-            .partition(|item| {
+        let (to_consolidate, skipped): (Vec<&MemoryItem>, Vec<&MemoryItem>) =
+            buffer_items.iter().partition(|item| {
                 let age = now - item.timestamp;
                 let importance = importance_from_metadata(&item.metadata);
                 age >= age_threshold && importance >= self.policy.min_importance
@@ -284,12 +292,23 @@ mod tests {
             Ok(count)
         }
 
-        async fn retrieve(&self, _ctx: &LsContext, _session_id: &str, _limit: usize) -> LsResult<Vec<MemoryItem>> {
+        async fn retrieve(
+            &self,
+            _ctx: &LsContext,
+            _session_id: &str,
+            _limit: usize,
+        ) -> LsResult<Vec<MemoryItem>> {
             let stored = self.stored.lock().await;
             Ok(stored.clone())
         }
 
-        async fn search(&self, _ctx: &LsContext, _session_id: &str, _query: &str, _limit: usize) -> LsResult<Vec<MemoryItem>> {
+        async fn search(
+            &self,
+            _ctx: &LsContext,
+            _session_id: &str,
+            _query: &str,
+            _limit: usize,
+        ) -> LsResult<Vec<MemoryItem>> {
             let stored = self.stored.lock().await;
             Ok(stored.clone())
         }
@@ -321,7 +340,8 @@ mod tests {
         let consolidator = MemoryConsolidator::new(ConsolidationPolicy {
             trigger: ConsolidationTrigger::Size(50),
             ..Default::default()
-        }).with_store(store);
+        })
+        .with_store(store);
 
         assert!(!consolidator.should_consolidate(10).await);
         assert!(!consolidator.should_consolidate(49).await);
@@ -346,7 +366,8 @@ mod tests {
         let consolidator = MemoryConsolidator::new(ConsolidationPolicy {
             max_age_seconds: 0, // 所有条目都超过 0 秒
             ..Default::default()
-        }).with_store(store.clone());
+        })
+        .with_store(store.clone());
 
         let ctx = LsContext::with_session(lingshu_core::LsId::new());
 

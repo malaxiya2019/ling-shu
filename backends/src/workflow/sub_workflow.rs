@@ -3,14 +3,11 @@
 //! 支持在工作流中嵌套执行另一个工作流。
 //! 子工作流可以引用已注册的工作流，也可以动态创建。
 
-
 use lingshu_core::{LsContext, LsId, LsResult};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
 use tracing::info;
-
-
 
 /// 子工作流执行策略
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -21,8 +18,6 @@ pub enum SubWorkflowStrategy {
     /// 异步触发，不等待结果
     Async,
 }
-
-
 
 /// 子工作流配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,7 +66,10 @@ impl SubWorkflowExecutor {
         }
     }
 
-    pub fn with_registry(mut self, registry: Arc<tokio::sync::RwLock<super::registry::WorkflowRegistry>>) -> Self {
+    pub fn with_registry(
+        mut self,
+        registry: Arc<tokio::sync::RwLock<super::registry::WorkflowRegistry>>,
+    ) -> Self {
         self.workflow_registry = Some(registry);
         self
     }
@@ -117,9 +115,7 @@ impl SubWorkflowExecutor {
         let dag = if let Some(ref registry) = self.workflow_registry {
             let reg = registry.read().await;
             match reg.get(&config.workflow_name).await {
-                Some(dag) => {
-                    Some(dag)
-                }
+                Some(dag) => Some(dag),
                 None => {
                     return Err(lingshu_core::LsError::Internal(format!(
                         "sub_workflow: workflow '{}' not found in registry",
@@ -136,10 +132,7 @@ impl SubWorkflowExecutor {
         let dag = dag.unwrap();
         let workflow_input = config.input_mapping.clone().unwrap_or(input);
 
-        info!(
-            "sub_workflow: executing '{}' (sync)",
-            config.workflow_name
-        );
+        info!("sub_workflow: executing '{}' (sync)", config.workflow_name);
 
         // 执行子工作流
         let result = dag.execute(ctx, workflow_input).await?;
@@ -150,7 +143,11 @@ impl SubWorkflowExecutor {
             sub_workflow_id: result.workflow_id,
             success: result.success,
             output: result.node_results.last().and_then(|r| r.output.clone()),
-            error: if result.success { None } else { Some("workflow failed".to_string()) },
+            error: if result.success {
+                None
+            } else {
+                Some("workflow failed".to_string())
+            },
             duration_ms,
         })
     }
@@ -220,8 +217,7 @@ mod tests {
     #[tokio::test]
     async fn test_executor_workflow_not_found() {
         let registry = Arc::new(tokio::sync::RwLock::new(WorkflowRegistry::new()));
-        let executor = SubWorkflowExecutor::new()
-            .with_registry(registry);
+        let executor = SubWorkflowExecutor::new().with_registry(registry);
         let ctx = LsContext::with_session(LsId::new());
         let config = SubWorkflowConfig {
             workflow_name: "nonexistent".to_string(),

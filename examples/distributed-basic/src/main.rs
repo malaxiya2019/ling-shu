@@ -3,8 +3,7 @@
 //! 演示：创建集群 → 启动调度器 → 提交任务 → 监控负载 → 停止
 
 use lingshu_distributed::{
-    Cluster, ClusterConfig, DistScheduler, DistSchedulerConfig, DistScheduleStrategy,
-    DistTask,
+    Cluster, ClusterConfig, DistScheduleStrategy, DistScheduler, DistSchedulerConfig, DistTask,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -50,9 +49,21 @@ async fn main() {
 
     // 5. 提交多个任务
     let tasks = vec![
-        ("数据分析任务", "analysis", serde_json::json!({"dataset": "sales_2025", "metric": "revenue"})),
-        ("模型训练任务", "training", serde_json::json!({"model": "bert-base", "epochs": 10})),
-        ("报告生成任务", "report", serde_json::json!({"format": "pdf", "template": "monthly"})),
+        (
+            "数据分析任务",
+            "analysis",
+            serde_json::json!({"dataset": "sales_2025", "metric": "revenue"}),
+        ),
+        (
+            "模型训练任务",
+            "training",
+            serde_json::json!({"model": "bert-base", "epochs": 10}),
+        ),
+        (
+            "报告生成任务",
+            "report",
+            serde_json::json!({"format": "pdf", "template": "monthly"}),
+        ),
     ];
 
     for (name, task_type, payload) in &tasks {
@@ -62,9 +73,7 @@ async fn main() {
             Ok(schedule) => {
                 println!(
                     "📋 任务已调度: {} → 节点={}, 是否本地={}",
-                    name,
-                    schedule.assigned_node_id,
-                    schedule.is_local,
+                    name, schedule.assigned_node_id, schedule.is_local,
                 );
             }
             Err(e) => {
@@ -89,7 +98,11 @@ async fn main() {
         summary.total_nodes,
         summary.total_pending_tasks,
         summary.total_active_tasks,
-        if summary.is_running { "运行中" } else { "已停止" },
+        if summary.is_running {
+            "运行中"
+        } else {
+            "已停止"
+        },
     );
 
     // 8. 获取各节点负载

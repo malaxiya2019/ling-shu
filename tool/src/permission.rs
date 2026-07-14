@@ -32,8 +32,6 @@ pub enum CallerRole {
     SuperAdmin,
 }
 
-
-
 impl PartialOrd for CallerRole {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
@@ -112,11 +110,7 @@ impl ToolPermission {
     }
 
     /// 为特定工具设置权限覆盖.
-    pub fn set_override(
-        &mut self,
-        tool_name: impl Into<String>,
-        level: PermissionLevel,
-    ) {
+    pub fn set_override(&mut self, tool_name: impl Into<String>, level: PermissionLevel) {
         self.overrides.insert(tool_name.into(), level);
     }
 
@@ -141,10 +135,7 @@ impl ToolPermission {
         caller: &CallerInfo,
     ) -> LsResult<()> {
         // 使用覆盖值（如果有）
-        let effective_level = self
-            .overrides
-            .get(tool_name)
-            .unwrap_or(tool_level);
+        let effective_level = self.overrides.get(tool_name).unwrap_or(tool_level);
 
         let caller_rank = match &caller.role {
             CallerRole::SuperAdmin => 3u8,
@@ -202,24 +193,58 @@ mod tests {
     #[test]
     fn test_public_tool_anyone_can_call() {
         let perm = ToolPermission::new();
-        assert!(perm.check("echo", &PermissionLevel::Public, &CallerInfo::anonymous()).is_ok());
-        assert!(perm.check("echo", &PermissionLevel::Public, &CallerInfo::user("u1")).is_ok());
+        assert!(perm
+            .check("echo", &PermissionLevel::Public, &CallerInfo::anonymous())
+            .is_ok());
+        assert!(perm
+            .check("echo", &PermissionLevel::Public, &CallerInfo::user("u1"))
+            .is_ok());
     }
 
     #[test]
     fn test_admin_tool_requires_admin() {
         let perm = ToolPermission::new();
-        assert!(perm.check("admin_panel", &PermissionLevel::Admin, &CallerInfo::anonymous()).is_err());
-        assert!(perm.check("admin_panel", &PermissionLevel::Admin, &CallerInfo::user("u1")).is_err());
-        assert!(perm.check("admin_panel", &PermissionLevel::Admin, &CallerInfo::admin("a1")).is_ok());
+        assert!(perm
+            .check(
+                "admin_panel",
+                &PermissionLevel::Admin,
+                &CallerInfo::anonymous()
+            )
+            .is_err());
+        assert!(perm
+            .check(
+                "admin_panel",
+                &PermissionLevel::Admin,
+                &CallerInfo::user("u1")
+            )
+            .is_err());
+        assert!(perm
+            .check(
+                "admin_panel",
+                &PermissionLevel::Admin,
+                &CallerInfo::admin("a1")
+            )
+            .is_ok());
     }
 
     #[test]
     fn test_override_permission() {
         let mut perm = ToolPermission::new();
         perm.set_override("dangerous_tool", PermissionLevel::SuperAdmin);
-        assert!(perm.check("dangerous_tool", &PermissionLevel::Public, &CallerInfo::admin("a1")).is_err());
-        assert!(perm.check("dangerous_tool", &PermissionLevel::Public, &CallerInfo::anonymous()).is_err());
+        assert!(perm
+            .check(
+                "dangerous_tool",
+                &PermissionLevel::Public,
+                &CallerInfo::admin("a1")
+            )
+            .is_err());
+        assert!(perm
+            .check(
+                "dangerous_tool",
+                &PermissionLevel::Public,
+                &CallerInfo::anonymous()
+            )
+            .is_err());
     }
 
     #[test]

@@ -24,12 +24,12 @@
 //! # }
 //! ```
 
-use std::sync::Arc;
 use crate::registry::ChannelRegistry;
 use crate::session_store::SessionStore;
-use crate::types::*;
 use crate::traits::MessageChannel;
+use crate::types::*;
 use lingshu_core::{LsContext, LsError, LsResult};
+use std::sync::Arc;
 
 /// 多通道消息路由器.
 ///
@@ -65,18 +65,14 @@ impl ChannelRouter {
             .session_store
             .get_by_session_key(ctx, session_key)
             .await?
-            .ok_or_else(|| {
-                LsError::Plugin(format!("会话路由未找到: {session_key}"))
-            })?;
+            .ok_or_else(|| LsError::Plugin(format!("会话路由未找到: {session_key}")))?;
 
         // 查找通道
         let channel = self
             .registry
             .get(&route.channel_id)
             .await
-            .ok_or_else(|| {
-                LsError::Plugin(format!("通道未注册: {}", route.channel_id))
-            })?;
+            .ok_or_else(|| LsError::Plugin(format!("通道未注册: {}", route.channel_id)))?;
 
         // 确定目标
         let target = if route.chat_type == "group" {
@@ -105,18 +101,15 @@ impl ChannelRouter {
             .registry
             .get(&event.channel_id)
             .await
-            .ok_or_else(|| {
-                LsError::Plugin(format!("通道未注册: {}", event.channel_id))
-            })?;
+            .ok_or_else(|| LsError::Plugin(format!("通道未注册: {}", event.channel_id)))?;
 
         // 确定发送目标
         let target = match event.chat_type {
-            ChatType::Group => event.chat_id.clone().unwrap_or_else(|| {
-                event.sender_id.clone().unwrap_or_default()
-            }),
-            ChatType::Direct | ChatType::Channel => {
-                event.sender_id.clone().unwrap_or_default()
-            }
+            ChatType::Group => event
+                .chat_id
+                .clone()
+                .unwrap_or_else(|| event.sender_id.clone().unwrap_or_default()),
+            ChatType::Direct | ChatType::Channel => event.sender_id.clone().unwrap_or_default(),
         };
 
         if target.is_empty() {
@@ -184,10 +177,10 @@ impl ChannelRouter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::session_store::SessionStore;
     use crate::registry::ChannelRegistry;
-    use std::sync::Arc;
+    use crate::session_store::SessionStore;
     use std::collections::HashMap;
+    use std::sync::Arc;
     use std::sync::RwLock;
 
     // 简易内存 MockDatabase (用于测试)
@@ -195,11 +188,20 @@ mod tests {
         store: RwLock<HashMap<String, serde_json::Value>>,
     }
     impl MockDb {
-        fn new() -> Self { Self { store: RwLock::new(HashMap::new()) } }
+        fn new() -> Self {
+            Self {
+                store: RwLock::new(HashMap::new()),
+            }
+        }
     }
     #[async_trait]
     impl lingshu_traits::database::Database for MockDb {
-        async fn insert(&self, _ctx: lingshu_core::LsContext, _collection: &str, value: serde_json::Value) -> lingshu_core::LsResult<serde_json::Value> {
+        async fn insert(
+            &self,
+            _ctx: lingshu_core::LsContext,
+            _collection: &str,
+            value: serde_json::Value,
+        ) -> lingshu_core::LsResult<serde_json::Value> {
             let id = uuid::Uuid::new_v4().to_string();
             let mut full = value.clone();
             full["id"] = serde_json::json!(id);
@@ -207,25 +209,74 @@ mod tests {
             self.store.write().unwrap().insert(sk, full.clone());
             Ok(full)
         }
-        async fn get_by_id(&self, _ctx: lingshu_core::LsContext, _collection: &str, id: &str) -> lingshu_core::LsResult<Option<serde_json::Value>> {
+        async fn get_by_id(
+            &self,
+            _ctx: lingshu_core::LsContext,
+            _collection: &str,
+            id: &str,
+        ) -> lingshu_core::LsResult<Option<serde_json::Value>> {
             Ok(self.store.read().unwrap().get(id).cloned())
         }
-        async fn query(&self, _ctx: lingshu_core::LsContext, _collection: &str, _filters: Vec<lingshu_traits::database::QueryFilter>, _pagination: lingshu_traits::database::Pagination) -> lingshu_core::LsResult<lingshu_traits::database::PaginatedResult> {
-            let items: Vec<serde_json::Value> = self.store.read().unwrap().values().cloned().collect();
+        async fn query(
+            &self,
+            _ctx: lingshu_core::LsContext,
+            _collection: &str,
+            _filters: Vec<lingshu_traits::database::QueryFilter>,
+            _pagination: lingshu_traits::database::Pagination,
+        ) -> lingshu_core::LsResult<lingshu_traits::database::PaginatedResult> {
+            let items: Vec<serde_json::Value> =
+                self.store.read().unwrap().values().cloned().collect();
             let total = items.len() as u64;
-            Ok(lingshu_traits::database::PaginatedResult { items, total, page: 1, page_size: total, total_pages: 1 })
+            Ok(lingshu_traits::database::PaginatedResult {
+                items,
+                total,
+                page: 1,
+                page_size: total,
+                total_pages: 1,
+            })
         }
-        async fn update(&self, _ctx: lingshu_core::LsContext, _collection: &str, id: &str, value: serde_json::Value) -> lingshu_core::LsResult<Option<serde_json::Value>> {
+        async fn update(
+            &self,
+            _ctx: lingshu_core::LsContext,
+            _collection: &str,
+            id: &str,
+            value: serde_json::Value,
+        ) -> lingshu_core::LsResult<Option<serde_json::Value>> {
             let old = self.store.read().unwrap().get(id).cloned();
-            self.store.write().unwrap().insert(id.to_string(), value.clone());
+            self.store
+                .write()
+                .unwrap()
+                .insert(id.to_string(), value.clone());
             Ok(old)
         }
-        async fn delete(&self, _ctx: lingshu_core::LsContext, _collection: &str, id: &str) -> lingshu_core::LsResult<bool> {
+        async fn delete(
+            &self,
+            _ctx: lingshu_core::LsContext,
+            _collection: &str,
+            id: &str,
+        ) -> lingshu_core::LsResult<bool> {
             Ok(self.store.write().unwrap().remove(id).is_some())
         }
-        async fn begin_transaction(&self, _ctx: lingshu_core::LsContext) -> lingshu_core::LsResult<String> { Ok("txn".into()) }
-        async fn commit_transaction(&self, _ctx: lingshu_core::LsContext, _txn_id: &str) -> lingshu_core::LsResult<()> { Ok(()) }
-        async fn rollback_transaction(&self, _ctx: lingshu_core::LsContext, _txn_id: &str) -> lingshu_core::LsResult<()> { Ok(()) }
+        async fn begin_transaction(
+            &self,
+            _ctx: lingshu_core::LsContext,
+        ) -> lingshu_core::LsResult<String> {
+            Ok("txn".into())
+        }
+        async fn commit_transaction(
+            &self,
+            _ctx: lingshu_core::LsContext,
+            _txn_id: &str,
+        ) -> lingshu_core::LsResult<()> {
+            Ok(())
+        }
+        async fn rollback_transaction(
+            &self,
+            _ctx: lingshu_core::LsContext,
+            _txn_id: &str,
+        ) -> lingshu_core::LsResult<()> {
+            Ok(())
+        }
     }
 
     fn create_test_store() -> SessionStore {
@@ -241,7 +292,9 @@ mod tests {
     use async_trait::async_trait;
     #[async_trait]
     impl MessageChannel for MockChannel {
-        fn id(&self) -> &'static str { self.id }
+        fn id(&self) -> &'static str {
+            self.id
+        }
         fn meta(&self) -> ChannelMeta {
             ChannelMeta {
                 label: "Mock",
@@ -269,14 +322,31 @@ mod tests {
             })
         }
         async fn send_media(&self, _ctx: SendMediaContext) -> LsResult<SendReceipt> {
-            Ok(SendReceipt { message_id: "media-mock".into(), thread_id: None, timestamp: 0, raw: None })
+            Ok(SendReceipt {
+                message_id: "media-mock".into(),
+                thread_id: None,
+                timestamp: 0,
+                raw: None,
+            })
         }
         async fn send_payload(&self, _ctx: SendPayloadContext) -> LsResult<SendReceipt> {
-            Ok(SendReceipt { message_id: "payload-mock".into(), thread_id: None, timestamp: 0, raw: None })
+            Ok(SendReceipt {
+                message_id: "payload-mock".into(),
+                thread_id: None,
+                timestamp: 0,
+                raw: None,
+            })
         }
-        async fn handle_inbound(&self, _event: InboundEvent) -> LsResult<()> { Ok(()) }
+        async fn handle_inbound(&self, _event: InboundEvent) -> LsResult<()> {
+            Ok(())
+        }
         async fn health_check(&self) -> LsResult<HealthStatus> {
-            Ok(HealthStatus { healthy: true, latency_ms: None, error: None, connected_at: None })
+            Ok(HealthStatus {
+                healthy: true,
+                latency_ms: None,
+                error: None,
+                connected_at: None,
+            })
         }
         fn parse_target(&self, raw: &str) -> LsResult<MessagingTarget> {
             Ok(MessagingTarget {
@@ -343,15 +413,19 @@ mod tests {
             raw: None,
         };
 
-        let route = router.session_store.upsert_from_event(&ctx, &event).await.unwrap();
+        let route = router
+            .session_store
+            .upsert_from_event(&ctx, &event)
+            .await
+            .unwrap();
 
         let receipt = router
-            .reply_by_session(
-                &ctx,
-                &route.session_key,
-                ReplyPayload::text("Group reply!"),
-            )
+            .reply_by_session(&ctx, &route.session_key, ReplyPayload::text("Group reply!"))
             .await;
-        assert!(receipt.is_ok(), "session reply should succeed: {:?}", receipt.err());
+        assert!(
+            receipt.is_ok(),
+            "session reply should succeed: {:?}",
+            receipt.err()
+        );
     }
 }

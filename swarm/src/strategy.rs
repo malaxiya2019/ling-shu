@@ -83,13 +83,13 @@ impl SwarmDecisionStrategy for VotingStrategy {
             return Ok(None);
         }
 
-        let best = available
-            .into_iter()
-            .max_by(|a, b| {
-                let a_score = Self::calculate_fitness(a, task);
-                let b_score = Self::calculate_fitness(b, task);
-                a_score.partial_cmp(&b_score).unwrap_or(std::cmp::Ordering::Equal)
-            });
+        let best = available.into_iter().max_by(|a, b| {
+            let a_score = Self::calculate_fitness(a, task);
+            let b_score = Self::calculate_fitness(b, task);
+            a_score
+                .partial_cmp(&b_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         Ok(best.cloned())
     }
@@ -133,13 +133,21 @@ impl SwarmDecisionStrategy for VotingStrategy {
         }
 
         let total = yes + no + abstain;
-        let ratio = if total > 0 { yes as f64 / total as f64 } else { 0.0 };
+        let ratio = if total > 0 {
+            yes as f64 / total as f64
+        } else {
+            0.0
+        };
         let achieved = ratio >= self.threshold;
 
         // 选择置信度最高的结果作为决策
         let decision = results
             .iter()
-            .max_by(|a, b| a.confidence.partial_cmp(&b.confidence).unwrap_or(std::cmp::Ordering::Equal))
+            .max_by(|a, b| {
+                a.confidence
+                    .partial_cmp(&b.confidence)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
             .map(|r| r.output.clone())
             .unwrap_or(serde_json::Value::Null);
 
@@ -218,13 +226,13 @@ impl SwarmDecisionStrategy for ConsensusStrategy {
             return Ok(None);
         }
 
-        let best = available
-            .into_iter()
-            .max_by(|a, b| {
-                let a_score = a.success_rate * 0.6 + a.capability_score * 0.4;
-                let b_score = b.success_rate * 0.6 + b.capability_score * 0.4;
-                a_score.partial_cmp(&b_score).unwrap_or(std::cmp::Ordering::Equal)
-            });
+        let best = available.into_iter().max_by(|a, b| {
+            let a_score = a.success_rate * 0.6 + a.capability_score * 0.4;
+            let b_score = b.success_rate * 0.6 + b.capability_score * 0.4;
+            a_score
+                .partial_cmp(&b_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         Ok(best.cloned())
     }
@@ -285,12 +293,20 @@ impl SwarmDecisionStrategy for ConsensusStrategy {
         }
 
         let total = yes + no + abstain;
-        let ratio = if total > 0 { yes as f64 / total as f64 } else { 0.0 };
+        let ratio = if total > 0 {
+            yes as f64 / total as f64
+        } else {
+            0.0
+        };
         let achieved = ratio >= self.threshold;
 
         let decision = results
             .iter()
-            .max_by(|a, b| a.confidence.partial_cmp(&b.confidence).unwrap_or(std::cmp::Ordering::Equal))
+            .max_by(|a, b| {
+                a.confidence
+                    .partial_cmp(&b.confidence)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
             .map(|r| r.output.clone())
             .unwrap_or(serde_json::Value::Null);
 
@@ -349,13 +365,11 @@ impl SwarmDecisionStrategy for HierarchicalStrategy {
         }
 
         // 否则取能力最强的
-        let best = available
-            .into_iter()
-            .max_by(|a, b| {
-                a.capability_score
-                    .partial_cmp(&b.capability_score)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
+        let best = available.into_iter().max_by(|a, b| {
+            a.capability_score
+                .partial_cmp(&b.capability_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         Ok(best.cloned())
     }
@@ -383,7 +397,11 @@ impl SwarmDecisionStrategy for HierarchicalStrategy {
         // 取置信度最高的结果
         let best = results
             .iter()
-            .max_by(|a, b| a.confidence.partial_cmp(&b.confidence).unwrap_or(std::cmp::Ordering::Equal))
+            .max_by(|a, b| {
+                a.confidence
+                    .partial_cmp(&b.confidence)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
             .unwrap();
 
         Ok(ConsensusResult {
@@ -422,9 +440,11 @@ impl SwarmDecisionStrategy for DemocraticStrategy {
     ) -> LsResult<Option<SwarmAgent>> {
         // 民主制：用竞标结果选择 Agent
         if !bids.is_empty() {
-            let best_bid = bids
-                .iter()
-                .max_by(|a, b| a.bid_score.partial_cmp(&b.bid_score).unwrap_or(std::cmp::Ordering::Equal));
+            let best_bid = bids.iter().max_by(|a, b| {
+                a.bid_score
+                    .partial_cmp(&b.bid_score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
 
             if let Some(bid) = best_bid {
                 if let Some(agent) = agents.iter().find(|a| a.id == bid.agent_id) {
@@ -442,9 +462,7 @@ impl SwarmDecisionStrategy for DemocraticStrategy {
         // 取任务最少的 Agent（负载均衡）
         let best = available
             .into_iter()
-            .min_by(|a, b| {
-                a.tasks_completed.cmp(&b.tasks_completed)
-            });
+            .min_by(|a, b| a.tasks_completed.cmp(&b.tasks_completed));
 
         Ok(best.cloned())
     }
@@ -491,14 +509,19 @@ impl SwarmDecisionStrategy for BiddingStrategy {
         }
 
         // 综合评分：bid_score * (1 - estimated_ms/max_ms)
-        let max_ms = bids.iter().map(|b| b.estimated_ms).max().unwrap_or(1).max(1);
-        let best = bids
+        let max_ms = bids
             .iter()
-            .max_by(|a, b| {
-                let a_score = a.bid_score * (1.0 - a.estimated_ms as f64 / max_ms as f64);
-                let b_score = b.bid_score * (1.0 - b.estimated_ms as f64 / max_ms as f64);
-                a_score.partial_cmp(&b_score).unwrap_or(std::cmp::Ordering::Equal)
-            });
+            .map(|b| b.estimated_ms)
+            .max()
+            .unwrap_or(1)
+            .max(1);
+        let best = bids.iter().max_by(|a, b| {
+            let a_score = a.bid_score * (1.0 - a.estimated_ms as f64 / max_ms as f64);
+            let b_score = b.bid_score * (1.0 - b.estimated_ms as f64 / max_ms as f64);
+            a_score
+                .partial_cmp(&b_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         // 注意：返回的 Agent 信息只能从 bid 构建，因为 agents 可能在远程
         // 这里返回 None，由 Coordinator 根据 agent_id 查找完整 Agent
@@ -589,7 +612,9 @@ impl HybridStrategy {
                 .find(|s| s.strategy_type() == SwarmStrategy::Bidding)
                 .map(|s| s.as_ref())
                 .unwrap_or_else(|| self.strategies.first().map(|s| s.as_ref()).unwrap())
-        } else if task.required_role == Some(SwarmAgentRole::Validator) || task.required_role == Some(SwarmAgentRole::Tester) {
+        } else if task.required_role == Some(SwarmAgentRole::Validator)
+            || task.required_role == Some(SwarmAgentRole::Tester)
+        {
             self.strategies
                 .iter()
                 .find(|s| s.strategy_type() == SwarmStrategy::Consensus)
@@ -677,8 +702,8 @@ pub fn create_strategy(config: &SwarmConfig) -> Box<dyn SwarmDecisionStrategy> {
 
 #[cfg(test)]
 mod tests {
-    use lingshu_core::LsId;
     use super::*;
+    use lingshu_core::LsId;
 
     fn create_test_agent(name: &str, role: SwarmAgentRole, score: f64) -> SwarmAgent {
         let mut agent = SwarmAgent::new(name, role);
@@ -688,8 +713,7 @@ mod tests {
     }
 
     fn create_test_task() -> SwarmTask {
-        SwarmTask::new("test", "test task", serde_json::json!({"input": "test"}))
-            .with_priority(5)
+        SwarmTask::new("test", "test task", serde_json::json!({"input": "test"})).with_priority(5)
     }
 
     #[tokio::test]
@@ -705,7 +729,11 @@ mod tests {
         let selected = strategy.select_agent(&task, &agents, &[]).await.unwrap();
         assert!(selected.is_some());
         let selected_agent = selected.unwrap();
-        assert_eq!(selected_agent.name, "agent-a", "Expected agent-a (capability 0.9) but got {}", selected_agent.name);
+        assert_eq!(
+            selected_agent.name, "agent-a",
+            "Expected agent-a (capability 0.9) but got {}",
+            selected_agent.name
+        );
     }
 
     #[tokio::test]
@@ -744,7 +772,10 @@ mod tests {
         ];
 
         let task = create_test_task();
-        let result = strategy.evaluate_result(&task, &results, &agents).await.unwrap();
+        let result = strategy
+            .evaluate_result(&task, &results, &agents)
+            .await
+            .unwrap();
         assert!(result.achieved);
         assert_eq!(result.yes_votes, 2);
         assert!(result.approval_ratio >= 0.5);

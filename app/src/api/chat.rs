@@ -3,7 +3,7 @@
 //! ✅ 已完成迁移 (从 full.rs)
 
 use crate::api::AppState;
-use axum::{Json, extract::State};
+use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -50,12 +50,16 @@ pub async fn chat_completions_handler(
     Json(req): Json<ChatCompletionRequest>,
 ) -> Json<serde_json::Value> {
     let model_name = req.model.clone().unwrap_or_else(|| "claude-3-haiku".into());
-    let messages: Vec<String> = req.messages.iter().map(|m| format!("{}: {}", m.role, m.content)).collect();
+    let messages: Vec<String> = req
+        .messages
+        .iter()
+        .map(|m| format!("{}: {}", m.role, m.content))
+        .collect();
     let prompt = messages.join("\n");
 
     // 使用 LLM backend 处理
     if let Some(llm) = state.runtime.llm.as_ref() {
-        use lingshu_traits::llm::{LlmRequest, LlmMessage, LlmRole};
+        use lingshu_traits::llm::{LlmMessage, LlmRequest, LlmRole};
         let llm_req = LlmRequest {
             model: model_name.clone(),
             messages: vec![LlmMessage {
@@ -119,6 +123,12 @@ pub async fn chat_completions_handler(
 #[allow(dead_code)]
 pub fn chat_routes() -> axum::Router<Arc<AppState>> {
     axum::Router::new()
-        .route("/v1/chat/completions", axum::routing::post(chat_completions_handler))
-        .route("/v1/chat", axum::routing::post(crate::api::full::chat_handler))
+        .route(
+            "/v1/chat/completions",
+            axum::routing::post(chat_completions_handler),
+        )
+        .route(
+            "/v1/chat",
+            axum::routing::post(crate::api::full::chat_handler),
+        )
 }

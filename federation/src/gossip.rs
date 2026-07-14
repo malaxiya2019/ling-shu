@@ -226,9 +226,10 @@ impl GossipEngine {
     /// 将自已的成员条目转为八卦消息.
     pub async fn get_local_member(&self) -> GossipMember {
         let members = self.members.read().await;
-        members.get(&self.local_id).cloned().unwrap_or_else(|| {
-            GossipMember::new(&self.local_id, &self.local_addr)
-        })
+        members
+            .get(&self.local_id)
+            .cloned()
+            .unwrap_or_else(|| GossipMember::new(&self.local_id, &self.local_addr))
     }
 
     /// 标记节点为 Suspect.
@@ -238,7 +239,9 @@ impl GossipEngine {
             if member.state != GossipState::Dead {
                 member.state = GossipState::Suspect;
                 member.incarnation += 1;
-                let _ = self.event_tx.send(GossipEvent::MemberSuspected(member.clone()));
+                let _ = self
+                    .event_tx
+                    .send(GossipEvent::MemberSuspected(member.clone()));
             }
         }
     }
@@ -256,7 +259,10 @@ impl GossipEngine {
     /// 启动八卦循环 (后台任务).
     pub async fn start_gossip_loop(
         self: &Arc<Self>,
-        ping_fn: impl Fn(String) -> futures::future::BoxFuture<'static, LsResult<Vec<GossipMember>>> + Send + Sync + 'static,
+        ping_fn: impl Fn(String) -> futures::future::BoxFuture<'static, LsResult<Vec<GossipMember>>>
+            + Send
+            + Sync
+            + 'static,
     ) where
         Self: Sized,
     {

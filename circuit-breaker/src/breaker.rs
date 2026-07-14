@@ -7,9 +7,7 @@ use tracing::{debug, warn};
 
 use crate::sliding_window::SlidingWindow;
 use crate::state::StateMachine;
-use crate::{
-    BreakerDecision, BreakerStatus, CircuitBreaker, CircuitBreakerConfig, CircuitState,
-};
+use crate::{BreakerDecision, BreakerStatus, CircuitBreaker, CircuitBreakerConfig, CircuitState};
 
 /// 默认熔断器实现.
 pub struct DefaultCircuitBreaker {

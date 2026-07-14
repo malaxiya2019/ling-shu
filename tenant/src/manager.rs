@@ -35,7 +35,9 @@ impl TenantManager {
         let mut orgs = self.orgs.write().await;
         // 检查 slug 唯一性
         if orgs.values().any(|o| o.slug == slug) {
-            return Err(LsError::AlreadyExists(format!("org slug '{slug}' already exists")));
+            return Err(LsError::AlreadyExists(format!(
+                "org slug '{slug}' already exists"
+            )));
         }
         let org = Organization::new(name, slug, owner_id, "");
         let id = org.id.clone();
@@ -45,9 +47,9 @@ impl TenantManager {
 
     pub async fn get_organization(&self, org_id: &str) -> LsResult<Organization> {
         let orgs = self.orgs.read().await;
-        orgs.get(org_id).cloned().ok_or_else(|| {
-            LsError::NotFound(format!("organization {org_id}"))
-        })
+        orgs.get(org_id)
+            .cloned()
+            .ok_or_else(|| LsError::NotFound(format!("organization {org_id}")))
     }
 
     pub async fn list_organizations(&self) -> LsResult<Vec<Organization>> {
@@ -57,11 +59,16 @@ impl TenantManager {
         Ok(list)
     }
 
-    pub async fn update_organization(&self, org_id: &str, name: &str, description: &str) -> LsResult<Organization> {
+    pub async fn update_organization(
+        &self,
+        org_id: &str,
+        name: &str,
+        description: &str,
+    ) -> LsResult<Organization> {
         let mut orgs = self.orgs.write().await;
-        let org = orgs.get_mut(org_id).ok_or_else(|| {
-            LsError::NotFound(format!("organization {org_id}"))
-        })?;
+        let org = orgs
+            .get_mut(org_id)
+            .ok_or_else(|| LsError::NotFound(format!("organization {org_id}")))?;
         org.name = name.to_string();
         org.description = description.to_string();
         org.updated_at = chrono::Utc::now();
@@ -84,9 +91,9 @@ impl TenantManager {
 
     pub async fn suspend_organization(&self, org_id: &str) -> LsResult<Organization> {
         let mut orgs = self.orgs.write().await;
-        let org = orgs.get_mut(org_id).ok_or_else(|| {
-            LsError::NotFound(format!("organization {org_id}"))
-        })?;
+        let org = orgs
+            .get_mut(org_id)
+            .ok_or_else(|| LsError::NotFound(format!("organization {org_id}")))?;
         org.status = OrgStatus::Suspended;
         org.updated_at = chrono::Utc::now();
         Ok(org.clone())
@@ -94,7 +101,12 @@ impl TenantManager {
 
     // ── Project CRUD ──────────────────────────────────
 
-    pub async fn create_project(&self, org_id: &str, name: &str, description: &str) -> LsResult<Project> {
+    pub async fn create_project(
+        &self,
+        org_id: &str,
+        name: &str,
+        description: &str,
+    ) -> LsResult<Project> {
         // 验证组织存在
         self.get_organization(org_id).await?;
         let mut projs = self.projects.write().await;
@@ -106,24 +118,34 @@ impl TenantManager {
 
     pub async fn get_project(&self, project_id: &str) -> LsResult<Project> {
         let projs = self.projects.read().await;
-        projs.get(project_id).cloned().ok_or_else(|| {
-            LsError::NotFound(format!("project {project_id}"))
-        })
+        projs
+            .get(project_id)
+            .cloned()
+            .ok_or_else(|| LsError::NotFound(format!("project {project_id}")))
     }
 
     pub async fn list_projects(&self, org_id: &str) -> LsResult<Vec<Project>> {
         self.get_organization(org_id).await?;
         let projs = self.projects.read().await;
-        let mut list: Vec<_> = projs.values().filter(|p| p.org_id == org_id).cloned().collect();
+        let mut list: Vec<_> = projs
+            .values()
+            .filter(|p| p.org_id == org_id)
+            .cloned()
+            .collect();
         list.sort_by_key(|a| a.created_at);
         Ok(list)
     }
 
-    pub async fn update_project(&self, project_id: &str, name: &str, description: &str) -> LsResult<Project> {
+    pub async fn update_project(
+        &self,
+        project_id: &str,
+        name: &str,
+        description: &str,
+    ) -> LsResult<Project> {
         let mut projs = self.projects.write().await;
-        let proj = projs.get_mut(project_id).ok_or_else(|| {
-            LsError::NotFound(format!("project {project_id}"))
-        })?;
+        let proj = projs
+            .get_mut(project_id)
+            .ok_or_else(|| LsError::NotFound(format!("project {project_id}")))?;
         proj.name = name.to_string();
         proj.description = description.to_string();
         proj.updated_at = chrono::Utc::now();
@@ -132,9 +154,9 @@ impl TenantManager {
 
     pub async fn archive_project(&self, project_id: &str) -> LsResult<Project> {
         let mut projs = self.projects.write().await;
-        let proj = projs.get_mut(project_id).ok_or_else(|| {
-            LsError::NotFound(format!("project {project_id}"))
-        })?;
+        let proj = projs
+            .get_mut(project_id)
+            .ok_or_else(|| LsError::NotFound(format!("project {project_id}")))?;
         proj.status = ProjectStatus::Archived;
         proj.updated_at = chrono::Utc::now();
         Ok(proj.clone())
@@ -151,11 +173,21 @@ impl TenantManager {
 
     // ── User CRUD ────────────────────────────────────
 
-    pub async fn invite_user(&self, org_id: &str, email: &str, role: TenantRole) -> LsResult<TenantUser> {
+    pub async fn invite_user(
+        &self,
+        org_id: &str,
+        email: &str,
+        role: TenantRole,
+    ) -> LsResult<TenantUser> {
         self.get_organization(org_id).await?;
         let mut users = self.users.write().await;
-        if users.values().any(|u| u.email == email && u.org_id == org_id) {
-            return Err(LsError::AlreadyExists(format!("user {email} already in org {org_id}")));
+        if users
+            .values()
+            .any(|u| u.email == email && u.org_id == org_id)
+        {
+            return Err(LsError::AlreadyExists(format!(
+                "user {email} already in org {org_id}"
+            )));
         }
         let user = TenantUser::new(org_id, email, email, role);
         let id = user.id.clone();
@@ -165,24 +197,29 @@ impl TenantManager {
 
     pub async fn get_user(&self, user_id: &str) -> LsResult<TenantUser> {
         let users = self.users.read().await;
-        users.get(user_id).cloned().ok_or_else(|| {
-            LsError::NotFound(format!("user {user_id}"))
-        })
+        users
+            .get(user_id)
+            .cloned()
+            .ok_or_else(|| LsError::NotFound(format!("user {user_id}")))
     }
 
     pub async fn list_users(&self, org_id: &str) -> LsResult<Vec<TenantUser>> {
         self.get_organization(org_id).await?;
         let users = self.users.read().await;
-        let mut list: Vec<_> = users.values().filter(|u| u.org_id == org_id).cloned().collect();
+        let mut list: Vec<_> = users
+            .values()
+            .filter(|u| u.org_id == org_id)
+            .cloned()
+            .collect();
         list.sort_by_key(|a| a.created_at);
         Ok(list)
     }
 
     pub async fn update_user_role(&self, user_id: &str, role: TenantRole) -> LsResult<TenantUser> {
         let mut users = self.users.write().await;
-        let user = users.get_mut(user_id).ok_or_else(|| {
-            LsError::NotFound(format!("user {user_id}"))
-        })?;
+        let user = users
+            .get_mut(user_id)
+            .ok_or_else(|| LsError::NotFound(format!("user {user_id}")))?;
         user.role = role;
         user.updated_at = chrono::Utc::now();
         Ok(user.clone())
@@ -190,9 +227,9 @@ impl TenantManager {
 
     pub async fn add_user_to_project(&self, user_id: &str, project_id: &str) -> LsResult<()> {
         let mut users = self.users.write().await;
-        let user = users.get_mut(user_id).ok_or_else(|| {
-            LsError::NotFound(format!("user {user_id}"))
-        })?;
+        let user = users
+            .get_mut(user_id)
+            .ok_or_else(|| LsError::NotFound(format!("user {user_id}")))?;
         if !user.project_ids.contains(&project_id.to_string()) {
             user.project_ids.push(project_id.to_string());
         }
@@ -210,9 +247,9 @@ impl TenantManager {
 
     pub async fn disable_user(&self, user_id: &str) -> LsResult<TenantUser> {
         let mut users = self.users.write().await;
-        let user = users.get_mut(user_id).ok_or_else(|| {
-            LsError::NotFound(format!("user {user_id}"))
-        })?;
+        let user = users
+            .get_mut(user_id)
+            .ok_or_else(|| LsError::NotFound(format!("user {user_id}")))?;
         user.status = UserStatus::Disabled;
         user.updated_at = chrono::Utc::now();
         Ok(user.clone())
@@ -221,11 +258,16 @@ impl TenantManager {
     // ── 隔离校验 ─────────────────────────────────────
 
     /// 验证用户是否有权访问指定资源.
-    pub async fn check_access(&self, user_id: &str, org_id: &str, required_permission: &str) -> LsResult<bool> {
+    pub async fn check_access(
+        &self,
+        user_id: &str,
+        org_id: &str,
+        required_permission: &str,
+    ) -> LsResult<bool> {
         let users = self.users.read().await;
-        let user = users.get(user_id).ok_or_else(|| {
-            LsError::NotFound(format!("user {user_id}"))
-        })?;
+        let user = users
+            .get(user_id)
+            .ok_or_else(|| LsError::NotFound(format!("user {user_id}")))?;
         if user.org_id != org_id {
             return Ok(false);
         }
@@ -265,8 +307,7 @@ impl Default for TenantManager {
 }
 
 /// 租户统计.
-#[derive(Debug, Clone, Default)]
-#[derive(serde::Serialize)]
+#[derive(Debug, Clone, Default, serde::Serialize)]
 #[allow(dead_code)]
 pub struct TenantStats {
     pub total_orgs: usize,
@@ -281,7 +322,10 @@ mod tests {
     #[tokio::test]
     async fn test_create_organization() {
         let mgr = TenantManager::new();
-        let org = mgr.create_organization("Acme Corp", "acme", "user-1").await.unwrap();
+        let org = mgr
+            .create_organization("Acme Corp", "acme", "user-1")
+            .await
+            .unwrap();
         assert_eq!(org.name, "Acme Corp");
         assert_eq!(org.slug, "acme");
     }
@@ -306,7 +350,10 @@ mod tests {
     async fn test_invite_user() {
         let mgr = TenantManager::new();
         let org = mgr.create_organization("Acme", "acme", "u1").await.unwrap();
-        let user = mgr.invite_user(&org.id, "alice@acme.com", TenantRole::Member).await.unwrap();
+        let user = mgr
+            .invite_user(&org.id, "alice@acme.com", TenantRole::Member)
+            .await
+            .unwrap();
         assert_eq!(user.email, "alice@acme.com");
         assert_eq!(user.role, TenantRole::Member);
     }

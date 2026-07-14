@@ -275,10 +275,7 @@ impl ExperienceStore {
     }
 
     /// 获取 Agent 的所有经验
-    pub async fn get_agent_experiences(
-        &self,
-        agent_id: &str,
-    ) -> Vec<ExperienceEntry> {
+    pub async fn get_agent_experiences(&self, agent_id: &str) -> Vec<ExperienceEntry> {
         let all = self.entries.read().await;
         all.get(agent_id).cloned().unwrap_or_default()
     }
@@ -346,7 +343,9 @@ impl ExperienceStore {
         let mut failure_tags: Vec<String> = Vec::new();
 
         for entry in entries {
-            *type_counts.entry(entry.exp_type.as_str().to_string()).or_insert(0) += 1;
+            *type_counts
+                .entry(entry.exp_type.as_str().to_string())
+                .or_insert(0) += 1;
             *severity_counts
                 .entry(entry.severity.as_str().to_string())
                 .or_insert(0) += 1;
@@ -403,13 +402,7 @@ impl ExperienceStore {
     pub async fn get_unanalyzed(&self, agent_id: &str) -> Vec<ExperienceEntry> {
         let all = self.entries.read().await;
         all.get(agent_id)
-            .map(|entries| {
-                entries
-                    .iter()
-                    .filter(|e| !e.analyzed)
-                    .cloned()
-                    .collect()
-            })
+            .map(|entries| entries.iter().filter(|e| !e.analyzed).cloned().collect())
             .unwrap_or_default()
     }
 
@@ -534,164 +527,264 @@ mod tests {
     }
 }
 
-    // ── 边缘情况测试 ────────────────────────────────
+// ── 边缘情况测试 ────────────────────────────────
 
-    #[test]
-    fn test_experience_entry_builder() {
-        let entry = ExperienceEntry::new("agent-1", ExperienceType::TaskExecution, "Test", "desc", ExperienceOutcome::Success)
-            .with_severity(ExperienceSeverity::Warning)
-            .with_tag("important")
-            .with_tag("bug")
-            .with_context(serde_json::json!({"key": "val"}))
-            .with_duration(500)
-            .with_related_task(LsId::new());
-        assert_eq!(entry.agent_id, "agent-1");
-        assert_eq!(entry.severity, ExperienceSeverity::Warning);
-        assert_eq!(entry.tags.len(), 2);
-        assert_eq!(entry.duration_ms, 500);
-        assert!(entry.related_task_id.is_some());
-    }
+#[test]
+fn test_experience_entry_builder() {
+    let entry = ExperienceEntry::new(
+        "agent-1",
+        ExperienceType::TaskExecution,
+        "Test",
+        "desc",
+        ExperienceOutcome::Success,
+    )
+    .with_severity(ExperienceSeverity::Warning)
+    .with_tag("important")
+    .with_tag("bug")
+    .with_context(serde_json::json!({"key": "val"}))
+    .with_duration(500)
+    .with_related_task(LsId::new());
+    assert_eq!(entry.agent_id, "agent-1");
+    assert_eq!(entry.severity, ExperienceSeverity::Warning);
+    assert_eq!(entry.tags.len(), 2);
+    assert_eq!(entry.duration_ms, 500);
+    assert!(entry.related_task_id.is_some());
+}
 
-    #[tokio::test]
-    async fn test_empty_store_edge_cases() {
-        let store = ExperienceStore::new(100);
+#[tokio::test]
+async fn test_empty_store_edge_cases() {
+    let store = ExperienceStore::new(100);
 
-        // Get from empty store
-        let exps = store.get_agent_experiences("agent-1").await;
-        assert!(exps.is_empty());
+    // Get from empty store
+    let exps = store.get_agent_experiences("agent-1").await;
+    assert!(exps.is_empty());
 
-        // Get failures from empty store
-        let failures = store.get_failures("nonexistent").await;
-        assert!(failures.is_empty());
+    // Get failures from empty store
+    let failures = store.get_failures("nonexistent").await;
+    assert!(failures.is_empty());
 
-        // Get agent IDs from empty store
-        let ids = store.get_agent_ids().await;
-        assert!(ids.is_empty());
+    // Get agent IDs from empty store
+    let ids = store.get_agent_ids().await;
+    assert!(ids.is_empty());
 
-        // Get unanalyzed from empty store
-        let unanalyzed = store.get_unanalyzed("nonexistent").await;
-        assert!(unanalyzed.is_empty());
+    // Get unanalyzed from empty store
+    let unanalyzed = store.get_unanalyzed("nonexistent").await;
+    assert!(unanalyzed.is_empty());
 
-        // Summarize empty agent
-        let summary = store.summarize("nonexistent").await;
-        assert_eq!(summary.total_count, 0);
-        assert_eq!(summary.success_count, 0);
-        assert_eq!(summary.failure_count, 0);
-    }
+    // Summarize empty agent
+    let summary = store.summarize("nonexistent").await;
+    assert_eq!(summary.total_count, 0);
+    assert_eq!(summary.success_count, 0);
+    assert_eq!(summary.failure_count, 0);
+}
 
-    #[tokio::test]
-    async fn test_store_batch() {
-        let store = ExperienceStore::new(100);
-        let entries = vec![
-            ExperienceEntry::new("agent-1", ExperienceType::TaskExecution, "Task 1", "", ExperienceOutcome::Success),
-            ExperienceEntry::new("agent-1", ExperienceType::Error, "Error 1", "", ExperienceOutcome::Failure("err".into())),
-            ExperienceEntry::new("agent-2", ExperienceType::Decision, "Decision 1", "", ExperienceOutcome::PartialSuccess("partial".into())),
-        ];
-        store.store_batch(entries).await;
+#[tokio::test]
+async fn test_store_batch() {
+    let store = ExperienceStore::new(100);
+    let entries = vec![
+        ExperienceEntry::new(
+            "agent-1",
+            ExperienceType::TaskExecution,
+            "Task 1",
+            "",
+            ExperienceOutcome::Success,
+        ),
+        ExperienceEntry::new(
+            "agent-1",
+            ExperienceType::Error,
+            "Error 1",
+            "",
+            ExperienceOutcome::Failure("err".into()),
+        ),
+        ExperienceEntry::new(
+            "agent-2",
+            ExperienceType::Decision,
+            "Decision 1",
+            "",
+            ExperienceOutcome::PartialSuccess("partial".into()),
+        ),
+    ];
+    store.store_batch(entries).await;
 
-        assert_eq!(store.get_agent_experiences("agent-1").await.len(), 2);
-        assert_eq!(store.get_agent_experiences("agent-2").await.len(), 1);
-        assert_eq!(store.get_agent_ids().await.len(), 2);
-    }
+    assert_eq!(store.get_agent_experiences("agent-1").await.len(), 2);
+    assert_eq!(store.get_agent_experiences("agent-2").await.len(), 1);
+    assert_eq!(store.get_agent_ids().await.len(), 2);
+}
 
-    #[tokio::test]
-    async fn test_get_experiences_by_type() {
-        let store = ExperienceStore::new(100);
-        store.store(ExperienceEntry::new("agent-1", ExperienceType::TaskExecution, "Task", "", ExperienceOutcome::Success)).await;
-        store.store(ExperienceEntry::new("agent-1", ExperienceType::Error, "Error", "", ExperienceOutcome::Failure("x".into()))).await;
-        store.store(ExperienceEntry::new("agent-1", ExperienceType::Feedback, "Feedback", "", ExperienceOutcome::Success)).await;
-        store.store(ExperienceEntry::new("agent-2", ExperienceType::TaskExecution, "Task 2", "", ExperienceOutcome::Success)).await;
+#[tokio::test]
+async fn test_get_experiences_by_type() {
+    let store = ExperienceStore::new(100);
+    store
+        .store(ExperienceEntry::new(
+            "agent-1",
+            ExperienceType::TaskExecution,
+            "Task",
+            "",
+            ExperienceOutcome::Success,
+        ))
+        .await;
+    store
+        .store(ExperienceEntry::new(
+            "agent-1",
+            ExperienceType::Error,
+            "Error",
+            "",
+            ExperienceOutcome::Failure("x".into()),
+        ))
+        .await;
+    store
+        .store(ExperienceEntry::new(
+            "agent-1",
+            ExperienceType::Feedback,
+            "Feedback",
+            "",
+            ExperienceOutcome::Success,
+        ))
+        .await;
+    store
+        .store(ExperienceEntry::new(
+            "agent-2",
+            ExperienceType::TaskExecution,
+            "Task 2",
+            "",
+            ExperienceOutcome::Success,
+        ))
+        .await;
 
-        let tasks = store.get_experiences_by_type("agent-1", ExperienceType::TaskExecution).await;
-        assert_eq!(tasks.len(), 1);
+    let tasks = store
+        .get_experiences_by_type("agent-1", ExperienceType::TaskExecution)
+        .await;
+    assert_eq!(tasks.len(), 1);
 
-        let errors = store.get_experiences_by_type("agent-1", ExperienceType::Error).await;
-        assert_eq!(errors.len(), 1);
+    let errors = store
+        .get_experiences_by_type("agent-1", ExperienceType::Error)
+        .await;
+    assert_eq!(errors.len(), 1);
 
-        // No Collaboration type entries
-        let collab = store.get_experiences_by_type("agent-1", ExperienceType::Collaboration).await;
-        assert!(collab.is_empty());
-    }
+    // No Collaboration type entries
+    let collab = store
+        .get_experiences_by_type("agent-1", ExperienceType::Collaboration)
+        .await;
+    assert!(collab.is_empty());
+}
 
-    #[tokio::test]
-    async fn test_clear_agent() {
-        let store = ExperienceStore::new(100);
-        store.store(ExperienceEntry::new("agent-1", ExperienceType::TaskExecution, "T1", "", ExperienceOutcome::Success)).await;
-        store.store(ExperienceEntry::new("agent-2", ExperienceType::Decision, "D1", "", ExperienceOutcome::Success)).await;
+#[tokio::test]
+async fn test_clear_agent() {
+    let store = ExperienceStore::new(100);
+    store
+        .store(ExperienceEntry::new(
+            "agent-1",
+            ExperienceType::TaskExecution,
+            "T1",
+            "",
+            ExperienceOutcome::Success,
+        ))
+        .await;
+    store
+        .store(ExperienceEntry::new(
+            "agent-2",
+            ExperienceType::Decision,
+            "D1",
+            "",
+            ExperienceOutcome::Success,
+        ))
+        .await;
 
-        assert_eq!(store.get_agent_ids().await.len(), 2);
+    assert_eq!(store.get_agent_ids().await.len(), 2);
 
-        store.clear_agent("agent-1").await;
-        assert!(store.get_agent_experiences("agent-1").await.is_empty());
-        assert_eq!(store.get_agent_experiences("agent-2").await.len(), 1);
-        assert_eq!(store.get_agent_ids().await.len(), 1);
-    }
+    store.clear_agent("agent-1").await;
+    assert!(store.get_agent_experiences("agent-1").await.is_empty());
+    assert_eq!(store.get_agent_experiences("agent-2").await.len(), 1);
+    assert_eq!(store.get_agent_ids().await.len(), 1);
+}
 
-    #[tokio::test]
-    async fn test_get_unanalyzed() {
-        let store = ExperienceStore::new(100);
-        store.store(ExperienceEntry::new("agent-1", ExperienceType::TaskExecution, "T1", "", ExperienceOutcome::Success)).await;
-        let mut analyzed_entry = ExperienceEntry::new("agent-1", ExperienceType::Decision, "D1", "", ExperienceOutcome::Success);
-        analyzed_entry.analyzed = true;
-        store.store(analyzed_entry).await;
+#[tokio::test]
+async fn test_get_unanalyzed() {
+    let store = ExperienceStore::new(100);
+    store
+        .store(ExperienceEntry::new(
+            "agent-1",
+            ExperienceType::TaskExecution,
+            "T1",
+            "",
+            ExperienceOutcome::Success,
+        ))
+        .await;
+    let mut analyzed_entry = ExperienceEntry::new(
+        "agent-1",
+        ExperienceType::Decision,
+        "D1",
+        "",
+        ExperienceOutcome::Success,
+    );
+    analyzed_entry.analyzed = true;
+    store.store(analyzed_entry).await;
 
-        let unanalyzed = store.get_unanalyzed("agent-1").await;
-        assert_eq!(unanalyzed.len(), 1);
-        assert_eq!(unanalyzed[0].title, "T1");
-    }
+    let unanalyzed = store.get_unanalyzed("agent-1").await;
+    assert_eq!(unanalyzed.len(), 1);
+    assert_eq!(unanalyzed[0].title, "T1");
+}
 
-    #[tokio::test]
-    async fn test_max_entries_eviction() {
-        let store = ExperienceStore::new(3); // Only keep 3 per agent
-        for i in 0..5 {
-            store.store(ExperienceEntry::new(
+#[tokio::test]
+async fn test_max_entries_eviction() {
+    let store = ExperienceStore::new(3); // Only keep 3 per agent
+    for i in 0..5 {
+        store
+            .store(ExperienceEntry::new(
                 "agent-1",
                 ExperienceType::TaskExecution,
                 format!("Task {}", i),
                 "",
                 ExperienceOutcome::Success,
-            )).await;
-        }
-        let entries = store.get_agent_experiences("agent-1").await;
-        assert_eq!(entries.len(), 3); // Only 3 kept
-        // Oldest should be removed (Task 0, Task 1)
-        assert_eq!(entries[0].title, "Task 2");
+            ))
+            .await;
     }
+    let entries = store.get_agent_experiences("agent-1").await;
+    assert_eq!(entries.len(), 3); // Only 3 kept
+                                  // Oldest should be removed (Task 0, Task 1)
+    assert_eq!(entries[0].title, "Task 2");
+}
 
-    #[tokio::test]
-    async fn test_experience_serialization() {
-        let entry = ExperienceEntry::new("agent-1", ExperienceType::Performance, "Benchmark", "CPU usage", ExperienceOutcome::Success)
-            .with_duration(1000);
-        let json = serde_json::to_string(&entry).unwrap();
-        let deserialized: ExperienceEntry = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.title, "Benchmark");
-        assert_eq!(deserialized.duration_ms, 1000);
-        assert_eq!(deserialized.exp_type, ExperienceType::Performance);
-    }
+#[tokio::test]
+async fn test_experience_serialization() {
+    let entry = ExperienceEntry::new(
+        "agent-1",
+        ExperienceType::Performance,
+        "Benchmark",
+        "CPU usage",
+        ExperienceOutcome::Success,
+    )
+    .with_duration(1000);
+    let json = serde_json::to_string(&entry).unwrap();
+    let deserialized: ExperienceEntry = serde_json::from_str(&json).unwrap();
+    assert_eq!(deserialized.title, "Benchmark");
+    assert_eq!(deserialized.duration_ms, 1000);
+    assert_eq!(deserialized.exp_type, ExperienceType::Performance);
+}
 
-    #[test]
-    fn test_experience_outcome_is_success() {
-        assert!(ExperienceOutcome::Success.is_success());
-        assert!(!ExperienceOutcome::Failure("err".into()).is_success());
-        assert!(!ExperienceOutcome::PartialSuccess("partial".into()).is_success());
-    }
+#[test]
+fn test_experience_outcome_is_success() {
+    assert!(ExperienceOutcome::Success.is_success());
+    assert!(!ExperienceOutcome::Failure("err".into()).is_success());
+    assert!(!ExperienceOutcome::PartialSuccess("partial".into()).is_success());
+}
 
-    #[test]
-    fn test_experience_outcome_is_failure() {
-        assert!(!ExperienceOutcome::Success.is_failure());
-        assert!(ExperienceOutcome::Failure("err".into()).is_failure());
-        assert!(!ExperienceOutcome::PartialSuccess("partial".into()).is_failure());
-    }
+#[test]
+fn test_experience_outcome_is_failure() {
+    assert!(!ExperienceOutcome::Success.is_failure());
+    assert!(ExperienceOutcome::Failure("err".into()).is_failure());
+    assert!(!ExperienceOutcome::PartialSuccess("partial".into()).is_failure());
+}
 
-    #[test]
-    fn test_experience_type_as_str() {
-        assert_eq!(ExperienceType::TaskExecution.as_str(), "task_execution");
-        assert_eq!(ExperienceType::Error.as_str(), "error");
-        assert_eq!(ExperienceType::Collaboration.as_str(), "collaboration");
-    }
+#[test]
+fn test_experience_type_as_str() {
+    assert_eq!(ExperienceType::TaskExecution.as_str(), "task_execution");
+    assert_eq!(ExperienceType::Error.as_str(), "error");
+    assert_eq!(ExperienceType::Collaboration.as_str(), "collaboration");
+}
 
-    #[test]
-    fn test_experience_severity_score() {
-        assert_eq!(ExperienceSeverity::Info.score(), 1);
-        assert_eq!(ExperienceSeverity::Critical.score(), 5);
-    }
+#[test]
+fn test_experience_severity_score() {
+    assert_eq!(ExperienceSeverity::Info.score(), 1);
+    assert_eq!(ExperienceSeverity::Critical.score(), 5);
+}

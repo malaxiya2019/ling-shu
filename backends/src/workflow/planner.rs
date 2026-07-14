@@ -83,11 +83,7 @@ impl WorkflowStep {
 #[async_trait::async_trait]
 pub trait Planner: Send + Sync {
     /// 根据目标和上下文规划工作流.
-    async fn plan(
-        &self,
-        goal: &str,
-        context: &Value,
-    ) -> LsResult<PlannedWorkflow>;
+    async fn plan(&self, goal: &str, context: &Value) -> LsResult<PlannedWorkflow>;
 }
 
 /// 已规划的工作流 (不包含处理器).
@@ -127,10 +123,7 @@ impl SimplePlanner {
     /// 从已规划的工作流构建 DAG.
     ///
     /// `handler_factory` — 根据步骤名称创建节点处理函数。
-    pub fn build_dag<F>(
-        planned: &PlannedWorkflow,
-        handler_factory: F,
-    ) -> LsResult<WorkflowDag>
+    pub fn build_dag<F>(planned: &PlannedWorkflow, handler_factory: F) -> LsResult<WorkflowDag>
     where
         F: Fn(&str) -> Option<NodeHandler>,
     {
@@ -142,7 +135,9 @@ impl SimplePlanner {
             let handler = handler_factory(&step.name).unwrap_or_else(|| {
                 Arc::new(|_ctx: LsContext, _input: Value| {
                     Box::pin(async { Ok::<Value, LsError>(Value::Null) })
-                        as std::pin::Pin<Box<dyn std::future::Future<Output = LsResult<Value>> + Send>>
+                        as std::pin::Pin<
+                            Box<dyn std::future::Future<Output = LsResult<Value>> + Send>,
+                        >
                 }) as NodeHandler
             });
 
@@ -204,14 +199,17 @@ impl SimplePlanner {
         handler_factory: impl Fn(&str) -> Option<NodeHandler>,
     ) -> LsResult<(WorkflowDag, std::collections::HashMap<String, LsId>)> {
         let mut dag = WorkflowDag::new(&planned.name);
-        let mut name_to_id: std::collections::HashMap<String, LsId> = std::collections::HashMap::new();
+        let mut name_to_id: std::collections::HashMap<String, LsId> =
+            std::collections::HashMap::new();
 
         // 第一遍: 创建所有节点
         for step in &planned.steps {
             let handler = handler_factory(&step.name).unwrap_or_else(|| {
                 Arc::new(|_ctx: LsContext, _input: Value| {
                     Box::pin(async { Ok::<Value, LsError>(Value::Null) })
-                        as std::pin::Pin<Box<dyn std::future::Future<Output = LsResult<Value>> + Send>>
+                        as std::pin::Pin<
+                            Box<dyn std::future::Future<Output = LsResult<Value>> + Send>,
+                        >
                 }) as NodeHandler
             });
 
@@ -246,7 +244,7 @@ impl SimplePlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     use serde_json::json;
 
     #[test]
@@ -335,9 +333,11 @@ mod tests {
         let (dag, mapping) = SimplePlanner::build_dag_with_mapping(&planned, |name| {
             if name == "step_a" {
                 Some(Arc::new(|_ctx, _input| {
-                        Box::pin(async { Ok::<Value, LsError>(json!({"done": true})) })
-                            as std::pin::Pin<Box<dyn std::future::Future<Output = LsResult<Value>> + Send>>
-                    }) as NodeHandler)
+                    Box::pin(async { Ok::<Value, LsError>(json!({"done": true})) })
+                        as std::pin::Pin<
+                            Box<dyn std::future::Future<Output = LsResult<Value>> + Send>,
+                        >
+                }) as NodeHandler)
             } else {
                 None
             }

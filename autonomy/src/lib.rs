@@ -52,17 +52,17 @@
 //! let outcomes = evolution.evolve("agent-1").await;
 //! ```
 
-pub mod experience;
 pub mod evolution;
+pub mod experience;
 pub mod reflection;
 
-pub use experience::{
-    ExperienceEntry, ExperienceOutcome, ExperienceSeverity, ExperienceStore,
-    ExperienceSummary, ExperienceType,
-};
 pub use evolution::{
     AgentParameters, EvolutionAction, EvolutionConfig, EvolutionEngine, EvolutionOutcome,
     EvolutionPlan,
+};
+pub use experience::{
+    ExperienceEntry, ExperienceOutcome, ExperienceSeverity, ExperienceStore, ExperienceSummary,
+    ExperienceType,
 };
 pub use reflection::{
     InsightType, ReflectionConfig, ReflectionEngine, ReflectionInsight, ReflectionReport,
@@ -105,7 +105,11 @@ impl AutonomyEngine {
     }
 
     /// 单步自治周期：存储经验 → 反思 → 进化
-    pub async fn autonomy_cycle(&self, agent_id: &str, entry: ExperienceEntry) -> Vec<EvolutionOutcome> {
+    pub async fn autonomy_cycle(
+        &self,
+        agent_id: &str,
+        entry: ExperienceEntry,
+    ) -> Vec<EvolutionOutcome> {
         // 1. 存储经验
         self.experience_store.store(entry).await;
 
@@ -143,7 +147,12 @@ mod tests {
             100,
         );
 
-        assert!(engine.reflection_engine.reflect("test-agent").await.insights.is_empty());
+        assert!(engine
+            .reflection_engine
+            .reflect("test-agent")
+            .await
+            .insights
+            .is_empty());
     }
 
     #[tokio::test]
@@ -152,11 +161,7 @@ mod tests {
         evo_config.auto_apply_threshold = 1;
         evo_config.cooldown = std::time::Duration::from_secs(0);
 
-        let engine = AutonomyEngine::new(
-            ReflectionConfig::default(),
-            evo_config,
-            100,
-        );
+        let engine = AutonomyEngine::new(ReflectionConfig::default(), evo_config, 100);
 
         // Register agent
         engine

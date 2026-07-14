@@ -171,7 +171,7 @@ mod tests {
                     required: true,
                     param_type: "string".into(),
                 }],
-            ..Default::default()
+                ..Default::default()
             }
         }
 
@@ -182,11 +182,11 @@ mod tests {
         async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> {
             Ok(input)
         }
-    
-    fn duplicate(&self) -> Box<dyn Tool> {
-        Box::new(EchoTool)
+
+        fn duplicate(&self) -> Box<dyn Tool> {
+            Box::new(EchoTool)
+        }
     }
-}
 
     #[test]
     fn test_tool_info_to_mcp() {

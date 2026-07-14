@@ -140,7 +140,6 @@ impl Default for MetricsRegistry {
     fn default() -> Self {
         Self::new()
     }
-
 }
 
 // ═══════════════════════════════════════════════════
@@ -355,11 +354,15 @@ mod tests {
         assert!(has_agent_count, "agent_count metric should exist");
 
         // 验证 tool_calls
-        let has_tool_calls = gathered.iter().any(|mf| mf.get_name() == "ls_tool_calls_total");
+        let has_tool_calls = gathered
+            .iter()
+            .any(|mf| mf.get_name() == "ls_tool_calls_total");
         assert!(has_tool_calls, "tool_calls metric should exist");
 
         // 验证 session_count
-        let has_session_count = gathered.iter().any(|mf| mf.get_name() == "ls_session_count");
+        let has_session_count = gathered
+            .iter()
+            .any(|mf| mf.get_name() == "ls_session_count");
         assert!(has_session_count, "session_count metric should exist");
     }
 
@@ -372,7 +375,10 @@ mod tests {
         collector.inc_tool_calls("default_test", "ok");
         // 使用全局注册表验证
         let gathered = MetricsRegistry::global().gather();
-        let agent_metrics: Vec<_> = gathered.iter().filter(|mf| mf.get_name() == "ls_agent_count").collect();
+        let agent_metrics: Vec<_> = gathered
+            .iter()
+            .filter(|mf| mf.get_name() == "ls_agent_count")
+            .collect();
         assert!(!agent_metrics.is_empty());
     }
 }

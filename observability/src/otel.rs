@@ -63,14 +63,18 @@ pub async fn init_otel(endpoint: &str) -> LsResult<Option<OtelGuard>> {
 
         let tracer = opentelemetry_sdk::trace::TracerProvider::builder()
             .with_batch_exporter(span_exporter, opentelemetry_sdk::runtime::Tokio)
-            .with_sampler(opentelemetry_sdk::trace::Sampler::ParentBased(
-                Box::new(opentelemetry_sdk::trace::Sampler::TraceIdRatioBased(0.1)),
-            ))
+            .with_sampler(opentelemetry_sdk::trace::Sampler::ParentBased(Box::new(
+                opentelemetry_sdk::trace::Sampler::TraceIdRatioBased(0.1),
+            )))
             .with_resource(opentelemetry_sdk::Resource::new(vec![
-                opentelemetry::KeyValue::new("service.name",
-                    std::env::var("LS_OTEL_SERVICE_NAME").unwrap_or_else(|_| "lingshu".into())),
-                opentelemetry::KeyValue::new("service.version",
-                    std::env::var("LS_SERVICE_VERSION").unwrap_or_else(|_| "1.0.0".into())),
+                opentelemetry::KeyValue::new(
+                    "service.name",
+                    std::env::var("LS_OTEL_SERVICE_NAME").unwrap_or_else(|_| "lingshu".into()),
+                ),
+                opentelemetry::KeyValue::new(
+                    "service.version",
+                    std::env::var("LS_SERVICE_VERSION").unwrap_or_else(|_| "1.0.0".into()),
+                ),
             ]))
             .build();
 
@@ -101,8 +105,8 @@ pub async fn init_otel_from_env() -> LsResult<Option<OtelGuard>> {
         return Ok(None);
     }
 
-    let endpoint = std::env::var("LS_OTEL_ENDPOINT")
-        .unwrap_or_else(|_| "http://localhost:4317".into());
+    let endpoint =
+        std::env::var("LS_OTEL_ENDPOINT").unwrap_or_else(|_| "http://localhost:4317".into());
     init_otel(&endpoint).await
 }
 

@@ -185,7 +185,12 @@ impl Tool for CodeAnalysisTool {
             },
         }))
     }
-    fn duplicate(&self) -> Box<dyn Tool> { Box::new(CodeAnalysisTool { scanner: FileScanner::new(), llm_analyzer: self.llm_analyzer.clone() }) }
+    fn duplicate(&self) -> Box<dyn Tool> {
+        Box::new(CodeAnalysisTool {
+            scanner: FileScanner::new(),
+            llm_analyzer: self.llm_analyzer.clone(),
+        })
+    }
 }
 
 #[cfg(test)]

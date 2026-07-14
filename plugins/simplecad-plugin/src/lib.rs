@@ -15,18 +15,18 @@
 //! let plugin = init_simplecad(&tool_registry, SimpleCadConfig::default()).await?;
 //! ```
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use async_trait::async_trait;
-use lingshu_core::{LsContext, LsError, LsResult, LsId};
-use lingshu_mcp::rmcp_stdio_client::{McpStdioClient, McpStdioConfig, McpToolResult, McpContent};
+use lingshu_core::{LsContext, LsError, LsId, LsResult};
+use lingshu_mcp::rmcp_stdio_client::{McpContent, McpStdioClient, McpStdioConfig, McpToolResult};
 use lingshu_traits::plugin::{
-    Capability, Plugin, PluginInfo, PluginManifest, PluginPermission, PluginStatus, ToolDeclaration,
-    ToolProvider,
+    Capability, Plugin, PluginInfo, PluginManifest, PluginPermission, PluginStatus,
+    ToolDeclaration, ToolProvider,
 };
 use lingshu_traits::tool::{
-    Tool, ToolInfo, ToolMetadata, ToolParam, ToolCategory, PermissionLevel, SandboxConfig,
+    PermissionLevel, SandboxConfig, Tool, ToolCategory, ToolInfo, ToolMetadata, ToolParam,
 };
 use serde_json::Value;
 use tokio::sync::Mutex;
@@ -117,13 +117,11 @@ impl SimpleCadPlugin {
                     version_req: None,
                 },
             ],
-            tools: vec![
-                ToolDeclaration {
-                    name: "cad:*".into(),
-                    description: "SimpleCAD 3D 建模工具集".into(),
-                    permission_level: "admin".into(),
-                },
-            ],
+            tools: vec![ToolDeclaration {
+                name: "cad:*".into(),
+                description: "SimpleCAD 3D 建模工具集".into(),
+                permission_level: "admin".into(),
+            }],
         };
 
         let info = PluginInfo {
@@ -160,19 +158,21 @@ impl SimpleCadPlugin {
             "Starting SimpleCAD MCP server"
         );
 
-        let client = McpStdioClient::spawn(mcp_config).await.map_err(|e| {
-            LsError::Plugin(format!("SimpleCAD MCP 启动失败: {e}"))
-        })?;
+        let client = McpStdioClient::spawn(mcp_config)
+            .await
+            .map_err(|e| LsError::Plugin(format!("SimpleCAD MCP 启动失败: {e}")))?;
 
         tokio::time::sleep(std::time::Duration::from_millis(2000)).await;
 
-        client.health_check().await.map_err(|e| {
-            LsError::Plugin(format!("SimpleCAD MCP 健康检查失败: {e}"))
-        })?;
+        client
+            .health_check()
+            .await
+            .map_err(|e| LsError::Plugin(format!("SimpleCAD MCP 健康检查失败: {e}")))?;
 
-        let tools = client.list_tools().await.map_err(|e| {
-            LsError::Plugin(format!("SimpleCAD 工具列表获取失败: {e}"))
-        })?;
+        let tools = client
+            .list_tools()
+            .await
+            .map_err(|e| LsError::Plugin(format!("SimpleCAD 工具列表获取失败: {e}")))?;
 
         info!(
             plugin = "simplecad-plugin",
@@ -193,9 +193,7 @@ impl SimpleCadPlugin {
             bridge_tools.push(Box::new(bridge));
         }
 
-        *self.discovered_tools.write().await = bridge_tools.iter()
-            .map(|t| t.duplicate())
-            .collect();
+        *self.discovered_tools.write().await = bridge_tools.iter().map(|t| t.duplicate()).collect();
         *self.client.lock().await = Some(client_arc);
         self.running.store(true, Ordering::SeqCst);
 
@@ -245,7 +243,11 @@ impl Plugin for SimpleCadPlugin {
     }
 
     async fn init(&self, _ctx: LsContext) -> LsResult<()> {
-        info!(plugin = "simplecad-plugin", version = "0.1.0", "SimpleCAD plugin initialized");
+        info!(
+            plugin = "simplecad-plugin",
+            version = "0.1.0",
+            "SimpleCAD plugin initialized"
+        );
         Ok(())
     }
 
@@ -394,11 +396,7 @@ fn extract_params(schema: &Value) -> Vec<ToolParam> {
         let required_set: std::collections::HashSet<&str> = schema
             .get("required")
             .and_then(|r| r.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| v.as_str())
-                    .collect()
-            })
+            .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect())
             .unwrap_or_default();
 
         for (name, prop) in properties {
@@ -465,7 +463,6 @@ pub extern "C" fn create_plugin() -> Box<dyn Plugin> {
 mod tests {
     use super::*;
 
-
     #[test]
     fn test_config_default() {
         let config = SimpleCadConfig::default();
@@ -502,8 +499,12 @@ mod tests {
     fn test_plugin_capabilities() {
         let plugin = SimpleCadPlugin::new();
         let info = plugin.info();
-        let names: Vec<&str> = info.manifest.capabilities
-            .iter().map(|c| c.name.as_str()).collect();
+        let names: Vec<&str> = info
+            .manifest
+            .capabilities
+            .iter()
+            .map(|c| c.name.as_str())
+            .collect();
         assert!(names.contains(&"cad-modeling"));
         assert!(names.contains(&"cad-export"));
         assert!(names.contains(&"cad-replay"));
@@ -557,11 +558,9 @@ mod tests {
     #[test]
     fn test_mcp_result_to_value_text() {
         let result = lingshu_mcp::rmcp_stdio_client::McpToolResult {
-            content: vec![
-                lingshu_mcp::rmcp_stdio_client::McpContent::Text {
-                    text: r#"{"status":"ok","tag":"shape_0"}"#.into(),
-                },
-            ],
+            content: vec![lingshu_mcp::rmcp_stdio_client::McpContent::Text {
+                text: r#"{"status":"ok","tag":"shape_0"}"#.into(),
+            }],
             is_error: false,
         };
         let val = mcp_result_to_value(result);

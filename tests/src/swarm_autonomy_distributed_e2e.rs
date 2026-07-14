@@ -91,7 +91,10 @@ async fn e2e_swarm_topology_switch() {
     assert_eq!(summary.agent_count, 4);
 
     // 切换拓扑
-    engine.topology().switch_topology(SwarmTopology::Ring, &agents).await;
+    engine
+        .topology()
+        .switch_topology(SwarmTopology::Ring, &agents)
+        .await;
     let stats = engine.topology().stats().await;
     assert!(stats.is_connected);
 
@@ -144,7 +147,7 @@ async fn e2e_swarm_emergent_specialization() {
 async fn e2e_distributed_scheduler_submit_task() {
     use lingshu_core::LsId;
     use lingshu_distributed::{
-        Cluster, ClusterConfig, DistScheduler, DistSchedulerConfig, DistScheduleStrategy, DistTask,
+        Cluster, ClusterConfig, DistScheduleStrategy, DistScheduler, DistSchedulerConfig, DistTask,
     };
     use serde_json::json;
     use std::sync::Arc;
@@ -175,10 +178,13 @@ async fn e2e_distributed_scheduler_submit_task() {
     let scheduler = DistScheduler::new(config, cluster);
     scheduler.start().await;
 
-    let task = DistTask::new("e2e-task", "generic", json!({"msg": "hello"}))
-        .with_priority(5);
+    let task = DistTask::new("e2e-task", "generic", json!({"msg": "hello"})).with_priority(5);
     let result = scheduler.submit_task(task).await;
-    assert!(result.is_ok(), "submit task should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "submit task should succeed: {:?}",
+        result.err()
+    );
 
     let schedule = result.unwrap();
     assert!(!schedule.assigned_node_id.is_empty());
@@ -190,8 +196,8 @@ async fn e2e_distributed_scheduler_submit_task() {
 #[tokio::test]
 async fn e2e_autonomy_experience_cycle() {
     use lingshu_autonomy::{
-        AutonomyEngine, EvolutionConfig, ExperienceEntry, ExperienceOutcome,
-        ExperienceSeverity, ExperienceType, ReflectionConfig,
+        AutonomyEngine, EvolutionConfig, ExperienceEntry, ExperienceOutcome, ExperienceSeverity,
+        ExperienceType, ReflectionConfig,
     };
     use lingshu_core::LsId;
     use std::time::Duration;
@@ -219,13 +225,25 @@ async fn e2e_autonomy_experience_cycle() {
         let entry = ExperienceEntry {
             id: LsId::new(),
             agent_id: agent_id.into(),
-            exp_type: if i % 2 == 0 { ExperienceType::TaskExecution } else { ExperienceType::Error },
-            severity: if i > 2 { ExperienceSeverity::Error } else { ExperienceSeverity::Warning },
+            exp_type: if i % 2 == 0 {
+                ExperienceType::TaskExecution
+            } else {
+                ExperienceType::Error
+            },
+            severity: if i > 2 {
+                ExperienceSeverity::Error
+            } else {
+                ExperienceSeverity::Warning
+            },
             timestamp: chrono::Utc::now().timestamp_millis(),
             title: format!("experience {i}"),
             description: format!("test execution {i}"),
             context: serde_json::json!({"attempt": i}),
-            outcome: if i % 2 == 0 { ExperienceOutcome::Success } else { ExperienceOutcome::Failure(format!("error {i}")) },
+            outcome: if i % 2 == 0 {
+                ExperienceOutcome::Success
+            } else {
+                ExperienceOutcome::Failure(format!("error {i}"))
+            },
             tags: vec!["integration-test".into()],
             related_task_id: None,
             related_agent_ids: vec![],
@@ -244,8 +262,8 @@ async fn e2e_autonomy_experience_cycle() {
 #[tokio::test]
 async fn e2e_autonomy_evolution() {
     use lingshu_autonomy::{
-        AutonomyEngine, EvolutionConfig, ExperienceEntry, ExperienceOutcome,
-        ExperienceSeverity, ExperienceType, ReflectionConfig,
+        AutonomyEngine, EvolutionConfig, ExperienceEntry, ExperienceOutcome, ExperienceSeverity,
+        ExperienceType, ReflectionConfig,
     };
     use lingshu_core::LsId;
     use std::time::Duration;
@@ -271,7 +289,10 @@ async fn e2e_autonomy_evolution() {
 
     // 注册 Agent 以便进化
     use lingshu_autonomy::AgentParameters;
-    engine.evolution_engine.register_agent(agent_id, AgentParameters::new(agent_id)).await;
+    engine
+        .evolution_engine
+        .register_agent(agent_id, AgentParameters::new(agent_id))
+        .await;
 
     for i in 0..5 {
         let entry = ExperienceEntry {
@@ -304,16 +325,15 @@ async fn e2e_autonomy_evolution() {
 #[tokio::test]
 async fn e2e_swarm_autonomy_distributed_full_flow() {
     use lingshu_autonomy::{
-        AutonomyEngine, EvolutionConfig, ExperienceEntry, ExperienceOutcome,
-        ExperienceSeverity, ExperienceType, ReflectionConfig,
+        AutonomyEngine, EvolutionConfig, ExperienceEntry, ExperienceOutcome, ExperienceSeverity,
+        ExperienceType, ReflectionConfig,
     };
     use lingshu_core::LsId;
     use lingshu_distributed::{
-        Cluster, ClusterConfig, DistScheduler, DistSchedulerConfig, DistScheduleStrategy, DistTask,
+        Cluster, ClusterConfig, DistScheduleStrategy, DistScheduler, DistSchedulerConfig, DistTask,
     };
     use lingshu_swarm::{
-        SwarmAgent, SwarmAgentRole, SwarmConfig, SwarmEngine, SwarmStrategy,
-        SwarmTopology,
+        SwarmAgent, SwarmAgentRole, SwarmConfig, SwarmEngine, SwarmStrategy, SwarmTopology,
     };
     use serde_json::json;
     use std::sync::Arc;
@@ -324,7 +344,8 @@ async fn e2e_swarm_autonomy_distributed_full_flow() {
         name: "full-flow-swarm".into(),
         strategy: SwarmStrategy::Consensus,
         topology: SwarmTopology::Mesh,
-        min_agents: 1, max_agents: 5,
+        min_agents: 1,
+        max_agents: 5,
         task_timeout: Duration::from_secs(15),
         heartbeat_interval: Duration::from_secs(1),
         enable_autonomy: false,
@@ -337,8 +358,15 @@ async fn e2e_swarm_autonomy_distributed_full_flow() {
     let swarm = Arc::new(SwarmEngine::new(swarm_config));
     swarm.start().await.unwrap();
     for i in 0..3 {
-        let role = match i { 0 => SwarmAgentRole::Planner, 1 => SwarmAgentRole::Executor, _ => SwarmAgentRole::Validator };
-        swarm.add_agent(SwarmAgent::new(format!("full-agent-{i}"), role)).await.unwrap();
+        let role = match i {
+            0 => SwarmAgentRole::Planner,
+            1 => SwarmAgentRole::Executor,
+            _ => SwarmAgentRole::Validator,
+        };
+        swarm
+            .add_agent(SwarmAgent::new(format!("full-agent-{i}"), role))
+            .await
+            .unwrap();
     }
 
     // 2. 分布式调度器
@@ -355,8 +383,10 @@ async fn e2e_swarm_autonomy_distributed_full_flow() {
     let sched_config = DistSchedulerConfig {
         strategy: DistScheduleStrategy::RoundRobin,
         local_node_id: "swarm-node".into(),
-        max_retries: 1, task_timeout_secs: 30,
-        node_timeout_secs: 10, batch_size: 10,
+        max_retries: 1,
+        task_timeout_secs: 30,
+        node_timeout_secs: 10,
+        batch_size: 10,
         enable_auto_failover: true,
         health_check_interval: Duration::from_secs(5),
     };
@@ -365,25 +395,37 @@ async fn e2e_swarm_autonomy_distributed_full_flow() {
 
     // 3. Autonomy
     let reflection_config = ReflectionConfig {
-        confidence_threshold: 0.3, failure_pattern_window: 10,
-        degradation_window: 20, min_experiences_for_reflection: 2,
+        confidence_threshold: 0.3,
+        failure_pattern_window: 10,
+        degradation_window: 20,
+        min_experiences_for_reflection: 2,
         auto_mark_analyzed: true,
     };
     let evolution_config = EvolutionConfig {
-        auto_apply_threshold: 8, verification_wait: Duration::from_secs(10),
-        max_concurrent_plans: 5, cooldown: Duration::from_secs(0),
+        auto_apply_threshold: 8,
+        verification_wait: Duration::from_secs(10),
+        max_concurrent_plans: 5,
+        cooldown: Duration::from_secs(0),
         enable_auto_rollback: false,
         rollback_threshold: -0.5,
     };
-    let autonomy = Arc::new(AutonomyEngine::new(reflection_config, evolution_config, 100));
+    let autonomy = Arc::new(AutonomyEngine::new(
+        reflection_config,
+        evolution_config,
+        100,
+    ));
 
     // 4. 全链路操作
     let agent_id = "full-flow-agent";
 
     // 4a. 调度器任务
     for i in 0..3 {
-        let task = DistTask::new(format!("full-flow-task-{i}"), "generic", json!({"index": i}))
-            .with_priority(1);
+        let task = DistTask::new(
+            format!("full-flow-task-{i}"),
+            "generic",
+            json!({"index": i}),
+        )
+        .with_priority(1);
         let result = scheduler.submit_task(task).await;
         assert!(result.is_ok(), "scheduler task {i} should succeed");
     }
@@ -393,13 +435,25 @@ async fn e2e_swarm_autonomy_distributed_full_flow() {
         let entry = ExperienceEntry {
             id: LsId::new(),
             agent_id: agent_id.into(),
-            exp_type: if i < 3 { ExperienceType::TaskExecution } else { ExperienceType::Error },
-            severity: if i == 3 { ExperienceSeverity::Error } else { ExperienceSeverity::Warning },
+            exp_type: if i < 3 {
+                ExperienceType::TaskExecution
+            } else {
+                ExperienceType::Error
+            },
+            severity: if i == 3 {
+                ExperienceSeverity::Error
+            } else {
+                ExperienceSeverity::Warning
+            },
             timestamp: chrono::Utc::now().timestamp_millis(),
             title: format!("flow exec {i}"),
             description: format!("step {i}"),
             context: json!({"step": i}),
-            outcome: if i < 3 { ExperienceOutcome::Success } else { ExperienceOutcome::Failure("error".into()) },
+            outcome: if i < 3 {
+                ExperienceOutcome::Success
+            } else {
+                ExperienceOutcome::Failure("error".into())
+            },
             tags: vec!["full-flow".into()],
             related_task_id: None,
             related_agent_ids: vec![],

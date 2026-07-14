@@ -8,7 +8,7 @@
 //! - `postgres` — PostgreSQL 后端
 
 use async_trait::async_trait;
-use lingshu_core::{LsResult, LsError};
+use lingshu_core::{LsError, LsResult};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -168,8 +168,9 @@ pub mod sqlite_store {
                     role TEXT NOT NULL, content TEXT NOT NULL,
                     embedding BLOB, model TEXT NOT NULL DEFAULT 'text-embedding-ada-002',
                     token_count INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL
-                );"
-            ).map_err(|e| LsError::Internal(format!("sqlite create tables: {e}")))?;
+                );",
+            )
+            .map_err(|e| LsError::Internal(format!("sqlite create tables: {e}")))?;
             Ok(Self {
                 conn: Arc::new(Mutex::new(conn)),
             })
@@ -188,13 +189,16 @@ pub mod sqlite_store {
                     cp.id,
                     cp.agent_id,
                     cp.session_id,
-                    serde_json::to_string(&cp.state).map_err(|e| LsError::Internal(e.to_string()))?,
-                    serde_json::to_string(&cp.metadata).map_err(|e| LsError::Internal(e.to_string()))?,
+                    serde_json::to_string(&cp.state)
+                        .map_err(|e| LsError::Internal(e.to_string()))?,
+                    serde_json::to_string(&cp.metadata)
+                        .map_err(|e| LsError::Internal(e.to_string()))?,
                     cp.version,
                     cp.created_at.to_rfc3339(),
                     cp.expires_at.map(|d| d.to_rfc3339()),
                 ],
-            ).map_err(|e| LsError::Internal(format!("save checkpoint: {e}")))?;
+            )
+            .map_err(|e| LsError::Internal(format!("save checkpoint: {e}")))?;
             Ok(())
         }
 
@@ -205,20 +209,27 @@ pub mod sqlite_store {
                  FROM agent_checkpoints WHERE id = ?1"
             ).map_err(|e| LsError::Internal(e.to_string()))?;
 
-            let mut rows = stmt.query_map(params![id], |row| {
-                Ok(Checkpoint {
-                    id: row.get(0)?,
-                    agent_id: row.get(1)?,
-                    session_id: row.get(2)?,
-                    state: serde_json::from_str(&row.get::<_, String>(3)?).unwrap_or_default(),
-                    metadata: serde_json::from_str(&row.get::<_, String>(4)?).unwrap_or_default(),
-                    version: row.get::<_, i32>(5)? as u32,
-                    created_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?)
-                        .map(|d| d.into()).unwrap_or_else(|_| chrono::Utc::now()),
-                    expires_at: row.get::<_, Option<String>>(7)?
-                        .and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok().map(|d| d.into())),
+            let mut rows = stmt
+                .query_map(params![id], |row| {
+                    Ok(Checkpoint {
+                        id: row.get(0)?,
+                        agent_id: row.get(1)?,
+                        session_id: row.get(2)?,
+                        state: serde_json::from_str(&row.get::<_, String>(3)?).unwrap_or_default(),
+                        metadata: serde_json::from_str(&row.get::<_, String>(4)?)
+                            .unwrap_or_default(),
+                        version: row.get::<_, i32>(5)? as u32,
+                        created_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?)
+                            .map(|d| d.into())
+                            .unwrap_or_else(|_| chrono::Utc::now()),
+                        expires_at: row.get::<_, Option<String>>(7)?.and_then(|s| {
+                            chrono::DateTime::parse_from_rfc3339(&s)
+                                .ok()
+                                .map(|d| d.into())
+                        }),
+                    })
                 })
-            }).map_err(|e| LsError::Internal(e.to_string()))?;
+                .map_err(|e| LsError::Internal(e.to_string()))?;
 
             match rows.next() {
                 Some(Ok(cp)) => Ok(Some(cp)),
@@ -247,22 +258,32 @@ pub mod sqlite_store {
                 sql.push_str(&format!(" OFFSET {offset}"));
             }
 
-            let param_refs: Vec<&dyn rusqlite::types::ToSql> = params_vec.iter().map(|p| p.as_ref()).collect();
-            let mut stmt = conn.prepare(&sql).map_err(|e| LsError::Internal(e.to_string()))?;
-            let rows = stmt.query_map(param_refs.as_slice(), |row| {
-                Ok(Checkpoint {
-                    id: row.get(0)?,
-                    agent_id: row.get(1)?,
-                    session_id: row.get(2)?,
-                    state: serde_json::from_str(&row.get::<_, String>(3)?).unwrap_or_default(),
-                    metadata: serde_json::from_str(&row.get::<_, String>(4)?).unwrap_or_default(),
-                    version: row.get::<_, i32>(5)? as u32,
-                    created_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?)
-                        .map(|d| d.into()).unwrap_or_else(|_| chrono::Utc::now()),
-                    expires_at: row.get::<_, Option<String>>(7)?
-                        .and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok().map(|d| d.into())),
+            let param_refs: Vec<&dyn rusqlite::types::ToSql> =
+                params_vec.iter().map(|p| p.as_ref()).collect();
+            let mut stmt = conn
+                .prepare(&sql)
+                .map_err(|e| LsError::Internal(e.to_string()))?;
+            let rows = stmt
+                .query_map(param_refs.as_slice(), |row| {
+                    Ok(Checkpoint {
+                        id: row.get(0)?,
+                        agent_id: row.get(1)?,
+                        session_id: row.get(2)?,
+                        state: serde_json::from_str(&row.get::<_, String>(3)?).unwrap_or_default(),
+                        metadata: serde_json::from_str(&row.get::<_, String>(4)?)
+                            .unwrap_or_default(),
+                        version: row.get::<_, i32>(5)? as u32,
+                        created_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(6)?)
+                            .map(|d| d.into())
+                            .unwrap_or_else(|_| chrono::Utc::now()),
+                        expires_at: row.get::<_, Option<String>>(7)?.and_then(|s| {
+                            chrono::DateTime::parse_from_rfc3339(&s)
+                                .ok()
+                                .map(|d| d.into())
+                        }),
+                    })
                 })
-            }).map_err(|e| LsError::Internal(e.to_string()))?;
+                .map_err(|e| LsError::Internal(e.to_string()))?;
 
             let mut results = Vec::new();
             for row in rows {
@@ -273,19 +294,20 @@ pub mod sqlite_store {
 
         async fn delete_checkpoint(&self, id: &str) -> LsResult<bool> {
             let conn = self.conn.lock().await;
-            let affected = conn.execute(
-                "DELETE FROM agent_checkpoints WHERE id = ?1",
-                params![id],
-            ).map_err(|e| LsError::Internal(e.to_string()))?;
+            let affected = conn
+                .execute("DELETE FROM agent_checkpoints WHERE id = ?1", params![id])
+                .map_err(|e| LsError::Internal(e.to_string()))?;
             Ok(affected > 0)
         }
 
         async fn delete_agent_checkpoints(&self, agent_id: &str) -> LsResult<u64> {
             let conn = self.conn.lock().await;
-            let affected = conn.execute(
-                "DELETE FROM agent_checkpoints WHERE agent_id = ?1",
-                params![agent_id],
-            ).map_err(|e| LsError::Internal(e.to_string()))?;
+            let affected = conn
+                .execute(
+                    "DELETE FROM agent_checkpoints WHERE agent_id = ?1",
+                    params![agent_id],
+                )
+                .map_err(|e| LsError::Internal(e.to_string()))?;
             Ok(affected as u64)
         }
 
@@ -318,21 +340,28 @@ pub mod sqlite_store {
                  FROM agent_states WHERE agent_id = ?1"
             ).map_err(|e| LsError::Internal(e.to_string()))?;
 
-            let mut rows = stmt.query_map(params![agent_id], |row| {
-                Ok(AgentState {
-                    agent_id: row.get(0)?,
-                    status: row.get(1)?,
-                    phase: row.get(2)?,
-                    state_machine: serde_json::from_str(&row.get::<_, String>(3)?).unwrap_or_default(),
-                    variables: serde_json::from_str(&row.get::<_, String>(4)?).unwrap_or_default(),
-                    history: serde_json::from_str(&row.get::<_, String>(5)?).unwrap_or_default(),
-                    version: row.get::<_, i32>(6)? as u32,
-                    updated_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?)
-                        .map(|d| d.into()).unwrap_or_else(|_| chrono::Utc::now()),
-                    created_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(8)?)
-                        .map(|d| d.into()).unwrap_or_else(|_| chrono::Utc::now()),
+            let mut rows = stmt
+                .query_map(params![agent_id], |row| {
+                    Ok(AgentState {
+                        agent_id: row.get(0)?,
+                        status: row.get(1)?,
+                        phase: row.get(2)?,
+                        state_machine: serde_json::from_str(&row.get::<_, String>(3)?)
+                            .unwrap_or_default(),
+                        variables: serde_json::from_str(&row.get::<_, String>(4)?)
+                            .unwrap_or_default(),
+                        history: serde_json::from_str(&row.get::<_, String>(5)?)
+                            .unwrap_or_default(),
+                        version: row.get::<_, i32>(6)? as u32,
+                        updated_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?)
+                            .map(|d| d.into())
+                            .unwrap_or_else(|_| chrono::Utc::now()),
+                        created_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(8)?)
+                            .map(|d| d.into())
+                            .unwrap_or_else(|_| chrono::Utc::now()),
+                    })
                 })
-            }).map_err(|e| LsError::Internal(e.to_string()))?;
+                .map_err(|e| LsError::Internal(e.to_string()))?;
 
             match rows.next() {
                 Some(Ok(state)) => Ok(Some(state)),
@@ -356,7 +385,8 @@ pub mod sqlite_store {
                     emb.token_count,
                     emb.created_at.to_rfc3339(),
                 ],
-            ).map_err(|e| LsError::Internal(format!("save embedding: {e}")))?;
+            )
+            .map_err(|e| LsError::Internal(format!("save embedding: {e}")))?;
             Ok(())
         }
 
@@ -367,19 +397,22 @@ pub mod sqlite_store {
                  FROM conversation_embeddings WHERE session_id = ?1 ORDER BY created_at ASC"
             ).map_err(|e| LsError::Internal(e.to_string()))?;
 
-            let rows = stmt.query_map(params![session_id], |row| {
-                Ok(ConversationEmbedding {
-                    id: row.get(0)?,
-                    session_id: row.get(1)?,
-                    role: row.get(2)?,
-                    content: row.get(3)?,
-                    embedding: row.get(4)?,
-                    model: row.get(5)?,
-                    token_count: row.get::<_, i32>(6)? as u32,
-                    created_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?)
-                        .map(|d| d.into()).unwrap_or_else(|_| chrono::Utc::now()),
+            let rows = stmt
+                .query_map(params![session_id], |row| {
+                    Ok(ConversationEmbedding {
+                        id: row.get(0)?,
+                        session_id: row.get(1)?,
+                        role: row.get(2)?,
+                        content: row.get(3)?,
+                        embedding: row.get(4)?,
+                        model: row.get(5)?,
+                        token_count: row.get::<_, i32>(6)? as u32,
+                        created_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(7)?)
+                            .map(|d| d.into())
+                            .unwrap_or_else(|_| chrono::Utc::now()),
+                    })
                 })
-            }).map_err(|e| LsError::Internal(e.to_string()))?;
+                .map_err(|e| LsError::Internal(e.to_string()))?;
 
             let mut results = Vec::new();
             for row in rows {
@@ -403,8 +436,8 @@ pub mod sqlite_store {
 #[cfg(test)]
 #[cfg(feature = "sqlite")]
 mod tests {
-    use super::*;
     use super::sqlite_store::SqliteCheckpointStore;
+    use super::*;
 
     fn create_store() -> SqliteCheckpointStore {
         SqliteCheckpointStore::in_memory().unwrap()
@@ -450,7 +483,11 @@ mod tests {
         store.save_checkpoint(&cp).await.unwrap();
 
         assert!(store.delete_checkpoint("cp-agent-2-1").await.unwrap());
-        assert!(store.get_checkpoint("cp-agent-2-1").await.unwrap().is_none());
+        assert!(store
+            .get_checkpoint("cp-agent-2-1")
+            .await
+            .unwrap()
+            .is_none());
     }
 
     #[tokio::test]
@@ -462,8 +499,14 @@ mod tests {
     #[tokio::test]
     async fn test_query_by_agent() {
         let store = create_store();
-        store.save_checkpoint(&sample_checkpoint("agent-a")).await.unwrap();
-        store.save_checkpoint(&sample_checkpoint("agent-b")).await.unwrap();
+        store
+            .save_checkpoint(&sample_checkpoint("agent-a"))
+            .await
+            .unwrap();
+        store
+            .save_checkpoint(&sample_checkpoint("agent-b"))
+            .await
+            .unwrap();
 
         let query = CheckpointQuery {
             agent_id: Some("agent-a".into()),
@@ -515,7 +558,12 @@ mod tests {
             session_id: "sess-1".into(),
             role: "user".into(),
             content: "hello world".into(),
-            embedding: Some(vec![0.1f64, 0.2f64, 0.3f64].into_iter().flat_map(f64::to_le_bytes).collect()),
+            embedding: Some(
+                vec![0.1f64, 0.2f64, 0.3f64]
+                    .into_iter()
+                    .flat_map(f64::to_le_bytes)
+                    .collect(),
+            ),
             model: "test-model".into(),
             token_count: 5,
             created_at: chrono::Utc::now(),

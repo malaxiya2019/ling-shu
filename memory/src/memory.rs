@@ -79,13 +79,10 @@ impl DefaultMemory {
         self.long_term_store = Some(store.clone());
         // 也设置到 consolidator
         if let Some(ref cons) = self.consolidator {
-            let new_cons = MemoryConsolidator::new(cons.policy().clone())
-                .with_store(store);
+            let new_cons = MemoryConsolidator::new(cons.policy().clone()).with_store(store);
             self.consolidator = Some(Arc::new(new_cons));
         } else {
-            self.consolidator = Some(Arc::new(
-                MemoryConsolidator::default().with_store(store)
-            ));
+            self.consolidator = Some(Arc::new(MemoryConsolidator::default().with_store(store)));
         }
         self
     }
@@ -133,7 +130,10 @@ impl DefaultMemory {
 
         let prev_summary = self.summary.read().await.clone();
 
-        match summarizer.summarize(ctx, &self.session_id, &to_summarize, prev_summary.as_ref()).await {
+        match summarizer
+            .summarize(ctx, &self.session_id, &to_summarize, prev_summary.as_ref())
+            .await
+        {
             Ok(Some(new_summary)) => {
                 let mut summary = self.summary.write().await;
                 *summary = Some(new_summary);
@@ -159,7 +159,10 @@ impl DefaultMemory {
         }
 
         let all_items = self.buffer.all().await;
-        if let Err(e) = consolidator.consolidate(ctx, &self.session_id, &all_items).await {
+        if let Err(e) = consolidator
+            .consolidate(ctx, &self.session_id, &all_items)
+            .await
+        {
             warn!("auto-consolidate failed: {}", e);
         }
     }
@@ -202,8 +205,7 @@ impl Memory for DefaultMemory {
                 role: "system".to_string(),
                 content: format!(
                     "[会话摘要 - {} 条历史记录]\n{}",
-                    summary.original_count,
-                    summary.summary
+                    summary.original_count, summary.summary
                 ),
                 timestamp: summary.created_at,
                 metadata: serde_json::json!({
@@ -229,7 +231,9 @@ impl Memory for DefaultMemory {
         // 优先从长期存储搜索
         if let Some(ref store) = self.long_term_store {
             let query_text = query.query.as_deref().unwrap_or("");
-            let results = store.search(_ctx, &self.session_id, query_text, query.limit).await?;
+            let results = store
+                .search(_ctx, &self.session_id, query_text, query.limit)
+                .await?;
             let elapsed = start.elapsed().as_millis() as u64;
             let total = results.len();
             return Ok(MemoryResult {
@@ -306,7 +310,9 @@ impl Memory for DefaultMemory {
         let all_items = self.buffer.all().await;
         let prev_summary = self.summary.read().await.clone();
 
-        let result = summarizer.summarize(ctx, &self.session_id, &all_items, prev_summary.as_ref()).await?;
+        let result = summarizer
+            .summarize(ctx, &self.session_id, &all_items, prev_summary.as_ref())
+            .await?;
 
         if let Some(ref new_summary) = result {
             let mut summary = self.summary.write().await;
@@ -329,7 +335,9 @@ impl Memory for DefaultMemory {
         };
 
         let all_items = self.buffer.all().await;
-        consolidator.consolidate(ctx, &self.session_id, &all_items).await
+        consolidator
+            .consolidate(ctx, &self.session_id, &all_items)
+            .await
     }
 }
 
@@ -409,23 +417,34 @@ mod tests {
         struct MockLlm;
         #[async_trait]
         impl SummarizerLlm for MockLlm {
-            async fn generate(&self, _ctx: &LsContext, _prompt: &str, _model: &str) -> LsResult<String> {
+            async fn generate(
+                &self,
+                _ctx: &LsContext,
+                _prompt: &str,
+                _model: &str,
+            ) -> LsResult<String> {
                 Ok("**摘要**：模拟摘要内容。".to_string())
             }
         }
 
-        let summarizer = Arc::new(
-            MemorySummarizer::default().with_llm(Arc::new(MockLlm))
-        );
+        let summarizer = Arc::new(MemorySummarizer::default().with_llm(Arc::new(MockLlm)));
 
         let ctx = LsContext::with_session(lingshu_core::LsId::new());
-        let mem = DefaultMemory::new("test-session", MemoryConfig {
-            buffer_capacity: 10,
-            ..Default::default()
-        }).with_summarizer(summarizer);
+        let mem = DefaultMemory::new(
+            "test-session",
+            MemoryConfig {
+                buffer_capacity: 10,
+                ..Default::default()
+            },
+        )
+        .with_summarizer(summarizer);
 
-        mem.store_message(&ctx, "user", "今天天气怎么样？").await.unwrap();
-        mem.store_message(&ctx, "assistant", "今天天气很好。").await.unwrap();
+        mem.store_message(&ctx, "user", "今天天气怎么样？")
+            .await
+            .unwrap();
+        mem.store_message(&ctx, "assistant", "今天天气很好。")
+            .await
+            .unwrap();
 
         // 手动触发摘要
         mem.trigger_summarization(&ctx).await.unwrap();
@@ -434,6 +453,9 @@ mod tests {
         let result = mem.recall(&ctx, &MemoryQuery::default()).await.unwrap();
         assert!(result.items.len() >= 2);
         // 第一条应该是摘要
-        assert!(result.items[0].content.contains("会话摘要") || result.items[0].content.contains("摘要"));
+        assert!(
+            result.items[0].content.contains("会话摘要")
+                || result.items[0].content.contains("摘要")
+        );
     }
 }

@@ -28,7 +28,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{mpsc, RwLock};
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 /// 迁移策略.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -133,7 +133,11 @@ pub struct MigrationManager {
 #[async_trait]
 pub trait RemoteMigrate: Send + Sync {
     /// 发送迁移请求到目标节点.
-    async fn send_migrate_request(&self, target: &str, req: &MigrateRequest) -> LsResult<MigrateAck>;
+    async fn send_migrate_request(
+        &self,
+        target: &str,
+        req: &MigrateRequest,
+    ) -> LsResult<MigrateAck>;
     /// 发送状态数据.
     async fn send_state(&self, target: &str, migration_id: &str, data: Vec<u8>) -> LsResult<()>;
     /// 通知源节点迁移完成.
@@ -159,7 +163,10 @@ impl MigrationManager {
 
     /// 注册 Agent (使其可迁移).
     pub async fn register_agent(&self, agent_id: &str, agent: Box<dyn Agent + Send + Sync>) {
-        self.agents.write().await.insert(agent_id.to_string(), agent);
+        self.agents
+            .write()
+            .await
+            .insert(agent_id.to_string(), agent);
         info!(agent_id, "agent registered for migration");
     }
 
@@ -177,7 +184,11 @@ impl MigrationManager {
         strategy: MigrationStrategy,
     ) -> LsResult<MigrateResult> {
         let start = std::time::Instant::now();
-        let migration_id = format!("mig-{}-{}", agent_id, chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
+        let migration_id = format!(
+            "mig-{}-{}",
+            agent_id,
+            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+        );
 
         // 验证 Agent 存在
         let agent = {
@@ -189,10 +200,10 @@ impl MigrationManager {
         };
 
         // 更新状态
-        self.active_migrations.write().await.insert(
-            migration_id.clone(),
-            MigrationStatus::AwaitingAck,
-        );
+        self.active_migrations
+            .write()
+            .await
+            .insert(migration_id.clone(), MigrationStatus::AwaitingAck);
 
         // 构建迁移请求
         let request = MigrateRequest {
@@ -223,23 +234,25 @@ impl MigrationManager {
         }
 
         // 更新状态: 传输中
-        self.active_migrations.write().await.insert(
-            migration_id.clone(),
-            MigrationStatus::Transferring,
-        );
+        self.active_migrations
+            .write()
+            .await
+            .insert(migration_id.clone(), MigrationStatus::Transferring);
 
         // 获取 Agent 快照并传输
         let snapshot = agent.snapshot().await;
         let state_bytes = bincode::serialize(&snapshot)
             .map_err(|e| LsError::Internal(format!("serialize agent state: {e}")))?;
 
-        remote.send_state(target_node, &migration_id, state_bytes).await?;
+        remote
+            .send_state(target_node, &migration_id, state_bytes)
+            .await?;
 
         // 更新状态: 恢复中
-        self.active_migrations.write().await.insert(
-            migration_id.clone(),
-            MigrationStatus::Restoring,
-        );
+        self.active_migrations
+            .write()
+            .await
+            .insert(migration_id.clone(), MigrationStatus::Restoring);
 
         // 等待确认迁移完成
         let result = MigrateResult {
@@ -255,10 +268,10 @@ impl MigrationManager {
         remote.send_complete(target_node, &result).await?;
 
         // 更新状态
-        self.active_migrations.write().await.insert(
-            migration_id.clone(),
-            MigrationStatus::Completed,
-        );
+        self.active_migrations
+            .write()
+            .await
+            .insert(migration_id.clone(), MigrationStatus::Completed);
 
         // 记录历史
         self.migration_history.write().await.push(result.clone());
@@ -281,10 +294,10 @@ impl MigrationManager {
     pub async fn handle_migrate_request(&self, request: &MigrateRequest) -> MigrateAck {
         // 验证资源可用
         let migration_id = request.migration_id.clone();
-        self.active_migrations.write().await.insert(
-            migration_id,
-            MigrationStatus::Pending,
-        );
+        self.active_migrations
+            .write()
+            .await
+            .insert(migration_id, MigrationStatus::Pending);
 
         MigrateAck {
             migration_id: request.migration_id.clone(),
@@ -316,7 +329,11 @@ impl MigrationManager {
 
     /// 获取迁移状态.
     pub async fn get_migration_status(&self, migration_id: &str) -> Option<MigrationStatus> {
-        self.active_migrations.read().await.get(migration_id).cloned()
+        self.active_migrations
+            .read()
+            .await
+            .get(migration_id)
+            .cloned()
     }
 
     /// 获取迁移历史.
@@ -357,9 +374,15 @@ mod tests {
         async fn restore(&self, _snapshot: AgentSnapshot) -> LsResult<()> {
             Ok(())
         }
-        async fn pause(&self) -> LsResult<()> { Ok(()) }
-        async fn resume(&self) -> LsResult<()> { Ok(()) }
-        async fn stop(&self) -> LsResult<()> { Ok(()) }
+        async fn pause(&self) -> LsResult<()> {
+            Ok(())
+        }
+        async fn resume(&self) -> LsResult<()> {
+            Ok(())
+        }
+        async fn stop(&self) -> LsResult<()> {
+            Ok(())
+        }
     }
 
     #[tokio::test]
@@ -382,7 +405,9 @@ mod tests {
     async fn test_migrate_without_remote_executor_fails() {
         let mgr = MigrationManager::new("node-1");
         mgr.register_agent("agent-1", Box::new(MockAgent)).await;
-        let result = mgr.migrate_agent("agent-1", "node-2", MigrationStrategy::Hot).await;
+        let result = mgr
+            .migrate_agent("agent-1", "node-2", MigrationStrategy::Hot)
+            .await;
         assert!(result.is_err());
     }
 
@@ -411,7 +436,8 @@ mod tests {
             state: HashMap::new(),
             memory: vec![],
             timestamp: chrono::Utc::now(),
-        }).unwrap();
+        })
+        .unwrap();
         let new_id = mgr.receive_agent_state("agent-1", state).await.unwrap();
         assert!(new_id.contains("migrated"));
     }

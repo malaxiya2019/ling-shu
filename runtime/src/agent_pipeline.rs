@@ -111,7 +111,11 @@ impl PipelineStage for PreProcessStage {
         };
 
         // Add system message if not present
-        if !pipeline_ctx.messages.iter().any(|m| m.role == LlmRole::System) {
+        if !pipeline_ctx
+            .messages
+            .iter()
+            .any(|m| m.role == LlmRole::System)
+        {
             pipeline_ctx.messages.push(LlmMessage {
                 role: LlmRole::System,
                 content: DEFAULT_SYSTEM_PROMPT.to_string(),
@@ -174,10 +178,7 @@ impl PipelineStage for ThinkStage {
         ctx: &LsContext,
         pipeline_ctx: &mut PipelineContext,
     ) -> LsResult<StageAction> {
-        debug!(
-            iteration = pipeline_ctx.iteration,
-            "think: calling LLM"
-        );
+        debug!(iteration = pipeline_ctx.iteration, "think: calling LLM");
 
         let request = lingshu_traits::llm::LlmRequest {
             model: self.model.clone(),
@@ -235,10 +236,7 @@ impl PipelineStage for ActStage {
             _ => return Ok(StageAction::Continue), // No tool calls, skip to output
         };
 
-        debug!(
-            tool_calls = tool_calls.len(),
-            "act: executing tool calls"
-        );
+        debug!(tool_calls = tool_calls.len(), "act: executing tool calls");
 
         for tool_call in &tool_calls {
             let args: Value = match serde_json::from_str(&tool_call.function.arguments) {
@@ -265,8 +263,7 @@ impl PipelineStage for ActStage {
             };
 
             let result_content = match result {
-                Ok(val) => serde_json::to_string_pretty(&val)
-                    .unwrap_or_else(|_| "{}".to_string()),
+                Ok(val) => serde_json::to_string_pretty(&val).unwrap_or_else(|_| "{}".to_string()),
                 Err(e) => format!("Tool execution error: {e}"),
             };
 
@@ -306,7 +303,9 @@ impl PipelineStage for PostProcessStage {
                 // Check if this message has tool calls — if so, not final
                 let has_tool_calls = msg.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
                 if !has_tool_calls {
-                    return Ok(StageAction::SkipToOutput(Value::String(msg.content.clone())));
+                    return Ok(StageAction::SkipToOutput(Value::String(
+                        msg.content.clone(),
+                    )));
                 }
             }
         }
@@ -561,11 +560,7 @@ pub struct PipelineAgent {
 
 impl PipelineAgent {
     /// 创建新的 PipelineAgent.
-    pub fn new(
-        id: LsId,
-        name: impl Into<String>,
-        pipeline: Arc<AgentPipeline>,
-    ) -> Self {
+    pub fn new(id: LsId, name: impl Into<String>, pipeline: Arc<AgentPipeline>) -> Self {
         Self {
             id,
             name: name.into(),
@@ -583,9 +578,10 @@ impl lingshu_traits::agent::Agent for PipelineAgent {
 
     async fn run(&mut self, ctx: LsContext, input: Value) -> LsResult<AgentOutput> {
         {
-            let mut status = self.status.write().map_err(|e| {
-                LsError::Internal(format!("status lock poisoned: {e}"))
-            })?;
+            let mut status = self
+                .status
+                .write()
+                .map_err(|e| LsError::Internal(format!("status lock poisoned: {e}")))?;
             *status = lingshu_traits::agent::AgentStatus::Running;
         }
 
@@ -595,9 +591,10 @@ impl lingshu_traits::agent::Agent for PipelineAgent {
             .await;
 
         {
-            let mut status = self.status.write().map_err(|e| {
-                LsError::Internal(format!("status lock poisoned: {e}"))
-            })?;
+            let mut status = self
+                .status
+                .write()
+                .map_err(|e| LsError::Internal(format!("status lock poisoned: {e}")))?;
             *status = lingshu_traits::agent::AgentStatus::Completed;
         }
 
@@ -605,33 +602,37 @@ impl lingshu_traits::agent::Agent for PipelineAgent {
     }
 
     async fn pause(&mut self, _ctx: LsContext) -> LsResult<()> {
-        let mut status = self.status.write().map_err(|e| {
-            LsError::Internal(format!("status lock poisoned: {e}"))
-        })?;
+        let mut status = self
+            .status
+            .write()
+            .map_err(|e| LsError::Internal(format!("status lock poisoned: {e}")))?;
         *status = lingshu_traits::agent::AgentStatus::Paused;
         Ok(())
     }
 
     async fn resume(&mut self, _ctx: LsContext) -> LsResult<()> {
-        let mut status = self.status.write().map_err(|e| {
-            LsError::Internal(format!("status lock poisoned: {e}"))
-        })?;
+        let mut status = self
+            .status
+            .write()
+            .map_err(|e| LsError::Internal(format!("status lock poisoned: {e}")))?;
         *status = lingshu_traits::agent::AgentStatus::Running;
         Ok(())
     }
 
     async fn cancel(&mut self, _ctx: LsContext) -> LsResult<()> {
-        let mut status = self.status.write().map_err(|e| {
-            LsError::Internal(format!("status lock poisoned: {e}"))
-        })?;
+        let mut status = self
+            .status
+            .write()
+            .map_err(|e| LsError::Internal(format!("status lock poisoned: {e}")))?;
         *status = lingshu_traits::agent::AgentStatus::Completed;
         Ok(())
     }
 
     async fn snapshot(&self, _ctx: LsContext) -> LsResult<lingshu_traits::agent::AgentSnapshot> {
-        let status = self.status.read().map_err(|e| {
-            LsError::Internal(format!("status lock poisoned: {e}"))
-        })?;
+        let status = self
+            .status
+            .read()
+            .map_err(|e| LsError::Internal(format!("status lock poisoned: {e}")))?;
         Ok(lingshu_traits::agent::AgentSnapshot {
             agent_id: self.id,
             status: *status,
@@ -641,14 +642,19 @@ impl lingshu_traits::agent::Agent for PipelineAgent {
         })
     }
 
-    async fn restore(&mut self, _ctx: LsContext, _snapshot: lingshu_traits::agent::AgentSnapshot) -> LsResult<()> {
+    async fn restore(
+        &mut self,
+        _ctx: LsContext,
+        _snapshot: lingshu_traits::agent::AgentSnapshot,
+    ) -> LsResult<()> {
         Ok(())
     }
 
     async fn status(&self, _ctx: LsContext) -> LsResult<lingshu_traits::agent::AgentStatus> {
-        let status = self.status.read().map_err(|e| {
-            LsError::Internal(format!("status lock poisoned: {e}"))
-        })?;
+        let status = self
+            .status
+            .read()
+            .map_err(|e| LsError::Internal(format!("status lock poisoned: {e}")))?;
         Ok(*status)
     }
 }
@@ -687,11 +693,8 @@ mod tests {
     async fn test_pre_process_stage_adds_messages() {
         let stage = PreProcessStage;
         let ctx = LsContext::with_session(LsId::new());
-        let mut pipeline_ctx = PipelineContext::new(
-            LsId::new(),
-            "test".into(),
-            Value::String("hello".into()),
-        );
+        let mut pipeline_ctx =
+            PipelineContext::new(LsId::new(), "test".into(), Value::String("hello".into()));
 
         let result = stage.execute(&ctx, &mut pipeline_ctx).await.unwrap();
         assert!(matches!(result, StageAction::Continue));
@@ -707,11 +710,7 @@ mod tests {
     async fn test_post_process_stage() {
         let stage = PostProcessStage;
         let ctx = LsContext::with_session(LsId::new());
-        let mut pipeline_ctx = PipelineContext::new(
-            LsId::new(),
-            "test".into(),
-            Value::Null,
-        );
+        let mut pipeline_ctx = PipelineContext::new(LsId::new(), "test".into(), Value::Null);
 
         // Add an assistant message without tool calls
         pipeline_ctx.messages.push(LlmMessage {
@@ -735,11 +734,7 @@ mod tests {
     async fn test_post_process_stage_with_tool_calls() {
         let stage = PostProcessStage;
         let ctx = LsContext::with_session(LsId::new());
-        let mut pipeline_ctx = PipelineContext::new(
-            LsId::new(),
-            "test".into(),
-            Value::Null,
-        );
+        let mut pipeline_ctx = PipelineContext::new(LsId::new(), "test".into(), Value::Null);
 
         // Add assistant message WITH tool calls
         pipeline_ctx.messages.push(LlmMessage {
@@ -747,16 +742,14 @@ mod tests {
             content: "Let me use a tool".to_string(),
             name: None,
             content_parts: None,
-            tool_calls: Some(vec![
-                lingshu_traits::llm::ToolCall {
-                    id: "call_1".to_string(),
-                    call_type: "function".to_string(),
-                    function: lingshu_traits::llm::ToolCallFunction {
-                        name: "test_tool".to_string(),
-                        arguments: "{}".to_string(),
-                    },
+            tool_calls: Some(vec![lingshu_traits::llm::ToolCall {
+                id: "call_1".to_string(),
+                call_type: "function".to_string(),
+                function: lingshu_traits::llm::ToolCallFunction {
+                    name: "test_tool".to_string(),
+                    arguments: "{}".to_string(),
                 },
-            ]),
+            }]),
         });
 
         // Should continue because there are tool calls
@@ -785,14 +778,13 @@ impl MemoryStage {
         max_chars_before_summary: usize,
     ) -> Self {
         // 包装 memory 使之在写入前先执行摘要
-        let wrapped = memory.map(|mem| {
-            let inner: Arc<dyn lingshu_traits::memory::Memory> = Arc::new(SummarizingMemory::new(
-                mem,
-                summarizer,
-                max_chars_before_summary,
-            ));
-            inner
-        });
+        let wrapped =
+            memory.map(|mem| {
+                let inner: Arc<dyn lingshu_traits::memory::Memory> = Arc::new(
+                    SummarizingMemory::new(mem, summarizer, max_chars_before_summary),
+                );
+                inner
+            });
         Self { memory: wrapped }
     }
 }
@@ -859,7 +851,11 @@ impl lingshu_traits::memory::Memory for SummarizingMemory {
             // 执行摘要
             let prompt = format!(
                 "请用中文简洁总结以下内容（保留关键信息，不超过200字）：\n\n{}",
-                if content_str.len() > 2000 { &content_str[..2000] } else { &content_str }
+                if content_str.len() > 2000 {
+                    &content_str[..2000]
+                } else {
+                    &content_str
+                }
             );
             match self
                 .summarizer
@@ -867,8 +863,11 @@ impl lingshu_traits::memory::Memory for SummarizingMemory {
                 .await
             {
                 Ok(summary_text) => {
-                    tracing::debug!("memory summarization succeeded ({} chars → {})",
-                        content_str.len(), summary_text.len());
+                    tracing::debug!(
+                        "memory summarization succeeded ({} chars → {})",
+                        content_str.len(),
+                        summary_text.len()
+                    );
                     serde_json::Value::String(summary_text)
                 }
                 Err(e) => {
@@ -925,10 +924,7 @@ impl lingshu_traits::memory::Memory for SummarizingMemory {
         self.inner.delete(ctx, memory_id).await
     }
 
-    async fn clean_expired(
-        &self,
-        ctx: lingshu_core::LsContext,
-    ) -> lingshu_core::LsResult<u64> {
+    async fn clean_expired(&self, ctx: lingshu_core::LsContext) -> lingshu_core::LsResult<u64> {
         self.inner.clean_expired(ctx).await
     }
 

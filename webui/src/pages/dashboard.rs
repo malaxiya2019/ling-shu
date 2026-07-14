@@ -113,7 +113,12 @@ pub fn dashboard() -> Html {
                 v.version.clone(),
                 h.uptime.clone(),
             ),
-            _ => ("warn", strings.dash_degraded, "—".to_string(), "—".to_string()),
+            _ => (
+                "warn",
+                strings.dash_degraded,
+                "—".to_string(),
+                "—".to_string(),
+            ),
         };
 
     // Runtime 状态
@@ -157,7 +162,9 @@ pub fn dashboard() -> Html {
         })
         .unwrap_or(0);
 
-    let active_label = strings.dash_active_count.replace("{}", &active_plugins.to_string());
+    let active_label = strings
+        .dash_active_count
+        .replace("{}", &active_plugins.to_string());
 
     // Runtime 状态标签
     let runtime_label = if is_running { "Running" } else { runtime_state };

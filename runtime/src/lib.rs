@@ -22,9 +22,9 @@ pub mod agent_persistence;
 pub mod agent_pipeline;
 pub mod agent_pool;
 pub mod agent_runtime;
-pub mod lifecycle;
 pub mod api;
 pub mod events;
+pub mod lifecycle;
 pub mod memory_pipeline;
 pub mod recovery;
 pub mod scheduler;
@@ -32,9 +32,9 @@ pub mod session;
 pub mod tool_registry;
 
 // ── v4.1 新增模块 ──
-pub mod task_scheduler;
-pub mod task_queue;
 pub mod cron_scheduler;
+pub mod task_queue;
+pub mod task_scheduler;
 
 pub mod multi_agent;
 // chidori_recovery 始终注册模块（内部通过 cfg 隔离实现和桩）
@@ -46,7 +46,10 @@ pub mod workflow_access;
 // v3.x 核心
 pub use agent_manager::{AgentManager, AgentSummary};
 pub use lifecycle::{LifecycleManager, LifecycleState};
-pub use recovery::{AutoRecoveryEngine, AutoRecoveryPolicy, ComponentHealth, FaultEvent, FaultLevel, HealthStatus, RecoveryManager, RecoveryResult, RecoveryStrategy};
+pub use recovery::{
+    AutoRecoveryEngine, AutoRecoveryPolicy, ComponentHealth, FaultEvent, FaultLevel, HealthStatus,
+    RecoveryManager, RecoveryResult, RecoveryStrategy,
+};
 pub use scheduler::{InternalScheduler, ScheduledTask, TaskState};
 pub use session::{SessionInfo, SessionManager, SessionState};
 pub use tool_registry::ToolRegistry;
@@ -60,19 +63,21 @@ pub use agent_pipeline::{
 };
 pub use agent_pool::{AgentFactory, AgentHandle, AgentPool, AgentPoolConfig, AgentPoolStats};
 pub use agent_runtime::{AgentRuntime, AgentRuntimeConfig, WorkflowAccess};
-pub use workflow_access::{ExecutionRecord, ExecutionState, RuntimeWorkflowAccess, WorkflowDef, WorkflowHandler};
+pub use workflow_access::{
+    ExecutionRecord, ExecutionState, RuntimeWorkflowAccess, WorkflowDef, WorkflowHandler,
+};
 
 // v4.1 Task Scheduler
-pub use task_scheduler::{
-    CancellationToken, Job, JobHandle, JobStatus, JobSummary, RetryPolicy,
-    SchedulerStats, TaskScheduler, TaskSchedulerConfig,
-};
+pub use cron_scheduler::{CronJobSummary, CronManager, CronSchedule};
 pub use task_queue::{InMemoryJobQueue, JobQueue};
-pub use cron_scheduler::{CronManager, CronSchedule, CronJobSummary};
+pub use task_scheduler::{
+    CancellationToken, Job, JobHandle, JobStatus, JobSummary, RetryPolicy, SchedulerStats,
+    TaskScheduler, TaskSchedulerConfig,
+};
 
 // chidori
 pub use chidori_recovery::{
-    ChidoriRecoveryManager, ChidoriSavePoint, CheckpointConfig, CheckpointRecovery,
+    CheckpointConfig, CheckpointRecovery, ChidoriRecoveryManager, ChidoriSavePoint,
 };
 
 #[cfg(feature = "api-server")]

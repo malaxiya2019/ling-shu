@@ -137,10 +137,13 @@ impl StateReplicator {
             let version = self
                 .backend
                 .get(namespace, key)
-                .await.map(|_| std::time::SystemTime::now()
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap()
-                            .as_secs())
+                .await
+                .map(|_| {
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs()
+                })
                 .unwrap_or(0);
 
             let payload = StateReplicatePayload {

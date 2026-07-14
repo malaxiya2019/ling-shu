@@ -427,7 +427,6 @@ fn apply_env_overrides(config: &mut LsConfig) {
 }
 
 impl LsConfig {
-
     pub fn load_for_env(env: &str) -> LsResult<Self> {
         let env: Environment = env.parse().unwrap_or(Environment::Dev);
         ConfigLoader::with_cwd().load(Some(env))

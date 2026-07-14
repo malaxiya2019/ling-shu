@@ -9,11 +9,7 @@
 use async_trait::async_trait;
 use lingshu_core::{LsContext, LsId, LsResult};
 use lingshu_evaluator::*;
-use lingshu_federation::{
-    discovery::StaticDiscovery,
-    types::*,
-    Federation, FederationConfig,
-};
+use lingshu_federation::{discovery::StaticDiscovery, types::*, Federation, FederationConfig};
 use serde_json::json;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -24,9 +20,10 @@ use std::time::Duration;
 fn pick_port(base: u16) -> u16 {
     let mut port = base;
     for _ in 0..100 {
-        match std::net::TcpListener::bind(
-            std::net::SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), port),
-        ) {
+        match std::net::TcpListener::bind(std::net::SocketAddr::new(
+            std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST),
+            port,
+        )) {
             Ok(listener) => {
                 let _ = listener.set_nonblocking(true);
                 return port;
@@ -195,12 +192,21 @@ async fn test_evaluator_runs_with_federation_active() {
         (result.weighted_score - 1.0).abs() < 1e-6,
         "perfect weighted score"
     );
-    assert!(result.total_duration > Duration::ZERO, "should have duration");
+    assert!(
+        result.total_duration > Duration::ZERO,
+        "should have duration"
+    );
 
     // Verify metrics exist
     let metrics = compute_metrics(&result.case_results);
-    assert!((metrics.accuracy - 1.0).abs() < 1e-6, "accuracy should be 1.0");
-    assert!((metrics.precision - 1.0).abs() < 1e-6, "precision should be 1.0");
+    assert!(
+        (metrics.accuracy - 1.0).abs() < 1e-6,
+        "accuracy should be 1.0"
+    );
+    assert!(
+        (metrics.precision - 1.0).abs() < 1e-6,
+        "precision should be 1.0"
+    );
     assert!((metrics.recall - 1.0).abs() < 1e-6, "recall should be 1.0");
     assert!((metrics.f1_score - 1.0).abs() < 1e-6, "f1 should be 1.0");
 
@@ -306,11 +312,14 @@ async fn test_evaluator_report_generation_federated() {
     });
 
     let suite = build_test_suite();
-    let runner = EvalRunner::new(target, EvalConfig {
-        output_dir: Some(dir_path.to_string_lossy().to_string()),
-        report_formats: vec![ReportFormat::Json, ReportFormat::Markdown],
-        ..Default::default()
-    });
+    let runner = EvalRunner::new(
+        target,
+        EvalConfig {
+            output_dir: Some(dir_path.to_string_lossy().to_string()),
+            report_formats: vec![ReportFormat::Json, ReportFormat::Markdown],
+            ..Default::default()
+        },
+    );
     let ctx = LsContext::with_session(LsId::new()).with_user("e2e-report");
     let result = runner.run_suite(&suite, &ctx).await;
 
@@ -431,7 +440,9 @@ async fn test_federation_concurrent_eval_across_nodes() {
         )
         .await;
         register_static_discovery(&mut fed, seeds);
-        fed.start().await.unwrap_or_else(|_| panic!("node-{} start", i));
+        fed.start()
+            .await
+            .unwrap_or_else(|_| panic!("node-{} start", i));
         feds.push(fed);
     }
 

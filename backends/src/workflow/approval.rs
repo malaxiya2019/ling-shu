@@ -148,10 +148,7 @@ impl ApprovalManager {
     /// 创建审批请求并等待结果
     ///
     /// 返回一个 future，在工作流中等待直到审批完成。
-    pub async fn create_and_wait(
-        &self,
-        request: ApprovalRequest,
-    ) -> LsResult<ApprovalStatus> {
+    pub async fn create_and_wait(&self, request: ApprovalRequest) -> LsResult<ApprovalStatus> {
         let request_id = request.id.clone();
 
         // 创建 oneshot 通道
@@ -180,7 +177,10 @@ impl ApprovalManager {
                     req.status = status;
                     req.decided_at = Some(Utc::now());
                 }
-                info!("approval: decided request={}, status={:?}", request_id, status);
+                info!(
+                    "approval: decided request={}, status={:?}",
+                    request_id, status
+                );
                 Ok(status)
             }
             Err(_) => {
@@ -217,7 +217,10 @@ impl ApprovalManager {
                 let requests = self.requests.read().await;
                 match requests.get(request_id) {
                     Some(req) => {
-                        warn!("approval: request={} already decided (status={:?})", request_id, req.status);
+                        warn!(
+                            "approval: request={} already decided (status={:?})",
+                            request_id, req.status
+                        );
                         Ok(false)
                     }
                     None => {
@@ -311,7 +314,10 @@ impl ApprovalManager {
     /// 获取待审批数量
     pub async fn pending_count(&self) -> usize {
         let requests = self.requests.read().await;
-        requests.values().filter(|r| r.status == ApprovalStatus::Pending).count()
+        requests
+            .values()
+            .filter(|r| r.status == ApprovalStatus::Pending)
+            .count()
     }
 }
 
@@ -427,7 +433,7 @@ mod tests {
         let mgr = ApprovalManager::new();
         let mut req = make_request();
         req.timeout_secs = 0; // 设置立即过期
-        // 使用负的时间来模拟过期
+                              // 使用负的时间来模拟过期
         req.created_at = Utc::now() - chrono::Duration::hours(1);
         let id = req.id.clone();
 
@@ -478,9 +484,7 @@ mod tests {
         let id = req.id.clone();
 
         // 在另一个任务中等待审批
-        let handle = tokio::spawn(async move {
-            mgr_clone.create_and_wait(req).await
-        });
+        let handle = tokio::spawn(async move { mgr_clone.create_and_wait(req).await });
 
         // 确保等待已启动
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;

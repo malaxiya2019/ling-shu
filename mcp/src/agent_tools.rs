@@ -105,9 +105,10 @@ impl Tool for AgentStatusTool {
 
     async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> {
         let agent_id = input["agent_id"].as_str().unwrap_or("");
-        let id = LsId::from(uuid::Uuid::parse_str(agent_id).map_err(|e| {
-            LsError::InvalidArgument(format!("invalid agent_id: {}", e))
-        })?);
+        let id = LsId::from(
+            uuid::Uuid::parse_str(agent_id)
+                .map_err(|e| LsError::InvalidArgument(format!("invalid agent_id: {}", e)))?,
+        );
         let status = self.runtime.agent_status(&id).await?;
         Ok(serde_json::json!({
             "agent_id": id.to_string(),
@@ -162,9 +163,10 @@ impl Tool for RemoveAgentTool {
 
     async fn execute(&self, _ctx: LsContext, input: Value) -> LsResult<Value> {
         let agent_id = input["agent_id"].as_str().unwrap_or("");
-        let id = LsId::from(uuid::Uuid::parse_str(agent_id).map_err(|e| {
-            LsError::InvalidArgument(format!("invalid agent_id: {}", e))
-        })?);
+        let id = LsId::from(
+            uuid::Uuid::parse_str(agent_id)
+                .map_err(|e| LsError::InvalidArgument(format!("invalid agent_id: {}", e)))?,
+        );
         self.runtime.remove_agent(&id).await?;
         Ok(serde_json::json!({ "removed": true }))
     }
@@ -361,7 +363,9 @@ impl Tool for RuntimeStatusTool {
 
     async fn execute(&self, _ctx: LsContext, _input: Value) -> LsResult<Value> {
         let state = self.runtime.lifecycle_state().await;
-        let state_str = state.map(|s| format!("{:?}", s)).unwrap_or_else(|_| "Unknown".into());
+        let state_str = state
+            .map(|s| format!("{:?}", s))
+            .unwrap_or_else(|_| "Unknown".into());
         let agent_count = self.runtime.agent_count().await;
         let session_count = self.runtime.active_sessions().await;
         Ok(serde_json::json!({

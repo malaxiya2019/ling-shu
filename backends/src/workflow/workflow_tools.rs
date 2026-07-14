@@ -6,7 +6,9 @@
 
 use async_trait::async_trait;
 use lingshu_core::{LsContext, LsError, LsId, LsResult};
-use lingshu_traits::tool::{Tool, ToolInfo, ToolParam, ToolMetadata, ToolCategory, PermissionLevel, SandboxConfig};
+use lingshu_traits::tool::{
+    PermissionLevel, SandboxConfig, Tool, ToolCategory, ToolInfo, ToolMetadata, ToolParam,
+};
 use serde_json::Value;
 use std::sync::Arc;
 use tracing::info;
@@ -166,7 +168,9 @@ pub async fn register_workflow_tools(
     workflow_registry: Arc<tokio::sync::RwLock<WorkflowRegistry>>,
 ) {
     tool_registry
-        .register(Box::new(WorkflowExecuteTool::new(workflow_registry.clone())))
+        .register(Box::new(WorkflowExecuteTool::new(
+            workflow_registry.clone(),
+        )))
         .await;
     tool_registry
         .register(Box::new(ListWorkflowsTool::new(workflow_registry)))
@@ -181,9 +185,7 @@ pub fn create_agent_node_handler(
 ) -> super::dag::NodeHandler {
     Arc::new(move |ctx: LsContext, input: Value| {
         let handler = default_handler.clone();
-        Box::pin(async move {
-            handler(ctx, input).await
-        })
+        Box::pin(async move { handler(ctx, input).await })
     })
 }
 

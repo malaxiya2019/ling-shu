@@ -6,7 +6,7 @@ use yew::prelude::*;
 struct BenchmarkItem {
     name: String,
     category: String,
-    throughput: f64,       // requests/sec (LLM) or ops/sec (memory/federation)
+    throughput: f64, // requests/sec (LLM) or ops/sec (memory/federation)
     avg_latency_ms: f64,
     p50_latency_ms: f64,
     p95_latency_ms: f64,

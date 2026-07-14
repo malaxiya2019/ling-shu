@@ -5,8 +5,10 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use lingshu_core::{LsContext, LsError, LsId, LsResult};
 use lingshu_tool::ToolRegistry;
-use lingshu_traits::tool::{Tool, ToolInfo, ToolMetadata, ToolParam, ToolCategory, PermissionLevel};
-use lingshu_traits::voice::{TtsProvider, SttProvider, TtsRequest, SttRequest};
+use lingshu_traits::tool::{
+    PermissionLevel, Tool, ToolCategory, ToolInfo, ToolMetadata, ToolParam,
+};
+use lingshu_traits::voice::{SttProvider, SttRequest, TtsProvider, TtsRequest};
 use serde_json::Value;
 
 use crate::OmniVoiceClient;
@@ -28,7 +30,8 @@ impl Tool for SayTool {
         ToolInfo {
             tool_id: LsId::new(),
             name: "say".into(),
-            description: "将文本合成为语音并输出。用于需要语音回复的场景。支持多语言和多种音色。".into(),
+            description: "将文本合成为语音并输出。用于需要语音回复的场景。支持多语言和多种音色。"
+                .into(),
             parameters: vec![
                 ToolParam {
                     name: "text".into(),
@@ -66,8 +69,15 @@ impl Tool for SayTool {
     }
 
     fn validate(&self, input: &Value) -> LsResult<()> {
-        if input.get("text").and_then(|v| v.as_str()).unwrap_or("").is_empty() {
-            return Err(LsError::InvalidArgument("'text' is required and cannot be empty".into()));
+        if input
+            .get("text")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .is_empty()
+        {
+            return Err(LsError::InvalidArgument(
+                "'text' is required and cannot be empty".into(),
+            ));
         }
         Ok(())
     }
@@ -156,8 +166,15 @@ impl Tool for ListenTool {
     }
 
     fn validate(&self, input: &Value) -> LsResult<()> {
-        if input.get("audio_base64").and_then(|v| v.as_str()).unwrap_or("").is_empty() {
-            return Err(LsError::InvalidArgument("'audio_base64' is required".into()));
+        if input
+            .get("audio_base64")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .is_empty()
+        {
+            return Err(LsError::InvalidArgument(
+                "'audio_base64' is required".into(),
+            ));
         }
         Ok(())
     }
@@ -213,7 +230,9 @@ impl VoiceTools {
     /// 注册所有语音工具到 ToolRegistry.
     pub async fn register_all(registry: &ToolRegistry) {
         let client = Arc::new(OmniVoiceClient::new(None));
-        registry.register(Box::new(SayTool::new(client.clone()))).await;
+        registry
+            .register(Box::new(SayTool::new(client.clone())))
+            .await;
         registry.register(Box::new(ListenTool::new(client))).await;
     }
 

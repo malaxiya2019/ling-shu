@@ -117,11 +117,11 @@ mod tests {
             Ok(())
         }
 
-            fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
 
-    fn required_permissions(&self) -> Vec<PluginPermission> {
+        fn required_permissions(&self) -> Vec<PluginPermission> {
             vec![]
         }
     }
@@ -140,7 +140,7 @@ mod tests {
             entry_point: None,
             permissions: vec![],
             min_api_version: Some("0.9.0".into()),
-        ..Default::default()
+            ..Default::default()
         };
         let info = PluginInfo {
             plugin_id: LsId::new(),

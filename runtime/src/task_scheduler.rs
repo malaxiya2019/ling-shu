@@ -62,7 +62,13 @@ pub enum JobStatus {
 
 impl JobStatus {
     pub fn is_terminal(&self) -> bool {
-        matches!(self, JobStatus::Completed | JobStatus::Failed(_) | JobStatus::Cancelled | JobStatus::TimedOut)
+        matches!(
+            self,
+            JobStatus::Completed
+                | JobStatus::Failed(_)
+                | JobStatus::Cancelled
+                | JobStatus::TimedOut
+        )
     }
 
     pub fn is_active(&self) -> bool {
@@ -338,14 +344,17 @@ struct TaskSchedulerInner {
 impl TaskSchedulerInner {
     async fn get_job_status(&self, job_id: &LsId) -> JobStatus {
         let states = self.job_states.read().await;
-        states.get(job_id).map(|s| s.status.clone()).unwrap_or(JobStatus::Cancelled)
+        states
+            .get(job_id)
+            .map(|s| s.status.clone())
+            .unwrap_or(JobStatus::Cancelled)
     }
 
     async fn cancel_job(&self, job_id: &LsId) -> LsResult<()> {
         let mut states = self.job_states.write().await;
-        let state = states.get_mut(job_id).ok_or_else(|| {
-            LsError::NotFound(format!("job {job_id}"))
-        })?;
+        let state = states
+            .get_mut(job_id)
+            .ok_or_else(|| LsError::NotFound(format!("job {job_id}")))?;
 
         if state.status.is_terminal() {
             return Ok(()); // 已经是终端状态，无需取消
@@ -367,9 +376,9 @@ impl TaskSchedulerInner {
     async fn wait_for_job(&self, job_id: &LsId) -> LsResult<Value> {
         let rx = {
             let states = self.job_states.read().await;
-            let state = states.get(job_id).ok_or_else(|| {
-                LsError::NotFound(format!("job {job_id}"))
-            })?;
+            let state = states
+                .get(job_id)
+                .ok_or_else(|| LsError::NotFound(format!("job {job_id}")))?;
             if let Some(ref result) = state.result {
                 return match result {
                     Ok(val) => Ok(val.clone()),
@@ -399,7 +408,9 @@ impl TaskSchedulerInner {
     async fn execute_job_inner(&self, job: Box<dyn Job>) {
         let job_id = job.id();
         let name = job.name().to_string();
-        let retry_policy = job.retry_policy().unwrap_or_else(|| self.config.retry_policy.clone());
+        let retry_policy = job
+            .retry_policy()
+            .unwrap_or_else(|| self.config.retry_policy.clone());
         let timeout = job.timeout().or_else(|| {
             if self.config.default_timeout_secs > 0 {
                 Some(Duration::from_secs(self.config.default_timeout_secs))
@@ -613,9 +624,7 @@ impl TaskScheduler {
             let queue = self.inner.queue.read().await;
             let max_len = self.inner.config.max_queue_len;
             if max_len > 0 && queue.len().await >= max_len {
-                return Err(LsError::RuntimeState(format!(
-                    "queue full (max {max_len})"
-                )));
+                return Err(LsError::RuntimeState(format!("queue full (max {max_len})")));
             }
         }
 
@@ -635,9 +644,10 @@ impl TaskScheduler {
         // 入队
         {
             let mut queue = self.inner.queue.write().await;
-            queue.enqueue(job).await.map_err(|e| {
-                LsError::Internal(format!("enqueue failed: {e}"))
-            })?;
+            queue
+                .enqueue(job)
+                .await
+                .map_err(|e| LsError::Internal(format!("enqueue failed: {e}")))?;
         }
 
         self.inner.submitted_count.fetch_add(1, Ordering::Release);
@@ -664,9 +674,9 @@ impl TaskScheduler {
     /// 获取作业句柄.
     pub async fn get_handle(&self, job_id: &LsId) -> LsResult<JobHandle> {
         let states = self.inner.job_states.read().await;
-        let state = states.get(job_id).ok_or_else(|| {
-            LsError::NotFound(format!("job {job_id}"))
-        })?;
+        let state = states
+            .get(job_id)
+            .ok_or_else(|| LsError::NotFound(format!("job {job_id}")))?;
         Ok(JobHandle {
             job_id: *job_id,
             name: state.name.clone(),
@@ -679,11 +689,7 @@ impl TaskScheduler {
         let states = self.inner.job_states.read().await;
         states
             .values()
-            .filter(|s| {
-                filter_status
-                    .as_ref()
-                    .is_none_or(|f| &s.status == f)
-            })
+            .filter(|s| filter_status.as_ref().is_none_or(|f| &s.status == f))
             .map(|s| JobSummary {
                 job_id: s.id.to_string(),
                 name: s.name.clone(),
@@ -700,11 +706,17 @@ impl TaskScheduler {
     pub async fn stats(&self) -> SchedulerStats {
         let pending = {
             let states = self.inner.job_states.read().await;
-            states.values().filter(|s| s.status == JobStatus::Pending).count() as u64
+            states
+                .values()
+                .filter(|s| s.status == JobStatus::Pending)
+                .count() as u64
         };
         let running = {
             let states = self.inner.job_states.read().await;
-            states.values().filter(|s| s.status == JobStatus::Running).count() as u64
+            states
+                .values()
+                .filter(|s| s.status == JobStatus::Running)
+                .count() as u64
         };
 
         SchedulerStats {
@@ -769,10 +781,7 @@ impl TaskScheduler {
                 inner.execute_job_inner(job).await;
             } else {
                 // 队列为空，等待后重试
-                tokio::time::sleep(Duration::from_millis(
-                    inner.config.poll_interval_ms,
-                ))
-                .await;
+                tokio::time::sleep(Duration::from_millis(inner.config.poll_interval_ms)).await;
             }
         }
     }
@@ -827,8 +836,12 @@ mod tests {
 
     #[async_trait]
     impl Job for TestJob {
-        fn id(&self) -> LsId { self.id }
-        fn name(&self) -> &str { &self.name }
+        fn id(&self) -> LsId {
+            self.id
+        }
+        fn name(&self) -> &str {
+            &self.name
+        }
 
         async fn execute(&self, _ctx: LsContext) -> LsResult<Value> {
             self.executed.store(true, Ordering::Release);
@@ -989,10 +1002,10 @@ mod tests {
             backoff_factor: 2.0,
         };
 
-        assert_eq!(policy.delay_for(0).as_millis(), 1000);  // 1000 * 2^0
-        assert_eq!(policy.delay_for(1).as_millis(), 2000);  // 1000 * 2^1
-        assert_eq!(policy.delay_for(2).as_millis(), 4000);  // 1000 * 2^2
-        assert_eq!(policy.delay_for(3).as_millis(), 8000);  // 1000 * 2^3
+        assert_eq!(policy.delay_for(0).as_millis(), 1000); // 1000 * 2^0
+        assert_eq!(policy.delay_for(1).as_millis(), 2000); // 1000 * 2^1
+        assert_eq!(policy.delay_for(2).as_millis(), 4000); // 1000 * 2^2
+        assert_eq!(policy.delay_for(3).as_millis(), 8000); // 1000 * 2^3
         assert_eq!(policy.delay_for(4).as_millis(), 10_000); // 上限
     }
 

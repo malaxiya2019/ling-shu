@@ -59,7 +59,9 @@ fn bench_json_ops(c: &mut Criterion) {
         }
     });
     let mut group = c.benchmark_group("json");
-    group.bench_function("serialize_large", |b| b.iter(|| serde_json::to_string(black_box(&data))));
+    group.bench_function("serialize_large", |b| {
+        b.iter(|| serde_json::to_string(black_box(&data)))
+    });
     group.bench_function("deserialize_large", |b| {
         let s = serde_json::to_string(&data).unwrap();
         b.iter(|| serde_json::from_str::<serde_json::Value>(black_box(&s)))
@@ -82,7 +84,9 @@ fn bench_evaluator_scoring(c: &mut Criterion) {
     group.bench_function("contains_match", |b| {
         let haystack = serde_json::json!("the quick brown fox");
         let needle = serde_json::json!("quick brown");
-        b.iter(|| lingshu_evaluator::metrics::score_contains(black_box(&haystack), black_box(&needle)))
+        b.iter(|| {
+            lingshu_evaluator::metrics::score_contains(black_box(&haystack), black_box(&needle))
+        })
     });
     group.finish();
 }
@@ -152,23 +156,31 @@ fn bench_swarm_create_engine(c: &mut Criterion) {
         enable_audit_trail: false,
     };
 
-    c.bench_function("swarm/create_engine", |b| b.iter(|| SwarmEngine::new(config.clone())));
+    c.bench_function("swarm/create_engine", |b| {
+        b.iter(|| SwarmEngine::new(config.clone()))
+    });
 }
 
 fn bench_swarm_full_lifecycle_sync(c: &mut Criterion) {
-    use lingshu_swarm::{SwarmAgent, SwarmAgentRole, SwarmConfig, SwarmEngine, SwarmStrategy, SwarmTopology};
+    use lingshu_swarm::{
+        SwarmAgent, SwarmAgentRole, SwarmConfig, SwarmEngine, SwarmStrategy, SwarmTopology,
+    };
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     let config = SwarmConfig {
         name: "bench-swarm".into(),
         strategy: SwarmStrategy::Democratic,
         topology: SwarmTopology::Mesh,
-        min_agents: 1, max_agents: 50,
+        min_agents: 1,
+        max_agents: 50,
         task_timeout: Duration::from_secs(30),
         heartbeat_interval: Duration::from_secs(5),
-        enable_autonomy: false, enable_emergent_specialization: false,
+        enable_autonomy: false,
+        enable_emergent_specialization: false,
         idle_timeout: Duration::from_secs(300),
-        consensus_threshold: 0.6, max_retries: 3, enable_audit_trail: false,
+        consensus_threshold: 0.6,
+        max_retries: 3,
+        enable_audit_trail: false,
     };
 
     c.bench_function("swarm/start_add_stop", |b| {
@@ -191,8 +203,7 @@ fn bench_swarm_full_lifecycle_sync(c: &mut Criterion) {
 
 fn bench_distributed_scheduler_sync(c: &mut Criterion) {
     use lingshu_distributed::{
-        Cluster, ClusterConfig, DistScheduler, DistSchedulerConfig,
-        DistScheduleStrategy, DistTask,
+        Cluster, ClusterConfig, DistScheduleStrategy, DistScheduler, DistSchedulerConfig, DistTask,
     };
     use serde_json::json;
     use std::sync::Arc;
@@ -212,14 +223,18 @@ fn bench_distributed_scheduler_sync(c: &mut Criterion) {
     let config = DistSchedulerConfig {
         strategy: DistScheduleStrategy::RoundRobin,
         local_node_id: "bench-node".into(),
-        max_retries: 3, task_timeout_secs: 60,
-        node_timeout_secs: 10, batch_size: 10,
+        max_retries: 3,
+        task_timeout_secs: 60,
+        node_timeout_secs: 10,
+        batch_size: 10,
         enable_auto_failover: true,
         health_check_interval: Duration::from_secs(5),
     };
 
     let scheduler = Arc::new(DistScheduler::new(config, cluster));
-    rt.block_on(async { scheduler.start().await; });
+    rt.block_on(async {
+        scheduler.start().await;
+    });
 
     c.bench_function("distributed/submit_task", |b| {
         b.iter(|| {
@@ -230,7 +245,9 @@ fn bench_distributed_scheduler_sync(c: &mut Criterion) {
         })
     });
 
-    rt.block_on(async { scheduler.stop().await; });
+    rt.block_on(async {
+        scheduler.stop().await;
+    });
 }
 
 // ════════════════════════════════════════════════════════════
@@ -239,15 +256,18 @@ fn bench_distributed_scheduler_sync(c: &mut Criterion) {
 
 fn bench_autonomy_reflection_sync(c: &mut Criterion) {
     use lingshu_autonomy::{
-        AutonomyEngine, EvolutionConfig, ExperienceEntry, ExperienceOutcome,
-        ExperienceType, ReflectionConfig,
+        AutonomyEngine, EvolutionConfig, ExperienceEntry, ExperienceOutcome, ExperienceType,
+        ReflectionConfig,
     };
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     let evolution_config = EvolutionConfig {
-        auto_apply_threshold: 8, verification_wait: Duration::from_secs(10),
-        max_concurrent_plans: 5, cooldown: Duration::from_secs(0),
-        enable_auto_rollback: false, rollback_threshold: -0.5,
+        auto_apply_threshold: 8,
+        verification_wait: Duration::from_secs(10),
+        max_concurrent_plans: 5,
+        cooldown: Duration::from_secs(0),
+        enable_auto_rollback: false,
+        rollback_threshold: -0.5,
     };
     let engine = AutonomyEngine::new(ReflectionConfig::default(), evolution_config, 500);
     let agent_id = "bench-agent";
@@ -257,10 +277,18 @@ fn bench_autonomy_reflection_sync(c: &mut Criterion) {
         for i in 0..100 {
             let entry = ExperienceEntry::new(
                 agent_id,
-                if i % 2 == 0 { ExperienceType::TaskExecution } else { ExperienceType::Error },
+                if i % 2 == 0 {
+                    ExperienceType::TaskExecution
+                } else {
+                    ExperienceType::Error
+                },
                 format!("bench-exp-{i}"),
                 format!("benchmark"),
-                if i % 3 == 0 { ExperienceOutcome::Success } else { ExperienceOutcome::Failure("err".into()) },
+                if i % 3 == 0 {
+                    ExperienceOutcome::Success
+                } else {
+                    ExperienceOutcome::Failure("err".into())
+                },
             );
             engine.autonomy_cycle(agent_id, entry).await;
         }
@@ -282,11 +310,15 @@ fn bench_autonomy_reflection_sync(c: &mut Criterion) {
 fn bench_security_sync(c: &mut Criterion) {
     let rt = tokio::runtime::Runtime::new().unwrap();
     let auth = lingshu_security::JwtService::new("test-secret-key-here", 3600);
-    rt.block_on(async { let _ = auth.generate_token("user-1", None); });
+    rt.block_on(async {
+        let _ = auth.generate_token("user-1", None);
+    });
 
     c.bench_function("security/create_token", |b| {
         b.iter(|| {
-            rt.block_on(async { let _ = auth.generate_token("user-1", None); })
+            rt.block_on(async {
+                let _ = auth.generate_token("user-1", None);
+            })
         })
     });
 }

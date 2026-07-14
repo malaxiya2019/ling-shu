@@ -3,7 +3,7 @@
 //! ✅ 已完成迁移 (从 full.rs)
 
 use crate::api::AppState;
-use axum::{Json, extract::State};
+use axum::{extract::State, Json};
 use serde::Serialize;
 use std::sync::Arc;
 
@@ -86,7 +86,11 @@ pub async fn health_handler(State(state): State<Arc<AppState>>) -> Json<HealthRe
 
     Json(HealthResponse {
         status: status.into(),
-        version: format!("{}-{}", pkg_version, config.mode.as_deref().unwrap_or("dev")),
+        version: format!(
+            "{}-{}",
+            pkg_version,
+            config.mode.as_deref().unwrap_or("dev")
+        ),
         uptime,
         checks,
     })
@@ -95,6 +99,5 @@ pub async fn health_handler(State(state): State<Arc<AppState>>) -> Json<HealthRe
 /// Axum route definition for Health module
 #[allow(dead_code)]
 pub fn health_routes() -> axum::Router<Arc<AppState>> {
-    axum::Router::new()
-        .route("/v1/health", axum::routing::get(health_handler))
+    axum::Router::new().route("/v1/health", axum::routing::get(health_handler))
 }

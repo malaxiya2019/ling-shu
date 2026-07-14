@@ -62,11 +62,7 @@ impl JwtService {
         Self::new(secret, ttl_seconds)
     }
     /// 签发 JWT 令牌 (简化版 — 兼容旧 API).
-    pub fn generate_token(
-        &self,
-        user_id: &str,
-        ttl_override: Option<u64>,
-    ) -> LsResult<String> {
+    pub fn generate_token(&self, user_id: &str, ttl_override: Option<u64>) -> LsResult<String> {
         let ttl = ttl_override.unwrap_or(self.ttl_seconds);
         let now = chrono::Utc::now();
         let claims = Claims {
@@ -78,8 +74,12 @@ impl JwtService {
             exp: (now + chrono::Duration::seconds(ttl as i64)).timestamp() as u64,
         };
         let header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::HS256);
-        jsonwebtoken::encode(&header, &claims, &jsonwebtoken::EncodingKey::from_secret(&self.secret))
-            .map_err(|e| LsError::AuthenticationFailed(format!("jwt encode: {e}")))
+        jsonwebtoken::encode(
+            &header,
+            &claims,
+            &jsonwebtoken::EncodingKey::from_secret(&self.secret),
+        )
+        .map_err(|e| LsError::AuthenticationFailed(format!("jwt encode: {e}")))
     }
 
     /// 签发完整的 JWT 令牌.

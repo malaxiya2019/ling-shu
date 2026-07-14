@@ -146,10 +146,9 @@ impl RecoveryManager {
 
 // ── v4.1 增强: 自动恢复 ────────────────────────────
 
+use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use std::collections::VecDeque;
-
 
 /// 自动恢复策略
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -157,7 +156,10 @@ pub enum AutoRecoveryPolicy {
     /// 立即重启
     ImmediateRestart,
     /// 指数退避重试
-    ExponentialBackoff { max_attempts: u32, initial_delay_ms: u64 },
+    ExponentialBackoff {
+        max_attempts: u32,
+        initial_delay_ms: u64,
+    },
     /// 降级模式
     Degrade,
     /// 优雅停止
@@ -166,7 +168,10 @@ pub enum AutoRecoveryPolicy {
 
 impl Default for AutoRecoveryPolicy {
     fn default() -> Self {
-        Self::ExponentialBackoff { max_attempts: 5, initial_delay_ms: 1000 }
+        Self::ExponentialBackoff {
+            max_attempts: 5,
+            initial_delay_ms: 1000,
+        }
     }
 }
 
@@ -274,46 +279,49 @@ impl AutoRecoveryEngine {
                     success: false,
                     recovered_from: component.name.clone(),
                     recovery_action: "max_attempts_exceeded".to_string(),
-                    details: format!("Recovery failed after {} attempts", component.recovery_attempts),
+                    details: format!(
+                        "Recovery failed after {} attempts",
+                        component.recovery_attempts
+                    ),
                 });
                 continue;
             }
 
             // 执行恢复
             let result = match self.policy {
-                AutoRecoveryPolicy::ImmediateRestart => {
-                    RecoveryResult {
-                        success: true,
-                        recovered_from: component.name.clone(),
-                        recovery_action: "restart".to_string(),
-                        details: "Immediate restart triggered".to_string(),
-                    }
-                }
-                AutoRecoveryPolicy::ExponentialBackoff { initial_delay_ms, .. } => {
+                AutoRecoveryPolicy::ImmediateRestart => RecoveryResult {
+                    success: true,
+                    recovered_from: component.name.clone(),
+                    recovery_action: "restart".to_string(),
+                    details: "Immediate restart triggered".to_string(),
+                },
+                AutoRecoveryPolicy::ExponentialBackoff {
+                    initial_delay_ms, ..
+                } => {
                     let delay = initial_delay_ms * (1u64 << component.recovery_attempts.min(6));
                     RecoveryResult {
                         success: true,
                         recovered_from: component.name.clone(),
                         recovery_action: "exponential_backoff".to_string(),
-                        details: format!("Backoff delay: {}ms (attempt {})", delay, component.recovery_attempts + 1),
+                        details: format!(
+                            "Backoff delay: {}ms (attempt {})",
+                            delay,
+                            component.recovery_attempts + 1
+                        ),
                     }
                 }
-                AutoRecoveryPolicy::Degrade => {
-                    RecoveryResult {
-                        success: true,
-                        recovered_from: component.name.clone(),
-                        recovery_action: "degrade".to_string(),
-                        details: "Running in degraded mode".to_string(),
-                    }
-                }
-                AutoRecoveryPolicy::GracefulStop => {
-                    RecoveryResult {
-                        success: true,
-                        recovered_from: component.name.clone(),
-                        recovery_action: "graceful_stop".to_string(),
-                        details: "Component stopped gracefully".to_string(),
-                    }
-                }
+                AutoRecoveryPolicy::Degrade => RecoveryResult {
+                    success: true,
+                    recovered_from: component.name.clone(),
+                    recovery_action: "degrade".to_string(),
+                    details: "Running in degraded mode".to_string(),
+                },
+                AutoRecoveryPolicy::GracefulStop => RecoveryResult {
+                    success: true,
+                    recovered_from: component.name.clone(),
+                    recovery_action: "graceful_stop".to_string(),
+                    details: "Component stopped gracefully".to_string(),
+                },
             };
 
             results.push(result);
@@ -336,10 +344,22 @@ impl AutoRecoveryEngine {
     pub async fn health_summary(&self) -> String {
         let components = self.components.read().await;
         let total = components.len();
-        let healthy = components.iter().filter(|c| matches!(c.status, HealthStatus::Healthy)).count();
-        let degraded = components.iter().filter(|c| matches!(c.status, HealthStatus::Degraded { .. })).count();
-        let unhealthy = components.iter().filter(|c| matches!(c.status, HealthStatus::Unhealthy { .. })).count();
-        format!("{}/{} healthy, {} degraded, {} unhealthy", healthy, total, degraded, unhealthy)
+        let healthy = components
+            .iter()
+            .filter(|c| matches!(c.status, HealthStatus::Healthy))
+            .count();
+        let degraded = components
+            .iter()
+            .filter(|c| matches!(c.status, HealthStatus::Degraded { .. }))
+            .count();
+        let unhealthy = components
+            .iter()
+            .filter(|c| matches!(c.status, HealthStatus::Unhealthy { .. }))
+            .count();
+        format!(
+            "{}/{} healthy, {} degraded, {} unhealthy",
+            healthy, total, degraded, unhealthy
+        )
     }
 }
 
@@ -366,7 +386,14 @@ mod auto_recovery_tests {
     async fn test_report_health() {
         let engine = AutoRecoveryEngine::default();
         engine.register_component("test").await;
-        engine.report_health("test", HealthStatus::Unhealthy { reason: "timeout".into() }).await;
+        engine
+            .report_health(
+                "test",
+                HealthStatus::Unhealthy {
+                    reason: "timeout".into(),
+                },
+            )
+            .await;
 
         let health = engine.get_all_health().await;
         let component = health.iter().find(|c| c.name == "test").unwrap();
@@ -376,11 +403,19 @@ mod auto_recovery_tests {
 
     #[tokio::test]
     async fn test_recovery_backoff() {
-        let engine = AutoRecoveryEngine::new(
-            AutoRecoveryPolicy::ExponentialBackoff { max_attempts: 3, initial_delay_ms: 100 }
-        );
+        let engine = AutoRecoveryEngine::new(AutoRecoveryPolicy::ExponentialBackoff {
+            max_attempts: 3,
+            initial_delay_ms: 100,
+        });
         engine.register_component("test").await;
-        engine.report_health("test", HealthStatus::Unhealthy { reason: "error".into() }).await;
+        engine
+            .report_health(
+                "test",
+                HealthStatus::Unhealthy {
+                    reason: "error".into(),
+                },
+            )
+            .await;
 
         let results = engine.check_and_recover().await;
         assert!(!results.is_empty());
@@ -391,7 +426,14 @@ mod auto_recovery_tests {
     async fn test_immediate_restart() {
         let engine = AutoRecoveryEngine::new(AutoRecoveryPolicy::ImmediateRestart);
         engine.register_component("test").await;
-        engine.report_health("test", HealthStatus::Unhealthy { reason: "crash".into() }).await;
+        engine
+            .report_health(
+                "test",
+                HealthStatus::Unhealthy {
+                    reason: "crash".into(),
+                },
+            )
+            .await;
 
         let results = engine.check_and_recover().await;
         assert_eq!(results[0].recovery_action, "restart");
@@ -401,7 +443,14 @@ mod auto_recovery_tests {
     async fn test_degrade_mode() {
         let engine = AutoRecoveryEngine::new(AutoRecoveryPolicy::Degrade);
         engine.register_component("test").await;
-        engine.report_health("test", HealthStatus::Degraded { reason: "slow".into() }).await;
+        engine
+            .report_health(
+                "test",
+                HealthStatus::Degraded {
+                    reason: "slow".into(),
+                },
+            )
+            .await;
 
         let results = engine.check_and_recover().await;
         assert_eq!(results[0].recovery_action, "degrade");
@@ -422,7 +471,14 @@ mod auto_recovery_tests {
         let engine = AutoRecoveryEngine::default();
         engine.register_component("a").await;
         engine.register_component("b").await;
-        engine.report_health("b", HealthStatus::Degraded { reason: "slow".into() }).await;
+        engine
+            .report_health(
+                "b",
+                HealthStatus::Degraded {
+                    reason: "slow".into(),
+                },
+            )
+            .await;
 
         let summary = engine.health_summary().await;
         assert!(summary.contains("healthy"));

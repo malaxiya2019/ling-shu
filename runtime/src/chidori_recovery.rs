@@ -100,7 +100,11 @@ impl ChidoriRecoveryManager {
         state: Vec<u8>,
     ) -> LsResult<String> {
         let mut checkpoints = self.checkpoints.write().await;
-        let point_id = format!("cp-{}-{}", agent_id, chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
+        let point_id = format!(
+            "cp-{}-{}",
+            agent_id,
+            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+        );
 
         let savepoint = ChidoriSavePoint {
             point_id: point_id.clone(),
@@ -127,10 +131,7 @@ impl ChidoriRecoveryManager {
     }
 
     /// 从最近的检查点恢复.
-    pub async fn restore_latest(
-        &self,
-        agent_id: &str,
-    ) -> LsResult<Option<ChidoriSavePoint>> {
+    pub async fn restore_latest(&self, agent_id: &str) -> LsResult<Option<ChidoriSavePoint>> {
         let checkpoints = self.checkpoints.read().await;
         // 从后向前查找匹配 agent_id 的最新断点
         let found = checkpoints
@@ -150,9 +151,7 @@ impl ChidoriRecoveryManager {
     pub async fn clear_checkpoints(&self, agent_id: &str) -> LsResult<usize> {
         let mut checkpoints = self.checkpoints.write().await;
         let before = checkpoints.len();
-        checkpoints.retain(|cp| {
-            cp.metadata.get("agent_id").map(|s| s.as_str()) != Some(agent_id)
-        });
+        checkpoints.retain(|cp| cp.metadata.get("agent_id").map(|s| s.as_str()) != Some(agent_id));
         let removed = before - checkpoints.len();
         info!(agent_id = %agent_id, removed, "checkpoints cleared");
         Ok(removed)
@@ -235,7 +234,6 @@ impl CheckpointRecovery {
     }
 }
 
-
 /// 非 chidori 编译时的桩。
 #[cfg(not(feature = "chidori"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -272,10 +270,7 @@ impl ChidoriRecoveryManager {
     }
 
     /// 非 chidori 编译时返回 None。
-    pub async fn restore_latest(
-        &self,
-        _agent_id: &str,
-    ) -> LsResult<Option<ChidoriSavePoint>> {
+    pub async fn restore_latest(&self, _agent_id: &str) -> LsResult<Option<ChidoriSavePoint>> {
         Err(LsError::NotImplemented(
             "chidori feature not enabled".into(),
         ))
@@ -441,7 +436,10 @@ mod stub_tests {
         let ctx = LsContext::with_session(lingshu_core::LsId::new());
         let err = manager.save_checkpoint(&ctx, "agent", vec![]).await;
         assert!(err.is_err());
-        assert!(err.unwrap_err().to_string().contains("chidori feature not enabled"));
+        assert!(err
+            .unwrap_err()
+            .to_string()
+            .contains("chidori feature not enabled"));
     }
 
     #[tokio::test]

@@ -28,8 +28,12 @@ pub struct TtsRequest {
     pub language: Option<String>,
 }
 
-fn default_speed() -> f64 { 1.0 }
-fn default_format() -> String { "wav".to_string() }
+fn default_speed() -> f64 {
+    1.0
+}
+fn default_format() -> String {
+    "wav".to_string()
+}
 
 impl Default for TtsRequest {
     fn default() -> Self {
@@ -77,7 +81,9 @@ pub struct SttRequest {
     pub punctuate: bool,
 }
 
-fn default_true() -> bool { true }
+fn default_true() -> bool {
+    true
+}
 
 /// STT 响应 — 转写文本.
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -186,25 +186,23 @@ pub fn build_llm_from_env() -> Box<dyn Llm> {
 
 #[cfg(feature = "llmkit")]
 fn build_llmkit(config: &LlmConfig) -> Box<dyn Llm> {
-    let api_key = config
-        .api_key
-        .clone()
-        .or_else(|| {
-            // Try common env vars based on the llmkit provider
-            let provider = config.llmkit_provider.to_lowercase();
-            match provider.as_str() {
-                "anthropic" => std::env::var("ANTHROPIC_API_KEY").ok(),
-                "openai" => std::env::var("OPENAI_API_KEY").ok(),
-                "google" => std::env::var("GOOGLE_API_KEY").ok(),
-                "mistral" => std::env::var("MISTRAL_API_KEY").ok(),
-                "groq" => std::env::var("GROQ_API_KEY").ok(),
-                "deepseek" => std::env::var("DEEPSEEK_API_KEY").ok(),
-                "ollama" => Some("ollama".into()), // Ollama doesn't need a real key
-                "bedrock" | "vertex" => std::env::var("AWS_ACCESS_KEY_ID").ok(),
-                _ => std::env::var("LLMKIT_API_KEY").ok()
-                    .or_else(|| std::env::var("API_KEY").ok()),
-            }
-        });
+    let api_key = config.api_key.clone().or_else(|| {
+        // Try common env vars based on the llmkit provider
+        let provider = config.llmkit_provider.to_lowercase();
+        match provider.as_str() {
+            "anthropic" => std::env::var("ANTHROPIC_API_KEY").ok(),
+            "openai" => std::env::var("OPENAI_API_KEY").ok(),
+            "google" => std::env::var("GOOGLE_API_KEY").ok(),
+            "mistral" => std::env::var("MISTRAL_API_KEY").ok(),
+            "groq" => std::env::var("GROQ_API_KEY").ok(),
+            "deepseek" => std::env::var("DEEPSEEK_API_KEY").ok(),
+            "ollama" => Some("ollama".into()), // Ollama doesn't need a real key
+            "bedrock" | "vertex" => std::env::var("AWS_ACCESS_KEY_ID").ok(),
+            _ => std::env::var("LLMKIT_API_KEY")
+                .ok()
+                .or_else(|| std::env::var("API_KEY").ok()),
+        }
+    });
     match api_key {
         Some(key) => {
             tracing::info!(
@@ -245,8 +243,8 @@ fn build_llmkit(_config: &LlmConfig) -> Box<dyn Llm> {
 
 #[cfg(feature = "llamacpp")]
 fn build_llamacpp(config: &LlmConfig) -> Box<dyn Llm> {
-    let base_url = std::env::var("LLAMACPP_BASE_URL")
-        .unwrap_or_else(|_| "http://127.0.0.1:8080".into());
+    let base_url =
+        std::env::var("LLAMACPP_BASE_URL").unwrap_or_else(|_| "http://127.0.0.1:8080".into());
     tracing::info!(
         "llm: using llama.cpp backend (url: {}, model: {})",
         base_url,
@@ -260,8 +258,6 @@ fn build_llamacpp(_config: &LlmConfig) -> Box<dyn Llm> {
     tracing::warn!("'llamacpp' feature not enabled, falling back");
     build_fallback()
 }
-
-
 
 // ── Chinese LLM Providers (OpenAI 兼容接口) ─────────
 
@@ -285,7 +281,9 @@ fn build_deepseek(config: &LlmConfig) -> Box<dyn Llm> {
             ))
         }
         None => {
-            tracing::warn!("DEEPSEEK_API_KEY not set for 'deepseek' provider, falling back to Mock");
+            tracing::warn!(
+                "DEEPSEEK_API_KEY not set for 'deepseek' provider, falling back to Mock"
+            );
             build_mock(config)
         }
     }
@@ -301,10 +299,7 @@ fn build_qwen(config: &LlmConfig) -> Box<dyn Llm> {
         .or_else(|| std::env::var("DASHSCOPE_API_KEY").ok());
     match api_key {
         Some(key) => {
-            tracing::info!(
-                "llm: using Qwen provider (model: {})",
-                config.default_model
-            );
+            tracing::info!("llm: using Qwen provider (model: {})", config.default_model);
             Box::new(crate::OpenAiLlm::new(
                 key,
                 &config.default_model,
@@ -371,7 +366,6 @@ fn build_baidu(config: &LlmConfig) -> Box<dyn Llm> {
         }
     }
 }
-
 
 #[cfg(not(feature = "openai"))]
 fn build_deepseek(_config: &LlmConfig) -> Box<dyn Llm> {

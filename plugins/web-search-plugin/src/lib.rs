@@ -72,10 +72,7 @@ impl DuckDuckGoClient {
 impl SearchEngineClient for DuckDuckGoClient {
     async fn search(&self, query: &str, max_results: usize) -> Result<Vec<SearchResult>, String> {
         // DuckDuckGo Lite API (无需 API Key)
-        let url = format!(
-            "https://lite.duckduckgo.com/lite/?q={}",
-            urlencoding(query)
-        );
+        let url = format!("https://lite.duckduckgo.com/lite/?q={}", urlencoding(query));
 
         let resp = self
             .client
@@ -169,7 +166,6 @@ fn urlencoding(s: &str) -> String {
         })
         .collect()
 }
-
 
 // ===========================================================================
 // Bing 搜索引擎
@@ -327,8 +323,8 @@ pub struct WebSearchPlugin {
 impl WebSearchPlugin {
     /// 创建插件实例，自动检测环境变量选择引擎.
     pub fn new() -> Self {
-        let engine_name = std::env::var("LINGSHU_SEARCH_ENGINE")
-            .unwrap_or_else(|_| "duckduckgo".to_string());
+        let engine_name =
+            std::env::var("LINGSHU_SEARCH_ENGINE").unwrap_or_else(|_| "duckduckgo".to_string());
 
         let engine: Box<dyn SearchEngineClient> = match engine_name.as_str() {
             "duckduckgo" => Box::new(DuckDuckGoClient::new()),
@@ -338,10 +334,12 @@ impl WebSearchPlugin {
                 Box::new(BingSearchClient::new(api_key))
             }
             "google" => {
-                let api_key = std::env::var("LINGSHU_GOOGLE_API_KEY")
-                    .expect("LINGSHU_GOOGLE_API_KEY 环境变量未设置。请设置 Google Custom Search API Key。");
-                let cse_id = std::env::var("LINGSHU_GOOGLE_CSE_ID")
-                    .expect("LINGSHU_GOOGLE_CSE_ID 环境变量未设置。请设置 Google Custom Search Engine ID。");
+                let api_key = std::env::var("LINGSHU_GOOGLE_API_KEY").expect(
+                    "LINGSHU_GOOGLE_API_KEY 环境变量未设置。请设置 Google Custom Search API Key。",
+                );
+                let cse_id = std::env::var("LINGSHU_GOOGLE_CSE_ID").expect(
+                    "LINGSHU_GOOGLE_CSE_ID 环境变量未设置。请设置 Google Custom Search Engine ID。",
+                );
                 Box::new(GoogleSearchClient::new(api_key, cse_id))
             }
             other => {
@@ -364,7 +362,7 @@ impl WebSearchPlugin {
                 actions: vec!["http".into()],
             }],
             min_api_version: Some("1.0.0".into()),
-        ..Default::default()
+            ..Default::default()
         };
 
         Self {
@@ -381,7 +379,11 @@ impl WebSearchPlugin {
     }
 
     /// 执行搜索.
-    pub async fn search(&self, query: &str, max_results: Option<usize>) -> LsResult<Vec<SearchResult>> {
+    pub async fn search(
+        &self,
+        query: &str,
+        max_results: Option<usize>,
+    ) -> LsResult<Vec<SearchResult>> {
         let max = max_results.unwrap_or(5).min(20);
         self.search_count.fetch_add(1, Ordering::SeqCst);
         let results = self
@@ -429,7 +431,7 @@ impl Plugin for WebSearchPlugin {
         Ok(())
     }
 
-        fn as_any(&self) -> &dyn std::any::Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 

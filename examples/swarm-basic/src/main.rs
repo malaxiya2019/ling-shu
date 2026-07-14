@@ -54,7 +54,8 @@ async fn main() {
 
     // 5. 切换拓扑
     let agents = state.agents;
-    engine.topology()
+    engine
+        .topology()
         .switch_topology(SwarmTopology::Star, &agents)
         .await;
     let stats = engine.topology().stats().await;

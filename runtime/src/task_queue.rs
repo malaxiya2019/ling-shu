@@ -143,10 +143,7 @@ impl JobQueue for InMemoryJobQueue {
         }
         // BinaryHeap 不支持按值移除，我们重建堆
         let mut heap = self.heap.write().await;
-        let remaining: Vec<JobWrapper> = heap
-            .drain()
-            .filter(|w| w.job.id() != *job_id)
-            .collect();
+        let remaining: Vec<JobWrapper> = heap.drain().filter(|w| w.job.id() != *job_id).collect();
         heap.extend(remaining);
 
         debug!(job_id = %job_id, "job removed from queue");
@@ -189,9 +186,15 @@ mod tests {
 
     #[async_trait]
     impl Job for DummyJob {
-        fn id(&self) -> LsId { self.id }
-        fn name(&self) -> &str { &self.name }
-        fn priority(&self) -> u8 { self.prio }
+        fn id(&self) -> LsId {
+            self.id
+        }
+        fn name(&self) -> &str {
+            &self.name
+        }
+        fn priority(&self) -> u8 {
+            self.prio
+        }
         async fn execute(&self, _ctx: LsContext) -> LsResult<Value> {
             Ok(Value::Null)
         }
@@ -251,11 +254,14 @@ mod tests {
         let mut queue = InMemoryJobQueue::new();
         let id = LsId::new();
 
-        queue.enqueue(Box::new(DummyJob {
-            id,
-            name: "removable".into(),
-            prio: 0,
-        })).await.unwrap();
+        queue
+            .enqueue(Box::new(DummyJob {
+                id,
+                name: "removable".into(),
+                prio: 0,
+            }))
+            .await
+            .unwrap();
 
         assert_eq!(queue.len().await, 1);
         queue.remove(&id).await.unwrap();
@@ -266,11 +272,14 @@ mod tests {
     async fn test_clear() {
         let mut queue = InMemoryJobQueue::new();
         for i in 0..5 {
-            queue.enqueue(Box::new(DummyJob {
-                id: LsId::new(),
-                name: format!("job-{i}"),
-                prio: 0,
-            })).await.unwrap();
+            queue
+                .enqueue(Box::new(DummyJob {
+                    id: LsId::new(),
+                    name: format!("job-{i}"),
+                    prio: 0,
+                }))
+                .await
+                .unwrap();
         }
         assert_eq!(queue.len().await, 5);
         queue.clear().await;

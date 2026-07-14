@@ -27,23 +27,23 @@
 //! let plugin = init_agent_device(&tool_registry, AgentDeviceConfig::default()).await?;
 //! ```
 
-mod tool_bridge;
 mod session_manager;
 mod sync_task;
+mod tool_bridge;
 
-pub use session_manager::{SessionManager, SessionInfo, SessionPlatform, SessionStats};
+pub use session_manager::{SessionInfo, SessionManager, SessionPlatform, SessionStats};
 pub use sync_task::{McpToolSyncTask, SyncStatus, ToolSyncDiff};
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
 use lingshu_core::{LsContext, LsError, LsId, LsResult};
 use lingshu_mcp::rmcp_stdio_client::{McpStdioClient, McpStdioConfig, McpTool};
 use lingshu_traits::plugin::{
-    Capability, Plugin, PluginInfo, PluginManifest, PluginPermission, PluginStatus, ToolDeclaration,
-    ToolProvider,
+    Capability, Plugin, PluginInfo, PluginManifest, PluginPermission, PluginStatus,
+    ToolDeclaration, ToolProvider,
 };
 use lingshu_traits::tool::Tool;
 use tokio::sync::Mutex;
@@ -142,8 +142,11 @@ impl AgentDevicePlugin {
                 PluginPermission {
                     resource: "device".into(),
                     actions: vec![
-                        "open".into(), "tap".into(), "type".into(),
-                        "scroll".into(), "screenshot".into(),
+                        "open".into(),
+                        "tap".into(),
+                        "type".into(),
+                        "scroll".into(),
+                        "screenshot".into(),
                     ],
                 },
             ],
@@ -170,13 +173,11 @@ impl AgentDevicePlugin {
                     version_req: None,
                 },
             ],
-            tools: vec![
-                ToolDeclaration {
-                    name: "device:*".into(),
-                    description: "agent-device 设备自动化工具集".into(),
-                    permission_level: "admin".into(),
-                },
-            ],
+            tools: vec![ToolDeclaration {
+                name: "device:*".into(),
+                description: "agent-device 设备自动化工具集".into(),
+                permission_level: "admin".into(),
+            }],
         };
 
         let info = PluginInfo {
@@ -262,22 +263,47 @@ impl AgentDevicePlugin {
     }
 
     /// 根据平台名称过滤支持的 MCP 工具.
-    fn filter_tools_by_platform<'a>(&self, tools: &'a [McpTool], platform: &str) -> Vec<&'a McpTool> {
+    fn filter_tools_by_platform<'a>(
+        &self,
+        tools: &'a [McpTool],
+        platform: &str,
+    ) -> Vec<&'a McpTool> {
         match platform {
             "ios" | "android" => tools.iter().collect(),
-            "linux" => tools.iter().filter(|t| self.supports_linux(&t.name)).collect(),
+            "linux" => tools
+                .iter()
+                .filter(|t| self.supports_linux(&t.name))
+                .collect(),
             _ => tools.iter().collect(),
         }
     }
 
     /// 检查工具是否支持 Linux 桌面.
     fn supports_linux(&self, name: &str) -> bool {
-        !matches!(name,
-            "apps" | "boot" | "shutdown" | "perf" | "logs" | "network"
-            | "audio" | "install" | "reinstall" | "push" | "trigger-app-event"
-            | "keyboard" | "metro" | "session" | "app-switcher" | "install-from-source"
-            | "rotate" | "tv-remote" | "viewport" | "record" | "trace"
-            | "react-native"
+        !matches!(
+            name,
+            "apps"
+                | "boot"
+                | "shutdown"
+                | "perf"
+                | "logs"
+                | "network"
+                | "audio"
+                | "install"
+                | "reinstall"
+                | "push"
+                | "trigger-app-event"
+                | "keyboard"
+                | "metro"
+                | "session"
+                | "app-switcher"
+                | "install-from-source"
+                | "rotate"
+                | "tv-remote"
+                | "viewport"
+                | "record"
+                | "trace"
+                | "react-native"
         )
     }
 
@@ -304,9 +330,10 @@ impl AgentDevicePlugin {
         let client = McpStdioClient::spawn(mcp_config).await?;
         tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
 
-        client.health_check().await.map_err(|e| {
-            LsError::Plugin(format!("agent-device MCP health check failed: {e}"))
-        })?;
+        client
+            .health_check()
+            .await
+            .map_err(|e| LsError::Plugin(format!("agent-device MCP health check failed: {e}")))?;
 
         let tools = client.list_tools().await?;
         tracing::info!(
@@ -344,9 +371,7 @@ impl AgentDevicePlugin {
             bridge_tools.push(Box::new(bridge));
         }
 
-        *self.discovered_tools.write().await = bridge_tools.iter()
-            .map(|t| t.duplicate())
-            .collect();
+        *self.discovered_tools.write().await = bridge_tools.iter().map(|t| t.duplicate()).collect();
         *self.client.lock().await = Some(client_arc.clone());
         self.running.store(true, Ordering::SeqCst);
 
@@ -362,7 +387,9 @@ impl AgentDevicePlugin {
                 registry,
                 ctx.clone(),
             ));
-            sync_task.clone().start(Duration::from_secs(self.config.auto_sync_interval_secs));
+            sync_task
+                .clone()
+                .start(Duration::from_secs(self.config.auto_sync_interval_secs));
             *self.sync_task.lock().await = Some(sync_task);
 
             tracing::info!(
@@ -409,7 +436,11 @@ impl AgentDeviceDeps {
         format!(
             "Node.js: {}, agent-device: {}, Xcode: {}, ADB: {}",
             if self.node_installed { "✅" } else { "❌" },
-            if self.agent_device_installed { "✅" } else { "❌" },
+            if self.agent_device_installed {
+                "✅"
+            } else {
+                "❌"
+            },
             if self.xcode_installed { "✅" } else { "❌" },
             if self.adb_installed { "✅" } else { "❌" },
         )
@@ -449,7 +480,10 @@ impl Plugin for AgentDevicePlugin {
     }
 
     async fn stop(&self, _ctx: LsContext) -> LsResult<()> {
-        tracing::info!(plugin = "agent-device-plugin", "Stopping agent-device (v2)...");
+        tracing::info!(
+            plugin = "agent-device-plugin",
+            "Stopping agent-device (v2)..."
+        );
         self.running.store(false, Ordering::SeqCst);
 
         // 停止同步任务
@@ -565,21 +599,40 @@ mod tests {
     fn test_plugin_capabilities() {
         let plugin = AgentDevicePlugin::new("agent-device".into());
         let info = plugin.info();
-        assert!(info.manifest.capabilities.iter().any(|c| c.name == "device-automation"));
-        assert!(info.manifest.capabilities.iter().any(|c| c.name == "mobile-testing"));
-        assert!(info.manifest.capabilities.iter().any(|c| c.name == "session-management"));
-        assert!(info.manifest.capabilities.iter().any(|c| c.name == "tool-sync"));
+        assert!(info
+            .manifest
+            .capabilities
+            .iter()
+            .any(|c| c.name == "device-automation"));
+        assert!(info
+            .manifest
+            .capabilities
+            .iter()
+            .any(|c| c.name == "mobile-testing"));
+        assert!(info
+            .manifest
+            .capabilities
+            .iter()
+            .any(|c| c.name == "session-management"));
+        assert!(info
+            .manifest
+            .capabilities
+            .iter()
+            .any(|c| c.name == "tool-sync"));
     }
 
     #[test]
     fn test_as_any_downcast() {
-        use std::any::Any;
         use lingshu_traits::plugin::Plugin;
+        use std::any::Any;
 
         let plugin = AgentDevicePlugin::new("agent-device".into());
         let any_ref: &dyn Any = Plugin::as_any(&plugin);
         let downcasted = any_ref.downcast_ref::<AgentDevicePlugin>();
-        assert!(downcasted.is_some(), "Should downcast back to AgentDevicePlugin");
+        assert!(
+            downcasted.is_some(),
+            "Should downcast back to AgentDevicePlugin"
+        );
         let info = downcasted.unwrap().info();
         assert_eq!(info.manifest.name, "agent-device-plugin");
     }
@@ -646,9 +699,21 @@ mod tests {
     fn test_filter_tools_by_platform_ios() {
         let plugin = AgentDevicePlugin::new("agent-device".into());
         let all_tools = vec![
-            McpTool { name: "snapshot".into(), description: "s".into(), input_schema: serde_json::Value::Null },
-            McpTool { name: "keyboard".into(), description: "k".into(), input_schema: serde_json::Value::Null },
-            McpTool { name: "apps".into(), description: "a".into(), input_schema: serde_json::Value::Null },
+            McpTool {
+                name: "snapshot".into(),
+                description: "s".into(),
+                input_schema: serde_json::Value::Null,
+            },
+            McpTool {
+                name: "keyboard".into(),
+                description: "k".into(),
+                input_schema: serde_json::Value::Null,
+            },
+            McpTool {
+                name: "apps".into(),
+                description: "a".into(),
+                input_schema: serde_json::Value::Null,
+            },
         ];
         let filtered = plugin.filter_tools_by_platform(&all_tools, "ios");
         assert_eq!(filtered.len(), 3);
@@ -658,8 +723,16 @@ mod tests {
     fn test_filter_tools_by_platform_linux() {
         let plugin = AgentDevicePlugin::new("agent-device".into());
         let all_tools = vec![
-            McpTool { name: "snapshot".into(), description: "snapshot".into(), input_schema: serde_json::Value::Null },
-            McpTool { name: "apps".into(), description: "apps".into(), input_schema: serde_json::Value::Null },
+            McpTool {
+                name: "snapshot".into(),
+                description: "snapshot".into(),
+                input_schema: serde_json::Value::Null,
+            },
+            McpTool {
+                name: "apps".into(),
+                description: "apps".into(),
+                input_schema: serde_json::Value::Null,
+            },
         ];
         let filtered = plugin.filter_tools_by_platform(&all_tools, "linux");
         assert_eq!(filtered.len(), 1);

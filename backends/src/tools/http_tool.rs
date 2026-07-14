@@ -35,7 +35,7 @@ impl Tool for HttpGetTool {
                     param_type: "object".into(),
                 },
             ],
-        ..Default::default()
+            ..Default::default()
         }
     }
 
@@ -116,7 +116,8 @@ impl Tool for HttpGetTool {
 
     fn duplicate(&self) -> Box<dyn Tool> {
         Box::new(HttpGetTool)
-    }}
+    }
+}
 
 /// HTTP POST 请求工具.
 pub struct HttpPostTool;
@@ -160,7 +161,7 @@ impl Tool for HttpPostTool {
                     param_type: "object".into(),
                 },
             ],
-        ..Default::default()
+            ..Default::default()
         }
     }
 
@@ -262,7 +263,8 @@ impl Tool for HttpPostTool {
 
     fn duplicate(&self) -> Box<dyn Tool> {
         Box::new(HttpPostTool)
-    }}
+    }
+}
 
 #[cfg(test)]
 mod tests {

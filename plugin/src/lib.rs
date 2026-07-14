@@ -37,11 +37,9 @@ use std::sync::Arc;
 
 use chrono::Utc;
 use lingshu_core::{LsContext, LsError, LsId, LsResult};
-use lingshu_traits::plugin::{
-    Capability, Plugin, PluginInfo, PluginManifest, PluginStatus,
-};
-use tokio::sync::RwLock;
 use lingshu_tool::ToolRegistry;
+use lingshu_traits::plugin::{Capability, Plugin, PluginInfo, PluginManifest, PluginStatus};
+use tokio::sync::RwLock;
 use tracing::info;
 
 // ── ToolCache ───────────────────────────────────────
@@ -71,10 +69,7 @@ impl ToolCache {
     }
 
     /// 批量插入工具.
-    pub async fn extend(
-        &self,
-        tools: Vec<(String, Box<dyn lingshu_traits::tool::Tool>)>,
-    ) {
+    pub async fn extend(&self, tools: Vec<(String, Box<dyn lingshu_traits::tool::Tool>)>) {
         let mut cache = self.cache.write().await;
         for (name, tool) in tools {
             cache.insert(name, tool);
@@ -121,14 +116,15 @@ impl CapabilityChecker {
 
     /// 获取插件的所有能力名称.
     pub fn capabilities(manifest: &PluginManifest) -> Vec<String> {
-        manifest.capabilities.iter().map(|c| c.name.clone()).collect()
+        manifest
+            .capabilities
+            .iter()
+            .map(|c| c.name.clone())
+            .collect()
     }
 
     /// 检查插件是否具备所有指定能力.
-    pub fn require_capabilities(
-        manifest: &PluginManifest,
-        required: &[&str],
-    ) -> LsResult<()> {
+    pub fn require_capabilities(manifest: &PluginManifest, required: &[&str]) -> LsResult<()> {
         for cap in required {
             if !Self::has_capability(manifest, cap) {
                 return Err(LsError::Plugin(format!(
@@ -141,15 +137,13 @@ impl CapabilityChecker {
     }
 
     /// 检查两个插件的版本约束是否兼容.
-    pub fn check_compat(
-        provider: &Capability,
-        consumer_version: &str,
-    ) -> LsResult<()> {
+    pub fn check_compat(provider: &Capability, consumer_version: &str) -> LsResult<()> {
         if let Some(ref req_str) = provider.version_req {
             let req = semver::VersionReq::parse(req_str)
                 .map_err(|e| LsError::Plugin(format!("invalid version req '{}': {e}", req_str)))?;
-            let ver = semver::Version::parse(consumer_version)
-                .map_err(|e| LsError::Plugin(format!("invalid version '{}': {e}", consumer_version)))?;
+            let ver = semver::Version::parse(consumer_version).map_err(|e| {
+                LsError::Plugin(format!("invalid version '{}': {e}", consumer_version))
+            })?;
             if !req.matches(&ver) {
                 return Err(LsError::Plugin(format!(
                     "capability '{}' requires version '{}', consumer is '{}'",
@@ -233,7 +227,7 @@ impl PluginRegistry {
         let plugin_name = info.manifest.name.clone();
 
         // ── ToolProvider 工具收集（在插入 map 前进行，避免所有权问题）──
-        let provider_tools: Option<Vec<Box<dyn lingshu_traits::tool::Tool>>> = 
+        let provider_tools: Option<Vec<Box<dyn lingshu_traits::tool::Tool>>> =
             if self.tool_registry.is_some() {
                 plugin.as_tool_provider().map(|p| p.provided_tools())
             } else {
@@ -267,7 +261,8 @@ impl PluginRegistry {
         if let Some(ref treg) = self.tool_registry {
             if let Some(tools) = provider_tools {
                 if !tools.is_empty() {
-                    let tool_names: Vec<String> = tools.iter().map(|t| t.info().name.clone()).collect();
+                    let tool_names: Vec<String> =
+                        tools.iter().map(|t| t.info().name.clone()).collect();
                     info!(
                         plugin = %plugin_name,
                         tools = ?tool_names,
@@ -573,7 +568,7 @@ impl Plugin for StaticPlugin {
         Ok(())
     }
 
-        fn as_any(&self) -> &dyn std::any::Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 
@@ -655,11 +650,14 @@ mod tests {
             name: name.into(),
             description: "test plugin".into(),
             plugin_type: "static".into(),
-            capabilities: capabilities.into_iter().map(|c| Capability {
-                name: c.into(),
-                description: None,
-                version_req: None,
-            }).collect(),
+            capabilities: capabilities
+                .into_iter()
+                .map(|c| Capability {
+                    name: c.into(),
+                    description: None,
+                    version_req: None,
+                })
+                .collect(),
             ..PluginManifest::default()
         };
         let info = PluginInfo {
@@ -781,7 +779,10 @@ mod tests {
     async fn test_list_by_capability() {
         let registry = PluginRegistry::new();
         registry
-            .register(make_plugin_with_caps("llm-helper", vec!["llm", "search"]), None)
+            .register(
+                make_plugin_with_caps("llm-helper", vec!["llm", "search"]),
+                None,
+            )
             .await
             .unwrap();
         registry
@@ -821,8 +822,16 @@ mod tests {
             description: "test".into(),
             plugin_type: "static".into(),
             capabilities: vec![
-                Capability { name: "llm".into(), description: None, version_req: None },
-                Capability { name: "search".into(), description: None, version_req: None },
+                Capability {
+                    name: "llm".into(),
+                    description: None,
+                    version_req: None,
+                },
+                Capability {
+                    name: "search".into(),
+                    description: None,
+                    version_req: None,
+                },
             ],
             ..PluginManifest::default()
         };
@@ -845,14 +854,30 @@ mod tests {
         #[async_trait]
         impl Tool for EchoTool {
             fn info(&self) -> ToolInfo {
-                ToolInfo::new("echo", "Echo tool", vec![ToolParam {
-                    name: "msg".into(), description: "msg".into(),
-                    required: true, param_type: "string".into(),
-                }])
+                ToolInfo::new(
+                    "echo",
+                    "Echo tool",
+                    vec![ToolParam {
+                        name: "msg".into(),
+                        description: "msg".into(),
+                        required: true,
+                        param_type: "string".into(),
+                    }],
+                )
             }
-            fn validate(&self, _input: &serde_json::Value) -> LsResult<()> { Ok(()) }
-            async fn execute(&self, _ctx: LsContext, input: serde_json::Value) -> LsResult<serde_json::Value> { Ok(input) }
-    fn duplicate(&self) -> Box<dyn Tool> { Box::new(EchoTool) }
+            fn validate(&self, _input: &serde_json::Value) -> LsResult<()> {
+                Ok(())
+            }
+            async fn execute(
+                &self,
+                _ctx: LsContext,
+                input: serde_json::Value,
+            ) -> LsResult<serde_json::Value> {
+                Ok(input)
+            }
+            fn duplicate(&self) -> Box<dyn Tool> {
+                Box::new(EchoTool)
+            }
         }
 
         cache.insert("echo".into(), Box::new(EchoTool)).await;

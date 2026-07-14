@@ -71,8 +71,7 @@ pub struct SwarmCoordinator {
 
 impl SwarmCoordinator {
     pub fn new(
-        #[allow(dead_code)]
-    swarm_config: Arc<SwarmConfig>,
+        #[allow(dead_code)] swarm_config: Arc<SwarmConfig>,
         strategy: Box<dyn SwarmDecisionStrategy>,
         channel: Arc<SwarmChannel>,
     ) -> Self {
@@ -152,7 +151,10 @@ impl SwarmCoordinator {
 
         // Step 1: 分析任务复杂度，可能需要分解
         let tasks = self.analyze_task(ctx, task).await?;
-        info!("coordinator: task decomposed into {} sub-tasks", tasks.len());
+        info!(
+            "coordinator: task decomposed into {} sub-tasks",
+            tasks.len()
+        );
 
         // Step 2: 如果启用竞标，收集竞标
         let mut bids = Vec::new();
@@ -164,7 +166,9 @@ impl SwarmCoordinator {
         // Step 3: 选择 Agent 执行每个子任务
         let mut results = Vec::new();
         for sub_task in &tasks {
-            let result = self.execute_subtask(ctx, sub_task, swarm_state, &bids).await?;
+            let result = self
+                .execute_subtask(ctx, sub_task, swarm_state, &bids)
+                .await?;
 
             // 记录执行结果到涌现引擎
             {
@@ -191,9 +195,7 @@ impl SwarmCoordinator {
         }
 
         // Step 4: 群体评估
-        let decision = self
-            .evaluate_results(task, &results, swarm_state)
-            .await?;
+        let decision = self.evaluate_results(task, &results, swarm_state).await?;
 
         // 记录决策
         self.memory.record_decision(&decision).await;
@@ -229,7 +231,10 @@ impl SwarmCoordinator {
 
         // 复杂任务：使用 Analyst 分解
         let specialized = self.specialized_agents.read().await;
-        if let Some(analyst) = specialized.iter().find(|a| a.role() == SwarmAgentRole::Analyst) {
+        if let Some(analyst) = specialized
+            .iter()
+            .find(|a| a.role() == SwarmAgentRole::Analyst)
+        {
             let analysis = analyst.analyze(_ctx, task).await?;
             if analysis.len() > 1 {
                 return Ok(analysis);
@@ -257,9 +262,7 @@ impl SwarmCoordinator {
             }
 
             // 每个 Agent 对最高优先级的任务竞标
-            let best_task = tasks
-                .iter()
-                .max_by(|a, b| a.priority.cmp(&b.priority));
+            let best_task = tasks.iter().max_by(|a, b| a.priority.cmp(&b.priority));
 
             if let Some(task) = best_task {
                 // 计算竞标分数
@@ -285,7 +288,8 @@ impl SwarmCoordinator {
                     agent_id: agent.id,
                     agent_name: agent.name.clone(),
                     bid_score: score.min(1.0),
-                    estimated_ms: (agent.avg_execution_ms * (1.5 - agent.capability_score)).max(100.0) as u64,
+                    estimated_ms: (agent.avg_execution_ms * (1.5 - agent.capability_score))
+                        .max(100.0) as u64,
                     rationale: format!("Agent '{}' bid with score {:.2}", agent.name, score),
                     timestamp: chrono::Utc::now().timestamp(),
                 };
@@ -294,7 +298,11 @@ impl SwarmCoordinator {
         }
 
         // 按分数降序排列
-        bids.sort_by(|a, b| b.bid_score.partial_cmp(&a.bid_score).unwrap_or(std::cmp::Ordering::Equal));
+        bids.sort_by(|a, b| {
+            b.bid_score
+                .partial_cmp(&a.bid_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         bids.truncate(tasks.len() * 2); // 每个任务最多 2 个竞标
         bids
     }
@@ -392,7 +400,8 @@ mod tests {
     use lingshu_core::{LsContext, LsId};
 
     fn create_test_swarm_state() -> SwarmState {
-        let mut state = SwarmState::new("test-swarm", SwarmStrategy::Democratic, SwarmTopology::Mesh);
+        let mut state =
+            SwarmState::new("test-swarm", SwarmStrategy::Democratic, SwarmTopology::Mesh);
         let agents = vec![
             SwarmAgent::new("analyst-1", SwarmAgentRole::Analyst).with_expertise("analysis", 0.9),
             SwarmAgent::new("creator-1", SwarmAgentRole::Creator).with_expertise("code", 0.85),
@@ -421,8 +430,12 @@ mod tests {
             .await;
 
         let state = create_test_swarm_state();
-        let task = SwarmTask::new("test-coordinate", "A test coordination task", serde_json::json!({"input": "data"}))
-            .with_priority(5);
+        let task = SwarmTask::new(
+            "test-coordinate",
+            "A test coordination task",
+            serde_json::json!({"input": "data"}),
+        )
+        .with_priority(5);
 
         let ctx = LsContext::with_session(LsId::new());
         let result = coordinator.coordinate(&ctx, &state, &task).await;
@@ -457,8 +470,12 @@ mod tests {
             .await;
 
         let state = create_test_swarm_state();
-        let task = SwarmTask::new("execute-test", "test execution", serde_json::json!({"do": "something"}))
-            .with_priority(5);
+        let task = SwarmTask::new(
+            "execute-test",
+            "test execution",
+            serde_json::json!({"do": "something"}),
+        )
+        .with_priority(5);
 
         let ctx = LsContext::with_session(LsId::new());
         let result = coordinator.execute_subtask(&ctx, &task, &state, &[]).await;

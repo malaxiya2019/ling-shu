@@ -93,12 +93,7 @@ impl GraphGenerator {
                 };
 
                 builder.add_node(GraphNode {
-                    id: format!(
-                        "{}:{}{}",
-                        node_type.as_str(),
-                        "",
-                        entry.path
-                    ),
+                    id: format!("{}:{}{}", node_type.as_str(), "", entry.path),
                     node_type,
                     name: entry.name.clone(),
                     file_path: Some(entry.path.clone()),

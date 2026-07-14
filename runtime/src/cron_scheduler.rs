@@ -64,9 +64,7 @@ enum CronKind {
         days_of_week: Vec<u8>,
     },
     /// 固定间隔: @every 30s, @every 5m, @every 1h
-    Every {
-        duration_secs: u64,
-    },
+    Every { duration_secs: u64 },
     /// 预设别名
     Preset(Preset),
 }
@@ -95,9 +93,12 @@ impl CronSchedule {
             _ => {
                 if trimmed.starts_with("@every ") {
                     let dur_str = trimmed.trim_start_matches("@every ");
-                    let dur = parse_duration(dur_str)
-                        .map_err(|e| LsError::InvalidArgument(format!("invalid @every duration: {e}")))?;
-                    CronKind::Every { duration_secs: dur.as_secs() }
+                    let dur = parse_duration(dur_str).map_err(|e| {
+                        LsError::InvalidArgument(format!("invalid @every duration: {e}"))
+                    })?;
+                    CronKind::Every {
+                        duration_secs: dur.as_secs(),
+                    }
                 } else {
                     // 标准 cron 表达式
                     let fields: Vec<&str> = trimmed.split_whitespace().collect();
@@ -117,9 +118,12 @@ impl CronSchedule {
                             months: parse_field(fields[4], 1, 12)?,
                             days_of_week: parse_field(fields[5], 0, 6)?,
                         },
-                        _ => return Err(LsError::InvalidArgument(
-                            format!("invalid cron expression: expected 5 or 6 fields, got {}", fields.len())
-                        )),
+                        _ => {
+                            return Err(LsError::InvalidArgument(format!(
+                                "invalid cron expression: expected 5 or 6 fields, got {}",
+                                fields.len()
+                            )))
+                        }
                     }
                 }
             }
@@ -152,12 +156,37 @@ impl CronSchedule {
                 };
                 find_next_match(now, min, hour, dom, month, dow)
             }
-            CronKind::Standard { minutes, hours, days_of_month, months, days_of_week } => {
-                find_next_match_multi(now, &[0], minutes, hours, days_of_month, months, days_of_week)
-            }
-            CronKind::WithSeconds { seconds, minutes, hours, days_of_month, months, days_of_week } => {
-                find_next_match_multi(now, seconds, minutes, hours, days_of_month, months, days_of_week)
-            }
+            CronKind::Standard {
+                minutes,
+                hours,
+                days_of_month,
+                months,
+                days_of_week,
+            } => find_next_match_multi(
+                now,
+                &[0],
+                minutes,
+                hours,
+                days_of_month,
+                months,
+                days_of_week,
+            ),
+            CronKind::WithSeconds {
+                seconds,
+                minutes,
+                hours,
+                days_of_month,
+                months,
+                days_of_week,
+            } => find_next_match_multi(
+                now,
+                seconds,
+                minutes,
+                hours,
+                days_of_month,
+                months,
+                days_of_week,
+            ),
         }
     }
 
@@ -190,13 +219,16 @@ fn parse_field(field: &str, min: u8, max: u8) -> LsResult<Vec<u8>> {
 
     // step 语法: */n 或 n-m/n
     if let Some((range_part, step_part)) = field.split_once('/') {
-        let step: u8 = step_part.parse().map_err(|_| {
-            LsError::InvalidArgument(format!("invalid step '{step_part}'"))
-        })?;
+        let step: u8 = step_part
+            .parse()
+            .map_err(|_| LsError::InvalidArgument(format!("invalid step '{step_part}'")))?;
         let (range_min, range_max) = if range_part == "*" {
             (min, max)
         } else if let Some((a, b)) = range_part.split_once('-') {
-            (a.parse::<u8>().unwrap_or(min), b.parse::<u8>().unwrap_or(max))
+            (
+                a.parse::<u8>().unwrap_or(min),
+                b.parse::<u8>().unwrap_or(max),
+            )
         } else {
             let v: u8 = range_part.parse().unwrap_or(min);
             (v, max)
@@ -206,22 +238,22 @@ fn parse_field(field: &str, min: u8, max: u8) -> LsResult<Vec<u8>> {
         Ok((range_min..=range_max).step_by(step as usize).collect())
     } else if let Some((a, b)) = field.split_once('-') {
         // 范围: n-m
-        let a: u8 = a.parse().map_err(|_| {
-            LsError::InvalidArgument(format!("invalid range start '{a}'"))
-        })?;
-        let b: u8 = b.parse().map_err(|_| {
-            LsError::InvalidArgument(format!("invalid range end '{b}'"))
-        })?;
+        let a: u8 = a
+            .parse()
+            .map_err(|_| LsError::InvalidArgument(format!("invalid range start '{a}'")))?;
+        let b: u8 = b
+            .parse()
+            .map_err(|_| LsError::InvalidArgument(format!("invalid range end '{b}'")))?;
         Ok((a.min(b)..=a.max(b)).collect())
     } else {
         // 单个值
-        let v: u8 = field.parse().map_err(|_| {
-            LsError::InvalidArgument(format!("invalid cron value '{field}'"))
-        })?;
+        let v: u8 = field
+            .parse()
+            .map_err(|_| LsError::InvalidArgument(format!("invalid cron value '{field}'")))?;
         if v < min || v > max {
-            return Err(LsError::InvalidArgument(
-                format!("value {v} out of range [{min}, {max}]")
-            ));
+            return Err(LsError::InvalidArgument(format!(
+                "value {v} out of range [{min}, {max}]"
+            )));
         }
         Ok(vec![v])
     }
@@ -241,7 +273,9 @@ fn parse_duration(s: &str) -> Result<Duration, String> {
         if ch.is_ascii_digit() || ch == '.' {
             current.push(ch);
         } else {
-            let value: f64 = current.parse().map_err(|_| format!("invalid number '{current}'"))?;
+            let value: f64 = current
+                .parse()
+                .map_err(|_| format!("invalid number '{current}'"))?;
             match ch {
                 's' => total_secs += value as u64,
                 'm' => total_secs += (value * 60.0) as u64,
@@ -255,7 +289,9 @@ fn parse_duration(s: &str) -> Result<Duration, String> {
 
     if !current.is_empty() {
         // 无单位后缀，视为秒
-        total_secs += current.parse::<u64>().map_err(|_| format!("invalid number '{current}'"))?;
+        total_secs += current
+            .parse::<u64>()
+            .map_err(|_| format!("invalid number '{current}'"))?;
     }
 
     Ok(Duration::from_secs(total_secs))
@@ -372,7 +408,12 @@ impl CronManager {
     }
 
     /// 注册一个 cron 作业.
-    pub async fn add_job(&self, name: &str, schedule: CronSchedule, job: Box<dyn Job>) -> LsResult<()> {
+    pub async fn add_job(
+        &self,
+        name: &str,
+        schedule: CronSchedule,
+        job: Box<dyn Job>,
+    ) -> LsResult<()> {
         let mut entries = self.entries.write().await;
         if entries.contains_key(name) {
             return Err(LsError::InvalidArgument(format!(

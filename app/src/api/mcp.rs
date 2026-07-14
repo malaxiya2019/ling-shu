@@ -3,7 +3,7 @@
 //! ✅ 已完成迁移 (从 full.rs)
 
 use crate::api::AppState;
-use axum::{Json, extract::State, response::Html};
+use axum::{extract::State, response::Html, Json};
 use lingshu_core::{LsContext, LsId};
 use std::sync::Arc;
 

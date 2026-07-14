@@ -173,7 +173,7 @@ impl CodeSandboxPlugin {
         let dangerous_patterns = [
             "rm -rf /",
             "rm -rf /*",
-            ":(){ :|:& };:",  // fork bomb
+            ":(){ :|:& };:", // fork bomb
             "dd if=/dev/zero of=/dev/sda",
             "mkfs.",
             "chmod 777 /",
@@ -217,19 +217,22 @@ impl CodeSandboxPlugin {
     // ── Python 执行 ────
 
     async fn run_python(&self, code: &str, timeout_secs: u64) -> ExecutionResult {
-        self.run_subprocess("python3", ["-c", code], timeout_secs).await
+        self.run_subprocess("python3", ["-c", code], timeout_secs)
+            .await
     }
 
     // ── JavaScript 执行 ────
 
     async fn run_javascript(&self, code: &str, timeout_secs: u64) -> ExecutionResult {
-        self.run_subprocess("node", ["-e", code], timeout_secs).await
+        self.run_subprocess("node", ["-e", code], timeout_secs)
+            .await
     }
 
     // ── Shell 执行 ────
 
     async fn run_shell(&self, code: &str, timeout_secs: u64) -> ExecutionResult {
-        self.run_subprocess("bash", ["-c", code], timeout_secs).await
+        self.run_subprocess("bash", ["-c", code], timeout_secs)
+            .await
     }
 
     // ── Rust 执行 ────
@@ -355,10 +358,12 @@ impl CodeSandboxPlugin {
                     let mut stdout = String::new();
                     let mut stderr = String::new();
                     if let Some(mut out) = child_stdout {
-                        let _ = tokio::io::AsyncReadExt::read_to_string(&mut out, &mut stdout).await;
+                        let _ =
+                            tokio::io::AsyncReadExt::read_to_string(&mut out, &mut stdout).await;
                     }
                     if let Some(mut err) = child_stderr {
-                        let _ = tokio::io::AsyncReadExt::read_to_string(&mut err, &mut stderr).await;
+                        let _ =
+                            tokio::io::AsyncReadExt::read_to_string(&mut err, &mut stderr).await;
                     }
                     return ExecutionResult {
                         stdout,
@@ -424,7 +429,9 @@ impl Plugin for CodeSandboxPlugin {
         let manifest = PluginManifest {
             name: "code-sandbox".into(),
             version: "1.0.0".into(),
-            description: "安全的代码执行沙箱 — 支持 Python/JavaScript/Shell/Rust，含超时控制和安全策略".into(),
+            description:
+                "安全的代码执行沙箱 — 支持 Python/JavaScript/Shell/Rust，含超时控制和安全策略"
+                    .into(),
             author: Some("Lingshu Team".into()),
             homepage: Some("https://github.com/malaxiya2019/ling-shu".into()),
             license: Some("MIT".into()),
@@ -435,7 +442,7 @@ impl Plugin for CodeSandboxPlugin {
                 actions: vec!["execute".into(), "read".into()],
             }],
             min_api_version: Some("1.0.0".into()),
-        ..Default::default()
+            ..Default::default()
         };
         PluginInfo {
             plugin_id: LsId::new(),
@@ -451,7 +458,10 @@ impl Plugin for CodeSandboxPlugin {
     }
 
     async fn start(&self, _ctx: LsContext) -> LsResult<()> {
-        tracing::info!("code-sandbox plugin started (timeout: {}s)", self.max_timeout_secs);
+        tracing::info!(
+            "code-sandbox plugin started (timeout: {}s)",
+            self.max_timeout_secs
+        );
         Ok(())
     }
 
@@ -460,7 +470,7 @@ impl Plugin for CodeSandboxPlugin {
         Ok(())
     }
 
-        fn as_any(&self) -> &dyn std::any::Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 
@@ -487,7 +497,7 @@ pub mod wasm_sandbox {
     //! - 精确的指令计数
 
     use wasmtime::{Engine, Linker, Module, Store};
-    use wasmtime_wasi::{WasiCtx, WasiCtxBuilder, add_to_linker};
+    use wasmtime_wasi::{add_to_linker, WasiCtx, WasiCtxBuilder};
 
     /// WASM 沙箱执行器.
     pub struct WasmSandbox {
@@ -506,12 +516,9 @@ pub mod wasm_sandbox {
                 .map_err(|e| format!("module compile: {e}"))?;
 
             let mut linker: Linker<WasiCtx> = Linker::new(&self.engine);
-            add_to_linker(&mut linker, |ctx| ctx)
-                .map_err(|e| format!("linker setup: {e}"))?;
+            add_to_linker(&mut linker, |ctx| ctx).map_err(|e| format!("linker setup: {e}"))?;
 
-            let wasi = WasiCtxBuilder::new()
-                .stdin_bytes(input.as_bytes())
-                .build();
+            let wasi = WasiCtxBuilder::new().stdin_bytes(input.as_bytes()).build();
 
             let mut store = Store::new(&self.engine, wasi);
             let instance = linker
@@ -525,7 +532,8 @@ pub mod wasm_sandbox {
                 .into_func()
                 .ok_or("export is not a function")?;
 
-            start.call(&mut store, &[], &mut [])
+            start
+                .call(&mut store, &[], &mut [])
                 .map_err(|e| format!("execution: {e}"))?;
 
             Ok("WASM execution completed".into())
@@ -546,7 +554,9 @@ mod tests {
         let sandbox = CodeSandboxPlugin::new();
         assert!(sandbox.check_safety("python", "rm -rf /").is_some());
         assert!(sandbox.check_safety("python", "print('hello')").is_none());
-        assert!(sandbox.check_safety("unknown_lang", "print('hi')").is_some());
+        assert!(sandbox
+            .check_safety("unknown_lang", "print('hi')")
+            .is_some());
     }
 
     #[test]

@@ -53,18 +53,28 @@ impl LsAgentFactory {
     /// 注册一个 Agent 类型.
     pub async fn register(&self, registration: AgentRegistration) {
         let name = registration.name.clone();
-        self.registrations.write().await.insert(name.clone(), registration);
+        self.registrations
+            .write()
+            .await
+            .insert(name.clone(), registration);
         info!(agent = %name, "agent registered in factory");
     }
 
     /// 注册一个自定义 Agent（通过构造闭包）.
-    pub async fn register_factory(&self, name: &str, factory: Box<dyn Fn() -> Box<dyn Agent> + Send + Sync>) {
+    pub async fn register_factory(
+        &self,
+        name: &str,
+        factory: Box<dyn Fn() -> Box<dyn Agent> + Send + Sync>,
+    ) {
         let name = name.to_string();
-        self.registrations.write().await.insert(name.clone(), AgentRegistration {
-            name: name.clone(),
-            description: format!("Custom agent '{}'", name),
-            factory,
-        });
+        self.registrations.write().await.insert(
+            name.clone(),
+            AgentRegistration {
+                name: name.clone(),
+                description: format!("Custom agent '{}'", name),
+                factory,
+            },
+        );
         info!(agent = %name, "custom agent factory registered");
     }
 
@@ -132,8 +142,14 @@ mod tests {
     struct EchoAgent;
     #[async_trait]
     impl Agent for EchoAgent {
-        fn id(&self) -> LsId { LsId::new() }
-        async fn run(&mut self, _ctx: LsContext, input: serde_json::Value) -> LsResult<AgentOutput> {
+        fn id(&self) -> LsId {
+            LsId::new()
+        }
+        async fn run(
+            &mut self,
+            _ctx: LsContext,
+            input: serde_json::Value,
+        ) -> LsResult<AgentOutput> {
             Ok(AgentOutput {
                 agent_id: LsId::new(),
                 status: AgentStatus::Completed,
@@ -141,9 +157,15 @@ mod tests {
                 error: None,
             })
         }
-        async fn pause(&mut self, _ctx: LsContext) -> LsResult<()> { Ok(()) }
-        async fn resume(&mut self, _ctx: LsContext) -> LsResult<()> { Ok(()) }
-        async fn cancel(&mut self, _ctx: LsContext) -> LsResult<()> { Ok(()) }
+        async fn pause(&mut self, _ctx: LsContext) -> LsResult<()> {
+            Ok(())
+        }
+        async fn resume(&mut self, _ctx: LsContext) -> LsResult<()> {
+            Ok(())
+        }
+        async fn cancel(&mut self, _ctx: LsContext) -> LsResult<()> {
+            Ok(())
+        }
         async fn snapshot(&self, _ctx: LsContext) -> LsResult<AgentSnapshot> {
             Ok(AgentSnapshot {
                 agent_id: LsId::new(),
@@ -153,14 +175,20 @@ mod tests {
                 created_at: chrono::Utc::now(),
             })
         }
-        async fn restore(&mut self, _ctx: LsContext, _snap: AgentSnapshot) -> LsResult<()> { Ok(()) }
-        async fn status(&self, _ctx: LsContext) -> LsResult<AgentStatus> { Ok(AgentStatus::Idle) }
+        async fn restore(&mut self, _ctx: LsContext, _snap: AgentSnapshot) -> LsResult<()> {
+            Ok(())
+        }
+        async fn status(&self, _ctx: LsContext) -> LsResult<AgentStatus> {
+            Ok(AgentStatus::Idle)
+        }
     }
 
     #[tokio::test]
     async fn test_create_registered_agent() {
         let factory = LsAgentFactory::new();
-        factory.register_factory("echo", Box::new(|| Box::new(EchoAgent))).await;
+        factory
+            .register_factory("echo", Box::new(|| Box::new(EchoAgent)))
+            .await;
         let ctx = LsContext::with_session(LsId::new());
         let agent = factory.create("echo", &ctx).await.unwrap();
         let id = agent.id();
@@ -178,7 +206,9 @@ mod tests {
     #[tokio::test]
     async fn test_supports() {
         let factory = LsAgentFactory::new();
-        factory.register_factory("echo", Box::new(|| Box::new(EchoAgent))).await;
+        factory
+            .register_factory("echo", Box::new(|| Box::new(EchoAgent)))
+            .await;
         assert!(factory.supports("echo").await);
         assert!(!factory.supports("unknown").await);
     }
@@ -186,7 +216,9 @@ mod tests {
     #[tokio::test]
     async fn test_registered_names() {
         let factory = LsAgentFactory::new();
-        factory.register_factory("echo", Box::new(|| Box::new(EchoAgent))).await;
+        factory
+            .register_factory("echo", Box::new(|| Box::new(EchoAgent)))
+            .await;
         let names = factory.registered_names().await;
         assert!(names.contains(&"echo".to_string()));
     }

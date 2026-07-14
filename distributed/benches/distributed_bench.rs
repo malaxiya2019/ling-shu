@@ -24,18 +24,28 @@ fn bench_enum_ops(c: &mut Criterion) {
 
     group.bench_function("strategy_as_str", |b| {
         let variants = [
-            DistScheduleStrategy::LeastTasks, DistScheduleStrategy::RoundRobin,
-            DistScheduleStrategy::Weighted, DistScheduleStrategy::ConsistentHash,
-            DistScheduleStrategy::LocalFirst, DistScheduleStrategy::Adaptive,
+            DistScheduleStrategy::LeastTasks,
+            DistScheduleStrategy::RoundRobin,
+            DistScheduleStrategy::Weighted,
+            DistScheduleStrategy::ConsistentHash,
+            DistScheduleStrategy::LocalFirst,
+            DistScheduleStrategy::Adaptive,
         ];
-        b.iter(|| { for v in &variants { black_box(v.as_str()); } })
+        b.iter(|| {
+            for v in &variants {
+                black_box(v.as_str());
+            }
+        })
     });
 
     group.bench_function("cluster_node_serde", |b| {
         let node = ClusterNode {
-            id: "node-42".into(), addr: "10.0.0.42:9550".into(),
-            role: NodeRole::Follower, status: NodeStatus::Alive,
-            last_heartbeat: 1000, version: 5,
+            id: "node-42".into(),
+            addr: "10.0.0.42:9550".into(),
+            role: NodeRole::Follower,
+            status: NodeStatus::Alive,
+            last_heartbeat: 1000,
+            version: 5,
         };
         b.iter(|| {
             let json = serde_json::to_string(black_box(&node)).unwrap();
@@ -78,9 +88,7 @@ fn bench_cluster_ops(c: &mut Criterion) {
     let mut group = c.benchmark_group("distributed::cluster");
 
     group.bench_function("new_state", |b| {
-        b.iter(|| {
-            ClusterState::new(make_cluster_config())
-        })
+        b.iter(|| ClusterState::new(make_cluster_config()))
     });
 
     group.bench_function("add_100_members", |b| {
@@ -88,9 +96,12 @@ fn bench_cluster_ops(c: &mut Criterion) {
             let mut state = ClusterState::new(make_cluster_config_empty());
             for i in 0..100 {
                 state.add_member(ClusterNode {
-                    id: format!("node-{i}"), addr: format!("10.0.0.{i}:9550"),
-                    role: NodeRole::Follower, status: NodeStatus::Alive,
-                    last_heartbeat: i as i64, version: i as u64,
+                    id: format!("node-{i}"),
+                    addr: format!("10.0.0.{i}:9550"),
+                    role: NodeRole::Follower,
+                    status: NodeStatus::Alive,
+                    last_heartbeat: i as i64,
+                    version: i as u64,
                 });
             }
             black_box(state)
@@ -101,10 +112,20 @@ fn bench_cluster_ops(c: &mut Criterion) {
         let mut state = ClusterState::new(make_cluster_config_empty());
         for i in 0..50 {
             state.add_member(ClusterNode {
-                id: format!("node-{i}"), addr: format!("10.0.0.{i}:9550"),
-                role: if i == 0 { NodeRole::Leader } else { NodeRole::Follower },
-                status: if i % 10 == 0 { NodeStatus::Suspect } else { NodeStatus::Alive },
-                last_heartbeat: i as i64, version: i as u64,
+                id: format!("node-{i}"),
+                addr: format!("10.0.0.{i}:9550"),
+                role: if i == 0 {
+                    NodeRole::Leader
+                } else {
+                    NodeRole::Follower
+                },
+                status: if i % 10 == 0 {
+                    NodeStatus::Suspect
+                } else {
+                    NodeStatus::Alive
+                },
+                last_heartbeat: i as i64,
+                version: i as u64,
             });
         }
         b.iter(|| black_box(state.live_members()))
@@ -130,10 +151,14 @@ fn bench_task_create(c: &mut Criterion) {
 
     group.bench_function("new_with_options", |b| {
         b.iter(|| {
-            DistTask::new("optimized-task", "compute", serde_json::json!({"data": "x".repeat(500)}))
-                .with_priority(8)
-                .with_capability("gpu")
-                .with_affinity("node-fast")
+            DistTask::new(
+                "optimized-task",
+                "compute",
+                serde_json::json!({"data": "x".repeat(500)}),
+            )
+            .with_priority(8)
+            .with_capability("gpu")
+            .with_affinity("node-fast")
         })
     });
 
@@ -152,9 +177,12 @@ fn bench_scheduler_select(c: &mut Criterion) {
         let mut state = rt.block_on(async { cluster.state().write().await });
         for i in 0..50 {
             state.add_member(ClusterNode {
-                id: format!("node-{i}"), addr: format!("10.0.0.{i}:9550"),
-                role: NodeRole::Follower, status: NodeStatus::Alive,
-                last_heartbeat: i as i64, version: i as u64,
+                id: format!("node-{i}"),
+                addr: format!("10.0.0.{i}:9550"),
+                role: NodeRole::Follower,
+                status: NodeStatus::Alive,
+                last_heartbeat: i as i64,
+                version: i as u64,
             });
         }
     }
@@ -184,9 +212,7 @@ fn bench_scheduler_select(c: &mut Criterion) {
 
         group.bench_function(format!("select_{name}_50nodes"), |b| {
             b.iter(|| {
-                rt.block_on(async {
-                    black_box(scheduler.select_node(black_box(&task)).await)
-                })
+                rt.block_on(async { black_box(scheduler.select_node(black_box(&task)).await) })
             })
         });
     }
@@ -205,7 +231,9 @@ fn bench_cache(c: &mut Criterion) {
         b.iter(|| {
             rt.block_on(async {
                 for i in 0..100 {
-                    cache.set(&format!("key-{i}"), &format!("value-{i}"), None).await;
+                    cache
+                        .set(&format!("key-{i}"), &format!("value-{i}"), None)
+                        .await;
                 }
             })
         })
@@ -213,7 +241,9 @@ fn bench_cache(c: &mut Criterion) {
 
     group.bench_function("get_hit", |b| {
         let cache = DistributedCache::new(CacheConfig::default());
-        rt.block_on(async { cache.set("hit-key", "hit-value", None).await; });
+        rt.block_on(async {
+            cache.set("hit-key", "hit-value", None).await;
+        });
         b.iter(|| rt.block_on(async { black_box(cache.get("hit-key").await) }))
     });
 
@@ -256,7 +286,9 @@ fn bench_store(c: &mut Criterion) {
 
     group.bench_function("exists", |b| {
         let store = DistributedStore::new(StoreConfig::default());
-        rt.block_on(async { store.set("exists-key", b"yes").await; });
+        rt.block_on(async {
+            store.set("exists-key", b"yes").await;
+        });
         b.iter(|| rt.block_on(async { black_box(store.exists("exists-key").await) }))
     });
 

@@ -6,12 +6,12 @@
 //! 生产环境应替换为数据库后端。
 
 use crate::api::AppState;
-use axum::{Json, extract::State};
+use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 use std::sync::LazyLock;
+use tokio::sync::RwLock;
 
 // ── 全局内存存储 ────────────────────────────────────
 
@@ -187,7 +187,12 @@ pub async fn record_usage_handler(
     Json(req): Json<RecordUsageReq>,
 ) -> Json<serde_json::Value> {
     let mut store = BILLING_STORE.write().await;
-    store.record(&req.model, &req.user_id, req.input_tokens, req.output_tokens);
+    store.record(
+        &req.model,
+        &req.user_id,
+        req.input_tokens,
+        req.output_tokens,
+    );
 
     let total_requests: u64 = store.per_model.values().map(|m| m.requests).sum();
 
@@ -203,10 +208,22 @@ pub async fn record_usage_handler(
 /// Axum route definition for Billing module
 pub fn billing_routes() -> axum::Router<Arc<AppState>> {
     axum::Router::new()
-        .route("/v1/billing/stats", axum::routing::get(billing_stats_handler))
-        .route("/v1/billing/report/:user_id", axum::routing::get(billing_report_handler))
-        .route("/v1/billing/quota/:user_id", axum::routing::get(billing_quota_handler))
-        .route("/v1/billing/usage", axum::routing::post(record_usage_handler))
+        .route(
+            "/v1/billing/stats",
+            axum::routing::get(billing_stats_handler),
+        )
+        .route(
+            "/v1/billing/report/:user_id",
+            axum::routing::get(billing_report_handler),
+        )
+        .route(
+            "/v1/billing/quota/:user_id",
+            axum::routing::get(billing_quota_handler),
+        )
+        .route(
+            "/v1/billing/usage",
+            axum::routing::post(record_usage_handler),
+        )
 }
 
 #[cfg(test)]

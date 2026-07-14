@@ -23,7 +23,9 @@
 
 pub mod agents;
 pub mod auth;
+pub mod billing;
 pub mod chat;
+pub mod discovery;
 pub mod eval;
 pub mod federation;
 pub mod full;
@@ -31,8 +33,6 @@ pub mod health;
 pub mod mcp;
 pub mod metrics;
 pub mod plugins;
-pub mod billing;
-pub mod discovery;
 
 // ── Shared State ────────────────────────────────────
 

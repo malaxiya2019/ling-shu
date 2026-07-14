@@ -226,36 +226,47 @@ pub mod redis_backend {
     impl CacheBackend for RedisCache {
         async fn get_raw(&self, key: &str) -> LsResult<Option<Vec<u8>>> {
             let mut conn = self.client.clone();
-            let result: Option<Vec<u8>> = conn.get(key).await
+            let result: Option<Vec<u8>> = conn
+                .get(key)
+                .await
                 .map_err(|e| LsError::Internal(format!("redis get: {e}")))?;
-            self.stats.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            self.stats
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             Ok(result)
         }
 
         async fn set_raw(&self, key: &str, value: &[u8], ttl_secs: u64) -> LsResult<()> {
             let mut conn = self.client.clone();
-            let _: () = conn.set_ex(key, value, ttl_secs as usize).await
+            let _: () = conn
+                .set_ex(key, value, ttl_secs as usize)
+                .await
                 .map_err(|e| LsError::Internal(format!("redis set: {e}")))?;
             Ok(())
         }
 
         async fn delete(&self, key: &str) -> LsResult<bool> {
             let mut conn = self.client.clone();
-            let result: i32 = conn.del(key).await
+            let result: i32 = conn
+                .del(key)
+                .await
                 .map_err(|e| LsError::Internal(format!("redis del: {e}")))?;
             Ok(result > 0)
         }
 
         async fn exists(&self, key: &str) -> LsResult<bool> {
             let mut conn = self.client.clone();
-            let result: bool = conn.exists(key).await
+            let result: bool = conn
+                .exists(key)
+                .await
                 .map_err(|e| LsError::Internal(format!("redis exists: {e}")))?;
             Ok(result)
         }
 
         async fn clear(&self) -> LsResult<()> {
             let mut conn = self.client.clone();
-            let _: () = redis::cmd("FLUSHDB").query_async(&mut conn).await
+            let _: () = redis::cmd("FLUSHDB")
+                .query_async(&mut conn)
+                .await
                 .map_err(|e| LsError::Internal(format!("redis flushdb: {e}")))?;
             Ok(())
         }
@@ -300,32 +311,40 @@ pub mod memcached_backend {
     #[async_trait]
     impl CacheBackend for MemcachedCache {
         async fn get_raw(&self, key: &str) -> LsResult<Option<Vec<u8>>> {
-            let result: Option<Vec<u8>> = self.client.get(key)
+            let result: Option<Vec<u8>> = self
+                .client
+                .get(key)
                 .map_err(|e| LsError::Internal(format!("memcached get: {e}")))?;
-            self.stats.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            self.stats
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             Ok(result)
         }
 
         async fn set_raw(&self, key: &str, value: &[u8], ttl_secs: u64) -> LsResult<()> {
-            self.client.set(key, value, ttl_secs as u32)
+            self.client
+                .set(key, value, ttl_secs as u32)
                 .map_err(|e| LsError::Internal(format!("memcached set: {e}")))?;
             Ok(())
         }
 
         async fn delete(&self, key: &str) -> LsResult<bool> {
-            self.client.delete(key)
+            self.client
+                .delete(key)
                 .map_err(|e| LsError::Internal(format!("memcached del: {e}")))?;
             Ok(true)
         }
 
         async fn exists(&self, key: &str) -> LsResult<bool> {
-            let result: Option<Vec<u8>> = self.client.get(key)
+            let result: Option<Vec<u8>> = self
+                .client
+                .get(key)
                 .map_err(|e| LsError::Internal(format!("memcached exists: {e}")))?;
             Ok(result.is_some())
         }
 
         async fn clear(&self) -> LsResult<()> {
-            self.client.flush()
+            self.client
+                .flush()
                 .map_err(|e| LsError::Internal(format!("memcached flush: {e}")))?;
             Ok(())
         }
