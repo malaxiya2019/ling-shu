@@ -294,9 +294,9 @@ pub fn audit_dashboard() -> Html {
                 </select>
                 <button class="audit-btn" onclick={refresh.clone()}>{"🔍 Filter"}</button>
                 <button class="audit-btn" onclick={{
-                    let refresh = refresh.clone();
                     let set_a = set_actor.clone();
                     let set_et = set_event_type.clone();
+                    let trigger = refresh_trigger.clone();
                     let set_r = set_result.clone();
                     Callback::from(move |_| {
                         set_a.emit(String::new());
@@ -310,7 +310,7 @@ pub fn audit_dashboard() -> Html {
                         s.offset = 0;
                         s.loading = true;
                         state.set(s);
-                        refresh.emit(());
+                        trigger.set(*trigger + 1);
                     })
                 }}>{"✕ Clear"}</button>
                 <span style="flex:1"></span>
