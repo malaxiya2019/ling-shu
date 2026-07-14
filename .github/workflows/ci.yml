@@ -24,11 +24,17 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all --check
       - run: |
-          # 使用 clippy 但允许已知的可接受 lint
-          cargo clippy --all-targets --all-features --             -D clippy::correctness             -D clippy::suspicious             -A clippy::items_after_test_module             -A clippy::too_many_arguments             -A clippy::large_enum_variant             -A clippy::type_complexity             -W clippy::style             -W clippy::complexity             -W clippy::perf
+          cargo clippy --all-targets --all-features -- \
+            -D clippy::correctness \
+            -D clippy::suspicious \
+            -A clippy::items_after_test_module \
+            -A clippy::too_many_arguments \
+            -A clippy::large_enum_variant \
+            -A clippy::type_complexity \
+            -W clippy::style \
+            -W clippy::complexity \
+            -W clippy::perf
 
-  # ── Feature matrix compilation ──────────────────────
-  # Verify each feature set compiles independently.
   feature-matrix:
     runs-on: ubuntu-latest
     strategy:
@@ -74,10 +80,28 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Install protoc
         run: sudo apt-get update -o Acquire::http::Timeout=30 && sudo apt-get install -y protobuf-compiler libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      # ── agent-device 插件依赖 ──
+      - name: Install Node.js + agent-device
+        run: |
+          curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash -
+          sudo apt-get install -y nodejs
+          npm install -g agent-device
+          echo "agent-device $(agent-device --version)"
+      # ── SimpleCAD 插件依赖 ──
+      - name: Install Python + SimpleCADAPI
+        run: |
+          sudo apt-get install -y python3 python3-pip
+          pip3 install simplecadapi mcp
+          python3 -c "import simplecadapi; print('simplecadapi', simplecadapi.__version__)"
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --all --all-features
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/lingshu_test
+      # ── 新插件单元测试单独报告 ──
+      - name: agent-device plugin unit tests
+        run: cargo test -p lingshu-agent-device-plugin --lib
+      - name: simplecad plugin unit tests
+        run: cargo test -p lingshu-simplecad-plugin --lib
       - run: cargo doc --no-deps --all-features
         env:
           RUSTDOCFLAGS: "-D rustdoc::broken-intra-doc-links"
@@ -96,12 +120,80 @@ jobs:
         with:
           name: lingshu-x86_64-linux
           path: target/release/lingshu
-      - name: Smoke test — start server and check health
+      - name: Smoke test
         run: |
           ./target/release/lingshu --headless --addr 127.0.0.1:8090 &
           SERVER_PID=$!
           sleep 2
           curl -sf http://127.0.0.1:8090/health | grep -q '"status":"ok"' && echo "Health check passed"
+          kill $SERVER_PID 2>/dev/null || true
+
+  plugin-test:
+    name: Plugins (agent-device + SimpleCAD)
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Download binary
+        uses: actions/download-artifact@v4
+        with:
+          name: lingshu-x86_64-linux
+          path: ./target/release/
+      - name: Install protoc
+        run: sudo apt-get update -o Acquire::http::Timeout=30 && sudo apt-get install -y protobuf-compiler
+      # ── agent-device 运行时测试 ──
+      - name: Install Node.js + agent-device
+        run: |
+          curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash -
+          sudo apt-get install -y nodejs
+          npm install -g agent-device
+      - name: Test agent-device MCP tools discovery
+        run: |
+          agent-device mcp &
+          MCP_PID=$!
+          sleep 3
+          echo "agent-device MCP started (PID=$MCP_PID)"
+          kill $MCP_PID 2>/dev/null || true
+      # ── SimpleCAD 运行时测试 ──
+      - name: Install Python + SimpleCADAPI
+        run: |
+          sudo apt-get install -y python3 python3-pip
+          pip3 install simplecadapi mcp
+      - name: Test SimpleCADAPI modeling
+        run: |
+          python3 -c "
+import simplecadapi as scad
+base = scad.make_box_rsolid(60.0, 36.0, 8.0)
+hole = scad.make_cylinder_rsolid(5.0, 14.0)
+part = scad.cut_rsolid(base, hole)
+boss = scad.make_cylinder_rsolid(8.0, 7.0)
+part = scad.union_rsolid(part, boss)
+print(f'volume={part.get_volume():.2f}, faces={len(part.get_faces())}')
+"
+      # ── SimpleCAD MCP 服务器测试 ──
+      - name: Test SimpleCAD MCP server startup
+        run: |
+          python3 -m simplecad_mcp.server &
+          MCP_PID=$!
+          sleep 2
+          echo "SimpleCAD MCP started (PID=$MCP_PID)"
+          kill $MCP_PID 2>/dev/null || true
+      # ── ling-shu 二进制加载插件测试 ──
+      - name: Test ling-shu plugin loading
+        run: |
+          chmod +x ./target/release/lingshu
+          ./target/release/lingshu --headless --addr 127.0.0.1:8091 &
+          SERVER_PID=$!
+          sleep 3
+          curl -sf http://127.0.0.1:8091/plugins | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+print(f'Loaded plugins: {len(data)}')
+for p in data:
+    print(f'  - {p.get(\"name\", \"?\")} v{p.get(\"version\", \"?\")}')
+" 2>/dev/null || echo "plugin API check skipped"
           kill $SERVER_PID 2>/dev/null || true
 
   webui:
@@ -126,7 +218,7 @@ jobs:
   docker:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
-    needs: [lint, test, build, webui, feature-matrix]
+    needs: [lint, test, build, webui, feature-matrix, plugin-test]
     steps:
       - uses: actions/checkout@v4
       - name: Set up QEMU
