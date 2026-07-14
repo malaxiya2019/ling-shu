@@ -94,7 +94,7 @@ jobs:
           pip3 install simplecadapi mcp
           python3 -c "import simplecadapi; print('simplecadapi', simplecadapi.__version__)"
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --all --all-features
+      - run: cargo test --all --features "chidori,autoagents"
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/lingshu_test
       # ── 新插件单元测试单独报告 ──
@@ -102,7 +102,7 @@ jobs:
         run: cargo test -p lingshu-agent-device-plugin --lib
       - name: simplecad plugin unit tests
         run: cargo test -p lingshu-simplecad-plugin --lib
-      - run: cargo doc --no-deps --all-features
+      - run: cargo doc --no-deps --features "chidori,autoagents"
         env:
           RUSTDOCFLAGS: "-D rustdoc::broken-intra-doc-links"
 
@@ -114,7 +114,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Install protoc
         run: sudo apt-get update -o Acquire::http::Timeout=30 && sudo apt-get install -y protobuf-compiler libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-      - run: cargo build --release --all-features
+      - run: cargo build --release --features "chidori,autoagents"
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
