@@ -573,6 +573,10 @@ impl Plugin for StaticPlugin {
         Ok(())
     }
 
+        fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
     fn required_permissions(&self) -> Vec<lingshu_traits::plugin::PluginPermission> {
         self.info.manifest.permissions.clone()
     }
@@ -616,6 +620,10 @@ mod tests {
 
         fn required_permissions(&self) -> Vec<PluginPermission> {
             vec![]
+        }
+
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
         }
     }
 

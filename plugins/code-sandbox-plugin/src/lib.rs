@@ -460,6 +460,10 @@ impl Plugin for CodeSandboxPlugin {
         Ok(())
     }
 
+        fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
     fn required_permissions(&self) -> Vec<PluginPermission> {
         vec![PluginPermission {
             resource: "subprocess".into(),

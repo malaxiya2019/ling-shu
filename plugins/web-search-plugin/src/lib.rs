@@ -429,6 +429,10 @@ impl Plugin for WebSearchPlugin {
         Ok(())
     }
 
+        fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
     fn required_permissions(&self) -> Vec<PluginPermission> {
         self.info.manifest.permissions.clone()
     }

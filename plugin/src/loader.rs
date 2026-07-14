@@ -117,7 +117,11 @@ mod tests {
             Ok(())
         }
 
-        fn required_permissions(&self) -> Vec<PluginPermission> {
+            fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn required_permissions(&self) -> Vec<PluginPermission> {
             vec![]
         }
     }

@@ -63,6 +63,11 @@ pub mod server_launcher;
 pub mod rmcp_server;
 #[cfg(feature = "rmcp")]
 pub mod rmcp_client;
+/// Stdio MCP 客户端 — 通过子进程 stdin/stdout 连接外部 MCP 服务器.
+///
+/// 主要用于连接使用 stdio 传输层的 MCP 服务器（如 agent-device mcp）。
+/// 不依赖 rmcp feature flag，始终可用。
+pub mod rmcp_stdio_client;
 
 pub use server::McpServer;
 pub use types::*;

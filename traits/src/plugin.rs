@@ -134,6 +134,12 @@ pub trait Plugin: Send + Sync + 'static {
     fn as_tool_provider(&self) -> Option<&dyn ToolProvider> {
         None
     }
+
+    /// 返回 `&dyn Any`，允许从 trait 对象向下转型到具体类型.
+    ///
+    /// 所有实现必须返回 `self`。
+    /// 用于 `PluginRegistry::with_plugin()` 等场景中获取具体插件实例。
+    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 /// ToolProvider — 有能力提供工具的插件扩展接口.

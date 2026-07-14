@@ -1,0 +1,23 @@
+[package]
+name = "lingshu-agent-device-plugin"
+version = "2.0.0"
+edition.workspace = true
+description = "agent-device — 移动设备自动化插件：让 Lingshu 操控 iOS/Android/TV/桌面应用（v2 增强版）"
+
+[lib]
+crate-type = ["lib", "cdylib"]
+
+[dependencies]
+lingshu-core = { path = "../../core" }
+lingshu-traits = { path = "../../traits" }
+lingshu-mcp = { path = "../../mcp" }
+lingshu-tool = { path = "../../tool" }
+
+async-trait.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tokio = { workspace = true, features = ["process", "sync", "time", "rt"] }
+tracing.workspace = true
+thiserror.workspace = true
