@@ -1,0 +1,6 @@
+# Stable formatting configuration
+edition = "2021"
+imports_granularity = "Preserve"
+group_imports = "Preserve"
+reorder_imports = true
+reorder_modules = true
