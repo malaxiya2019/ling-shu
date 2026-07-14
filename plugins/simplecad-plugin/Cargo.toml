@@ -1,0 +1,22 @@
+[package]
+name = "lingshu-simplecad-plugin"
+version = "0.1.0"
+edition.workspace = true
+description = "SimpleCAD — CAD 建模插件：让 Lingshu AI Agent 进行 3D CAD 建模 (基于 SimpleCADAPI)"
+
+[lib]
+crate-type = ["lib", "cdylib"]
+
+[dependencies]
+lingshu-core = { path = "../../core" }
+lingshu-traits = { path = "../../traits" }
+lingshu-mcp = { path = "../../mcp" }
+lingshu-tool = { path = "../../tool" }
+
+async-trait.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+uuid.workspace = true
+tokio = { workspace = true, features = ["process", "sync", "time", "rt", "io-util"] }
+tracing.workspace = true
+thiserror.workspace = true

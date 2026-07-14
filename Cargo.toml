@@ -8,6 +8,7 @@ members = [
     "plugins/web-search-plugin",
     "plugins/scheduler-plugin",
     "plugins/agent-device-plugin",
+    "plugins/simplecad-plugin",
     "tests",
     "app",
     "core",
@@ -49,6 +50,7 @@ members = [
     "examples/autonomy-basic",
     "examples/full-flow",
     "examples/agent-device-demo",
+    "examples/simplecad-demo",
 ]
 [workspace.package]
 version = "5.1.0"

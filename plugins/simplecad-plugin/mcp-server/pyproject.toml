@@ -1,0 +1,15 @@
+[project]
+name = "simplecad-mcp"
+version = "0.1.0"
+description = "MCP server wrapping SimpleCADAPI for CAD modeling via ling-shu AI agents"
+requires-python = ">=3.10"
+dependencies = [
+    "simplecadapi>=2.0.0b1",
+    "mcp>=1.0.0",
+]
+
+[project.scripts]
+simplecad-mcp = "simplecad_mcp.server:main"
+
+[tool.uv]
+dev-dependencies = []

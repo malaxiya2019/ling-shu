@@ -7261,6 +7261,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "lingshu-simplecad-plugin"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "lingshu-core",
+ "lingshu-mcp",
+ "lingshu-tool",
+ "lingshu-traits",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "lingshu-storage"
 version = "5.1.0"
 dependencies = [
@@ -12248,6 +12265,20 @@ dependencies = [
  "num-traits",
  "thiserror 2.0.18",
  "time",
+]
+
+[[package]]
+name = "simplecad-demo"
+version = "0.1.0"
+dependencies = [
+ "lingshu-core",
+ "lingshu-simplecad-plugin",
+ "lingshu-tool",
+ "lingshu-traits",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
