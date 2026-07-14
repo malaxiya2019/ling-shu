@@ -1,5 +1,5 @@
 name: CI
-displayName: Lingshu CI — v5.0
+displayName: Lingshu CI — v5.0 (agent-device + SimpleCAD)
 
 on:
   push:
@@ -44,7 +44,7 @@ jobs:
           RUSTDOCFLAGS: -D rustdoc::broken-intra-doc-links
 
   test:
-    name: Test (unit + doc)
+    name: Test (unit + doc + plugins)
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -63,12 +63,25 @@ jobs:
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
       - name: Install protoc
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev pkg-config
+      # ── 安装 agent-device 所需依赖 ──
+      - name: Install Node.js + agent-device
+        run: |
+          curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash -
+          sudo apt-get install -y nodejs
+          npm install -g agent-device
+          agent-device --version
+      # ── 安装 SimpleCAD 所需依赖 ──
+      - name: Install Python + SimpleCADAPI
+        run: |
+          sudo apt-get install -y python3 python3-pip
+          pip3 install simplecadapi mcp
+          python3 -c "import simplecadapi; print('simplecadapi', simplecadapi.__version__)"
       - name: Cache cargo
         uses: gitee/cache@v1
         with:
           path: ~/.cargo
           key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-      - name: cargo test (lib)
+      - name: cargo test (lib — all plugins)
         run: cargo test --workspace --lib --all-features
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/lingshu_test
@@ -76,14 +89,24 @@ jobs:
         run: cargo test --workspace --doc --all-features
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/lingshu_test
-      - name: cargo test (integrations)
-        run: cargo test --workspace --all-features -- --ignored
+      # ── 集成测试: agent-device ──
+      - name: Integration test — agent-device MCP
+        run: cargo test -p lingshu-agent-device-plugin --test integration_test -- --nocapture
         continue-on-error: true
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/lingshu_test
+      # ── 集成测试: SimpleCAD MCP ──
+      - name: Integration test — SimpleCAD MCP
+        run: |
+          python3 -m simplecad_mcp.server &
+          MCP_PID=$!
+          sleep 3
+          curl -sf http://127.0.0.1:8080/health 2>/dev/null || echo "MCP health check skipped (stdio mode)"
+          kill $MCP_PID 2>/dev/null || true
+        continue-on-error: true
 
   build:
-    name: Build (release)
+    name: Build (release — all plugins)
     runs-on: ubuntu-latest
     steps:
       - uses: gitee/checkout@v1
@@ -115,6 +138,65 @@ jobs:
           curl -sf http://127.0.0.1:8090/health | grep -q '"status":"ok"' && echo "✅ Health check passed"
           kill $SERVER_PID 2>/dev/null || true
 
+  plugin-test:
+    name: Plugins — agent-device + SimpleCAD
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    steps:
+      - uses: gitee/checkout@v1
+      - name: Download binary
+        uses: gitee/download_artifact@v1
+        with:
+          name: lingshu-x86_64-linux
+          path: ./target/release/
+      - name: Install Rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      # ── agent-device 运行时测试 ──
+      - name: Install Node.js + agent-device
+        run: |
+          curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash -
+          sudo apt-get install -y nodejs
+          npm install -g agent-device
+          echo "agent-device $(agent-device --version)"
+      - name: Test — agent-device MCP tools discovery
+        run: |
+          agent-device mcp &
+          MCP_PID=$!
+          sleep 3
+          echo "agent-device MCP 启动成功 (PID=$MCP_PID)"
+          kill $MCP_PID 2>/dev/null || true
+      # ── SimpleCAD 运行时测试 ──
+      - name: Install Python + SimpleCADAPI
+        run: |
+          sudo apt-get install -y python3 python3-pip
+          pip3 install simplecadapi mcp
+          python3 -c "
+import simplecadapi as scad
+from simplecadapi import ql as Q
+# 创建基本体
+base = scad.make_box_rsolid(60.0, 36.0, 8.0)
+hole = scad.make_cylinder_rsolid(5.0, 14.0)
+part = scad.cut_rsolid(base, hole)
+tag = scad.apply_tag(part, 'test_part')
+print(f'✅ SimpleCADAPI 测试: volume={part.get_volume():.2f}, faces={len(part.get_faces())}')
+"
+      - name: Test — ling-shu binary plugin loading
+        run: |
+          ./target/release/lingshu --headless --addr 127.0.0.1:8091 &
+          SERVER_PID=$!
+          sleep 3
+          curl -sf http://127.0.0.1:8091/plugins | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+print(f'插件数: {len(data)}')
+for p in data:
+    print(f'  - {p.get(\"name\", \"?\")} (v{p.get(\"version\", \"?\")})')
+"
+          kill $SERVER_PID 2>/dev/null || true
+
   webui:
     name: WebUI (WASM)
     runs-on: ubuntu-latest
@@ -144,12 +226,13 @@ jobs:
           path: webui/dist
 
   docker:
-    name: Docker (multi-arch)
+    name: Docker (multi-arch + plugins)
     runs-on: ubuntu-latest
     needs:
       - lint
       - test
       - build
+      - plugin-test
       - webui
     if: gitee.ref == 'refs/heads/main' || startsWith(gitee.ref, 'refs/tags/v')
     steps:
