@@ -80,4 +80,3 @@ opt-level = 3
 
 [patch.crates-io]
 sqlx-sqlite = { path = "crates/sqlx-sqlite-fork" }
-hashbrown = "0.16.1"
