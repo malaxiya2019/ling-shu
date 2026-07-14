@@ -27,7 +27,7 @@ jobs:
       - name: Build WebUI WASM
         run: cd webui && trunk build --release
       - name: Build release binary
-        run: cargo build --release -p lingshu
+        run: cargo build --release -p lingshu --features "audit-sqlite"
       - name: Package binary
         run: |
           mkdir -p dist/lingshu
@@ -58,7 +58,7 @@ jobs:
       - name: Build with cross
         run: |
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \
-            cargo build --release -p lingshu --target aarch64-unknown-linux-gnu
+            cargo build --release -p lingshu --target aarch64-unknown-linux-gnu --features "audit-sqlite"
       - name: Package binary
         run: |
           mkdir -p dist/lingshu
@@ -81,6 +81,8 @@ jobs:
         with:
           targets: aarch64-linux-android
       - uses: Swatinem/rust-cache@v2
+      - name: Install protoc
+        run: sudo apt-get update -o Acquire::http::Timeout=30 && sudo apt-get install -y protobuf-compiler
       - name: Install Android NDK
         run: |
           wget -q https://dl.google.com/android/repository/android-ndk-r27-linux.zip
@@ -91,7 +93,7 @@ jobs:
           export PATH="$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
           export CC_aarch64_linux_android=aarch64-linux-android21-clang
           export AR_aarch64_linux_android=llvm-ar
-          cargo build --release -p lingshu --target aarch64-linux-android
+          cargo build --release -p lingshu --target aarch64-linux-android --features "audit-sqlite"
         env:
           CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER: aarch64-linux-android21-clang
       - name: Package binary
