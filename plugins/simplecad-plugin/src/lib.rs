@@ -458,3 +458,114 @@ fn mcp_result_to_value(result: McpToolResult) -> Value {
 pub extern "C" fn create_plugin() -> Box<dyn Plugin> {
     Box::new(SimpleCadPlugin::new())
 }
+
+// ── 单元测试 ──────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+
+    #[test]
+    fn test_config_default() {
+        let config = SimpleCadConfig::default();
+        assert_eq!(config.python_cmd, "python3");
+        assert_eq!(config.server_module, "simplecad_mcp.server");
+        assert_eq!(config.tool_timeout_ms, 120_000);
+        assert_eq!(config.max_restarts, 2);
+    }
+
+    #[test]
+    fn test_config_custom() {
+        let config = SimpleCadConfig {
+            python_cmd: "uv".into(),
+            server_module: "run simplecad-mcp".into(),
+            tool_timeout_ms: 60_000,
+            max_restarts: 5,
+            ..Default::default()
+        };
+        assert_eq!(config.python_cmd, "uv");
+        assert_eq!(config.tool_timeout_ms, 60_000);
+        assert_eq!(config.max_restarts, 5);
+    }
+
+    #[test]
+    fn test_plugin_info() {
+        let plugin = SimpleCadPlugin::new();
+        let info = plugin.info();
+        assert_eq!(info.manifest.name, "simplecad-plugin");
+        assert_eq!(info.manifest.version, "0.1.0");
+        assert_eq!(info.manifest.capabilities.len(), 3);
+    }
+
+    #[test]
+    fn test_plugin_capabilities() {
+        let plugin = SimpleCadPlugin::new();
+        let info = plugin.info();
+        let names: Vec<&str> = info.manifest.capabilities
+            .iter().map(|c| c.name.as_str()).collect();
+        assert!(names.contains(&"cad-modeling"));
+        assert!(names.contains(&"cad-export"));
+        assert!(names.contains(&"cad-replay"));
+    }
+
+    #[test]
+    fn test_plugin_permissions() {
+        let plugin = SimpleCadPlugin::new();
+        let perms = plugin.required_permissions();
+        assert!(perms.iter().any(|p| p.resource == "process"));
+        assert!(perms.iter().any(|p| p.resource == "filesystem"));
+    }
+
+    #[test]
+    fn test_as_any_downcast() {
+        let plugin = SimpleCadPlugin::new();
+        let any = plugin.as_any();
+        let downcast = any.downcast_ref::<SimpleCadPlugin>();
+        assert!(downcast.is_some());
+    }
+
+    #[test]
+    fn test_plugin_default() {
+        let plugin: SimpleCadPlugin = Default::default();
+        assert_eq!(plugin.info().manifest.name, "simplecad-plugin");
+    }
+
+    #[test]
+    fn test_extract_params_empty() {
+        let schema = serde_json::json!({});
+        let params = extract_params(&schema);
+        assert!(params.is_empty());
+    }
+
+    #[test]
+    fn test_extract_params_with_properties() {
+        let schema = serde_json::json!({
+            "type": "object",
+            "properties": {
+                "radius": { "type": "number", "description": "半径" },
+                "height": { "type": "number", "description": "高度" }
+            },
+            "required": ["radius"]
+        });
+        let params = extract_params(&schema);
+        assert_eq!(params.len(), 2);
+        assert!(params.iter().any(|p| p.name == "radius" && p.required));
+        assert!(params.iter().any(|p| p.name == "height" && !p.required));
+    }
+
+    #[test]
+    fn test_mcp_result_to_value_text() {
+        let result = lingshu_mcp::rmcp_stdio_client::McpToolResult {
+            content: vec![
+                lingshu_mcp::rmcp_stdio_client::McpContent::Text {
+                    text: r#"{"status":"ok","tag":"shape_0"}"#.into(),
+                },
+            ],
+            is_error: false,
+        };
+        let val = mcp_result_to_value(result);
+        assert_eq!(val["is_error"], false);
+        assert!(!val["text"].as_str().unwrap_or("").is_empty());
+    }
+}
