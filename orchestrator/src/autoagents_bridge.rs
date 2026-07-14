@@ -114,7 +114,7 @@ impl AutoAgentsOrchestrator {
         self.orchestrator.create_team(team_config).await?;
 
         let mut crews = self.crews.write().await;
-        crews.insert(config.name.clone(), config);
+        crews.insert(config.name.clone(), config.clone());
         info!(crew = %config.name, "AutoAgents crew created");
         Ok(())
     }
