@@ -434,7 +434,7 @@ pub fn audit_dashboard() -> Html {
                     <div class="audit-modal" onclick={|e: MouseEvent| e.stop_propagation()}>
                         <div class="audit-modal-header">
                             <h2>{"📋 Audit Entry Detail"}</h2>
-                                                        <button class="audit-btn" onclick={let close = close.clone(); move |_| close.emit(())}>✕</button>
+                                                        <button class="audit-btn" onclick={let close = close.clone(); move |_| close.emit(())}>{"✕"}</button>
                         </div>
                         <div class="audit-modal-body">
                             <table class="audit-detail-table">
