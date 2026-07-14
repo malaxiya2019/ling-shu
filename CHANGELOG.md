@@ -7,18 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [5.1.0] - 2026-07-13
 
+### Added — Audit SQLite Persistence & API Modularization
+- **Audit API modularization**: Extracted 5 audit handlers from `full.rs` to dedicated `api/audit.rs` module
+- **SQLite Audit Log**: New `SqliteAuditLog` implementing `AuditLogStore` trait with full CRUD, filtering, pagination, and persistence tests
+- **Runtime integration**: Feature-gated (`audit-sqlite`) SQLite initialization in `app/src/main.rs`, `data_dir/audit.db` path
+- **CI matrix**: Added `audit-sqlite` to GitHub Actions feature-matrix, test, doc, and build jobs
+- **WebUI web-sys fix**: Corrected `HtmlInputElement`/`HtmlSelectElement` feature array format in `webui/Cargo.toml`
+
+### Engineering — Code Quality
+- **Clippy fixes**: Fixed `unnecessary_lazy_evaluations` in `audit/src/sqlite.rs`, `empty_line_after_outer_attr` in `runtime/src/agent_pipeline.rs` (3 items)
+- **Unused import cleanup**: Removed unused `LsContext`/`LsId` imports in `swarm/src/lib.rs` and `tests/src/swarm_autonomy_distributed_e2e.rs`
+- **Test struct fix**: Added missing `swarm_engine`/`evolution_engine`/`workflow_access` fields to LingshuRuntime test initialization in `full.rs`
+
 ### Engineering — CI Infrastructure
 - **Git dependency normalization**: Changed `chidori` from local absolute path to Git dependency (`github.com/malaxiya2019/chidori-fork`), fixing CI builds failing with `No such file or directory`
 - **Tauri system libraries**: Added `libglib2.0-dev`, `libgtk-3-dev`, `libwebkit2gtk-4.1-dev`, `librsvg2-dev`, `patchelf` to CI workflows (`ci.yml`, `coverage.yml`)
 - **YAML syntax fix**: Fixed broken indentation in clippy lint step that caused `workflow file issue`
 - **Documentation**: Added `.github/known-ci-issues.md` documenting the upstream `starlark_map`/hashbrown version conflict
 
-### Engineering — Code Quality
+### Engineering — Code Quality (Legacy)
 - **Chrono deprecation**: Replaced `timestamp_nanos()` with `timestamp_nanos_opt().unwrap_or(0)` in `runtime/src/chidori_recovery.rs` and `federation/src/migration.rs`
 - **Clippy warnings**: Removed unused import `WorkflowRegistryEntry` and unused variable `handler` in `backends/src/workflow/sub_workflow.rs`
 - **Dead code**: Added `#[allow(dead_code)]` to `provider_metadata` field in `security/src/oauth2.rs`
 
 ### Testing
+- **lingshu-audit**: 20 tests (9 memory + 11 SQLite), all passing
 - **lingshu-traits**: Complete test suite (89 tests)
 - **lingshu-swarm**: Coverage for collaboration strategies, topology switching, agent specialization
 - **lingshu-distributed**: Coverage for scheduling strategies, failover

@@ -100,7 +100,7 @@ pub(crate) async fn get_json<T: DeserializeOwned>(path: &str) -> Result<T, Strin
 
     resp.json::<T>()
         .await
-        .map_err(|e| format!("deserialize failed: {e}"))
+        .map_err(|e| format!("deserialize: {e}"))
 }
 
 /// 检查当前登录状态.
@@ -500,4 +500,71 @@ pub async fn get_agents() -> Result<AgentListResponse, String> {
 
 pub async fn get_sessions() -> Result<SessionListResponse, String> {
     get_json::<SessionListResponse>("/api/v1/sessions").await
+}
+
+// ── Audit API types ───────────────────────────────────
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct AuditEntry {
+    pub id: String,
+    pub timestamp: String,
+    #[serde(default)]
+    pub event_type: String,
+    pub event_name: String,
+    pub actor: String,
+    pub resource_type: String,
+    pub resource_id: String,
+    pub detail: String,
+    #[serde(default)]
+    pub trace_id: Option<String>,
+    #[serde(default)]
+    pub source: Option<String>,
+    pub result: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct AuditLogsResponse {
+    pub entries: Vec<AuditEntry>,
+    pub total: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct AuditStatsResponse {
+    pub total: usize,
+    #[serde(default)]
+    pub by_event_type: std::collections::HashMap<String, usize>,
+    #[serde(default)]
+    pub by_result: std::collections::HashMap<String, usize>,
+    #[serde(default)]
+    pub top_actors: Vec<(String, usize)>,
+}
+
+// ── Audit API calls ───────────────────────────────────
+
+pub async fn get_audit_logs(
+    limit: u64,
+    offset: u64,
+    actor: &str,
+    event_type: &str,
+    result: &str,
+) -> Result<AuditLogsResponse, String> {
+    let mut path = format!("/v1/audit/logs?limit={limit}&offset={offset}");
+    if !actor.is_empty() {
+        path.push_str(&format!("&actor={}", actor));
+    }
+    if !event_type.is_empty() {
+        path.push_str(&format!("&event_type={}", event_type));
+    }
+    if !result.is_empty() {
+        path.push_str(&format!("&result={}", result));
+    }
+    get_json::<AuditLogsResponse>(&path).await
+}
+
+pub async fn get_audit_stats() -> Result<AuditStatsResponse, String> {
+    get_json::<AuditStatsResponse>("/v1/audit/stats").await
+}
+
+pub async fn get_audit_entry(id: &str) -> Result<AuditEntry, String> {
+    get_json::<AuditEntry>(&format!("/v1/audit/entry/{id}")).await
 }

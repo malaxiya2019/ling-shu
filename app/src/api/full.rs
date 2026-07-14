@@ -39,7 +39,7 @@ use axum::response::{
 };
 use futures::stream::Stream;
 use futures::stream::StreamExt;
-use lingshu_audit::{AuditEntry, AuditEventType, AuditLogStore};
+use lingshu_audit::{AuditEntry, AuditEventType};
 use lingshu_core::{LsContext, LsError, LsId, LsResult};
 use lingshu_observability::health::HealthRegistry;
 use lingshu_plugin::{
@@ -5224,7 +5224,7 @@ pub async fn federation_execute_handler(
 // ── Audit API Handlers ────────────────────────────
 
 /// GET /v1/audit/logs — 查询审计日志
-async fn audit_query_handler(
+pub async fn audit_query_handler(
     State(state): State<Arc<AppState>>,
     axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
@@ -5308,7 +5308,7 @@ async fn audit_query_handler(
 // ── Audit Stats ──────────────────────────────────
 
 /// GET /v1/audit/stats — 审计统计（事件类型分布、每日趋势、Top操作者）
-async fn audit_stats_handler(
+pub async fn audit_stats_handler(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     let entries = state
@@ -5357,7 +5357,7 @@ async fn audit_stats_handler(
 // ── Audit Entry Detail ───────────────────────────
 
 /// GET /v1/audit/entry/:id — 单条审计详情
-async fn audit_entry_handler(
+pub async fn audit_entry_handler(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(id): axum::extract::Path<uuid::Uuid>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
@@ -5370,7 +5370,7 @@ async fn audit_entry_handler(
 // ── Audit Export ─────────────────────────────────
 
 /// GET /v1/audit/export — 审计日志导出 (支持 ?format=csv|json&limit=10000)
-async fn audit_export_handler(
+pub async fn audit_export_handler(
     State(state): State<Arc<AppState>>,
     axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
 ) -> Result<(StatusCode, [(&'static str, &'static str); 1], String), (StatusCode, Json<Value>)> {
@@ -5438,7 +5438,7 @@ fn esc_csv(s: &str) -> String {
 // ── Audit Archive ────────────────────────────────
 
 /// POST /v1/audit/archive — 归档旧审计记录（按时间范围）
-async fn audit_archive_handler(
+pub async fn audit_archive_handler(
     State(state): State<Arc<AppState>>,
     Json(req): Json<serde_json::Value>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
@@ -5668,7 +5668,7 @@ mod tests {
             ),
             graph_cache: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
             rate_limiter: std::sync::Arc::new(lingshu_ratelimit::MultiRateLimiter::new()),
-            audit_log: std::sync::Arc::new(lingshu_audit::AuditLog::new()),
+            audit_log: std::sync::Arc::new(lingshu_audit::AuditLog::new()) as std::sync::Arc<dyn lingshu_audit::AuditLogStore>,
             prompt_registry: std::sync::Arc::new(lingshu_prompt::PromptRegistry::new()),
             billing: std::sync::Arc::new(
                 lingshu_billing::BillingSystem::new(vec![]).unwrap_or_else(|_| {
@@ -5702,6 +5702,11 @@ mod tests {
             loong_adapter: None,
             channel_registry: std::sync::Arc::new(lingshu_channel::registry::ChannelRegistry::new()),
             agent_runtime: None,
+            #[cfg(feature = "swarm")]
+            swarm_engine: None,
+            #[cfg(feature = "autonomy")]
+            evolution_engine: None,
+            workflow_access: None,
         });
         let health_registry = Arc::new(lingshu_observability::health::HealthRegistry::new(
             "lingshu-test",

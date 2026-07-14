@@ -12,9 +12,14 @@ serde.workspace = true
 serde_json.workspace = true
 uuid.workspace = true
 chrono.workspace = true
-tokio = { workspace = true, features = ["sync"] }
+tokio = { workspace = true, features = ["sync", "time"] }
 tracing.workspace = true
 thiserror.workspace = true
+rusqlite = { version = "0.39", features = ["bundled", "uuid", "chrono"], optional = true }
 
 [dev-dependencies]
 tracing-subscriber.workspace = true
+
+[features]
+default = []
+sqlite = ["rusqlite"]

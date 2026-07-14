@@ -93,7 +93,7 @@ pub struct LingshuRuntime {
     /// 速率限制器.
     pub rate_limiter: std::sync::Arc<lingshu_ratelimit::MultiRateLimiter>,
     /// 审计日志.
-    pub audit_log: std::sync::Arc<lingshu_audit::AuditLog>,
+    pub audit_log: std::sync::Arc<dyn lingshu_audit::AuditLogStore>,
     /// 提示词管理器.
     pub prompt_registry: std::sync::Arc<lingshu_prompt::PromptRegistry>,
     /// 计费系统.
@@ -169,6 +169,8 @@ impl LingshuRuntime {
             .unwrap_or_else(|| std::path::PathBuf::from("./data"))
             .join("lingshu");
         std::fs::create_dir_all(&data_dir).ok();
+        #[allow(unused_variables)]
+        let audit_db_path = data_dir.join("audit.db");
         let storage = LocalStorage::new(data_dir);
         let tool_registry = Arc::new(tokio::sync::RwLock::new(ToolRegistry::new()));
         let agent_manager = lingshu_runtime::AgentManager::new();
@@ -490,7 +492,22 @@ impl LingshuRuntime {
             graph_store: graph_store.clone(),
             graph_cache: graph_cache.clone(),
             rate_limiter: std::sync::Arc::new(lingshu_ratelimit::MultiRateLimiter::new()),
-            audit_log: std::sync::Arc::new(lingshu_audit::AuditLog::new()),
+            audit_log: {
+                #[cfg(feature = "audit-sqlite")]
+                let log: std::sync::Arc<dyn lingshu_audit::AuditLogStore> = {
+                    match lingshu_audit::SqliteAuditLog::new(&audit_db_path) {
+                        Ok(sqlite) => std::sync::Arc::new(sqlite),
+                        Err(e) => {
+                            tracing::warn!(error = %e, path = %audit_db_path.display(), "failed to open SQLite audit log, falling back to in-memory");
+                            std::sync::Arc::new(lingshu_audit::AuditLog::new())
+                        }
+                    }
+                };
+                #[cfg(not(feature = "audit-sqlite"))]
+                let log: std::sync::Arc<dyn lingshu_audit::AuditLogStore> =
+                    std::sync::Arc::new(lingshu_audit::AuditLog::new());
+                log
+            },
             prompt_registry: std::sync::Arc::new(lingshu_prompt::PromptRegistry::new()),
             billing: std::sync::Arc::new(
                 lingshu_billing::BillingSystem::new(vec![]).unwrap_or_else(|e| {

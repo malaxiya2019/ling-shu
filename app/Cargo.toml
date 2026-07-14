@@ -16,6 +16,7 @@ feishu = ["lingshu-channel/feishu"]
 qq = ["lingshu-channel/qq"]
 wechat = ["lingshu-channel/wechat"]
 discord = ["lingshu-channel/discord"]
+audit-sqlite = ["lingshu-audit/sqlite"]
 
 [dependencies]
 lingshu-core = { path = "../core" }

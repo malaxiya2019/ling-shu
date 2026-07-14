@@ -145,7 +145,6 @@ async fn e2e_swarm_emergent_specialization() {
 
 #[tokio::test]
 async fn e2e_distributed_scheduler_submit_task() {
-    use lingshu_core::LsId;
     use lingshu_distributed::{
         Cluster, ClusterConfig, DistScheduleStrategy, DistScheduler, DistSchedulerConfig, DistTask,
     };

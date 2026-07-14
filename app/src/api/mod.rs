@@ -17,6 +17,7 @@
 //! | `chat.rs` | ✅ | Chat completion 端点 |
 //! | `agents.rs` | ✅ | Agent 操作端点 |
 //! | `plugins.rs` | ✅ | 插件管理端点 |
+//! | `audit.rs` | ✅ | 审计日志端点 |
 //! | `mcp.rs` | ✅ | MCP 协议端点 |
 //! | `federation.rs` | ✅ | 联邦网络端点 |
 //! | `eval.rs` | ✅ | 评测框架端点 |
@@ -32,6 +33,7 @@ pub mod full;
 pub mod health;
 pub mod mcp;
 pub mod metrics;
+pub mod audit;
 pub mod plugins;
 
 // ── Shared State ────────────────────────────────────
@@ -61,6 +63,7 @@ pub fn build_app_router() -> Router<Arc<AppState>> {
         .merge(mcp::mcp_routes())
         .merge(billing::billing_routes())
         .merge(discovery::discovery_routes())
+        .merge(audit::audit_routes())
 }
 
 /// 构建完整路由 — 应用共享状态，直接使用 full::build_router (已包含所有路由).

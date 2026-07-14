@@ -9,10 +9,13 @@
 //! │              AuditSystem                   │
 //! │  ┌──────────────┐ ┌──────────────────┐   │
 //! │  │ AuditLog     │ │ EventSourcer     │   │
-//! │  │ (追加写入日志) │ │ (事件溯源恢复)   │   │
+//! │  │ (内存/文件)   │ │ (事件溯源恢复)   │   │
 //! │  └──────────────┘ └──────────────────┘   │
 //! │  ┌──────────────────────────────────┐    │
 //! │  │        AuditQuery                │    │
+//! │  └──────────────────────────────────┘    │
+//! │  ┌──────────────────────────────────┐    │
+//! │  │      SqliteAuditLog (SQLite)     │    │
 //! │  └──────────────────────────────────┘    │
 //! └───────────────────────────────────────────┘
 //! ```
@@ -20,7 +23,11 @@
 pub mod event;
 pub mod log;
 pub mod query;
+#[cfg(feature = "sqlite")]
+pub mod sqlite;
 
-pub use event::{EventSourcer, StoredEvent};
+pub use event::{EventSourcer, EventStore, InMemoryEventStore, StoredEvent};
 pub use log::{AuditEntry, AuditEventType, AuditLog, AuditLogStore};
 pub use query::{AuditQuery, AuditQueryBuilder};
+#[cfg(feature = "sqlite")]
+pub use sqlite::SqliteAuditLog;

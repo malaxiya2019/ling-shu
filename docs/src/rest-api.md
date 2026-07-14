@@ -112,6 +112,10 @@ LingShu 提供丰富的 REST API，分为以下类别：
 | POST | `/v1/logout` | 用户登出 |
 | GET | `/api/auth/me` | 当前用户信息 |
 | GET | `/v1/audit/logs` | 审计日志检索 |
+| GET | `/v1/audit/stats` | 审计统计（事件分布、趋势、Top操作者） |
+| GET | `/v1/audit/entry/:id` | 审计日志详情 |
+| GET | `/v1/audit/export` | 审计导出（?format=csv|json） |
+| POST | `/v1/audit/archive` | 审计归档（按时间范围） |
 | POST | `/v1/security/beef/start` | BeEF 安全框架启动 |
 | POST | `/v1/security/beef/stop` | BeEF 停止 |
 | GET | `/v1/security/beef/status` | BeEF 状态 |

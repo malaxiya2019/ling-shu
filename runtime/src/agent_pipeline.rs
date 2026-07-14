@@ -760,7 +760,6 @@ mod tests {
 
 #[cfg(feature = "memory-summarizer")]
 // ── Summarizer MemoryStage ─────────────────────────
-
 impl MemoryStage {
     /// 创建带 LLM 摘要的记忆存储阶段.
     ///
@@ -789,9 +788,7 @@ impl MemoryStage {
     }
 }
 #[cfg(feature = "memory-summarizer")]
-
 /// 带摘要功能的记忆包装器.
-///
 /// 在将内容写入下游 Memory 之前，先通过 SummarizerLlm 生成摘要。
 /// 如果摘要成功，则写入摘要文本而非原始内容。
 struct SummarizingMemory {

@@ -58,9 +58,9 @@ pub const NAME: &str = "lingshu-swarm";
 #[cfg(test)]
 mod integration_tests {
     use super::*;
-    use lingshu_core::{LsContext, LsId};
 
     /// 完整 Swarm 集成测试：创建 → 添加 Agent → 执行任务 → 获取指标
+    #[tokio::test]
     async fn test_swarm_full_lifecycle() {
         let config = SwarmConfig {
             name: "integration-swarm".to_string(),
