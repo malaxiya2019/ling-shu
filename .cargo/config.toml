@@ -1,15 +1,7 @@
-# Lingshu Cargo Configuration
-#
-# ── Cross-compilation for aarch64-linux-android (Termux) ──
-# 在 x86_64 Linux 上交叉编译到 aarch64 Termux:
-#   cargo build --release --target aarch64-linux-android -p lingshu
-#
-# wasmtime 在 Android/Termux 运行时因 mmap 限制会 SIGSEGV。
-# 如需 wasm plugin 支持, 在标准 Linux 环境构建 (CI 已默认 --all-features):
-#   cargo build --release --all-features -p lingshu-plugin
-#
-# ── Targets ──
+# Cross-compilation configurations
 
-# Cross-compilation example for aarch64 Termux (requires NDK)
-# [target.aarch64-linux-android]
-# linker = "/path/to/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang"
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
+
+[target.aarch64-linux-android]
+linker = "aarch64-linux-android21-clang"

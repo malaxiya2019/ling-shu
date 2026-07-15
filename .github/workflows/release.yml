@@ -53,13 +53,25 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Install cross-compilation deps
         run: |
-          sudo dpkg --add-architecture arm64
           sudo apt-get update
-          sudo apt-get install -y protobuf-compiler gcc-aarch64-linux-gnu libc6-dev-arm64-cross libssl-dev:arm64
+          sudo apt-get install -y protobuf-compiler gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+      - name: Build OpenSSL for ARM64
+        run: |
+          wget -q https://github.com/openssl/openssl/releases/download/openssl-3.0.16/openssl-3.0.16.tar.gz
+          tar xzf openssl-3.0.16.tar.gz
+          cd openssl-3.0.16
+          export CC=aarch64-linux-gnu-gcc
+          export AR=aarch64-linux-gnu-ar
+          export RANLIB=aarch64-linux-gnu-ranlib
+          ./Configure linux-aarch64 no-shared --prefix=$PWD/install-aarch64 --openssldir=$PWD/install-aarch64
+          make -j$(nproc)
+          make install_sw
+          echo "OPENSSL_DIR=$PWD/install-aarch64" >> $GITHUB_ENV
+          echo "OPENSSL_LIB_DIR=$PWD/install-aarch64/lib" >> $GITHUB_ENV
+          echo "OPENSSL_INCLUDE_DIR=$PWD/install-aarch64/include" >> $GITHUB_ENV
+          cd ..
       - name: Build with cross
         run: |
-          PKG_CONFIG_ALLOW_CROSS=1 \
-          PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig \
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \
             cargo build --release -p lingshu --target aarch64-unknown-linux-gnu --features "audit-sqlite"
       - name: Package binary
@@ -103,7 +115,7 @@ jobs:
           export CC=aarch64-linux-android21-clang
           export AR=llvm-ar
           export RANLIB=llvm-ranlib
-          ./Configure android-aarch64 no-shared --prefix=$PWD/install-aarch64 --openssldir=$PWD/install-aarch64
+          ./Configure android-arm64 no-shared --prefix=$PWD/install-aarch64 --openssldir=$PWD/install-aarch64
           make -j$(nproc)
           make install_sw
           echo "OPENSSL_DIR=$PWD/install-aarch64" >> $GITHUB_ENV
