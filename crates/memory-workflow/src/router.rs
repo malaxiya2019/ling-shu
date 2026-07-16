@@ -25,6 +25,9 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// 自定义路由规则的类型别名，解决 clippy::type_complexity
+type RoutingRule = Box<dyn Fn(&str) -> Option<RouteWeights> + Send + Sync>;
+
 /// 路由权重 — 每个 workflow 的选用概率 (0.0 ~ 1.0)。
 pub type RouteWeights = HashMap<String, f64>;
 
@@ -46,7 +49,7 @@ pub struct ProbabilisticRouter {
     /// 基础权重（分类规则的输出）
     base_weights: HashMap<String, f64>,
     /// 自定义加权规则
-    custom_rules: Vec<Box<dyn Fn(&str) -> Option<RouteWeights> + Send + Sync>>,
+    custom_rules: Vec<RoutingRule>,
     /// 温度参数（控制 softmax 的锐度，>1 更平滑，<1 更锐利）
     temperature: f64,
     /// 路由阈值（低于此权重的 workflow 被过滤）
@@ -98,7 +101,7 @@ impl ProbabilisticRouter {
     }
 
     /// 添加自定义路由规则。
-    pub fn add_rule(&mut self, rule: Box<dyn Fn(&str) -> Option<RouteWeights> + Send + Sync>) {
+    pub fn add_rule(&mut self, rule: RoutingRule) {
         self.custom_rules.push(rule);
     }
 
