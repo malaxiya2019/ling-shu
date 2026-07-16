@@ -136,7 +136,7 @@ impl EvidenceGraphBuilder {
 mod tests {
     use super::*;
     use chrono::Duration;
-    use lingshu_memory_episode::{EntityRef, Episode, EpisodeId, StateChange};
+    use lingshu_memory_episode::{EntityRef, Episode};
 
     fn make_episode(title: &str, summary: &str, days_ago: i64, entities: Vec<(&str, &str)>, tags: Vec<&str>) -> Episode {
         let mut ep = Episode::new(title, summary, Utc::now() - Duration::days(days_ago));
@@ -163,6 +163,6 @@ mod tests {
 
         // 应该有实体节点
         let entity_nodes = graph.nodes_by_kind(crate::NodeKind::Entity);
-        assert!(entity_nodes.len() >= 1);
+        assert!(!entity_nodes.is_empty());
     }
 }

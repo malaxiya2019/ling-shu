@@ -109,7 +109,7 @@ impl EvidenceGraph {
             .iter()
             .filter(|n| n.kind == NodeKind::Event && n.timestamp.is_some())
             .collect();
-        events.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+        events.sort_by_key(|a| a.timestamp);
         events
     }
 

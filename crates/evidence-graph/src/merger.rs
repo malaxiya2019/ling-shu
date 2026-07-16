@@ -109,8 +109,10 @@ impl WeightedGraphMerger {
         let mut merged = EvidenceGraph::empty(&query);
         merged.metadata.source = "weighted_merge".to_string();
 
-        let mut stats = MergeStats::default();
-        stats.total_workflows = sorted.len();
+        let mut stats = MergeStats {
+            total_workflows: sorted.len(),
+            ..Default::default()
+        };
 
         // 跟踪已合并的节点（避免重复）
         let mut merged_nodes: Vec<(NodeId, String, Option<DateTime<Utc>>)> = Vec::new();
@@ -144,7 +146,7 @@ impl WeightedGraphMerger {
 
                         // 记录来源
                         node_sources.entry(merged_id)
-                            .or_insert_with(Vec::new)
+                            .or_default()
                             .push(wf_name.clone());
 
                         stats.nodes_deduped += 1;
@@ -158,7 +160,7 @@ impl WeightedGraphMerger {
                         merged.add_node(node.clone());
 
                         node_confidence_weight.insert(id, (node.confidence * weight, weight));
-                        node_sources.entry(id).or_insert_with(Vec::new).push(wf_name.clone());
+                        node_sources.entry(id).or_default().push(wf_name.clone());
 
                         stats.nodes_added += 1;
                     }
@@ -237,14 +239,11 @@ impl WeightedGraphMerger {
 
         // 时间戳近似检查（如果启用）
         if self.dedup_config.check_timestamp_proximity {
-            match (node.timestamp, existing_ts) {
-                (Some(ts1), Some(ts2)) => {
-                    let diff = (ts1 - *ts2).num_seconds().abs();
-                    if diff > self.dedup_config.timestamp_tolerance_secs {
-                        return false;
-                    }
+            if let (Some(ts1), Some(ts2)) = (node.timestamp, existing_ts) {
+                let diff = (ts1 - *ts2).num_seconds().abs();
+                if diff > self.dedup_config.timestamp_tolerance_secs {
+                    return false;
                 }
-                _ => {}
             }
         }
 
@@ -300,7 +299,7 @@ pub struct WeightedMergeResult {
 }
 
 /// 合并统计信息。
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MergeStats {
     /// 总 workflow 数
     pub total_workflows: usize,
@@ -316,18 +315,6 @@ pub struct MergeStats {
     pub total_time_ms: u64,
 }
 
-impl Default for MergeStats {
-    fn default() -> Self {
-        Self {
-            total_workflows: 0,
-            nodes_added: 0,
-            nodes_deduped: 0,
-            edges_added: 0,
-            edges_deduped: 0,
-            total_time_ms: 0,
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {

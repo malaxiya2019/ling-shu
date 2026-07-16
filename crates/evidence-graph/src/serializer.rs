@@ -84,9 +84,7 @@ impl EvidenceGraphSerializer {
     pub fn to_debug(graph: &EvidenceGraph) -> String {
         let mut output = String::new();
 
-        output.push_str(&format!(
-            "=== EvidenceGraph Debug ===\n"
-        ));
+        output.push_str("=== EvidenceGraph Debug ===\n");
         output.push_str(&format!("Query: {}\n", graph.metadata.query));
         output.push_str(&format!("Nodes: {}\n", graph.nodes.len()));
         output.push_str(&format!("Edges: {}\n", graph.edges.len()));
@@ -129,9 +127,8 @@ impl EvidenceGraphSerializer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{EvidenceGraphBuilder, Node};
+    use crate::Node;
     use chrono::Duration;
-    use lingshu_memory_episode::{Episode, EntityRef};
 
     fn make_graph() -> EvidenceGraph {
         let mut g = EvidenceGraph::empty("测试");
