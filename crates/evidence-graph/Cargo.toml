@@ -1,0 +1,16 @@
+[package]
+name = "lingshu-evidence-graph"
+version.workspace = true
+edition.workspace = true
+description = "LSEvidence — Evidence Graph: unified memory output interface for all memory queries"
+
+[dependencies]
+lingshu-core = { path = "../../core" }
+lingshu-memory-episode = { path = "../memory-episode" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tracing.workspace = true
+thiserror.workspace = true

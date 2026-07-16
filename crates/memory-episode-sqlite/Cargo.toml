@@ -1,0 +1,21 @@
+[package]
+name = "lingshu-memory-episode-sqlite"
+version.workspace = true
+edition.workspace = true
+description = "LSMemoryEpisodeSQLite — SQLite-backed EpisodeRepository"
+
+[dependencies]
+lingshu-core = { path = "../../core" }
+lingshu-memory-episode = { path = "../memory-episode" }
+lingshu-evidence-graph = { path = "../evidence-graph" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+rusqlite = { version = "0.39", features = ["bundled", "uuid", "chrono"] }
+
+[dev-dependencies]
+tracing-subscriber.workspace = true

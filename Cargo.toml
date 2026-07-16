@@ -51,6 +51,15 @@ members = [
     "examples/full-flow",
     "examples/agent-device-demo",
     "examples/simplecad-demo",
+    "crates/memory-episode",
+    "crates/workflow-memory",
+    "crates/evidence-graph",
+    "crates/memory-workflow",
+    "crates/memory-episode-sqlite",
+    "crates/memory-eval",
+    "crates/memory-consolidation",
+    "crates/memory-semantic",
+    "crates/memory-reflection",
 ]
 [workspace.package]
 version = "5.1.0"

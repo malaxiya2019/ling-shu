@@ -1,0 +1,20 @@
+[package]
+name = "lingshu-memory-consolidation"
+version.workspace = true
+edition.workspace = true
+description = "LSMemoryConsolidation — consolidate short-term episodes into long-term structured memory"
+
+[dependencies]
+lingshu-memory-episode = { path = "../memory-episode" }
+lingshu-evidence-graph = { path = "../evidence-graph" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+futures.workspace = true
+lingshu-core = { path = "../../core" }
+lingshu-memory-workflow = { path = "../memory-workflow" }

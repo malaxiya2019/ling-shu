@@ -1,1 +1,23 @@
-{"completed":["0.1","0.2","1.1","1.2","2.1","2.2","2.3","2.4","3.1","3.2","4.1","4.2","5.1","6.1","7.1"],"current":null,"failed":[]}
+{
+  "completed": [
+    "Sprint 1: Memory Runtime MVP",
+    "Sprint 2: SQLite Persistent Memory",
+    "Sprint 3-A: Memory Evaluation",
+    "Sprint 3-B: Memory Consolidation",
+    "Sprint 3-C: Semantic Memory (Vector)",
+    "Sprint 3 Phase 2: Consolidation Workflow + Importance Score + SQLite Store",
+    "Sprint 4: Memory Reflection — 43 tests, integrated into MemoryRuntime",
+    "Phase 1: 实时能力 — backends(125 tests), runtime(140), websocket",
+    "Phase 2: 记忆系统 — all 9 memory crates (263 tests total)",
+    "Phase 3: MCP 协议 — mcp crate with JSON-RPC, discovery (23 tests)",
+    "Phase 4: 平台能力 — ratelimit/billing/audit/prompt (49 tests)",
+    "Phase 5: 多模态 — multimodal crate (32 tests)",
+    "Phase 6: 评估框架 — evaluator crate (14 tests)",
+    "Phase 7: 联邦与 UI — federation(20), webui(WASM)",
+    "Sprint 5: ProbabilisticRouter (MoE 软路由) — 19 tests",
+    "Sprint 5: 修复 memory-semantic 编译错误 + 3 runtime 测试修复",
+    "Sprint 5: 43 memory-reflection 测试全部通过，完整集成到 MemoryRuntime"
+  ],
+  "failed": [],
+  "current": "所有 Phase 已完成。全工作区 ~1350+ 测试全部通过。"
+}

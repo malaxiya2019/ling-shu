@@ -13,6 +13,13 @@ lingshu-eventbus = { path = "../eventbus" }
 lingshu-security = { path = "../security" }
 lingshu-observability = { path = "../observability" }
 lingshu-memory = { path = "../memory", optional = true }
+lingshu-memory-episode = { path = "../crates/memory-episode" }
+lingshu-workflow-memory = { path = "../crates/workflow-memory" }
+lingshu-evidence-graph = { path = "../crates/evidence-graph" }
+lingshu-memory-workflow = { path = "../crates/memory-workflow" }
+lingshu-memory-semantic = { path = "../crates/memory-semantic" }
+lingshu-memory-episode-sqlite = { path = "../crates/memory-episode-sqlite", optional = true }
+lingshu-memory-reflection = { path = "../crates/memory-reflection" }
 async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -31,4 +38,5 @@ chidori = { git = "https://github.com/malaxiya2019/chidori-fork.git", rev = "865
 otel = ["lingshu-observability/otel"]
 api-server = ["dep:axum", "dep:tower", "dep:futures"]
 chidori = ["dep:chidori"]
+memory-sqlite = ["dep:lingshu-memory-episode-sqlite"]
 memory-summarizer = ["dep:lingshu-memory"]

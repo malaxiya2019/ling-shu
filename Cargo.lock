@@ -6873,6 +6873,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "lingshu-evidence-graph"
+version = "5.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "lingshu-core",
+ "lingshu-memory-episode",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "lingshu-example-autonomy"
 version = "0.1.0"
 dependencies = [
@@ -7020,6 +7035,130 @@ dependencies = [
  "lingshu-knowledge-graph",
  "lingshu-storage",
  "lingshu-traits",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "lingshu-memory-consolidation"
+version = "5.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "futures",
+ "lingshu-core",
+ "lingshu-evidence-graph",
+ "lingshu-memory-episode",
+ "lingshu-memory-workflow",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "lingshu-memory-episode"
+version = "5.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "lingshu-core",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "lingshu-memory-episode-sqlite"
+version = "5.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "lingshu-core",
+ "lingshu-evidence-graph",
+ "lingshu-memory-episode",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "lingshu-memory-eval"
+version = "5.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "lingshu-core",
+ "lingshu-evidence-graph",
+ "lingshu-memory-episode",
+ "lingshu-memory-workflow",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "lingshu-memory-reflection"
+version = "5.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "lingshu-core",
+ "lingshu-evidence-graph",
+ "lingshu-memory-episode",
+ "lingshu-memory-workflow",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "lingshu-memory-semantic"
+version = "5.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "lingshu-core",
+ "lingshu-evidence-graph",
+ "lingshu-memory-episode",
+ "lingshu-memory-workflow",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "lingshu-memory-workflow"
+version = "5.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "lingshu-core",
+ "lingshu-evidence-graph",
+ "lingshu-memory-episode",
+ "lingshu-workflow-memory",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -7209,12 +7348,19 @@ dependencies = [
  "futures",
  "lingshu-core",
  "lingshu-eventbus",
+ "lingshu-evidence-graph",
  "lingshu-memory",
+ "lingshu-memory-episode",
+ "lingshu-memory-episode-sqlite",
+ "lingshu-memory-reflection",
+ "lingshu-memory-semantic",
+ "lingshu-memory-workflow",
  "lingshu-observability",
  "lingshu-plugin",
  "lingshu-security",
  "lingshu-tool",
  "lingshu-traits",
+ "lingshu-workflow-memory",
  "serde",
  "serde_json",
  "tokio",
@@ -7520,6 +7666,7 @@ name = "lingshu-webui"
 version = "1.0.0"
 dependencies = [
  "chrono",
+ "futures",
  "gloo-console 0.3.0",
  "gloo-net 0.6.0",
  "gloo-timers 0.3.0",
@@ -7529,6 +7676,22 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "yew",
+]
+
+[[package]]
+name = "lingshu-workflow-memory"
+version = "5.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "lingshu-core",
+ "lingshu-memory-episode",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]

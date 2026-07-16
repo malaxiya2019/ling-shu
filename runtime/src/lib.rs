@@ -26,6 +26,7 @@ pub mod api;
 pub mod events;
 pub mod lifecycle;
 pub mod memory_pipeline;
+pub mod memory_integration;
 pub mod recovery;
 pub mod scheduler;
 pub mod session;

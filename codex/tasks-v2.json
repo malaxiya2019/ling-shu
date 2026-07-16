@@ -1,288 +1,376 @@
 {
-  "project": "LingShu",
-  "version": "v2.0",
-  "language": "rust",
-  "workspace": "ling-shu",
-  "phases": [
-    {
-      "phase": 1,
-      "name": "\u5b9e\u65f6\u80fd\u529b",
-      "version": "2.1",
-      "tasks": [
+    "project": "LingShu",
+    "version": "v2.0",
+    "language": "rust",
+    "workspace": "ling-shu",
+    "phases": [
         {
-          "id": "2.1.1",
-          "name": "websocket crate",
-          "desc": "WebSocket \u8fde\u63a5\u7ba1\u7406\u3001SSE \u63a8\u9001\u3001\u5fc3\u8df3\u7ef4\u6301",
-          "outputs": [
-            "websocket/"
-          ],
-          "deps": [
-            "distributed"
-          ],
-          "status": "completed"
+            "phase": 1,
+            "name": "实时能力",
+            "version": "2.1",
+            "tasks": [
+                {
+                    "id": "2.1.1",
+                    "name": "websocket crate",
+                    "desc": "WebSocket 连接管理、SSE 推送、心跳维持",
+                    "outputs": [
+                        "websocket/"
+                    ],
+                    "deps": [
+                        "distributed"
+                    ],
+                    "status": "completed"
+                },
+                {
+                    "id": "2.1.2",
+                    "name": "流式 LLM 响应",
+                    "desc": "逐 token 流式输出，支持中断/恢复",
+                    "outputs": [
+                        "backends/stream"
+                    ],
+                    "deps": [
+                        "2.1.1",
+                        "backends"
+                    ],
+                    "status": "completed"
+                },
+                {
+                    "id": "2.1.3",
+                    "name": "实时 Agent 执行推送",
+                    "desc": "Agent 执行状态实时推送到 WebSocket 客户端",
+                    "outputs": [
+                        "runtime/stream"
+                    ],
+                    "deps": [
+                        "2.1.2"
+                    ],
+                    "status": "completed"
+                }
+            ]
         },
         {
-          "id": "2.1.2",
-          "name": "\u6d41\u5f0f LLM \u54cd\u5e94",
-          "desc": "\u9010 token \u6d41\u5f0f\u8f93\u51fa\uff0c\u652f\u6301\u4e2d\u65ad/\u6062\u590d",
-          "outputs": [
-            "backends/stream"
-          ],
-          "deps": [
-            "2.1.1",
-            "backends"
-          ]
+            "phase": 2,
+            "name": "记忆系统",
+            "version": "2.2",
+            "tasks": [
+                {
+                    "id": "2.2.1",
+                    "name": "memory crate",
+                    "desc": "短期 Buffer + 长期 Vector 存储，Memory 接口",
+                    "outputs": [
+                        "memory/"
+                    ],
+                    "deps": [
+                        "core",
+                        "database"
+                    ],
+                    "status": "completed"
+                },
+                {
+                    "id": "2.2.2",
+                    "name": "向量检索增强",
+                    "desc": "语义搜索 + 混合检索 (BM25 + Vector)",
+                    "outputs": [
+                        "memory/retrieval"
+                    ],
+                    "deps": [
+                        "2.2.1"
+                    ],
+                    "status": "completed"
+                },
+                {
+                    "id": "2.2.3",
+                    "name": "会话持久化",
+                    "desc": "Agent 会话自动保存与恢复",
+                    "outputs": [
+                        "runtime/memory"
+                    ],
+                    "deps": [
+                        "2.2.2"
+                    ],
+                    "status": "completed"
+                }
+            ]
         },
         {
-          "id": "2.1.3",
-          "name": "\u5b9e\u65f6 Agent \u6267\u884c\u63a8\u9001",
-          "desc": "Agent \u6267\u884c\u72b6\u6001\u5b9e\u65f6\u63a8\u9001\u5230 WebSocket \u5ba2\u6237\u7aef",
-          "outputs": [
-            "runtime/stream"
-          ],
-          "deps": [
-            "2.1.2"
-          ]
+            "phase": 3,
+            "name": "MCP 协议",
+            "version": "2.3",
+            "tasks": [
+                {
+                    "id": "2.3.1",
+                    "name": "mcp crate",
+                    "desc": "JSON-RPC 2.0 实现，MCP 协议核心",
+                    "outputs": [
+                        "mcp/"
+                    ],
+                    "deps": [
+                        "core"
+                    ],
+                    "status": "completed"
+                },
+                {
+                    "id": "2.3.2",
+                    "name": "工具发现注册",
+                    "desc": "运行时工具注册、版本协商、能力发现",
+                    "outputs": [
+                        "mcp/registry"
+                    ],
+                    "deps": [
+                        "2.3.1"
+                    ],
+                    "status": "completed"
+                },
+                {
+                    "id": "2.3.3",
+                    "name": "跨语言 Agent 通信",
+                    "desc": "通过 MCP 桥接 Polyglot 多语言执行",
+                    "outputs": [
+                        "mcp/polyglot-bridge"
+                    ],
+                    "deps": [
+                        "2.3.2",
+                        "polyglot"
+                    ],
+                    "status": "completed"
+                }
+            ]
+        },
+        {
+            "phase": 4,
+            "name": "平台能力",
+            "version": "2.4",
+            "tasks": [
+                {
+                    "id": "2.4.1",
+                    "name": "ratelimit crate",
+                    "desc": "令牌桶 + 滑动窗口，per-key/per-user 限流",
+                    "outputs": [
+                        "ratelimit/"
+                    ],
+                    "deps": [
+                        "core"
+                    ],
+                    "status": "completed"
+                },
+                {
+                    "id": "2.4.2",
+                    "name": "billing crate",
+                    "desc": "Token 级用量跟踪 + 计费",
+                    "outputs": [
+                        "billing/"
+                    ],
+                    "deps": [
+                        "core",
+                        "database"
+                    ],
+                    "status": "completed"
+                },
+                {
+                    "id": "2.4.3",
+                    "name": "audit crate",
+                    "desc": "不可变审计日志、事件溯源",
+                    "outputs": [
+                        "audit/"
+                    ],
+                    "deps": [
+                        "eventbus",
+                        "database"
+                    ],
+                    "status": "completed"
+                },
+                {
+                    "id": "2.4.4",
+                    "name": "prompt crate",
+                    "desc": "版本化模板、变量注入、A/B 测试",
+                    "outputs": [
+                        "prompt/"
+                    ],
+                    "deps": [
+                        "core",
+                        "database"
+                    ],
+                    "status": "completed"
+                }
+            ]
+        },
+        {
+            "phase": 5,
+            "name": "多模态",
+            "version": "2.5",
+            "tasks": [
+                {
+                    "id": "2.5.1",
+                    "name": "multimodal crate",
+                    "desc": "图像理解、音频转写、文件分析管道",
+                    "outputs": [
+                        "multimodal/"
+                    ],
+                    "deps": [
+                        "core",
+                        "backends"
+                    ],
+                    "status": "completed"
+                },
+                {
+                    "id": "2.5.2",
+                    "name": "多模态 RAG",
+                    "desc": "图文混合检索与生成",
+                    "outputs": [
+                        "multimodal/rag"
+                    ],
+                    "deps": [
+                        "2.5.1",
+                        "memory"
+                    ],
+                    "status": "completed"
+                }
+            ]
+        },
+        {
+            "phase": 6,
+            "name": "评估框架",
+            "version": "2.6",
+            "tasks": [
+                {
+                    "id": "2.6.1",
+                    "name": "evaluator crate",
+                    "desc": "Agent 评测框架：数据集、评分、报告",
+                    "outputs": [
+                        "evaluator/"
+                    ],
+                    "deps": [
+                        "core",
+                        "orchestrator"
+                    ],
+                    "status": "completed"
+                },
+                {
+                    "id": "2.6.2",
+                    "name": "回归测试套件",
+                    "desc": "自动回归检测、性能基准、质量门禁",
+                    "outputs": [
+                        "evaluator/regression"
+                    ],
+                    "deps": [
+                        "2.6.1"
+                    ],
+                    "status": "completed"
+                }
+            ]
+        },
+        {
+            "phase": 7,
+            "name": "联邦与 UI",
+            "version": "2.7",
+            "tasks": [
+                {
+                    "id": "2.7.1",
+                    "name": "federation crate",
+                    "desc": "跨集群联邦通信、Agent 漫游、全局调度",
+                    "outputs": [
+                        "federation/"
+                    ],
+                    "deps": [
+                        "distributed"
+                    ],
+                    "status": "completed"
+                },
+                {
+                    "id": "2.7.2",
+                    "name": "webui crate",
+                    "desc": "Rust WASM 管理面板 (Leptos)",
+                    "outputs": [
+                        "webui/"
+                    ],
+                    "deps": [
+                        "app"
+                    ],
+                    "status": "completed"
+                },
+                {
+                    "id": "2.7.3",
+                    "name": "集群监控",
+                    "desc": "实时 Dashboard、节点状态、Metrics 可视化",
+                    "outputs": [
+                        "webui/dashboard"
+                    ],
+                    "deps": [
+                        "2.7.2",
+                        "observability"
+                    ],
+                    "status": "completed"
+                }
+            ]
+        },
+        {
+            "phase": 8,
+            "name": "Grok-1 启发架构增强",
+            "version": "5.2",
+            "tasks": [
+                {
+                    "id": "8.1",
+                    "name": "ProbabilisticRouter (MoE 软路由)",
+                    "desc": "将硬路由升级为 Grok-1 风格 MoE 软路由，支持多 workflow 权重路由",
+                    "outputs": [
+                        "crates/memory-workflow/src/router.rs"
+                    ],
+                    "deps": [],
+                    "status": "completed"
+                },
+                {
+                    "id": "8.2",
+                    "name": "memory-semantic 编译修复",
+                    "desc": "修复多出的 `}` 导致编译错误，验证 27 个测试通过",
+                    "outputs": [
+                        "crates/memory-semantic/src/index.rs"
+                    ],
+                    "deps": [],
+                    "status": "completed"
+                },
+                {
+                    "id": "8.3",
+                    "name": "MemoryRuntime 集成修复",
+                    "desc": "修复路由阈值导致 3 个 runtime 测试失败的问题",
+                    "outputs": [
+                        "runtime/src/memory_integration.rs"
+                    ],
+                    "deps": [
+                        "8.1"
+                    ],
+                    "status": "completed"
+                },
+                {
+                    "id": "8.4",
+                    "name": "WeightedEvidenceGraph 合并器",
+                    "desc": "多 workflow 合并算法：TF-IDF 去重、评分加权平均、冲突标记",
+                    "outputs": [
+                        "crates/evidence-graph/"
+                    ],
+                    "deps": [],
+                    "status": "pending"
+                },
+                {
+                    "id": "8.5",
+                    "name": "TF-IDF 量化 (f32)",
+                    "desc": "TfIdfIndex 向量从 f64 降级到 f32 存储，内存降 50%",
+                    "outputs": [
+                        "crates/memory-semantic/src/index.rs"
+                    ],
+                    "deps": [],
+                    "status": "pending"
+                },
+                {
+                    "id": "8.6",
+                    "name": "RoPE 时间衰减权重",
+                    "desc": "TimelineWorkflow 引入 RoPE 风格时间衰减",
+                    "outputs": [
+                        "crates/workflow-memory/"
+                    ],
+                    "deps": [],
+                    "status": "pending"
+                }
+            ]
         }
-      ]
-    },
-    {
-      "phase": 2,
-      "name": "\u8bb0\u5fc6\u7cfb\u7edf",
-      "version": "2.2",
-      "tasks": [
-        {
-          "id": "2.2.1",
-          "name": "memory crate",
-          "desc": "\u77ed\u671f Buffer + \u957f\u671f Vector \u5b58\u50a8\uff0cMemory \u63a5\u53e3",
-          "outputs": [
-            "memory/"
-          ],
-          "deps": [
-            "core",
-            "database"
-          ]
-        },
-        {
-          "id": "2.2.2",
-          "name": "\u5411\u91cf\u68c0\u7d22\u589e\u5f3a",
-          "desc": "\u8bed\u4e49\u641c\u7d22 + \u6df7\u5408\u68c0\u7d22 (BM25 + Vector)",
-          "outputs": [
-            "memory/retrieval"
-          ],
-          "deps": [
-            "2.2.1"
-          ]
-        },
-        {
-          "id": "2.2.3",
-          "name": "\u4f1a\u8bdd\u6301\u4e45\u5316",
-          "desc": "Agent \u4f1a\u8bdd\u81ea\u52a8\u4fdd\u5b58\u4e0e\u6062\u590d",
-          "outputs": [
-            "runtime/memory"
-          ],
-          "deps": [
-            "2.2.2"
-          ]
-        }
-      ]
-    },
-    {
-      "phase": 3,
-      "name": "MCP \u534f\u8bae",
-      "version": "2.3",
-      "tasks": [
-        {
-          "id": "2.3.1",
-          "name": "mcp crate",
-          "desc": "JSON-RPC 2.0 \u5b9e\u73b0\uff0cMCP \u534f\u8bae\u6838\u5fc3",
-          "outputs": [
-            "mcp/"
-          ],
-          "deps": [
-            "core"
-          ]
-        },
-        {
-          "id": "2.3.2",
-          "name": "\u5de5\u5177\u53d1\u73b0\u6ce8\u518c",
-          "desc": "\u8fd0\u884c\u65f6\u5de5\u5177\u6ce8\u518c\u3001\u7248\u672c\u534f\u5546\u3001\u80fd\u529b\u53d1\u73b0",
-          "outputs": [
-            "mcp/registry"
-          ],
-          "deps": [
-            "2.3.1"
-          ]
-        },
-        {
-          "id": "2.3.3",
-          "name": "\u8de8\u8bed\u8a00 Agent \u901a\u4fe1",
-          "desc": "\u901a\u8fc7 MCP \u6865\u63a5 Polyglot \u591a\u8bed\u8a00\u6267\u884c",
-          "outputs": [
-            "mcp/polyglot-bridge"
-          ],
-          "deps": [
-            "2.3.2",
-            "polyglot"
-          ]
-        }
-      ]
-    },
-    {
-      "phase": 4,
-      "name": "\u5e73\u53f0\u80fd\u529b",
-      "version": "2.4",
-      "tasks": [
-        {
-          "id": "2.4.1",
-          "name": "ratelimit crate",
-          "desc": "\u4ee4\u724c\u6876 + \u6ed1\u52a8\u7a97\u53e3\uff0cper-key/per-user \u9650\u6d41",
-          "outputs": [
-            "ratelimit/"
-          ],
-          "deps": [
-            "core"
-          ]
-        },
-        {
-          "id": "2.4.2",
-          "name": "billing crate",
-          "desc": "Token \u7ea7\u7528\u91cf\u8ddf\u8e2a + \u8ba1\u8d39",
-          "outputs": [
-            "billing/"
-          ],
-          "deps": [
-            "core",
-            "database"
-          ]
-        },
-        {
-          "id": "2.4.3",
-          "name": "audit crate",
-          "desc": "\u4e0d\u53ef\u53d8\u5ba1\u8ba1\u65e5\u5fd7\u3001\u4e8b\u4ef6\u6eaf\u6e90",
-          "outputs": [
-            "audit/"
-          ],
-          "deps": [
-            "eventbus",
-            "database"
-          ]
-        },
-        {
-          "id": "2.4.4",
-          "name": "prompt crate",
-          "desc": "\u7248\u672c\u5316\u6a21\u677f\u3001\u53d8\u91cf\u6ce8\u5165\u3001A/B \u6d4b\u8bd5",
-          "outputs": [
-            "prompt/"
-          ],
-          "deps": [
-            "core",
-            "database"
-          ]
-        }
-      ]
-    },
-    {
-      "phase": 5,
-      "name": "\u591a\u6a21\u6001",
-      "version": "2.5",
-      "tasks": [
-        {
-          "id": "2.5.1",
-          "name": "multimodal crate",
-          "desc": "\u56fe\u50cf\u7406\u89e3\u3001\u97f3\u9891\u8f6c\u5199\u3001\u6587\u4ef6\u5206\u6790\u7ba1\u9053",
-          "outputs": [
-            "multimodal/"
-          ],
-          "deps": [
-            "core",
-            "backends"
-          ]
-        },
-        {
-          "id": "2.5.2",
-          "name": "\u591a\u6a21\u6001 RAG",
-          "desc": "\u56fe\u6587\u6df7\u5408\u68c0\u7d22\u4e0e\u751f\u6210",
-          "outputs": [
-            "multimodal/rag"
-          ],
-          "deps": [
-            "2.5.1",
-            "memory"
-          ]
-        }
-      ]
-    },
-    {
-      "phase": 6,
-      "name": "\u8bc4\u4f30\u6846\u67b6",
-      "version": "2.6",
-      "tasks": [
-        {
-          "id": "2.6.1",
-          "name": "evaluator crate",
-          "desc": "Agent \u8bc4\u6d4b\u6846\u67b6\uff1a\u6570\u636e\u96c6\u3001\u8bc4\u5206\u3001\u62a5\u544a",
-          "outputs": [
-            "evaluator/"
-          ],
-          "deps": [
-            "core",
-            "orchestrator"
-          ]
-        },
-        {
-          "id": "2.6.2",
-          "name": "\u56de\u5f52\u6d4b\u8bd5\u5957\u4ef6",
-          "desc": "\u81ea\u52a8\u56de\u5f52\u68c0\u6d4b\u3001\u6027\u80fd\u57fa\u51c6\u3001\u8d28\u91cf\u95e8\u7981",
-          "outputs": [
-            "evaluator/regression"
-          ],
-          "deps": [
-            "2.6.1"
-          ]
-        }
-      ]
-    },
-    {
-      "phase": 7,
-      "name": "\u8054\u90a6\u4e0e UI",
-      "version": "2.7",
-      "tasks": [
-        {
-          "id": "2.7.1",
-          "name": "federation crate",
-          "desc": "\u8de8\u96c6\u7fa4\u8054\u90a6\u901a\u4fe1\u3001Agent \u6f2b\u6e38\u3001\u5168\u5c40\u8c03\u5ea6",
-          "outputs": [
-            "federation/"
-          ],
-          "deps": [
-            "distributed"
-          ]
-        },
-        {
-          "id": "2.7.2",
-          "name": "webui crate",
-          "desc": "Rust WASM \u7ba1\u7406\u9762\u677f (Leptos)",
-          "outputs": [
-            "webui/"
-          ],
-          "deps": [
-            "app"
-          ]
-        },
-        {
-          "id": "2.7.3",
-          "name": "\u96c6\u7fa4\u76d1\u63a7",
-          "desc": "\u5b9e\u65f6 Dashboard\u3001\u8282\u70b9\u72b6\u6001\u3001Metrics \u53ef\u89c6\u5316",
-          "outputs": [
-            "webui/dashboard"
-          ],
-          "deps": [
-            "2.7.2",
-            "observability"
-          ]
-        }
-      ]
-    }
-  ]
+    ]
 }

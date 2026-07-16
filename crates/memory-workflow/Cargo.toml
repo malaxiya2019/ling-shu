@@ -1,0 +1,19 @@
+[package]
+name = "lingshu-memory-workflow"
+version.workspace = true
+edition.workspace = true
+description = "LSMemoryWorkflow — Unified MemoryWorkflow trait + runtime integration"
+
+[dependencies]
+lingshu-core = { path = "../../core" }
+lingshu-memory-episode = { path = "../memory-episode" }
+lingshu-workflow-memory = { path = "../workflow-memory" }
+lingshu-evidence-graph = { path = "../evidence-graph" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tokio = { workspace = true, features = ["sync", "time"] }
+tracing.workspace = true
+thiserror.workspace = true

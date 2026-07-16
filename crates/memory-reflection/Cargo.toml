@@ -1,0 +1,19 @@
+[package]
+name = "lingshu-memory-reflection"
+version.workspace = true
+edition.workspace = true
+description = "LSMemoryReflection — Memory self-evaluation and reflection layer: evaluate quality, detect conflicts, suggest improvements"
+
+[dependencies]
+lingshu-core = { path = "../../core" }
+lingshu-memory-episode = { path = "../memory-episode" }
+lingshu-evidence-graph = { path = "../evidence-graph" }
+lingshu-memory-workflow = { path = "../memory-workflow" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tokio = { workspace = true, features = ["sync"] }
+tracing.workspace = true
+thiserror.workspace = true
