@@ -51,14 +51,14 @@ impl EvidenceGraphBuilder {
             // 为 Episode 创建 Entity 节点
             for entity in &ep.entities {
                 let key = format!("{}:{}", entity.kind, entity.name);
-                if !entity_node_map.contains_key(&key) {
+                entity_node_map.entry(key.clone()).or_insert_with(|| {
                     let enode = Node::entity(entity.clone())
                         .with_source(ep.id.to_string());
                     let id = enode.id;
-                    entity_node_map.insert(key, id);
                     graph.add_node(enode);
                     graph.metadata.entities.push(format!("{}:{}", entity.kind, entity.name));
-                }
+                    id
+                });
             }
 
             // 创建 Event 节点
