@@ -6,7 +6,6 @@ use crate::api::client::{
     get_audit_entry, get_audit_logs, get_audit_stats, AuditEntry, AuditStatsResponse,
 };
 use crate::i18n::use_lang;
-use gloo_net::http::Request;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
