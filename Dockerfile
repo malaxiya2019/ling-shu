@@ -17,6 +17,8 @@ RUN cargo chef prepare --recipe-path recipe.json
 FROM chef AS builder
 
 COPY --from=planner /app/recipe.json recipe.json
+# ── 复制 patched dependency（cargo-chef 需要在 cook 前解析具体路径）──
+COPY --from=planner /app/crates/sqlx-sqlite-fork crates/sqlx-sqlite-fork/
 RUN cargo chef cook --release --recipe-path recipe.json
 
 COPY . .
