@@ -93,7 +93,7 @@ jobs:
         run: |
           sudo apt-get install -y python3 python3-pip
           pip3 install simplecadapi mcp
-          python3 -c "import simplecadapi; print('simplecadapi', simplecadapi.__version__)"
+          python3 -c "import importlib.metadata; print('simplecadapi', importlib.metadata.version('simplecadapi'))"
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --all --features "chidori,autoagents,audit-sqlite"
         env:
