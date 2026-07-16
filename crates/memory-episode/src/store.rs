@@ -202,7 +202,7 @@ impl super::EpisodeRepository for InMemoryEpisodeStore {
         match query.sort_order {
             SortOrder::Ascending => matched.sort_by_key(|e| e.timestamp),
             SortOrder::Descending => {
-                matched.sort_by(|a, b| b.timestamp.cmp(&a.timestamp))
+                matched.sort_by_key(|e| std::cmp::Reverse(e.timestamp))
             }
         }
 
