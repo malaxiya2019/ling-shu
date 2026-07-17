@@ -90,5 +90,7 @@ anyhow = "1"
 walkdir = "2"
 fuzzy-matcher = "0.3"
 
+openssl-sys = { version = "0.9", features = ["vendored"] }
+
 [build-dependencies]
 tonic-build = "0.12"
