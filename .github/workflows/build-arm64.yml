@@ -60,24 +60,45 @@ jobs:
         run: |
           wget -q https://dl.google.com/android/repository/android-ndk-r27-linux.zip
           unzip -q android-ndk-r27-linux.zip
-          echo "NDK_HOME=$PWD/android-ndk-r27" >> $GITHUB_ENV
-          echo "$PWD/android-ndk-r27/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
+          # Find the actual NDK directory name
+          NDK_DIR=$(ls -d android-ndk-* 2>/dev/null | head -1)
+          echo "NDK directory: $NDK_DIR"
+          echo "NDK_HOME=$PWD/$NDK_DIR" >> $GITHUB_ENV
+          echo "NDK_DIR=$NDK_DIR" >> $GITHUB_ENV
+          echo "$PWD/$NDK_DIR/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
 
       - name: Build OpenSSL for Android
         if: inputs.target == 'aarch64-linux-android'
         run: |
-          export NDK=$PWD/android-ndk-r27
-          export TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64
-          export PATH=$TOOLCHAIN/bin:$PATH
+          NDK_DIR="${{ env.NDK_DIR }}"
+          if [ -z "$NDK_DIR" ]; then
+            NDK_DIR=$(ls -d android-ndk-* 2>/dev/null | head -1)
+          fi
+          export NDK="$PWD/$NDK_DIR"
+          export TOOLCHAIN="$NDK/toolchains/llvm/prebuilt/linux-x86_64"
+          export PATH="$TOOLCHAIN/bin:$PATH"
+
+          echo "=== NDK toolchain contents ==="
+          ls "$TOOLCHAIN/bin/" | grep aarch64 | head -20
+
           wget -q https://github.com/openssl/openssl/releases/download/openssl-3.0.16/openssl-3.0.16.tar.gz
           tar xzf openssl-3.0.16.tar.gz
           cd openssl-3.0.16
-          export CC=aarch64-linux-android21-clang
+
+          # Find the correct clang wrapper name
+          CLANG_WRAPPER=$(ls "$TOOLCHAIN/bin/" | grep -E 'aarch64-linux-android[0-9]+-clang' | head -1)
+          echo "Using clang wrapper: $CLANG_WRAPPER"
+
+          export CC="$TOOLCHAIN/bin/$CLANG_WRAPPER"
           export AR=llvm-ar
           export RANLIB=llvm-ranlib
-          export ANDROID_NDK_HOME=$NDK
-          ln -sf $TOOLCHAIN/bin/aarch64-linux-android21-clang $TOOLCHAIN/bin/aarch64-linux-android-gcc
-          ./Configure android-arm64 no-shared --prefix=$PWD/install-aarch64
+          export ANDROID_NDK_HOME="$NDK"
+
+          # Create gcc symlink required by OpenSSL configure
+          ln -sf "$CC" "$TOOLCHAIN/bin/aarch64-linux-android-gcc" 2>/dev/null || true
+          export PATH="$TOOLCHAIN/bin:$PATH"
+
+          ./Configure android-arm64 no-shared --prefix="$PWD/install-aarch64"
           make -j$(nproc)
           make install_sw
           echo "OPENSSL_DIR=$PWD/install-aarch64" >> $GITHUB_ENV
