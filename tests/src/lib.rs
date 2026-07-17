@@ -378,3 +378,7 @@ mod tests {
         assert!(models.iter().any(|m| m["id"] == "gpt-4o"));
     }
 }
+
+// ── v5.2 Terminal Runtime Isolation ──
+#[cfg(test)]
+pub(crate) mod terminal_isolation_tests;
