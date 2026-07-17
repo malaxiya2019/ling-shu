@@ -102,6 +102,16 @@ impl App {
         Ok(app)
     }
 
+
+    /// 字符索引 → 字节索引（String::remove/insert 需要字节索引）
+    fn byte_pos(&self, char_idx: usize) -> usize {
+        self.input
+            .char_indices()
+            .nth(char_idx)
+            .map(|(i, _)| i)
+            .unwrap_or(self.input.len())
+    }
+
     pub fn handle_input(&mut self) -> Result<()> {
         let input = self.input.trim().to_string();
         if input.is_empty() {
@@ -226,36 +236,34 @@ impl App {
             }
             KeyCode::Char(c) => {
                 if key.modifiers == KeyModifiers::NONE || key.modifiers == KeyModifiers::SHIFT {
-                    self.input.insert(self.cursor_pos, c);
+                    self.input.insert(self.byte_pos(self.cursor_pos), c);
                     self.cursor_pos += 1;
                 }
             }
             KeyCode::Backspace => {
                 if self.cursor_pos > 0 {
                     self.cursor_pos -= 1;
-                    self.input.remove(self.cursor_pos);
+                    self.input.remove(self.byte_pos(self.cursor_pos));
                 }
             }
             KeyCode::Delete => {
-                if self.cursor_pos < self.input.len() {
-                    self.input.remove(self.cursor_pos);
+                let nchars = self.input.chars().count();
+                if self.cursor_pos < nchars {
+                    self.input.remove(self.byte_pos(self.cursor_pos));
                 }
             }
             KeyCode::Left => {
-                if self.cursor_pos > 0 {
-                    self.cursor_pos -= 1;
-                }
+                self.cursor_pos = self.cursor_pos.saturating_sub(1);
             }
             KeyCode::Right => {
-                if self.cursor_pos < self.input.len() {
-                    self.cursor_pos += 1;
-                }
+                let nchars = self.input.chars().count();
+                self.cursor_pos = (self.cursor_pos + 1).min(nchars);
             }
             KeyCode::Home => {
                 self.cursor_pos = 0;
             }
             KeyCode::End => {
-                self.cursor_pos = self.input.len();
+                self.cursor_pos = self.input.chars().count();
             }
             KeyCode::Up => {
                 if !self.input_history.is_empty() {
@@ -266,7 +274,7 @@ impl App {
                     };
                     self.history_pos = Some(pos);
                     self.input = self.input_history[pos].clone();
-                    self.cursor_pos = self.input.len();
+                        self.cursor_pos = self.input.chars().count();
                 }
             }
             KeyCode::Down => {
@@ -279,7 +287,7 @@ impl App {
                         self.history_pos = None;
                         self.input.clear();
                     }
-                    self.cursor_pos = self.input.len();
+                        self.cursor_pos = self.input.chars().count();
                 }
             }
             KeyCode::Tab => {
@@ -291,7 +299,7 @@ impl App {
                     if let Some(completed) = self.tab_complete_path(path_part) {
                         let prefix = if self.input.trim().starts_with("/dir") { "/dir " } else { "/cd " };
                         self.input = format!("{}{}", prefix, completed);
-                        self.cursor_pos = self.input.len();
+                        self.cursor_pos = self.input.chars().count();
                     }
                 }
             }
