@@ -1,0 +1,104 @@
+name: Build ARM64 Binary
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target architecture'
+        required: true
+        default: 'aarch64-unknown-linux-gnu'
+        type: choice
+        options:
+          - aarch64-unknown-linux-gnu
+          - aarch64-linux-android
+      features:
+        description: 'Feature flags (comma-separated)'
+        required: false
+        default: 'audit-sqlite'
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-arm64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ inputs.target }}
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install protoc
+        run: sudo apt-get update -o Acquire::http::Timeout=30 && sudo apt-get install -y protobuf-compiler
+
+      - name: Install cross-compilation deps (Linux ARM64)
+        if: inputs.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+
+      - name: Build OpenSSL for Linux ARM64
+        if: inputs.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          wget -q https://github.com/openssl/openssl/releases/download/openssl-3.0.16/openssl-3.0.16.tar.gz
+          tar xzf openssl-3.0.16.tar.gz
+          cd openssl-3.0.16
+          export CC=aarch64-linux-gnu-gcc
+          export AR=aarch64-linux-gnu-ar
+          export RANLIB=aarch64-linux-gnu-ranlib
+          ./Configure linux-aarch64 no-shared --prefix=$PWD/install-aarch64
+          make -j$(nproc)
+          make install_sw
+          echo "OPENSSL_DIR=$PWD/install-aarch64" >> $GITHUB_ENV
+          echo "OPENSSL_LIB_DIR=$PWD/install-aarch64/lib" >> $GITHUB_ENV
+          echo "OPENSSL_INCLUDE_DIR=$PWD/install-aarch64/include" >> $GITHUB_ENV
+
+      - name: Install Android NDK (for Termux target)
+        if: inputs.target == 'aarch64-linux-android'
+        run: |
+          wget -q https://dl.google.com/android/repository/android-ndk-r27-linux.zip
+          unzip -q android-ndk-r27-linux.zip
+          echo "NDK_HOME=$PWD/android-ndk-r27" >> $GITHUB_ENV
+          echo "$PWD/android-ndk-r27/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
+
+      - name: Build OpenSSL for Android
+        if: inputs.target == 'aarch64-linux-android'
+        run: |
+          export NDK=$PWD/android-ndk-r27
+          export TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64
+          export PATH=$TOOLCHAIN/bin:$PATH
+          wget -q https://github.com/openssl/openssl/releases/download/openssl-3.0.16/openssl-3.0.16.tar.gz
+          tar xzf openssl-3.0.16.tar.gz
+          cd openssl-3.0.16
+          export CC=aarch64-linux-android21-clang
+          export AR=llvm-ar
+          export RANLIB=llvm-ranlib
+          export ANDROID_NDK_HOME=$NDK
+          ln -sf $TOOLCHAIN/bin/aarch64-linux-android21-clang $TOOLCHAIN/bin/aarch64-linux-android-gcc
+          ./Configure android-arm64 no-shared --prefix=$PWD/install-aarch64
+          make -j$(nproc)
+          make install_sw
+          echo "OPENSSL_DIR=$PWD/install-aarch64" >> $GITHUB_ENV
+          cd ..
+
+      - name: Build binary
+        run: |
+          FEATURES="${{ inputs.features }}"
+          cargo build --release -p lingshu --target ${{ inputs.target }} --features "${FEATURES}"
+
+      - name: Package binary
+        run: |
+          mkdir -p dist/lingshu
+          cp target/${{ inputs.target }}/release/lingshu dist/lingshu/
+          cp .env.example README.md LICENSE dist/lingshu/ 2>/dev/null || true
+          cd dist
+          ARCH_NAME="${{ inputs.target }}"
+          tar czf ../lingshu-${ARCH_NAME}.tar.gz lingshu/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lingshu-${{ inputs.target }}
+          path: lingshu-${{ inputs.target }}.tar.gz
