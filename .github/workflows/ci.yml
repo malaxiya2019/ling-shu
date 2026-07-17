@@ -57,8 +57,9 @@ jobs:
           - ""
           - "chidori"
           - "autoagents"
-          - "loong"
-          - "chidori,autoagents,loong"
+          # loong: removed from CI due to transitive dep conflict
+          # starlark_map v0.13.0 uses hashbrown v0.14.5, allocative v0.3.6 needs hashbrown v0.16+
+          # Re-enable when loong updates starlark dep to v0.14+
           - "chidori,autoagents,audit-sqlite"
     steps:
       - uses: actions/checkout@v4
