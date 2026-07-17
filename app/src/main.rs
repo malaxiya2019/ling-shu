@@ -1158,8 +1158,9 @@ async fn main() -> LsResult<()> {
         RunMode::Cil => {
             // ── Terminal Runtime Path ──
             // 不启动: federation, config watcher, HTTP/MCP server, plugins
-            // 当前 Phase 1: 跳过 Runtime 初始化，直接进入 TUI
-            // Phase 2: 追加 CilProfile 日志
+            // 使用 CilProfile 日志 (写文件，不污染终端)
+            lingshu_observability::tracing::init_cil_logging()
+                .map_err(|e| LsError::Internal(format!("CIL logging init failed: {}", e)))?;
             // Phase 3: 追加 TerminalGuard RAII
             cli::run_cil(None)
                 .map_err(|e| LsError::Internal(format!("CIL error: {}", e)))?;
