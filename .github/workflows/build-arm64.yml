@@ -12,9 +12,9 @@ on:
           - aarch64-unknown-linux-gnu
           - aarch64-linux-android
       features:
-        description: 'Feature flags (comma-separated)'
+        description: 'Cargo features (comma-separated, empty=minimal)'
         required: false
-        default: 'audit-sqlite'
+        default: ''
         type: string
 
 env:
@@ -36,83 +36,57 @@ jobs:
       - name: Install cross-compilation deps (Linux ARM64)
         if: inputs.target == 'aarch64-unknown-linux-gnu'
         run: |
-          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross pkg-config libssl-dev
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
-
-      - name: Build OpenSSL for Linux ARM64
-        if: inputs.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          wget -q https://github.com/openssl/openssl/releases/download/openssl-3.0.16/openssl-3.0.16.tar.gz
-          tar xzf openssl-3.0.16.tar.gz
-          cd openssl-3.0.16
-          export CC=aarch64-linux-gnu-gcc
-          export AR=aarch64-linux-gnu-ar
-          export RANLIB=aarch64-linux-gnu-ranlib
-          ./Configure linux-aarch64 no-shared --prefix=$PWD/install-aarch64
-          make -j$(nproc)
-          make install_sw
-          echo "OPENSSL_DIR=$PWD/install-aarch64" >> $GITHUB_ENV
-          echo "OPENSSL_LIB_DIR=$PWD/install-aarch64/lib" >> $GITHUB_ENV
-          echo "OPENSSL_INCLUDE_DIR=$PWD/install-aarch64/include" >> $GITHUB_ENV
+          echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
 
       - name: Install Android NDK (for Termux target)
         if: inputs.target == 'aarch64-linux-android'
         run: |
           wget -q https://dl.google.com/android/repository/android-ndk-r27-linux.zip
           unzip -q android-ndk-r27-linux.zip
-          # Find the actual NDK directory name
           NDK_DIR=$(ls -d android-ndk-* 2>/dev/null | head -1)
-          echo "NDK directory: $NDK_DIR"
-          echo "NDK_HOME=$PWD/$NDK_DIR" >> $GITHUB_ENV
-          echo "NDK_DIR=$NDK_DIR" >> $GITHUB_ENV
-          echo "$PWD/$NDK_DIR/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
+          echo "NDK installed: $NDK_DIR"
+          TOOLCHAIN="$PWD/$NDK_DIR/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          echo "$TOOLCHAIN" >> $GITHUB_PATH
+          # Create gcc symlinks for any tools that need them
+          for CLANG in "$TOOLCHAIN"/aarch64-linux-android*-clang; do
+            BASE=$(basename "$CLANG" | sed 's/-clang//')
+            ln -sf "$CLANG" "$TOOLCHAIN/${BASE}-gcc" 2>/dev/null || true
+          done
+          ls "$TOOLCHAIN"/aarch64-linux-android* | head -10
+          echo "AARCH64_LINUX_ANDROID_LINKER=$(ls "$TOOLCHAIN"/aarch64-linux-android*-clang | head -1)" >> $GITHUB_ENV
 
-      - name: Build OpenSSL for Android
-        if: inputs.target == 'aarch64-linux-android'
-        run: |
-          NDK_DIR="${{ env.NDK_DIR }}"
-          if [ -z "$NDK_DIR" ]; then
-            NDK_DIR=$(ls -d android-ndk-* 2>/dev/null | head -1)
-          fi
-          export NDK="$PWD/$NDK_DIR"
-          export TOOLCHAIN="$NDK/toolchains/llvm/prebuilt/linux-x86_64"
-          export PATH="$TOOLCHAIN/bin:$PATH"
-
-          echo "=== NDK toolchain contents ==="
-          ls "$TOOLCHAIN/bin/" | grep aarch64 | head -20
-
-          wget -q https://github.com/openssl/openssl/releases/download/openssl-3.0.16/openssl-3.0.16.tar.gz
-          tar xzf openssl-3.0.16.tar.gz
-          cd openssl-3.0.16
-
-          # Find the correct clang wrapper name
-          CLANG_WRAPPER=$(ls "$TOOLCHAIN/bin/" | grep -E 'aarch64-linux-android[0-9]+-clang' | head -1)
-          echo "Using clang wrapper: $CLANG_WRAPPER"
-
-          export CC="$TOOLCHAIN/bin/$CLANG_WRAPPER"
-          export AR=llvm-ar
-          export RANLIB=llvm-ranlib
-          export ANDROID_NDK_HOME="$NDK"
-
-          # Create gcc symlink required by OpenSSL configure
-          ln -sf "$CC" "$TOOLCHAIN/bin/aarch64-linux-android-gcc" 2>/dev/null || true
-          export PATH="$TOOLCHAIN/bin:$PATH"
-
-          ./Configure android-arm64 no-shared --prefix="$PWD/install-aarch64"
-          make -j$(nproc)
-          make install_sw
-          echo "OPENSSL_DIR=$PWD/install-aarch64" >> $GITHUB_ENV
-          cd ..
-
-      - name: Build binary
+      - name: Build binary (minimal features to avoid OpenSSL)
         run: |
           FEATURES="${{ inputs.features }}"
-          cargo build --release -p lingshu --target ${{ inputs.target }} --features "${FEATURES}"
+          
+          # For Android, use minimal features to avoid OpenSSL native-tls issues
+          if [ "${{ inputs.target }}" = "aarch64-linux-android" ]; then
+            if [ -z "$FEATURES" ]; then
+              # Minimal build: no default features, just audit-sqlite
+              FEATURES="audit-sqlite"
+            fi
+            echo "Building with features: ${FEATURES}"
+            echo "Using linker: $AARCH64_LINUX_ANDROID_LINKER"
+            export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$AARCH64_LINUX_ANDROID_LINKER"
+            cargo build --release -p lingshu --target aarch64-linux-android --no-default-features --features "${FEATURES}"
+          else
+            # Linux ARM64: use system OpenSSL
+            if [ -z "$FEATURES" ]; then
+              FEATURES="audit-sqlite"
+            fi
+            cargo build --release -p lingshu --target aarch64-unknown-linux-gnu --no-default-features --features "${FEATURES}"
+          fi
 
       - name: Package binary
         run: |
           mkdir -p dist/lingshu
-          cp target/${{ inputs.target }}/release/lingshu dist/lingshu/
+          if [ "${{ inputs.target }}" = "aarch64-linux-android" ]; then
+            cp target/aarch64-linux-android/release/lingshu dist/lingshu/
+          else
+            cp target/aarch64-unknown-linux-gnu/release/lingshu dist/lingshu/
+          fi
           cp .env.example README.md LICENSE dist/lingshu/ 2>/dev/null || true
           cd dist
           ARCH_NAME="${{ inputs.target }}"
