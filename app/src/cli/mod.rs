@@ -7,7 +7,9 @@ pub mod model;
 
 use anyhow::Result;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
+use crossterm::terminal::{
+    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+};
 use crossterm::{event, execute};
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
@@ -16,28 +18,90 @@ use std::time::Duration;
 
 use app::App;
 
+/// RAII 终端生命周期管理器。
+///
+/// 保证：
+/// - `new()` 时进入 Alternate Screen + Raw Mode
+/// - `drop()` 时恢复终端 (即使 panic / Ctrl+C / 异常退出)
+///
+/// 使用示例：
+/// ```ignore
+/// let guard = TerminalGuard::new()?;
+/// run_tui(workspace, guard.terminal())?;
+/// drop(guard); // 在此之后可以安全地使用 println! 输出到正常屏幕
+/// ```
+pub struct TerminalGuard {
+    terminal: Terminal<CrosstermBackend<io::Stderr>>,
+}
+
+impl TerminalGuard {
+    /// 创建终端守卫，进入 Alternate Screen 并启用 Raw Mode。
+    pub fn new() -> Result<Self> {
+        enable_raw_mode()?;
+        let mut stderr = io::stderr();
+        execute!(stderr, EnterAlternateScreen)?;
+        let backend = CrosstermBackend::new(stderr);
+        let mut terminal = Terminal::new(backend)?;
+        terminal.clear()?;
+        Ok(Self { terminal })
+    }
+
+    /// 获取可变的 Terminal 引用，供 TUI 渲染使用。
+    pub fn terminal(&mut self) -> &mut Terminal<CrosstermBackend<io::Stderr>> {
+        &mut self.terminal
+    }
+}
+
+impl Drop for TerminalGuard {
+    fn drop(&mut self) {
+        // 忽略错误：drop 期间不应 panic
+        let _ = self.terminal.clear();
+        let _ = disable_raw_mode();
+        let _ = execute!(self.terminal.backend_mut(), LeaveAlternateScreen);
+    }
+}
+
+/// 启动 CIL (Command Interaction Loop) 交互式会话。
+///
+/// 生命周期：
+/// 1. TerminalGuard::new() → 进入 Alternate Screen + Raw Mode
+/// 2. run_tui() → TUI 渲染循环
+/// 3. drop(guard) → 恢复终端 (即使 panic / 异常)
+/// 4. println() → 在正常屏幕输出 session 统计
 pub fn run_cil(workspace_dir: Option<String>) -> Result<()> {
     let workspace = workspace_dir
         .map(PathBuf::from)
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
 
-    let result = run_tui(workspace);
+    let mut guard = TerminalGuard::new()?;
 
-    let _ = disable_raw_mode();
-    let _ = execute!(io::stderr(), LeaveAlternateScreen);
+    // TUI 主循环（在 Alternate Screen 中执行）
+    let message_count = run_tui(workspace, guard.terminal())?;
 
-    result
+    // 显式丢弃 guard → LeaveAlternateScreen + disable_raw_mode
+    // 必须在 println 之前执行，否则输出不可见
+    drop(guard);
+
+    // 此时终端已恢复为正常屏幕，println 可见
+    println!(
+        "LingShu CIL session ended. {message_count} messages logged."
+    );
+
+    Ok(())
 }
 
-fn run_tui(workspace: PathBuf) -> Result<()> {
-    let mut stderr = io::stderr();
-    enable_raw_mode()?;
-    execute!(stderr, EnterAlternateScreen)?;
-
-    let backend = CrosstermBackend::new(stderr);
-    let mut terminal = Terminal::new(backend)?;
-    terminal.clear()?;
-
+/// TUI 渲染循环（在 Alternate Screen 中运行）。
+///
+/// # 参数
+/// - `workspace`: 工作目录路径
+/// - `terminal`: 由 TerminalGuard 管理的终端引用
+///
+/// # 返回
+/// - 会话期间记录的消息数量
+fn run_tui(
+    workspace: PathBuf,
+    terminal: &mut Terminal<CrosstermBackend<io::Stderr>>,
+) -> Result<usize> {
     let mut app = App::new(workspace)?;
     let tick_rate = Duration::from_millis(100);
     let mut last_tick = std::time::Instant::now();
@@ -72,14 +136,5 @@ fn run_tui(workspace: PathBuf) -> Result<()> {
         }
     }
 
-    terminal.clear()?;
-    disable_raw_mode()?;
-    execute!(io::stderr(), LeaveAlternateScreen)?;
-
-    println!(
-        "LingShu CIL session ended. {} messages logged.",
-        app.messages.len()
-    );
-
-    Ok(())
+    Ok(app.messages.len())
 }
