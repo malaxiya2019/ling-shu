@@ -1178,7 +1178,7 @@ async fn main() -> LsResult<()> {
     if cli.cil {
         info!("CIL mode starting...");
         drop(shutdown_done);
-        cli::run_cil(None)?;
+        cli::run_cil(None).map_err(|e| LsError::Internal(format!("CIL error: {}", e)))?;
     } else if cli.repl {
         run_repl(&runtime).await?;
     } else if cli.headless {
