@@ -15,7 +15,8 @@ use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
 use std::path::PathBuf;
 use std::time::Duration;
-use tokio::sync::CancellationToken;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use app::App;
 
@@ -77,27 +78,25 @@ pub fn run_cil(workspace_dir: Option<String>) -> Result<()> {
 
     let mut guard = TerminalGuard::new()?;
 
-    // 创建全局取消令牌，用于统一管理 TUI 生命周期
-    // 任何后台任务可以通过监听 cancel_token 实现优雅退出
-    let cancel_token = CancellationToken::new();
+    // 创建取消标志，用于统一管理 TUI 生命周期
+    // 任何后台任务可以通过监听 cancel_flag 实现优雅退出
+    let cancel_flag = Arc::new(AtomicBool::new(false));
 
     // 注册 Ctrl+C 信号处理器
     // 当用户按下 Ctrl+C 时：
-    // 1. cancel_token.cancel() 被调用
-    // 2. 所有监听 token 的后台任务收到取消信号
+    // 1. cancel_flag 被设为 true
+    // 2. 所有轮询 flag 的后台任务收到取消信号
     // 3. run_tui 退出主循环
-    let cancel_on_ctrlc = cancel_token.clone();
+    let flag_on_ctrlc = cancel_flag.clone();
     tokio::spawn(async move {
         tokio::signal::ctrl_c().await.ok();
-        tokio::spawn(async move {
-            // 简短延迟，让当前渲染帧完成
-            tokio::time::sleep(Duration::from_millis(50)).await;
-            cancel_on_ctrlc.cancel();
-        });
+        // 简短延迟，让当前渲染帧完成
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        flag_on_ctrlc.store(true, Ordering::SeqCst);
     });
 
     // TUI 主循环（在 Alternate Screen 中执行）
-    let message_count = run_tui(workspace, guard.terminal(), cancel_token)?;
+    let message_count = run_tui(workspace, guard.terminal(), cancel_flag)?;
 
     // 显式丢弃 guard → LeaveAlternateScreen + disable_raw_mode
     // 必须在 println 之前执行，否则输出不可见
@@ -123,13 +122,13 @@ pub fn run_cil(workspace_dir: Option<String>) -> Result<()> {
 fn run_tui(
     workspace: PathBuf,
     terminal: &mut Terminal<CrosstermBackend<io::Stderr>>,
-    cancel_token: CancellationToken,
+    cancel_flag: Arc<AtomicBool>,
 ) -> Result<usize> {
     let mut app = App::new(workspace)?;
     let tick_rate = Duration::from_millis(100);
     let mut last_tick = std::time::Instant::now();
 
-    while !app.should_exit && !cancel_token.is_cancelled() {
+    while !app.should_exit && !cancel_flag.load(Ordering::SeqCst) {
         terminal.draw(|frame| app.render(frame))?;
 
         let timeout = tick_rate
@@ -141,7 +140,7 @@ fn run_tui(
                 Event::Key(key) => {
                     if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('c') {
                         app.should_exit = true;
-                        cancel_token.cancel();
+                        cancel_flag.store(true, Ordering::SeqCst);
                         break;
                     }
                     app.handle_key_event(key)?;

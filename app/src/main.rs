@@ -1125,7 +1125,6 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
     Ok(())
 }
 
-#[tokio::main]
 /// LingShu 运行模式
 ///
 /// 决定启动路径和生命周期管理策略。
@@ -1136,6 +1135,7 @@ enum RunMode {
     /// 终端 TUI 模式 — 独占终端，不启动后台服务
     Cil,
     /// 批处理模式 (预留)
+    #[allow(dead_code)]
     Batch,
 }
 
@@ -1148,6 +1148,7 @@ fn detect_mode(cli: &Cli) -> RunMode {
     }
 }
 
+#[tokio::main]
 async fn main() -> LsResult<()> {
     // 自动加载 .env 文件 (如果存在)
     dotenvy::dotenv().ok();
