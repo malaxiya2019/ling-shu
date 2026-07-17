@@ -2,11 +2,13 @@
 //! 🚀 Lingshu Agent System — 主二进制入口
 //!
 //! 用法:
+//!   lingshu --cil            启动 CIL 终端 TUI
 //!   lingshu --repl           启动交互式 REPL
 //!   lingshu -e prod          生产模式
 //!   lingshu --addr 0.0.0.0:8080
 
 mod api;
+mod cli;
 
 use clap::Parser;
 use lingshu_runtime::agent_runtime::AgentRuntime;
@@ -53,6 +55,9 @@ pub struct Cli {
     /// 无头模式 (不启动任何前端)
     #[arg(long)]
     headless: bool,
+    /// CIL 模式 (终端 TUI 界面)
+    #[arg(long)]
+    cil: bool,
     /// 禁用联邦通信 (Fed). 默认启用.
     #[arg(long)]
     no_federation: bool,
@@ -1170,7 +1175,11 @@ async fn main() -> LsResult<()> {
         sd.notify_one();
     });
 
-    if cli.repl {
+    if cli.cil {
+        info!("CIL mode starting...");
+        drop(shutdown_done);
+        cli::run_cil(None)?;
+    } else if cli.repl {
         run_repl(&runtime).await?;
     } else if cli.headless {
         info!("headless mode — waiting for shutdown signal");
