@@ -27,6 +27,7 @@ struct JsonRpcRequest {
     pub params: Option<Value>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize)]
 struct JsonRpcResponse {
     pub jsonrpc: String,
@@ -37,6 +38,7 @@ struct JsonRpcResponse {
     pub error: Option<JsonRpcError>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize)]
 struct JsonRpcError {
     pub code: i32,
@@ -56,6 +58,7 @@ struct JsonRpcNotification {
 // ──────────────────────────────────────────────
 // MCP Protocol Types
 // ──────────────────────────────────────────────
+#[allow(dead_code)]
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct McpResource {
@@ -93,6 +96,7 @@ struct McpPrompt {
 // ──────────────────────────────────────────────
 // Circuit Breaker
 // ──────────────────────────────────────────────
+#[allow(dead_code)]
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct CircuitBreakerState {

@@ -1125,69 +1125,111 @@ async fn run_http_server(runtime: Arc<LingshuRuntime>, addr: &str) -> LsResult<(
     Ok(())
 }
 
+/// LingShu 运行模式
+///
+/// 决定启动路径和生命周期管理策略。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RunMode {
+    /// 服务端模式 — HTTP + MCP + Federation (默认)
+    Server,
+    /// 终端 TUI 模式 — 独占终端，不启动后台服务
+    Cil,
+    /// 批处理模式 (预留)
+    #[allow(dead_code)]
+    Batch,
+}
+
+/// 根据 CLI 参数检测运行模式
+fn detect_mode(cli: &Cli) -> RunMode {
+    if cli.cil {
+        RunMode::Cil
+    } else {
+        RunMode::Server
+    }
+}
+
 #[tokio::main]
 async fn main() -> LsResult<()> {
     // 自动加载 .env 文件 (如果存在)
     dotenvy::dotenv().ok();
 
     let cli = Cli::parse();
-    let runtime = Arc::new(LingshuRuntime::initialize(&cli).await?);
-    // 启动联邦服务
-    runtime.federation.start().await?;
-    if !cli.no_federation {
-        info!("federation started on port {}", cli.federation_port);
-    } else {
-        info!("federation disabled by --no-federation flag");
-    }
 
-    // 配置热重载消费 — 监听 ConfigEvent 并应用到运行时
-    {
-        let runtime = runtime.clone();
-        let mut rx = runtime.config_rx.resubscribe();
-        tokio::spawn(async move {
-            use lingshu_config::settings::ConfigEvent;
-            while let Ok(event) = rx.recv().await {
-                match event {
-                    ConfigEvent::Reloaded(ref new_config) => {
-                        info!(model = %new_config.llm.default_model, "config reloaded");
-                    }
-                    ConfigEvent::Error(msg) => {
-                        error!("config reload error: {msg}");
-                    }
-                }
+    match detect_mode(&cli) {
+        RunMode::Cil => {
+            // ── Terminal Runtime Path ──
+            // 不启动: federation, config watcher, HTTP/MCP server, plugins
+            // 使用 CilProfile 日志 (写文件，不污染终端)
+            lingshu_observability::tracing::init_cil_logging()
+                .map_err(|e| LsError::Internal(format!("CIL logging init failed: {}", e)))?;
+            // Phase 3: 追加 TerminalGuard RAII
+            cli::run_cil(None)
+                .map_err(|e| LsError::Internal(format!("CIL error: {}", e)))?;
+            info!("lingshu exited cleanly");
+            Ok(())
+        }
+
+        RunMode::Server => {
+            let runtime = Arc::new(LingshuRuntime::initialize(&cli).await?);
+            // 启动联邦服务
+            runtime.federation.start().await?;
+            if !cli.no_federation {
+                info!("federation started on port {}", cli.federation_port);
+            } else {
+                info!("federation disabled by --no-federation flag");
             }
-        });
-    }
 
-    // 优雅关闭信号
-    let rt = runtime.clone();
-    let shutdown_done = Arc::new(tokio::sync::Notify::new());
-    let sd = shutdown_done.clone();
+            // 配置热重载消费 — 监听 ConfigEvent 并应用到运行时
+            {
+                let runtime = runtime.clone();
+                let mut rx = runtime.config_rx.resubscribe();
+                tokio::spawn(async move {
+                    use lingshu_config::settings::ConfigEvent;
+                    while let Ok(event) = rx.recv().await {
+                        match event {
+                            ConfigEvent::Reloaded(ref new_config) => {
+                                info!(model = %new_config.llm.default_model, "config reloaded");
+                            }
+                            ConfigEvent::Error(msg) => {
+                                error!("config reload error: {msg}");
+                            }
+                        }
+                    }
+                });
+            }
 
-    tokio::spawn(async move {
-        tokio::select! {
-            _ = tokio::signal::ctrl_c() => {}
+            // 优雅关闭信号
+            let rt = runtime.clone();
+            let shutdown_done = Arc::new(tokio::sync::Notify::new());
+            let sd = shutdown_done.clone();
+
+            tokio::spawn(async move {
+                tokio::select! {
+                    _ = tokio::signal::ctrl_c() => {}
+                }
+                info!("shutdown signal received, stopping runtime");
+                if let Err(e) = rt.shutdown().await {
+                    error!(error = %e, "error during shutdown");
+                }
+                sd.notify_one();
+            });
+
+            if cli.repl {
+                run_repl(&runtime).await?;
+            } else if cli.headless {
+                info!("headless mode — waiting for shutdown signal");
+                shutdown_done.notified().await;
+            } else {
+                run_http_server(runtime, &cli.addr).await?;
+            }
+
+            info!("lingshu exited cleanly");
+            Ok(())
         }
-        info!("shutdown signal received, stopping runtime");
-        if let Err(e) = rt.shutdown().await {
-            error!(error = %e, "error during shutdown");
+
+        RunMode::Batch => {
+            // 预留: 批处理模式
+            Err(LsError::Internal("Batch mode not yet implemented".into()))
         }
-        sd.notify_one();
-    });
-
-    if cli.cil {
-        info!("CIL mode starting...");
-        drop(shutdown_done);
-        cli::run_cil(None).map_err(|e| LsError::Internal(format!("CIL error: {}", e)))?;
-    } else if cli.repl {
-        run_repl(&runtime).await?;
-    } else if cli.headless {
-        info!("headless mode — waiting for shutdown signal");
-        shutdown_done.notified().await;
-    } else {
-        run_http_server(runtime, &cli.addr).await?;
     }
-
-    info!("lingshu exited cleanly");
-    Ok(())
 }
