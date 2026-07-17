@@ -95,8 +95,6 @@ jobs:
 
       - name: Build release binary
         run: cargo build --release -p lingshu
-        env:
-          RUSTFLAGS: "-Dwarnings"
 
       - name: Install oha (HTTP load tester)
         run: cargo install oha
