@@ -50,6 +50,12 @@ pub trait ConsolidatedMemoryRepository: Send + Sync {
 
     /// 删除一条巩固记忆。
     async fn delete_consolidated(&self, id: &str) -> LsResult<bool>;
+
+    /// 归档一条巩固记忆（软删除）。
+    ///
+    /// 为记忆添加归档标签，而非物理删除。
+    /// 后续可以通过移除归档标签恢复。
+    async fn archive_consolidated(&self, id: &str, archive_tag: &str) -> LsResult<bool>;
 }
 
 // ─── EpisodeBackedConsolidatedStore ─────────────────────
@@ -74,18 +80,18 @@ impl EpisodeBackedConsolidatedStore {
             .with_tag(&memory.strategy)
             .with_metadata("consolidated_id", &memory.id)
             .with_metadata("consolidated_strategy", &memory.strategy)
-            .with_metadata("consolidated_confidence", &memory.confidence.to_string())
+            .with_metadata("consolidated_confidence", memory.confidence.to_string())
             .with_metadata(
                 "consolidated_source_ids",
-                &memory.source_episode_ids.join(","),
+                memory.source_episode_ids.join(","),
             );
 
         // 时间跨度
         if let Some(start) = memory.time_span_start {
-            episode = episode.with_metadata("time_span_start", &start.to_rfc3339());
+            episode = episode.with_metadata("time_span_start", start.to_rfc3339());
         }
         if let Some(end) = memory.time_span_end {
-            episode = episode.with_metadata("time_span_end", &end.to_rfc3339());
+            episode = episode.with_metadata("time_span_end", end.to_rfc3339());
         }
 
         // 实体
@@ -300,6 +306,26 @@ impl ConsolidatedMemoryRepository for EpisodeBackedConsolidatedStore {
         }
         Ok(false)
     }
+    async fn archive_consolidated(&self, id: &str, archive_tag: &str) -> LsResult<bool> {
+        let query = EpisodeQuery::default().with_tag("consolidated").with_limit(10000);
+        let episodes = self
+            .store
+            .query(query)
+            .await
+            .map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?;
+
+        for ep in &episodes {
+            if ep.metadata.get("consolidated_id").map(|s| s == id).unwrap_or(false) {
+                let mut episode = ep.clone();
+                episode = episode.with_tag(format!("archived:{}", archive_tag));
+                self.store.store(episode).await
+                    .map_err(|e| lingshu_core::LsError::Internal(e.to_string()))?;
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
 }
 
 // ─── InMemoryConsolidatedStore ──────────────────────────
@@ -393,6 +419,19 @@ impl ConsolidatedMemoryRepository for InMemoryConsolidatedStore {
             Ok(false)
         }
     }
+    async fn archive_consolidated(&self, id: &str, archive_tag: &str) -> LsResult<bool> {
+        let mut store = self.memories.write().await;
+        if let Some(mem) = store.iter_mut().find(|m| m.id == id) {
+            let tag = format!("archived:{}", archive_tag);
+            if !mem.tags.contains(&tag) {
+                mem.tags.push(tag);
+            }
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
 }
 
 #[cfg(test)]

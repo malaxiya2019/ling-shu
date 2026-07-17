@@ -120,7 +120,7 @@ impl ImportanceScorer {
             score += w;
         }
 
-        score.min(1.0).max(0.0)
+        score.clamp(0.0, 1.0)
     }
 
     /// 计算 Episode 的重要性分数 (0.0 ~ 1.0)。
@@ -148,7 +148,7 @@ impl ImportanceScorer {
             score *= 0.7;
         }
 
-        score.min(1.0).max(0.0)
+        score.clamp(0.0, 1.0)
     }
 
     /// 批量评分一组 ConsolidatedMemory。
@@ -195,7 +195,7 @@ mod tests {
         mem.created_at = time;
 
         for i in 0..entities {
-            mem = mem.with_entity(EntityRef::new("test", &format!("实体{}", i)));
+            mem = mem.with_entity(EntityRef::new("test", format!("实体{}", i)));
         }
         for i in 0..sources {
             mem = mem.with_source(format!("src-{}", i));
@@ -208,7 +208,7 @@ mod tests {
         let mut ep = Episode::new("测试事件", "测试描述", time);
 
         for i in 0..entities {
-            ep = ep.with_entity(EntityRef::new("test", &format!("实体{}", i)));
+            ep = ep.with_entity(EntityRef::new("test", format!("实体{}", i)));
         }
         if has_state_change {
             ep = ep.with_state_change(lingshu_memory_episode::StateChange::new(
@@ -335,7 +335,7 @@ mod tests {
             make_memory(30, 2, 2, 0.7, "summarize"), // middle
         ];
 
-        let scores_before: Vec<f64> = memories.iter().map(|m| scorer.score(m)).collect();
+        let _scores_before: Vec<f64> = memories.iter().map(|m| scorer.score(m)).collect();
         scorer.sort_by_importance(&mut memories);
         let scores_after: Vec<f64> = memories.iter().map(|m| scorer.score(m)).collect();
 
@@ -353,7 +353,7 @@ mod tests {
         let scorer = ImportanceScorer::new();
         let mem = make_memory(7, 0, 0, 0.5, "dedup");
         let score = scorer.score(&mem);
-        assert!(score >= 0.0 && score <= 1.0);
+        assert!((0.0..=1.0).contains(&score));
     }
 
     #[test]

@@ -6880,6 +6880,7 @@ dependencies = [
  "chrono",
  "lingshu-core",
  "lingshu-memory-episode",
+ "lingshu-memory-metrics",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -7053,6 +7054,7 @@ dependencies = [
  "lingshu-core",
  "lingshu-evidence-graph",
  "lingshu-memory-episode",
+ "lingshu-memory-metrics",
  "lingshu-memory-workflow",
  "serde",
  "serde_json",
@@ -7114,6 +7116,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "lingshu-memory-metrics"
+version = "5.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "lingshu-memory-reflection"
 version = "5.1.0"
 dependencies = [
@@ -7122,6 +7135,7 @@ dependencies = [
  "lingshu-core",
  "lingshu-evidence-graph",
  "lingshu-memory-episode",
+ "lingshu-memory-metrics",
  "lingshu-memory-workflow",
  "serde",
  "serde_json",
@@ -7159,6 +7173,7 @@ dependencies = [
  "lingshu-core",
  "lingshu-evidence-graph",
  "lingshu-memory-episode",
+ "lingshu-memory-metrics",
  "lingshu-workflow-memory",
  "serde",
  "serde_json",

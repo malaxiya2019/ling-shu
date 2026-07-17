@@ -10,6 +10,7 @@
 use chrono::{DateTime, Utc};
 use lingshu_evidence_graph::{Edge, EdgeKind, EvidenceGraph, Node, NodeId, NodeKind};
 use std::collections::{HashMap, HashSet};
+use lingshu_memory_metrics::global_collector;
 
 // ─── ReflectionResult ───────────────────────────────────
 
@@ -178,13 +179,18 @@ impl ReflectionEvaluator {
             &gaps,
         );
 
+        // ── 记录 Reflection 指标 ──
+        let has_conflicts = !conflicts.is_empty();
+        let has_suggestions = !suggestions.is_empty();
+        global_collector().record_reflection(has_conflicts, has_suggestions);
+
         ReflectionResult {
             query: query.to_string(),
             route_used: route.to_string(),
             evidence_count,
             consistency_score,
             completeness_score,
-            has_conflicts: !conflicts.is_empty(),
+            has_conflicts,
             conflicts,
             confidence,
             gaps,
@@ -443,7 +449,7 @@ impl ReflectionEvaluator {
             // 少于2个有时间戳的事件，不检测断裂
         } else {
             let mut sorted = events_with_ts.clone();
-            sorted.sort_by(|a, b| a.1.cmp(&b.1));
+            sorted.sort_by_key(|a| a.1);
 
             for window in sorted.windows(2) {
                 let (first, ts1) = window[0];

@@ -15,8 +15,11 @@ use std::collections::{HashMap, HashSet};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::{EdgeKind, EvidenceGraph, Node, NodeId};
+use crate::{EdgeKind, EvidenceGraph, Node, NodeId, RankingScorer};
+use lingshu_memory_metrics::global_collector;
 
+/// 合并过程中跟踪的节点元组：(NodeId, title, timestamp, description, source_workflow)
+ type MergedNodeEntry = (NodeId, String, Option<DateTime<Utc>>, String, String);
 /// 带权重的 Workflow 输出。
 #[derive(Debug, Clone)]
 pub struct WeightedWorkflowOutput {
@@ -103,6 +106,10 @@ pub struct MergeConflict {
 #[derive(Debug, Clone)]
 pub struct WeightedGraphMerger {
     dedup_config: DedupConfig,
+    /// 可选的相关性评分器（合并后对节点排序）
+    ranking_scorer: Option<Box<dyn RankingScorer>>,
+    /// 评分使用的查询文本
+    ranking_query: Option<String>,
 }
 
 impl Default for WeightedGraphMerger {
@@ -116,12 +123,31 @@ impl WeightedGraphMerger {
     pub fn new() -> Self {
         Self {
             dedup_config: DedupConfig::default(),
+            ranking_scorer: None,
+            ranking_query: None,
         }
     }
 
     /// 设置去重配置。
     pub fn with_dedup_config(mut self, config: DedupConfig) -> Self {
         self.dedup_config = config;
+        self
+    }
+
+    /// 设置相关性评分器。
+    ///
+    /// 合并后将使用评分器对节点按查询相关性排序。
+    /// 评分器会计算每个节点的 relevance_score。
+    pub fn with_ranking(mut self, scorer: Box<dyn RankingScorer>, query: impl Into<String>) -> Self {
+        self.ranking_scorer = Some(scorer);
+        self.ranking_query = Some(query.into());
+        self
+    }
+
+    /// 清除评分器。
+    pub fn without_ranking(mut self) -> Self {
+        self.ranking_scorer = None;
+        self.ranking_query = None;
         self
     }
 
@@ -152,7 +178,7 @@ impl WeightedGraphMerger {
         };
 
         // (NodeId, title, timestamp, description, source_workflow)
-        let mut merged_nodes: Vec<(NodeId, String, Option<DateTime<Utc>>, String, String)> = Vec::new();
+        let mut merged_nodes: Vec<MergedNodeEntry> = Vec::new();
         let mut node_confidence_weight: HashMap<NodeId, (f64, f64)> = HashMap::new();
         let mut node_sources: HashMap<NodeId, Vec<String>> = HashMap::new();
         let mut conflicts: Vec<MergeConflict> = Vec::new();
@@ -298,10 +324,38 @@ impl WeightedGraphMerger {
 
         stats.total_time_ms = start.elapsed().as_millis() as u64;
 
+        // ── 相关性排序（如有配置评分器）──
+        if let Some(ref scorer) = self.ranking_scorer {
+            if let Some(ref rank_query) = self.ranking_query {
+            for node in &mut merged.nodes {
+                node.relevance_score = scorer.score(rank_query, node);
+            }
+            merged.nodes.sort_by(|a, b| {
+                b.relevance_score
+                    .partial_cmp(&a.relevance_score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+            }
+        }
+
         let source_map: HashMap<String, Vec<String>> = node_sources
             .into_iter()
             .map(|(id, sources)| (id.to_string(), sources))
             .collect();
+
+
+        // ── Memory Metrics 记录 ──
+        let collector = global_collector();
+        for output in &sorted {
+            let node_count = output.graph.nodes.len();
+            let latency = output.graph.metadata.build_time_ms as f64;
+            let wf_conflicts = conflicts.iter().filter(|c| c.source_workflows.contains(&output.workflow_name)).count();
+            collector.record_query(&output.workflow_name, latency, node_count, wf_conflicts);
+        }
+        // 记录冲突类型
+        for conflict in &conflicts {
+            collector.record_conflict(&conflict.conflict_type.to_string());
+        }
 
         WeightedMergeResult {
             graph: merged,

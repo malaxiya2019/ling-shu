@@ -133,7 +133,7 @@ fn time_window_key(time: &DateTime<Utc>, window_hours: i64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lingshu_memory_episode::{EntityRef, EpisodeQuery, InMemoryEpisodeStore};
+    use lingshu_memory_episode::{EntityRef, InMemoryEpisodeStore};
 
     fn setup_store() -> Arc<dyn EpisodeRepository> {
         Arc::new(InMemoryEpisodeStore::new())

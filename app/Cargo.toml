@@ -6,9 +6,9 @@ description = "Lingshu Agent System — main binary entry point"
 
 [features]
 default = ["telegram", "feishu", "qq", "wechat", "discord", "swarm", "autonomy"]
-chidori = []
-autoagents = []
-loong = []
+chidori = ["lingshu-runtime/chidori"]
+autoagents = ["lingshu-orchestrator/autoagents"]
+loong = ["lingshu-orchestrator/loong"]
 swarm = ["dep:lingshu-swarm"]
 autonomy = ["dep:lingshu-autonomy"]
 telegram = ["lingshu-channel/telegram"]

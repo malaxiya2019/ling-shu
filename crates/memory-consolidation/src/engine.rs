@@ -6,6 +6,7 @@ use crate::types::*;
 use lingshu_memory_episode::{Episode, EpisodeQuery, EpisodeRepository};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use lingshu_memory_metrics::global_collector;
 use tracing::{info, warn};
 
 /// 巩固引擎 — 编排完整的巩固流程。
@@ -51,6 +52,7 @@ impl ConsolidationEngine {
 
         let unconsolidated = self.get_unconsolidated().await?;
         if unconsolidated.is_empty() {
+            global_collector().record_consolidation(true, 0, 0);
             return Ok(ConsolidationReport {
                 processed_count: 0, consolidated_count: 0,
                 strategy_stats: Vec::new(), execution_time_ms: start.elapsed().as_millis() as u64,
@@ -92,6 +94,7 @@ impl ConsolidationEngine {
             }
         }
 
+        global_collector().record_consolidation(true, unconsolidated.len() as u64, total_consolidated as u64);
         Ok(ConsolidationReport {
             processed_count: unconsolidated.len(),
             consolidated_count: total_consolidated,
@@ -117,6 +120,7 @@ impl ConsolidationEngine {
             .collect();
 
         if related.len() < self.config.min_episodes_for_entity {
+            global_collector().record_consolidation(true, related.len() as u64, 0);
             return Ok(ConsolidationReport {
                 processed_count: related.len(), consolidated_count: 0,
                 strategy_stats: Vec::new(), execution_time_ms: start.elapsed().as_millis() as u64,
@@ -145,6 +149,7 @@ impl ConsolidationEngine {
             }
         }
 
+        global_collector().record_consolidation(true, related.len() as u64, total as u64);
         Ok(ConsolidationReport {
             processed_count: related.len(), consolidated_count: total,
             strategy_stats: stats, execution_time_ms: start.elapsed().as_millis() as u64,

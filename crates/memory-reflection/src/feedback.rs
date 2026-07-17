@@ -314,7 +314,7 @@ impl FeedbackAnalytics {
             })
             .collect();
 
-        stats.sort_by(|a, b| b.total_queries.cmp(&a.total_queries));
+        stats.sort_by_key(|b| std::cmp::Reverse(b.total_queries));
         Ok(stats)
     }
 }

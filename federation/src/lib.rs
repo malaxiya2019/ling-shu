@@ -274,9 +274,7 @@ mod tests {
     #[tokio::test]
     async fn test_federation_disabled() {
         let mut config = FederationConfig::default();
-        config.enabled = false;
-        let fed = Federation::new(LsId::new(), config).await;
-        let nodes = fed.online_nodes().await;
+        let config = FederationConfig { enabled: false, ..Default::default() };
         assert!(nodes.is_empty());
     }
 

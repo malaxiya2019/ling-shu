@@ -101,13 +101,13 @@ impl ConsolidationWorkflow {
         level: &crate::importance::ImportanceLevel,
     ) -> Node {
         let mut node = Node::event(&episode.title, &episode.summary, episode.timestamp)
-            .with_tag(&format!("importance:{:.2}", importance))
-            .with_tag(&format!("level:{}", level.as_str()))
-            .with_tag(&format!("source_id:{}", episode.id));
+            .with_tag(format!("importance:{:.2}", importance))
+            .with_tag(format!("level:{}", level.as_str()))
+            .with_tag(format!("source_id:{}", episode.id));
 
         // 添加实体作为标签
         for entity in &episode.entities {
-            node = node.with_tag(&format!("entity:{}:{}", entity.kind, entity.name));
+            node = node.with_tag(format!("entity:{}:{}", entity.kind, entity.name));
         }
 
         // 添加状态变更
@@ -118,7 +118,7 @@ impl ConsolidationWorkflow {
                 change.from.as_deref().unwrap_or("?"),
                 change.to
             );
-            node = node.with_tag(&format!("state_change:{}", change_str));
+            node = node.with_tag(format!("state_change:{}", change_str));
         }
 
         node
@@ -132,19 +132,19 @@ impl ConsolidationWorkflow {
     ) -> Node {
         let timestamp = memory.created_at;
         let mut node = Node::event(
-            &format!("[巩固] {}", memory.title),
-            &format!(
+            format!("[巩固] {}", memory.title),
+            format!(
                 "[策略: {}, 置信度: {:.2}, 重要性: {:.2}] {}",
                 memory.strategy, memory.confidence, importance, memory.summary
             ),
             timestamp,
         )
         .with_tag("consolidated")
-        .with_tag(&format!("strategy:{}", memory.strategy))
-        .with_tag(&format!("importance:{:.2}", importance))
-        .with_tag(&format!("level:{}", level.as_str()))
-        .with_tag(&format!("confidence:{:.2}", memory.confidence))
-        .with_tag(&format!("consolidated_id:{}", memory.id));
+        .with_tag(format!("strategy:{}", memory.strategy))
+        .with_tag(format!("importance:{:.2}", importance))
+        .with_tag(format!("level:{}", level.as_str()))
+        .with_tag(format!("confidence:{:.2}", memory.confidence))
+        .with_tag(format!("consolidated_id:{}", memory.id));
 
         for tag in &memory.tags {
             node = node.with_tag(tag);
@@ -297,7 +297,7 @@ mod tests {
     fn make_episode(title: &str, entity: &str, hours_ago: i64) -> Episode {
         let mut ep = Episode::new(
             title,
-            &format!("测试: {}", title),
+            format!("测试: {}", title),
             chrono::Utc::now() - chrono::Duration::hours(hours_ago),
         );
         ep.entities.push(EntityRef::new("project", entity));
@@ -373,7 +373,7 @@ mod tests {
         // Should be an EvidenceGraph
         assert_eq!(result.metadata.source, "consolidation_workflow");
         // build_time_ms may be 0 on fast systems
-        assert!(result.metadata.build_time_ms >= 0);
+        // build_time_ms is u64, always >= 0
     }
 
     #[tokio::test]
@@ -395,8 +395,8 @@ mod tests {
         workflow.add_strategies(default_strategies()).await;
 
         let query = MemoryQuery::new("test");
-        let result = workflow.execute(query).await.unwrap();
-        assert!(result.metadata.node_count >= 0);
+        let _result = workflow.execute(query).await.unwrap();
+        // node_count is usize, always >= 0
     }
 
     #[tokio::test]
@@ -445,9 +445,9 @@ mod tests {
             .unwrap();
 
         // Consolidated memories should have been stored
-        let count = consolidated_store.count_consolidated().await.unwrap();
+        let _count = consolidated_store.count_consolidated().await.unwrap();
         // May be 0 if engine found no candidates, or >0 if consolidation ran
-        assert!(count >= 0);
+        // count is usize, always >= 0
     }
 
     #[tokio::test]

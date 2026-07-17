@@ -7,6 +7,8 @@ use lingshu_evidence_graph::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use lingshu_memory_metrics::global_collector;
+use std::time::Instant;
 
 /// MemoryQuery — 记忆查询的统一输入。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -147,21 +149,25 @@ impl MemoryWorkflowRegistry {
             }
             let q = query.clone();
             futures.push(async move {
+                let start = Instant::now();
                 let result = workflow.execute(q).await;
-                (wf_name, result)
+                let latency_ms = start.elapsed().as_secs_f64() * 1000.0;
+                (wf_name, result, latency_ms)
             });
         }
 
-        let results: Vec<(String, LsResult<EvidenceGraph>)> =
+        let results: Vec<(String, LsResult<EvidenceGraph>, f64)> =
             futures::future::join_all(futures).await;
 
-        // 构建 WeightedWorkflowOutput 列表
+        // 构建 WeightedWorkflowOutput 列表 + 记录指标
         let mut outputs = Vec::new();
-        for (wf_name, result) in results {
+        for (wf_name, result, latency_ms) in results {
             let weight = *weights.get(&wf_name).unwrap_or(&0.0);
             match result {
                 Ok(graph) => {
-                    if !graph.nodes.is_empty() {
+                    let node_count = graph.nodes.len();
+                    global_collector().record_query(&wf_name, latency_ms, node_count, 0);
+                    if node_count > 0 {
                         outputs.push(WeightedWorkflowOutput {
                             workflow_name: wf_name,
                             weight,
@@ -173,6 +179,7 @@ impl MemoryWorkflowRegistry {
                     tracing::warn!(
                         workflow = wf_name,
                         error = %e,
+                        latency_ms = latency_ms,
                         "weighted workflow execution failed, skipping"
                     );
                 }

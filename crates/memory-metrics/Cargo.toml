@@ -1,0 +1,12 @@
+[package]
+name = "lingshu-memory-metrics"
+version.workspace = true
+edition.workspace = true
+description = "LSMemoryMetrics — Memory subsystem metrics: hit rate, conflict rate, latency, consolidation stats"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+tracing.workspace = true
+uuid.workspace = true

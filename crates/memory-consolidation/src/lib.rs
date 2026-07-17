@@ -55,5 +55,8 @@ pub use importance::*;
 mod store;
 pub use store::*;
 
+mod forgetting;
+pub use forgetting::*;
+
 mod workflow;
 pub use workflow::*;

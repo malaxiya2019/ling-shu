@@ -19,6 +19,8 @@
 //! - `Supports` / `Contradicts` 边类型（证据一致性）
 //! - `Confidence` 评分机制
 
+mod ranking;
+pub use ranking::*;
 mod node;
 mod edge;
 mod graph;

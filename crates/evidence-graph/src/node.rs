@@ -66,6 +66,8 @@ pub struct Node {
     pub source_ref: Option<String>,
     /// 可信度 (0.0 ~ 1.0)
     pub confidence: f64,
+    /// 与查询的相关性评分 (0.0 ~ 1.0)，由 RankingScorer 计算
+    pub relevance_score: f64,
     /// 标签
     pub tags: Vec<String>,
     /// 原始元数据
@@ -88,6 +90,7 @@ impl Node {
             entity: None,
             source_ref: None,
             confidence: 1.0,
+            relevance_score: 0.0,
             tags: Vec::new(),
             metadata: serde_json::json!({}),
         }
@@ -104,6 +107,7 @@ impl Node {
             entity: None,
             source_ref: None,
             confidence: 1.0,
+            relevance_score: 0.0,
             tags: Vec::new(),
             metadata: serde_json::json!({}),
         }
@@ -120,6 +124,7 @@ impl Node {
             entity: Some(entity),
             source_ref: None,
             confidence: 1.0,
+            relevance_score: 0.0,
             tags: Vec::new(),
             metadata: serde_json::json!({}),
         }
@@ -134,6 +139,12 @@ impl Node {
     /// 设置源引用。
     pub fn with_source(mut self, source: impl Into<String>) -> Self {
         self.source_ref = Some(source.into());
+        self
+    }
+
+    /// 设置相关性评分。
+    pub fn with_relevance(mut self, score: f64) -> Self {
+        self.relevance_score = score.clamp(0.0, 1.0);
         self
     }
 

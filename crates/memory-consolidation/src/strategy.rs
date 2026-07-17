@@ -170,7 +170,7 @@ impl ConsolidationStrategy for DedupStrategy {
                 let primary = duplicates[0];
                 let mut memory = ConsolidatedMemory::new(
                     &primary.title,
-                    &format!(
+                    format!(
                         "去重合并: {} 条相似事件 ({} ~ {})",
                         duplicates.len(),
                         duplicates.first().map(|e| e.timestamp.format("%H:%M:%S").to_string()).unwrap_or_default(),

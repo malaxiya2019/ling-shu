@@ -152,14 +152,14 @@ impl ReflectionWorkflow {
         );
 
         let mut overview_node = Node::event(
-            &format!("反思报告：最近 {} 次查询分析", items.len()),
+            format!("反思报告：最近 {} 次查询分析", items.len()),
             &overview,
             Utc::now(),
         );
         overview_node = overview_node.with_tag("reflection:overview");
-        overview_node = overview_node.with_tag(&format!("total_queries:{}", items.len()));
-        overview_node = overview_node.with_tag(&format!("avg_confidence:{:.3}", avg_confidence));
-        overview_node = overview_node.with_tag(&format!("conflict_count:{}", conflict_count));
+        overview_node = overview_node.with_tag(format!("total_queries:{}", items.len()));
+        overview_node = overview_node.with_tag(format!("avg_confidence:{:.3}", avg_confidence));
+        overview_node = overview_node.with_tag(format!("conflict_count:{}", conflict_count));
         graph.add_node(overview_node);
 
         let mut prev_id: Option<NodeId> = None;
@@ -171,9 +171,9 @@ impl ReflectionWorkflow {
             );
 
             let mut node = Node::event(&item.query, &detail, item.created_at);
-            node = node.with_tag(&format!("route:{}", item.route));
-            node = node.with_tag(&format!("workflow:{}", item.workflow));
-            node = node.with_tag(&format!("confidence:{:.2}", item.confidence));
+            node = node.with_tag(format!("route:{}", item.route));
+            node = node.with_tag(format!("workflow:{}", item.workflow));
+            node = node.with_tag(format!("confidence:{:.2}", item.confidence));
             if item.has_conflicts {
                 node = node.with_tag("reflection:conflict");
             }
@@ -210,12 +210,12 @@ impl ReflectionWorkflow {
                 stat.conflict_rate * 100.0,
             );
 
-            let mut node = Node::event(&format!("路由: {}", stat.route), &summary, Utc::now());
+            let mut node = Node::event(format!("路由: {}", stat.route), &summary, Utc::now());
             node = node.with_tag("reflection:route_stats");
-            node = node.with_tag(&format!("route:{}", stat.route));
-            node = node.with_tag(&format!("total_queries:{}", stat.total_queries));
-            node = node.with_tag(&format!("avg_confidence:{:.3}", stat.avg_confidence));
-            node = node.with_tag(&format!("conflict_rate:{:.3}", stat.conflict_rate));
+            node = node.with_tag(format!("route:{}", stat.route));
+            node = node.with_tag(format!("total_queries:{}", stat.total_queries));
+            node = node.with_tag(format!("avg_confidence:{:.3}", stat.avg_confidence));
+            node = node.with_tag(format!("conflict_rate:{:.3}", stat.conflict_rate));
             graph.add_node(node);
         }
 
@@ -240,7 +240,7 @@ impl ReflectionWorkflow {
         let header = format!("检测到 {} 条冲突记录", conflicts.len());
         let mut header_node = Node::event("反思报告：冲突检测", &header, Utc::now());
         header_node = header_node.with_tag("reflection:conflict_header");
-        header_node = header_node.with_tag(&format!("conflict_count:{}", conflicts.len()));
+        header_node = header_node.with_tag(format!("conflict_count:{}", conflicts.len()));
         graph.add_node(header_node);
 
         for conflict in &conflicts {
@@ -252,9 +252,9 @@ impl ReflectionWorkflow {
 
             let mut node = Node::event(&conflict.query, &detail, conflict.created_at);
             node = node.with_tag("reflection:conflict");
-            node = node.with_tag(&format!("route:{}", conflict.route));
-            node = node.with_tag(&format!("workflow:{}", conflict.workflow));
-            node = node.with_tag(&format!("consistency:{:.3}", conflict.consistency_score));
+            node = node.with_tag(format!("route:{}", conflict.route));
+            node = node.with_tag(format!("workflow:{}", conflict.workflow));
+            node = node.with_tag(format!("consistency:{:.3}", conflict.consistency_score));
             graph.add_node(node);
         }
 
@@ -287,7 +287,7 @@ impl ReflectionWorkflow {
         graph.add_node(header_node);
 
         for (i, suggestion) in suggestions.iter().enumerate() {
-            let mut node = Node::event(&format!("建议 #{}", i + 1), suggestion, Utc::now());
+            let mut node = Node::event(format!("建议 #{}", i + 1), suggestion, Utc::now());
             node = node.with_tag("reflection:suggestion");
             graph.add_node(node);
         }

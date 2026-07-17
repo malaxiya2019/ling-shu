@@ -67,7 +67,7 @@ pub fn tokenize_with_freq(text: &str) -> Vec<(String, usize)> {
         *freq.entry(token).or_insert(0) += 1;
     }
     let mut result: Vec<(String, usize)> = freq.into_iter().collect();
-    result.sort_by(|a, b| b.1.cmp(&a.1)); // 按频率降序
+    result.sort_by_key(|b| std::cmp::Reverse(b.1)); // 按频率降序
     result
 }
 

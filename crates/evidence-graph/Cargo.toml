@@ -5,6 +5,7 @@ edition.workspace = true
 description = "LSEvidence — Evidence Graph: unified memory output interface for all memory queries"
 
 [dependencies]
+lingshu-memory-metrics = { path = "../memory-metrics" }
 lingshu-core = { path = "../../core" }
 lingshu-memory-episode = { path = "../memory-episode" }
 async-trait.workspace = true

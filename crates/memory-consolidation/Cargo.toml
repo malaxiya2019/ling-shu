@@ -5,6 +5,7 @@ edition.workspace = true
 description = "LSMemoryConsolidation — consolidate short-term episodes into long-term structured memory"
 
 [dependencies]
+lingshu-memory-metrics = { path = "../memory-metrics" }
 lingshu-memory-episode = { path = "../memory-episode" }
 lingshu-evidence-graph = { path = "../evidence-graph" }
 async-trait.workspace = true

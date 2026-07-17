@@ -85,7 +85,7 @@ impl MemoryWorkflow for SemanticWorkflow {
         for result in &filtered {
             let mut node = Node::event(
                 &result.episode.title,
-                &format!("[相关度: {:.2}] {}", result.score, result.episode.summary),
+                format!("[相关度: {:.2}] {}", result.score, result.episode.summary),
                 result.episode.timestamp,
             );
 
@@ -94,7 +94,7 @@ impl MemoryWorkflow for SemanticWorkflow {
                 node = node.with_tag(term);
             }
             for entity in &result.episode.entities {
-                node = node.with_tag(&format!("{}:{}", entity.kind, entity.name));
+                node = node.with_tag(format!("{}:{}", entity.kind, entity.name));
                 all_entities.push(format!("{}:{}", entity.kind, entity.name));
             }
             for tag in &result.episode.tags {

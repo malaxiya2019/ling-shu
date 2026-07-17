@@ -84,7 +84,7 @@ fn cosine_similarity(a: &[(String, f64)], b: &[(String, f64)]) -> f64 {
             dot_product += weight * b_weight;
         }
     }
-    for (_, weight) in &b_map {
+    for weight in b_map.values() {
         b_norm += weight * weight;
     }
 

@@ -377,7 +377,7 @@ impl Tool for McpBridgeCadTool {
         self.client
             .call_tool(&self.info.name, input)
             .await
-            .map(|result| mcp_result_to_value(result))
+            .map(mcp_result_to_value)
             .map_err(|e| LsError::Plugin(format!("SimpleCAD MCP 调用失败: {e}")))
     }
 

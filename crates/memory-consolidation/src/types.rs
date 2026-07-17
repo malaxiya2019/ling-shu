@@ -20,6 +20,8 @@ pub struct ConsolidatedMemory {
     pub strategy: String,
     pub confidence: f64,
     pub created_at: DateTime<Utc>,
+    /// 最后访问时间（用于访问频率衰减）
+    pub metadata_last_access: Option<DateTime<Utc>>,
 }
 
 impl ConsolidatedMemory {
@@ -36,6 +38,7 @@ impl ConsolidatedMemory {
             strategy: strategy.into(),
             confidence: 1.0,
             created_at: Utc::now(),
+            metadata_last_access: None,
         }
     }
 
@@ -66,8 +69,19 @@ impl ConsolidatedMemory {
     }
 
     pub fn with_confidence(mut self, confidence: f64) -> Self {
-        self.confidence = confidence.max(0.0).min(1.0);
+        self.confidence = confidence.clamp(0.0, 1.0);
         self
+    }
+
+    /// 设置最后访问时间。
+    pub fn with_last_access(mut self, time: DateTime<Utc>) -> Self {
+        self.metadata_last_access = Some(time);
+        self
+    }
+
+    /// 记录一次访问（更新最后访问时间为当前时间）。
+    pub fn record_access(&mut self) {
+        self.metadata_last_access = Some(Utc::now());
     }
 
     /// 转换为 Episode（可写回 Store）。

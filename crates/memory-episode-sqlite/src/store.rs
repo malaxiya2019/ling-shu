@@ -209,7 +209,7 @@ impl EpisodeRepository for SQLiteEpisodeStore {
                 .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
 
             let episode_id = Uuid::parse_str(&id_str).ok().map(EpisodeId::from_uuid)
-                .unwrap_or_else(EpisodeId::new);
+                .unwrap_or_default();
 
             let metadata: std::collections::HashMap<String, String> =
                 serde_json::from_str(&metadata_str).unwrap_or_default();
@@ -348,7 +348,7 @@ impl EpisodeRepository for SQLiteEpisodeStore {
         }
 
         // 关键词搜索（使用 LIKE，兼容所有语言）
-        let use_search = query.search_text.as_ref().map_or(false, |t| !t.is_empty());
+        let use_search = query.search_text.as_ref().is_some_and(|t| !t.is_empty());
         if use_search {
             if let Some(ref text) = query.search_text {
                 // 过滤特殊字符

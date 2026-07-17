@@ -154,7 +154,6 @@ async fn test_federation_three_nodes_mesh() {
             stats.active_links,
             stats.uptime_seconds
         );
-        assert!(true, "node-{} should have uptime >= 0", i);
     }
 
     // 清理
@@ -190,7 +189,6 @@ async fn test_federation_manual_node_registration() {
 
     let stats_a = fed_a.stats().await;
     tracing::info!("manual-a stats: {:?}", stats_a);
-    assert!(true, "manual-a should be alive");
 
     fed_a.stop().await;
     fed_b.stop().await;
